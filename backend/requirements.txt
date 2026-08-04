@@ -1,0 +1,27 @@
+# Web Framework & Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+pydantic-settings>=2.1.0
+
+# Database & Async Drivers
+sqlalchemy>=2.0.25
+alembic>=1.13.1
+psycopg2-binary>=2.9.9       # PostgreSQL support (Dedicated App DB ke liye)
+pyodbc>=5.0.1                # MS SQL Server Driver (MES DB Integration ke liye)
+
+# Async HTTP Client (For External APIs / Webhooks)
+httpx>=0.26.0
+requests>=2.31.0
+
+# Security & CORS
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Utilities & Machine Learning / Data Processing
+python-dotenv>=1.0.1
+numpy>=1.26.3
+pandas>=2.2.0
+
+# Developer Tools
+pytest>=8.0.0
