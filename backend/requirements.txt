@@ -7,8 +7,8 @@ pydantic-settings>=2.1.0
 # Database & Async Drivers
 sqlalchemy>=2.0.25
 alembic>=1.13.1
-psycopg2-binary>=2.9.9       # PostgreSQL support (Dedicated App DB ke liye)
-pyodbc>=5.0.1                # MS SQL Server Driver (MES DB Integration ke liye)
+psycopg2-binary>=2.9.9       # PostgreSQL support (for dedicated db)
+pyodbc>=5.0.1                # MS SQL Server Driver (for mes db integration)
 
 # Async HTTP Client (For External APIs / Webhooks)
 httpx>=0.26.0

@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IIIoT Manufacturing Agentic AI — Platform Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-950:#060B16;
+    --navy-900:#0B1730;
+    --navy-800:#132038;
+    --navy-700:#1B2C4C;
+    --canvas:#F3F5FA;
+    --panel:#FFFFFF;
+    --border:#E3E7F0;
+    --ink:#14213D;
+    --muted:#6B7690;
+    --faint:#98A2BE;
+    --teal:#00A9AE;
+    --teal-deep:#017377;
+    --teal-tint:#E3F7F7;
+    --amber:#F59E0B;
+    --amber-tint:#FEF3DE;
+    --green:#1FA971;
+    --green-tint:#E4F7EE;
+    --red:#E24C4C;
+    --red-tint:#FCEAEA;
+    --purple:#7C6FF0;
+    --purple-tint:#EFEDFD;
+    --blue:#2F6FE4;
+    --blue-tint:#EAF1FE;
+    --font-head:'Manrope',ui-sans-serif,system-ui,sans-serif;
+    --font-body:'Inter',ui-sans-serif,system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font-body);
+    background:var(--canvas);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--teal);color:#fff;}
+  a{color:inherit;}
+  button{font-family:inherit;cursor:pointer;}
+
+  /* ---------------- APP SHELL ---------------- */
+  .app{display:flex;min-height:100vh;}
+
+  .sidebar{
+    width:248px;flex:0 0 248px;
+    background:linear-gradient(180deg,var(--navy-950),var(--navy-900) 60%,var(--navy-800));
+    color:#fff;
+    display:flex;flex-direction:column;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{
+    display:flex;align-items:center;gap:10px;
+    padding:22px 20px 18px 20px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .brand-mark{
+    width:36px;height:36px;border-radius:9px;
+    background:linear-gradient(135deg,var(--teal),#00787c);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-head);font-weight:800;font-size:14px;color:#fff;
+    flex:0 0 auto;
+  }
+  .brand-text .t1{font-family:var(--font-head);font-weight:800;font-size:15px;letter-spacing:.2px;}
+  .brand-text .t2{font-size:10.5px;color:#8FA0C4;letter-spacing:.5px;margin-top:1px;}
+
+  .nav{flex:1;padding:16px 12px;overflow-y:auto;}
+  .nav-section-label{
+    font-size:10.5px;letter-spacing:1.2px;color:#5E71A0;
+    padding:14px 10px 6px 10px;font-weight:600;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:11px;
+    padding:9px 11px;border-radius:8px;margin-bottom:2px;
+    color:#C7D2EA;font-size:13.5px;font-weight:500;
+    cursor:pointer;border:1px solid transparent;
+    transition:background .15s, color .15s;
+    position:relative;
+  }
+  .nav-item .ico{width:17px;height:17px;flex:0 0 auto;opacity:.85;}
+  .nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+  .nav-item.active{background:rgba(0,169,174,.16);color:#fff;border-color:rgba(0,169,174,.35);}
+  .nav-item.active::before{
+    content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:3px;
+    background:var(--teal);
+  }
+  .nav-item .count{
+    margin-left:auto;font-family:var(--font-mono);font-size:10.5px;color:#8FA0C4;
+    background:rgba(255,255,255,.06);padding:1px 6px;border-radius:20px;
+  }
+
+  .sidebar-foot{
+    padding:14px 18px 18px;border-top:1px solid rgba(255,255,255,.08);
+  }
+  .env-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:10.5px;font-weight:600;letter-spacing:.4px;color:#B9F2D8;
+    background:rgba(31,169,113,.14);border:1px solid rgba(31,169,113,.35);
+    padding:4px 9px;border-radius:20px;margin-bottom:10px;
+  }
+  .env-pill .dot{width:6px;height:6px;border-radius:50%;background:#1FA971;animation:pulse 1.8s infinite;}
+  .sidebar-foot .cta{
+    display:block;width:100%;text-align:center;
+    background:linear-gradient(135deg,var(--teal),#017377);
+    color:#fff;border:none;border-radius:9px;padding:10px 0;
+    font-weight:700;font-size:12.5px;letter-spacing:.2px;
+  }
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+  .topbar{
+    height:64px;flex:0 0 64px;
+    background:var(--panel);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:16px;
+    padding:0 26px;position:sticky;top:0;z-index:20;
+  }
+  .topbar h1{font-family:var(--font-head);font-size:17px;margin:0;font-weight:800;}
+  .topbar .sub{font-size:12px;color:var(--muted);margin-top:1px;}
+  .topbar-spacer{flex:1;}
+  .persona-toggle{
+    display:flex;background:var(--canvas);border:1px solid var(--border);
+    border-radius:9px;padding:3px;gap:2px;
+  }
+  .persona-toggle button{
+    border:none;background:transparent;padding:7px 12px;font-size:12px;font-weight:600;
+    color:var(--muted);border-radius:7px;
+  }
+  .persona-toggle button.active{background:var(--navy-900);color:#fff;}
+  .clock{
+    font-family:var(--font-mono);font-size:12px;color:var(--muted);
+    padding-left:16px;border-left:1px solid var(--border);
+  }
+  .avatar{
+    width:34px;height:34px;border-radius:50%;
+    background:linear-gradient(135deg,#7C6FF0,#4B3FCB);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:12.5px;font-family:var(--font-head);
+  }
+
+  .viewport{flex:1;padding:26px 30px 60px;max-width:1400px;width:100%;margin:0 auto;}
+  .view{display:none;animation:fadein .35s ease;}
+  .view.active{display:block;}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  /* value banner (persona framing) */
+  .value-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
+  .value-card{
+    border-radius:12px;padding:16px 18px;border:1px solid var(--border);background:var(--panel);
+    display:flex;gap:12px;align-items:flex-start;
+    transition:box-shadow .2s, border-color .2s;
+  }
+  .value-card .vico{
+    width:34px;height:34px;border-radius:9px;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+  }
+  .value-card.mfg .vico{background:var(--teal-tint);color:var(--teal-deep);}
+  .value-card.it .vico{background:var(--purple-tint);color:#5b4fd6;}
+  .value-card h4{margin:0 0 3px;font-family:var(--font-head);font-size:13.5px;}
+  .value-card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  body.persona-mfg .value-card.it{opacity:.4;}
+  body.persona-it .value-card.mfg{opacity:.4;}
+
+  /* headings */
+  .view-head{margin-bottom:20px;}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:1.2px;color:var(--teal-deep);text-transform:uppercase;margin-bottom:6px;}
+  .view-head h2{font-family:var(--font-head);font-size:24px;margin:0 0 6px;font-weight:800;}
+  .view-head p{margin:0;color:var(--muted);font-size:13.5px;max-width:720px;}
+
+  /* KPI tiles */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+  .kpi .lbl{font-size:10.5px;font-weight:700;letter-spacing:.7px;color:var(--faint);text-transform:uppercase;}
+  .kpi .val{font-family:var(--font-head);font-size:26px;font-weight:800;margin-top:6px;}
+  .kpi .delta{font-size:11.5px;font-weight:600;margin-top:5px;}
+  .kpi .delta.up{color:var(--green);}
+  .kpi .delta.warn{color:var(--amber);}
+
+  .grid-2{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;align-items:start;}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  .panel-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border);}
+  .panel-head h3{font-family:var(--font-head);font-size:14.5px;margin:0;flex:1;}
+  .live-badge{
+    display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.5px;
+    color:#fff;background:var(--red);padding:3px 8px;border-radius:20px;
+  }
+  .live-badge .d{width:5px;height:5px;border-radius:50%;background:#fff;animation:pulse 1.2s infinite;}
+
+  .feed{max-height:390px;overflow-y:auto;padding:6px 0;}
+  .feed-item{
+    display:flex;gap:11px;padding:11px 18px;border-bottom:1px solid #F1F3F8;
+    font-size:12.5px;animation:slidein .4s ease;
+  }
+  @keyframes slidein{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+  .feed-item .sev{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:0 0 auto;}
+  .feed-item .body{flex:1;}
+  .feed-item .agent{font-weight:700;color:var(--ink);}
+  .feed-item .msg{color:var(--muted);}
+  .feed-item .ts{font-family:var(--font-mono);font-size:10.5px;color:var(--faint);white-space:nowrap;}
+
+  .summary-block{padding:14px 18px;}
+  .summary-block .stag{
+    display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;
+    padding:3px 8px;border-radius:5px;margin-bottom:8px;
+  }
+  .stag.red{background:var(--red-tint);color:var(--red);}
+  .stag.amber{background:var(--amber-tint);color:#9A6400;}
+  .stag.green{background:var(--green-tint);color:var(--green);}
+  .summary-block ul{margin:0 0 14px;padding-left:16px;font-size:12px;color:var(--muted);}
+  .summary-block ul li{margin-bottom:5px;}
+  .summary-block h4{margin:0 0 6px;font-size:12px;}
+
+  /* -------------- USE CASE LIBRARY -------------- */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+  .chip{
+    border:1px solid var(--border);background:var(--panel);color:var(--muted);
+    padding:6px 13px;border-radius:20px;font-size:12px;font-weight:600;
+  }
+  .chip.active{background:var(--navy-900);color:#fff;border-color:var(--navy-900);}
+  .filter-row{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
+  .search-box{
+    display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--panel);
+    border-radius:9px;padding:8px 12px;min-width:230px;
+  }
+  .search-box input{border:none;outline:none;font-size:12.5px;width:100%;font-family:inherit;}
+  .result-count{font-size:12px;color:var(--muted);}
+
+  .uc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .uc-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:16px 17px;
+    display:flex;flex-direction:column;gap:9px;cursor:pointer;
+    transition:transform .15s, box-shadow .15s, border-color .15s;
+  }
+  .uc-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px -12px rgba(20,33,61,.25);border-color:#CBD6EE;}
+  .uc-top{display:flex;align-items:flex-start;gap:10px;}
+  .uc-num{
+    font-family:var(--font-mono);font-size:10.5px;color:var(--faint);
+    background:var(--canvas);border-radius:6px;padding:2px 6px;flex:0 0 auto;
+  }
+  .uc-status{margin-left:auto;font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:20px;}
+  .uc-status.live{background:var(--green-tint);color:var(--green);}
+  .uc-status.pilot{background:var(--amber-tint);color:#9A6400;}
+  .uc-title{font-family:var(--font-head);font-size:14px;font-weight:700;line-height:1.3;}
+  .uc-tags{display:flex;gap:5px;flex-wrap:wrap;}
+  .tag{font-size:9.5px;font-weight:700;letter-spacing:.4px;padding:3px 7px;border-radius:5px;text-transform:uppercase;}
+  .tag.AGENTIC{background:var(--amber-tint);color:#9A6400;}
+  .tag.GENAI{background:var(--purple-tint);color:#5b4fd6;}
+  .tag.VOICE{background:var(--teal-tint);color:var(--teal-deep);}
+  .tag.VISION{background:var(--red-tint);color:#B23A3A;}
+  .tag.ML{background:var(--green-tint);color:#1a8f5f;}
+  .tag.IOT{background:var(--blue-tint);color:#2258b0;}
+  .uc-desc{font-size:12px;color:var(--muted);line-height:1.5;flex:1;}
+  .uc-foot{display:flex;justify-content:space-between;align-items:center;margin-top:2px;font-size:11.5px;color:var(--teal-deep);font-weight:700;}
+
+  /* --------------- MODAL --------------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(6,11,22,.55);backdrop-filter:blur(2px);
+    display:none;align-items:center;justify-content:center;z-index:100;padding:26px;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--panel);border-radius:16px;max-width:760px;width:100%;max-height:88vh;overflow-y:auto;
+    animation:modalin .25s ease;
+  }
+  @keyframes modalin{from{opacity:0;transform:scale(.97) translateY(8px);}to{opacity:1;transform:none;}}
+  .modal-head{padding:22px 26px;border-bottom:1px solid var(--border);display:flex;gap:14px;align-items:flex-start;}
+  .modal-head .uc-num{font-size:11px;}
+  .modal-close{margin-left:auto;background:var(--canvas);border:1px solid var(--border);width:30px;height:30px;border-radius:8px;font-size:15px;color:var(--muted);}
+  .modal-body{padding:22px 26px;}
+  .modal-body h3{font-family:var(--font-head);font-size:19px;margin:2px 0 10px;}
+  .modal-body .desc{font-size:13.5px;color:var(--ink);line-height:1.6;margin-bottom:14px;}
+  .impact-box{
+    background:var(--teal-tint);border:1px solid #BFE7E7;border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--teal-deep);margin-bottom:20px;
+  }
+  .impact-box b{color:var(--ink);}
+  .admin-panel{border:1px dashed #C9D2E6;border-radius:12px;padding:16px 18px;background:#FAFBFE;}
+  .admin-panel .lbl-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .admin-panel .lbl-row .ico{width:16px;height:16px;color:var(--navy-700);}
+  .admin-panel .lbl-row b{font-size:12.5px;font-family:var(--font-head);}
+  .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .cfg-row{background:#fff;border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+  .cfg-row .k{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:4px;}
+  .cfg-row .v{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .toggle-mini{display:inline-flex;align-items:center;gap:6px;}
+  .toggle-mini .sw{width:28px;height:16px;border-radius:20px;background:var(--green);position:relative;flex:0 0 auto;}
+  .toggle-mini .sw::after{content:"";position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:2px;right:2px;}
+
+  /* --------------- AGENTS --------------- */
+  .agent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .agent-card{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:16px 18px;}
+  .agent-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .agent-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
+  .agent-dot.active{background:var(--green);box-shadow:0 0 0 3px var(--green-tint);}
+  .agent-dot.watch{background:var(--amber);box-shadow:0 0 0 3px var(--amber-tint);}
+  .agent-name{font-family:var(--font-head);font-weight:700;font-size:13.5px;flex:1;}
+  .switch{width:34px;height:19px;border-radius:20px;background:var(--green);position:relative;border:none;flex:0 0 auto;}
+  .switch::after{content:"";position:absolute;width:15px;height:15px;background:#fff;border-radius:50%;top:2px;right:2px;transition:.15s;}
+  .switch.off{background:#D7DCE8;}
+  .switch.off::after{right:auto;left:2px;}
+  .agent-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;}
+  .agent-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--faint);border-top:1px solid var(--border);padding-top:10px;font-family:var(--font-mono);}
+
+  /* --------------- ADMIN CONSOLE --------------- */
+  .subnav{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:0;}
+  .subnav button{
+    background:transparent;border:none;padding:10px 4px;margin-right:18px;font-size:13px;font-weight:600;color:var(--muted);
+    border-bottom:2px solid transparent;
+  }
+  .subnav button.active{color:var(--ink);border-color:var(--teal);}
+  .admin-pane{display:none;}
+  .admin-pane.active{display:block;animation:fadein .3s ease;}
+
+  table.data{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.data th{
+    text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);
+    padding:9px 14px;border-bottom:1px solid var(--border);font-weight:700;
+  }
+  table.data td{padding:12px 14px;border-bottom:1px solid #F0F2F7;vertical-align:middle;}
+  table.data tr:last-child td{border-bottom:none;}
+  .pill{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;}
+  .pill.green{background:var(--green-tint);color:var(--green);}
+  .pill.amber{background:var(--amber-tint);color:#9A6400;}
+  .pill.blue{background:var(--blue-tint);color:#2258b0;}
+  .pill.gray{background:#EEF0F5;color:var(--muted);}
+
+  .conn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .conn-card{border:1px solid var(--border);background:var(--panel);border-radius:12px;padding:15px 16px;display:flex;flex-direction:column;gap:8px;}
+  .conn-top{display:flex;align-items:center;gap:10px;}
+  .conn-ico{width:32px;height:32px;border-radius:8px;background:var(--canvas);display:flex;align-items:center;justify-content:center;font-size:15px;}
+  .conn-name{font-weight:700;font-size:13px;flex:1;}
+  .conn-desc{font-size:11.5px;color:var(--muted);line-height:1.45;}
+  .conn-foot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;}
+  .btn-ghost{background:var(--canvas);border:1px solid var(--border);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:600;color:var(--ink);}
+
+  .guard-list{display:flex;flex-direction:column;gap:10px;}
+  .guard-row{
+    display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--border);
+    border-radius:11px;padding:13px 16px;
+  }
+  .guard-row .gtext{flex:1;}
+  .guard-row .gtitle{font-weight:700;font-size:13px;margin-bottom:2px;}
+  .guard-row .gsub{font-size:11.5px;color:var(--muted);}
+
+  .rule-list{display:flex;flex-direction:column;gap:10px;}
+  .rule-row{background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:14px 16px;font-size:12.5px;}
+  .rule-row .rif{color:var(--muted);}
+  .rule-row b{color:var(--ink);}
+  .rule-row .rmeta{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;}
+  .rmeta span{background:var(--canvas);border-radius:6px;padding:3px 8px;font-size:10.5px;color:var(--muted);font-family:var(--font-mono);}
+
+  .chan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .chan-card{border:1px solid var(--border);border-radius:11px;padding:13px 15px;display:flex;align-items:center;gap:12px;background:var(--panel);}
+  .chan-card .cname{flex:1;font-weight:600;font-size:12.5px;}
+
+  .add-btn{
+    background:var(--navy-900);color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:12.5px;font-weight:700;
+  }
+
+  /* --------------- ANALYTICS --------------- */
+  .bars{display:flex;align-items:flex-end;gap:16px;height:190px;padding:10px 6px 0;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .bar{width:100%;max-width:46px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,var(--teal),var(--teal-deep));}
+  .bar-col .bv{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);margin-bottom:6px;}
+  .bar-col .bl{font-size:10.5px;color:var(--faint);margin-top:8px;text-align:center;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px;}
+
+  footer.credit{
+    text-align:center;padding:30px 0 10px;color:var(--faint);font-size:11.5px;
+  }
+
+  @media (max-width:980px){
+    .sidebar{display:none;}
+    .uc-grid,.agent-grid,.conn-grid,.value-row{grid-template-columns:1fr 1fr;}
+    .kpi-row,.stat-grid{grid-template-columns:1fr 1fr;}
+    .grid-2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">III</div>
+      <div class="brand-text">
+        <div class="t1">IIIoT Infotech</div>
+        <div class="t2">MANUFACTURING AGENTIC AI</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section-label">Command Centre</div>
+      <div class="nav-item active" data-view="overview">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Overview
+      </div>
+      <div class="nav-item" data-view="usecases">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        Use-Case Library <span class="count">23</span>
+      </div>
+      <div class="nav-item" data-view="agents">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.2"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+        AI Agents <span class="count">12</span>
+      </div>
+      <div class="nav-section-label">Platform</div>
+      <div class="nav-item" data-view="admin">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3.5v5.2C19 16.8 16 20 12 21c-4-1-7-4.2-7-9.3V6.5L12 3z"/></svg>
+        Admin Console
+      </div>
+      <div class="nav-item" data-view="analytics">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V9M11 19V4M18 19v-7"/></svg>
+        Analytics &amp; ROI
+      </div>
+      <div class="nav-item" data-view="settings">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019 9c.14.4.5.7 1 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.51 1z"/></svg>
+        Settings
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="env-pill"><span class="dot"></span> SANDBOX · LIVE DEMO</div>
+      <button class="cta" onclick="alert('In a live engagement this opens a 2-week POC scoping form for your first pilot zone.')">Scope a POC →</button>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="topbar-title">Command Centre Overview</h1>
+        <div class="sub" id="topbar-sub">Alpha Refinery · Manufacturing Intelligence Platform</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="persona-toggle">
+        <button id="p-both" class="active" onclick="setPersona('both')">Both</button>
+        <button id="p-mfg" onclick="setPersona('mfg')">Manufacturing Head</button>
+        <button id="p-it" onclick="setPersona('it')">Digital &amp; IT Head</button>
+      </div>
+      <div class="clock" id="clock">--:--:-- GST</div>
+      <div class="avatar">SD</div>
+    </header>
+
+    <div class="viewport">
+
+      <!-- ================= OVERVIEW ================= -->
+      <section class="view active" id="view-overview">
+        <div class="value-row">
+          <div class="value-card mfg">
+            <div class="vico">🏭</div>
+            <div><h4>Why this matters to Manufacturing Heads</h4>
+            <p>One live view of production, safety and cost — instead of 12 PDFs and yesterday's SAP batch. Decisions move from days to minutes.</p></div>
+          </div>
+          <div class="value-card it">
+            <div class="vico">🛡️</div>
+            <div><h4>Why this matters to Digital &amp; IT Heads</h4>
+            <p>API-first on your existing SAP/MES/CCTV stack, edge-deployable with no forced cloud dependency, and governed by RBAC, audit trails and human-in-the-loop approval.</p></div>
+          </div>
+        </div>
+
+        <div class="view-head">
+          <div class="eyebrow">Live Simulation</div>
+          <h2>Every decision-critical signal, one screen</h2>
+          <p>This is a working simulation of the platform your team would see on day one — production, finance, safety and environment, unified and agent-monitored 24/7.</p>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi"><div class="lbl">Production Output</div><div class="val" id="kpi1">8,240 T/day</div><div class="delta up">▲ +3.2% vs plan</div></div>
+          <div class="kpi"><div class="lbl">Plant OEE (avg)</div><div class="val" id="kpi2">83.6%</div><div class="delta up">▲ +4.1pp vs Q1</div></div>
+          <div class="kpi"><div class="lbl">Zero Harm Index</div><div class="val" id="kpi3">94.6</div><div class="delta up">▲ +1.2% vs last mo.</div></div>
+          <div class="kpi"><div class="lbl">Revenue YTD</div><div class="val" id="kpi4">₹487 Cr</div><div class="delta up">▲ +6.8% vs target</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Live Agent Activity</h3>
+              <span class="live-badge"><span class="d"></span>LIVE</span>
+            </div>
+            <div class="feed" id="feed"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>AI Executive Summary</h3></div>
+            <div class="summary-block">
+              <span class="stag red">REQUIRES ACTION</span>
+              <ul>
+                <li>Train-3 regenerator fault — ₹4.2M at risk, 72h failure window</li>
+                <li>Unit 5 SO₂ breach risk within 96h</li>
+                <li>4 expired permits · Site Zeta re-audit due</li>
+              </ul>
+              <span class="stag amber">DECISIONS THIS WEEK</span>
+              <ul>
+                <li>Approve Train-3 PO-2026-0847</li>
+                <li>Q3 turnaround extension review</li>
+                <li>Investigate HIPO #2026-114</li>
+              </ul>
+              <span class="stag green">POSITIVE SIGNALS</span>
+              <ul>
+                <li>Zero Harm Index 94.6, up 1.2%</li>
+                <li>OEE 83.7% — above target</li>
+                <li>142 days LTI-free · TRIR down 12.5%</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= USE CASE LIBRARY ================= -->
+      <section class="view" id="view-usecases">
+        <div class="view-head">
+          <div class="eyebrow">23 Use Cases · 5 Strategic Pillars</div>
+          <h2>Manufacturing Agentic AI Use-Case Library</h2>
+          <p>Every card below is a deployable module — click one to see the description, business impact, and the admin controls your team gets to configure it, per site.</p>
+        </div>
+
+        <div class="filter-row">
+          <div class="filters" id="pillar-filters"></div>
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#98A2BE" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="search-input" placeholder="Search use cases…" oninput="renderUseCases()">
+          </div>
+        </div>
+        <div class="filters" id="type-filters" style="margin-bottom:16px;"></div>
+        <div class="result-count" id="result-count" style="margin-bottom:12px;"></div>
+
+        <div class="uc-grid" id="uc-grid"></div>
+      </section>
+
+      <!-- ================= AGENTS ================= -->
+      <section class="view" id="view-agents">
+        <div class="view-head">
+          <div class="eyebrow">Always On, Always Acting</div>
+          <h2>12 Specialized AI Agents</h2>
+          <p>Each agent can be toggled per site by a Plant Digital Head. Turning an agent off here is simulated — thresholds, schedules and escalation contacts are configurable per agent.</p>
+        </div>
+        <div class="agent-grid" id="agent-grid"></div>
+      </section>
+
+      <!-- ================= ADMIN CONSOLE ================= -->
+      <section class="view" id="view-admin">
+        <div class="value-row">
+          <div class="value-card it">
+            <div class="vico">🔐</div>
+            <div><h4>Built for the Digital &amp; IT Head</h4>
+            <p>This is the console your governance, security and integration teams actually live in — RBAC, SSO, audit trails, connector health and model guardrails, all in one place.</p></div>
+          </div>
+          <div class="value-card mfg">
+            <div class="vico">⚙️</div>
+            <div><h4>Still simple for Plant Ops</h4>
+            <p>Non-technical admins configure alert rules and escalation paths in plain language — no code, no tickets to IT for every threshold change.</p></div>
+          </div>
+        </div>
+
+        <div class="view-head">
+          <div class="eyebrow">Admin Console</div>
+          <h2>Platform governance, integrations &amp; usability controls</h2>
+          <p>Everything below is configurable per plant, per role — this is what convinces a Digital Head the platform is enterprise-ready, not a science project.</p>
+        </div>
+
+        <div class="subnav">
+          <button class="active" data-pane="users">Users &amp; Roles</button>
+          <button data-pane="sites">Sites &amp; Plants</button>
+          <button data-pane="integrations">Integrations</button>
+          <button data-pane="guardrails">Governance &amp; Guardrails</button>
+          <button data-pane="rules">Alert &amp; Escalation Rules</button>
+          <button data-pane="notifications">Notifications</button>
+        </div>
+
+        <!-- USERS & ROLES -->
+        <div class="admin-pane active" id="pane-users">
+          <div class="panel">
+            <table class="data">
+              <thead><tr><th>Role</th><th>Access Scope</th><th>Permissions</th><th>Users</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><b>Super Admin</b><br><span style="color:var(--muted);font-size:11.5px;">IIIoT Platform Team</span></td><td>All sites</td><td>Full config · model governance · billing</td><td>2</td><td><span class="pill blue">SSO enforced</span></td></tr>
+                <tr><td><b>Plant Digital Head</b></td><td>Assigned plant(s)</td><td>Configure agents, integrations, alert rules</td><td>6</td><td><span class="pill green">Active</span></td></tr>
+                <tr><td><b>Operations / Plant Head</b></td><td>Assigned plant(s)</td><td>View dashboards, approve escalations</td><td>14</td><td><span class="pill green">Active</span></td></tr>
+                <tr><td><b>HSE Officer</b></td><td>Assigned plant(s)</td><td>Manage safety agents, permits, incidents</td><td>9</td><td><span class="pill green">Active</span></td></tr>
+                <tr><td><b>Shift Supervisor</b></td><td>Assigned zone(s)</td><td>Acknowledge &amp; action floor alerts</td><td>42</td><td><span class="pill green">Active</span></td></tr>
+                <tr><td><b>Viewer / Auditor</b></td><td>All / assigned sites</td><td>Read-only, export reports</td><td>11</td><td><span class="pill gray">Read-only</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="guard-list" style="margin-top:14px;">
+            <div class="guard-row"><div class="gtext"><div class="gtitle">SSO / SAML &amp; Active Directory</div><div class="gsub">Group-based role mapping — no manual user provisioning per plant</div></div><span class="pill blue">Configured</span></div>
+            <div class="guard-row"><div class="gtext"><div class="gtitle">Granular RBAC</div><div class="gsub">Permissions scoped to module, plant and even individual agent — not all-or-nothing</div></div><span class="pill blue">Enabled</span></div>
+          </div>
+        </div>
+
+        <!-- SITES -->
+        <div class="admin-pane" id="pane-sites">
+          <div class="panel">
+            <table class="data">
+              <thead><tr><th>Plant / Site</th><th>Location</th><th>Modules Live</th><th>Agents</th><th>Connectivity</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td><b>Alpha Refinery</b></td><td>UAE</td><td>12 / 12</td><td>12</td><td>Edge + Cloud</td><td><span class="pill green">Live</span></td></tr>
+                <tr><td><b>Beta Offshore Platform</b></td><td>UAE</td><td>8 / 12</td><td>8</td><td>Edge-only (offline-capable)</td><td><span class="pill green">Live</span></td></tr>
+                <tr><td><b>Gamma Gas Processing</b></td><td>India</td><td>10 / 12</td><td>10</td><td>Edge + Cloud</td><td><span class="pill green">Live</span></td></tr>
+                <tr><td><b>Delta Plant</b></td><td>India</td><td>12 / 12</td><td>12</td><td>Edge + Cloud</td><td><span class="pill green">Live</span></td></tr>
+                <tr><td><b>Epsilon Onshore</b></td><td>Canada</td><td>6 / 12</td><td>6</td><td>Edge + Cloud</td><td><span class="pill amber">Pilot</span></td></tr>
+                <tr><td><b>Zeta Terminal</b></td><td>UAE</td><td>4 / 12</td><td>4</td><td>Edge + Cloud</td><td><span class="pill gray">Onboarding</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- INTEGRATIONS -->
+        <div class="admin-pane" id="pane-integrations">
+          <div class="conn-grid" id="conn-grid"></div>
+        </div>
+
+        <!-- GUARDRAILS -->
+        <div class="admin-pane" id="pane-guardrails">
+          <div class="guard-list" id="guard-list"></div>
+        </div>
+
+        <!-- RULES -->
+        <div class="admin-pane" id="pane-rules">
+          <div class="rule-list" id="rule-list"></div>
+          <button class="add-btn" style="margin-top:14px;" onclick="alert('In the live product, this opens a no-code rule builder: IF <signal> THEN <notify/act>, with escalation timers.')">+ Add escalation rule</button>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div class="admin-pane" id="pane-notifications">
+          <div class="chan-grid" id="chan-grid"></div>
+        </div>
+      </section>
+
+      <!-- ================= ANALYTICS ================= -->
+      <section class="view" id="view-analytics">
+        <div class="view-head">
+          <div class="eyebrow">Adoption &amp; ROI</div>
+          <h2>Analytics that prove the platform is earning its keep</h2>
+          <p>Usage adoption per site, agent uptime and cumulative ROI — the numbers a Manufacturing Head brings to the board and a Digital Head brings to the CFO.</p>
+        </div>
+
+        <div class="panel" style="padding:22px 24px 14px;">
+          <h3 style="font-family:var(--font-head);font-size:14.5px;margin:0 0 4px;">Use-Case Adoption by Plant</h3>
+          <p style="font-size:12px;color:var(--muted);margin:0 0 6px;">% of catalogued use cases activated and live</p>
+          <div class="bars" id="bars"></div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="kpi"><div class="lbl">Agent Uptime</div><div class="val">99.7%</div><div class="delta up">▲ 30-day rolling</div></div>
+          <div class="kpi"><div class="lbl">Cumulative ROI (YTD)</div><div class="val">4.25×</div><div class="delta up">▲ Rs 4.25 Cr / plant / yr</div></div>
+          <div class="kpi"><div class="lbl">Avg. Time-to-Value</div><div class="val">3.4 wks</div><div class="delta up">▲ per new use case</div></div>
+          <div class="kpi"><div class="lbl">Alert-to-Action</div><div class="val">&lt;2s</div><div class="delta up">▲ sensor to notification</div></div>
+        </div>
+      </section>
+
+      <!-- ================= SETTINGS ================= -->
+      <section class="view" id="view-settings">
+        <div class="view-head">
+          <div class="eyebrow">Platform Settings</div>
+          <h2>Enterprise-grade, white-labelled, yours to control</h2>
+          <p>The details Digital Heads ask about in the second meeting.</p>
+        </div>
+        <div class="guard-list">
+          <div class="guard-row"><div class="gtext"><div class="gtitle">White-label branding</div><div class="gsub">Your logo, colours and domain across web &amp; mobile app</div></div><span class="pill blue">Configurable</span></div>
+          <div class="guard-row"><div class="gtext"><div class="gtitle">SSO / SAML / Azure AD</div><div class="gsub">Single sign-on across all plants and roles</div></div><span class="pill green">Enabled</span></div>
+          <div class="guard-row"><div class="gtext"><div class="gtitle">API keys &amp; webhooks</div><div class="gsub">Programmatic access to every module for your own tooling</div></div><span class="pill green">3 active keys</span></div>
+          <div class="guard-row"><div class="gtext"><div class="gtitle">Data retention</div><div class="gsub">Time-series, video and audit data retention window, per site</div></div><span class="pill blue">365 days</span></div>
+          <div class="guard-row"><div class="gtext"><div class="gtitle">Environment</div><div class="gsub">Sandbox → Staging → Production promotion path</div></div><span class="pill amber">Sandbox (this demo)</span></div>
+        </div>
+      </section>
+
+    </div>
+
+    <footer class="credit">IIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.</footer>
+  </div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+/* ======================= DATA ======================= */
+const useCases = [
+  {id:1,pillar:"opex",title:"Agentic Daily Operations & Resources Reporting",tags:["AGENTIC","GENAI"],status:"live",
+   desc:"The agent prepares daily production and resource reports through a guided conversation, collecting inputs by voice or writing, compiling and publishing them in each recipient's own template.",
+   impact:"Time on daily reporting minimized; consistent, on-time submissions from every line."},
+  {id:2,pillar:"opex",title:"Voice Interaction Layer",tags:["VOICE","GENAI"],status:"live",
+   desc:"A voice layer that works across every interaction, in any local language, converting speech to text into forms or the chat experience, and reading answers aloud for hands-free plant-floor use.",
+   impact:"Every form and chat becomes voice-enabled; faster input where keyboards are impractical."},
+  {id:3,pillar:"opex",title:"Knowledge Assistant: Manuals & SOPs",tags:["GENAI","VOICE"],status:"live",
+   desc:"A generative-AI assistant that lets the workforce ask about equipment, manuals, processes or SOPs in natural language and get an immediate, cited answer without searching documents.",
+   impact:"Technical answers in seconds; faster onboarding; fewer errors from outdated procedures."},
+  {id:4,pillar:"opex",title:"Platform E-Services Agentic Assistant",tags:["AGENTIC","VOICE"],status:"pilot",
+   desc:"An agentic assistant embedded in every plant service journey — understands intent, guides step by step, pre-fills forms, validates documents on upload, and completes routine transactions.",
+   impact:"Faster service completion; fewer abandoned requests; lower support workload."},
+  {id:5,pillar:"opex",title:"Procedures Compliance Copilot",tags:["GENAI","AGENTIC"],status:"live",
+   desc:"An interactive guide for shop-floor and back-office users that validates every entry against official SOPs in real time and warns before a mistake is committed, rather than after.",
+   impact:"Rework minimized; procedures executed correctly the first time; faster ramp-up of new staff."},
+  {id:6,pillar:"opex",title:"Chat with Data: Executive Insights",tags:["GENAI"],status:"live",
+   desc:"A chat experience over enterprise data that lets leadership ask for any report in natural language and receive an instant answer, visualized as charts with a short narrative summary.",
+   impact:"Management self-serves insights in seconds; one governed source of truth behind every number."},
+  {id:7,pillar:"opex",title:"Intelligent Document Data Extraction",tags:["VISION","GENAI"],status:"live",
+   desc:"Reads any document and extracts its data automatically using OCR and generative AI — manuals, certificates, invoices, forms or IDs — flowing straight into the platform as structured, searchable data.",
+   impact:"Manual data entry eliminated; fewer typing errors; every document searchable on arrival."},
+  {id:8,pillar:"opex",title:"Annual & Corporate Report Studio",tags:["GENAI"],status:"pilot",
+   desc:"Generative AI produces annual and sustainability reports following corporate templates exactly — drafting sections, keeping tone and terminology consistent, generating charts and aligning languages.",
+   impact:"Report production cut from months to weeks; guaranteed format and terminology consistency."},
+  {id:9,pillar:"sustain",title:"Computer Vision Safety & Site Intelligence",tags:["VISION","ML"],status:"live",
+   desc:"Utilizes existing cameras across lines, warehouses and yards to automatically detect PPE breaches, falls, unsafe behavior, spills, smoke and other operational anomalies, generating live heat maps of risk.",
+   impact:"Real-time prevention instead of after-the-fact review; measurable reduction in incidents."},
+  {id:10,pillar:"sustain",title:"Wearables: Workforce Health Monitoring",tags:["IOT","ML"],status:"pilot",
+   desc:"Wearable devices continuously monitor vital signs during operations. ML models watch readings around the clock and predict health issues before they become emergencies, such as heat stress on a shift.",
+   impact:"Health incidents predicted and prevented rather than responded to; faster emergency response."},
+  {id:11,pillar:"sustain",title:"IoT Asset Tracking & Condition Monitoring",tags:["IOT","ML"],status:"live",
+   desc:"IoT sensors provide real-time asset location, utilization, temperature and vibration signatures across an increasingly distributed plant footprint, feeding live dashboards and early-warning alerts.",
+   impact:"Full visibility over a growing asset base; faults detected before they escalate."},
+  {id:12,pillar:"sustain",title:"AI Spill/Leak Detection & Response Orchestration",tags:["VISION","ML"],status:"live",
+   desc:"Watches tanks, drains and yards using existing cameras and environmental sensors. The moment a spill or leak is spotted, the system predicts its spread and recommends which response teams to send first.",
+   impact:"Spills detected in minutes, not hours; the right response assets sent first time."},
+  {id:13,pillar:"growth",title:"Agentic Production Orchestration",tags:["AGENTIC","ML"],status:"pilot",
+   desc:"An agentic layer on top of existing production-planning systems that plans line schedules and resolves exceptions across every plant and distribution point, replanning in minutes when disruption hits.",
+   impact:"Higher line utilization; disruptions recovered in minutes instead of hours of manual coordination."},
+  {id:14,pillar:"growth",title:"AI Resources, Demand & Line Analytics",tags:["ML"],status:"live",
+   desc:"Predictive ML that converts operational data from lines, plants and warehouses into forward-looking insight — anticipating maintenance needs and spare-parts demand, keeping stock at optimum levels.",
+   impact:"Optimum stock levels without over- or under-stocking; higher crew and asset utilization."},
+  {id:15,pillar:"growth",title:"Digital Twin & What-If Scenario Analytics",tags:["ML","GENAI"],status:"pilot",
+   desc:"A live digital twin of the operation that aggregates and analyzes operational data. Planners ask what-if questions in natural language and the twin simulates predicted impact before any decision is committed.",
+   impact:"Decisions rehearsed before they are taken; planning moves from experience-based to evidence-based."},
+  {id:16,pillar:"finance",title:"Supply Chain Domain Awareness & Threat Intelligence",tags:["ML","GENAI"],status:"pilot",
+   desc:"Keeps a live watch over every plant, supplier route and logistics lane, combining sensor signals, public news and security alerts into one live risk map, warning early when a route enters a danger zone.",
+   impact:"Early warning across the supply network; faster, calmer crisis response."},
+  {id:17,pillar:"finance",title:"Social Media & Geopolitical Risk Scanner",tags:["GENAI","ML"],status:"pilot",
+   desc:"Continuously scans social media, news and open sources for unrest or rising tension near plants, ports and supplier regions, alerting the right desk with recommended proactive actions.",
+   impact:"Proactive mitigation instead of reactive scrambling; one early-warning picture across teams."},
+  {id:18,pillar:"finance",title:"OT / ICS Cyber-Anomaly Detection",tags:["ML"],status:"live",
+   desc:"Protects the digital systems every plant depends on. The system learns what normal looks like for each machine's control network and raises an alert the moment behavior turns abnormal.",
+   impact:"Cyber interference caught early, before it endangers production or safety."},
+  {id:19,pillar:"finance",title:"Commercial Forecast & Sales Intelligence",tags:["ML","GENAI"],status:"live",
+   desc:"Combines demand, pricing and inventory predictions with commercial execution. A commercial copilot converts forecasts into action: recommending order allocation, pricing, and contract timing.",
+   impact:"Better pricing and fixture timing across the plant network; faster, evidence-backed decisions."},
+  {id:20,pillar:"horizontal",title:"AI Technical Support Desk",tags:["AGENTIC","VOICE"],status:"live",
+   desc:"Voice and chat agents answer technical support calls from plants, lines and offices around the clock, auto-triage the issue, resolve known problems, and dispatch field teams with context already attached.",
+   impact:"Support coverage around the clock; faster resolution; lower first-line support burden."},
+  {id:21,pillar:"horizontal",title:"HR Candidate Profile Assessment",tags:["ML","GENAI"],status:"pilot",
+   desc:"Assesses resumes and candidate profiles against role requirements, skills and structured criteria, producing a ranked shortlist with reasoning attached for recruiter review, for shop-floor and shore roles alike.",
+   impact:"Faster shortlist cycles for a large workforce; consistent screening; better candidate quality."},
+  {id:22,pillar:"horizontal",title:"Finance Invoice & Budget Control",tags:["GENAI","ML"],status:"live",
+   desc:"Reads invoices from purchase orders, maintenance and suppliers together with budget lines and approval chains, flagging exceptions, duplicates and budget impact before processing.",
+   impact:"Faster finance review; fewer manual checks; clearer spend visibility across plants."},
+  {id:23,pillar:"horizontal",title:"Procurement Sourcing & Vendor Evaluation",tags:["GENAI","ML"],status:"pilot",
+   desc:"Supports sourcing requests for spare parts and services: drafting request documents, comparing vendor responses against evaluation criteria side by side, and tracking clarifications through to closure.",
+   impact:"Shorter sourcing cycles; more consistent evaluation; stronger procurement governance."},
+];
+
+const pillarMeta = {
+  opex:{label:"Operational Excellence"},
+  sustain:{label:"Sustainable Operations"},
+  growth:{label:"Smart Growth & Expansion"},
+  finance:{label:"Financial Resilience"},
+  horizontal:{label:"Horizontal Enterprise"},
+};
+
+const adminTemplates = {
+  AGENTIC:[["Autonomy level","Act with approval"],["Approval chain","Shift Supervisor → Plant Head"],["Exception handling","Auto-escalate after 15 min"]],
+  GENAI:[["Grounded data sources","4 connected (SOPs, ERP, EHS, manuals)"],["Response citations","Required, shown inline"],["Language packs","EN, AR, HI"]],
+  VOICE:[["Supported languages","EN, AR, HI, local dialects"],["Hands-free mode","Enabled on vessel / shop floor"],["Transcript retention","90 days, audit-logged"]],
+  VISION:[["Camera feeds linked","18 of 24 available"],["Detection confidence threshold","87%"],["Privacy masking"," On for non-safety zones"]],
+  ML:[["Model retrain cadence","Weekly, auto-validated"],["Forecast horizon","7–30 days"],["Drift monitoring","Active, alerts Digital Head"]],
+  IOT:[["Connected sensors","1,240 across site"],["Sampling frequency","Every 30s"],["Processing","Edge-first, cloud sync"]],
+};
+
+const agents = [
+  {n:"Operations Agent",status:"active",sig:"12 live signals",desc:"Monitors throughput, OEE and shift targets in real time; recommends corrective scheduling.",last:"2 min ago",owner:"Plant Digital Head"},
+  {n:"Maintenance Agent",status:"watch",sig:"1 critical flag",desc:"LSTM predictive models flag failures up to 2 weeks early; raises work orders automatically.",last:"1 min ago",owner:"Maintenance Lead"},
+  {n:"Safety & Quality Agent",status:"active",sig:"0 incidents",desc:"AI vision for PPE compliance, intrusion detection and quality inspection, 97%+ defect coverage.",last:"just now",owner:"HSE Officer"},
+  {n:"Energy Agent",status:"watch",sig:"3 high-draw lines",desc:"Machine-level kWh tracking with AI peak-demand shaving and 2-week energy forecasting.",last:"4 min ago",owner:"Plant Digital Head"},
+  {n:"ESG & Compliance Agent",status:"watch",sig:"1 watch item",desc:"Tracks SO₂, CO₂ and permit thresholds; auto-generates regulatory reports before breach.",last:"6 min ago",owner:"HSE Officer"},
+  {n:"Finance Agent",status:"active",sig:"On budget",desc:"Real-time P&L, EBITDA and capex-pacing intelligence with instant variance flags.",last:"3 min ago",owner:"Finance Controller"},
+  {n:"PPE & Behavior Vision Agent",status:"active",sig:"12 live signals",desc:"Detects PPE compliance and unsafe acts — restricted-zone entry, fatigue, collapse.",last:"just now",owner:"HSE Officer"},
+  {n:"Permit-to-Work Agent",status:"watch",sig:"4 expired permits",desc:"Tracks hot work, confined space and work-at-height permits; auto-escalates violations.",last:"1 min ago",owner:"HSE Officer"},
+  {n:"Incident & Investigation Agent",status:"active",sig:"0 fatalities",desc:"Tracks TRIR, LTIFR and HIPOs; drives root-cause workflows and Zero Harm Index.",last:"5 min ago",owner:"HSE Officer"},
+  {n:"Environmental Compliance Agent",status:"active",sig:"94.1% rollup",desc:"Tracks CO₂, CH₄, NOx, SOx, waste and effluent against regulatory limits.",last:"7 min ago",owner:"Environmental Lead"},
+  {n:"Predictive Safety Intelligence Agent",status:"watch",sig:"6 zones flagged",desc:"Forecasts incident probability, heat stress and equipment failure 7–30 days ahead.",last:"2 min ago",owner:"HSE Officer"},
+  {n:"Contractor & Asset Risk Agent",status:"active",sig:"4 high-risk",desc:"Aggregates contractor safety scores and asset failure risk into one site ranking.",last:"9 min ago",owner:"Plant Digital Head"},
+];
+
+const feedPool = [
+  ["Maintenance Agent","predicts Train-3 regenerator failure within 72h — work order WO-88213 raised in SAP.","red"],
+  ["PPE & Behavior Vision Agent","flagged a missing hard-hat in Zone 4, Camera 12 — supervisor notified.","amber"],
+  ["Permit-to-Work Agent","auto-escalated permit PTW-3391 (confined space) — 6h past expiry.","red"],
+  ["Environmental Compliance Agent","logged SO₂ within limits — Unit 5, last 30 min average 42 mg/Nm³.","green"],
+  ["Finance Agent","flagged a 14% cost variance on Plant Gamma consumables budget.","amber"],
+  ["Predictive Safety Intelligence Agent","raised heat-stress risk for the 14:00–18:00 shift, Zone 7.","amber"],
+  ["Operations Agent","closed the gap on Line 3 — output back to 98% of plan.","green"],
+  ["Contractor & Asset Risk Agent","updated risk ranking — Contractor #CN-114 moved to high-risk.","amber"],
+  ["Incident & Investigation Agent","closed root-cause on near-miss NM-2026-081.","green"],
+  ["AI Spill/Leak Detection Agent","cleared a false-positive alert at Tank Farm 2 after review.","green"],
+];
+
+/* ======================= NAV ======================= */
+const titles = {
+  overview:["Command Centre Overview","Alpha Refinery · Manufacturing Intelligence Platform"],
+  usecases:["Use-Case Library","23 agentic AI modules across 5 strategic pillars"],
+  agents:["AI Agents","12 always-on agents, configurable per plant"],
+  admin:["Admin Console","Governance, integrations & usability controls"],
+  analytics:["Analytics & ROI","Adoption, uptime and cumulative value"],
+  settings:["Platform Settings","Branding, SSO and environment configuration"],
+};
+document.querySelectorAll(".nav-item").forEach(el=>{
+  el.addEventListener("click",()=>{
+    document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+    el.classList.add("active");
+    const v = el.dataset.view;
+    document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));
+    document.getElementById("view-"+v).classList.add("active");
+    document.getElementById("topbar-title").textContent = titles[v][0];
+    document.getElementById("topbar-sub").textContent = titles[v][1];
+  });
+});
+
+function setPersona(p){
+  document.body.classList.remove("persona-mfg","persona-it");
+  ["p-both","p-mfg","p-it"].forEach(id=>document.getElementById(id).classList.remove("active"));
+  if(p==="mfg"){document.body.classList.add("persona-mfg");document.getElementById("p-mfg").classList.add("active");}
+  else if(p==="it"){document.body.classList.add("persona-it");document.getElementById("p-it").classList.add("active");}
+  else{document.getElementById("p-both").classList.add("active");}
+}
+
+/* ======================= CLOCK ======================= */
+function tickClock(){
+  const d = new Date();
+  document.getElementById("clock").textContent = d.toLocaleTimeString('en-GB') + " GST";
+}
+tickClock(); setInterval(tickClock,1000);
+
+/* ======================= LIVE FEED ======================= */
+const sevColor = {red:"var(--red)",amber:"var(--amber)",green:"var(--green)"};
+function pushFeedItem(){
+  const pick = feedPool[Math.floor(Math.random()*feedPool.length)];
+  const feed = document.getElementById("feed");
+  const item = document.createElement("div");
+  item.className = "feed-item";
+  const now = new Date();
+  item.innerHTML = `<span class="sev" style="background:${sevColor[pick[2]]}"></span>
+    <div class="body"><span class="agent">${pick[0]}</span> <span class="msg">${pick[1]}</span></div>
+    <span class="ts">${now.toLocaleTimeString('en-GB')}</span>`;
+  feed.prepend(item);
+  while(feed.children.length > 14) feed.removeChild(feed.lastChild);
+}
+for(let i=0;i<6;i++) pushFeedItem();
+setInterval(pushFeedItem, 4500);
+
+/* ======================= USE CASE LIBRARY ======================= */
+let activePillar = "all", activeType = "all";
+const pillarFilters = document.getElementById("pillar-filters");
+const typeFilters = document.getElementById("type-filters");
+
+function buildFilters(){
+  const pillars = [["all","All Pillars"], ...Object.entries(pillarMeta).map(([k,v])=>[k,v.label])];
+  pillarFilters.innerHTML = pillars.map(([k,l])=>
+    `<button class="chip ${k===activePillar?'active':''}" onclick="setPillar('${k}')">${l}</button>`).join("");
+  const types = ["all","AGENTIC","GENAI","ML","VISION","IOT","VOICE"];
+  typeFilters.innerHTML = types.map(t=>
+    `<button class="chip ${t===activeType?'active':''}" onclick="setType('${t}')">${t==='all'?'All Types':t}</button>`).join("");
+}
+function setPillar(k){activePillar=k;buildFilters();renderUseCases();}
+function setType(k){activeType=k;buildFilters();renderUseCases();}
+
+function renderUseCases(){
+  const q = document.getElementById("search-input").value.toLowerCase();
+  const grid = document.getElementById("uc-grid");
+  const filtered = useCases.filter(u=>{
+    if(activePillar!=="all" && u.pillar!==activePillar) return false;
+    if(activeType!=="all" && !u.tags.includes(activeType)) return false;
+    if(q && !(u.title.toLowerCase().includes(q) || u.desc.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  document.getElementById("result-count").textContent = `${filtered.length} of 23 use cases`;
+  grid.innerHTML = filtered.map(u=>`
+    <div class="uc-card" onclick="openModal(${u.id})">
+      <div class="uc-top">
+        <span class="uc-num">UC${String(u.id).padStart(2,'0')}</span>
+        <span class="uc-status ${u.status}">${u.status==='live'?'LIVE':'PILOT'}</span>
+      </div>
+      <div class="uc-title">${u.title}</div>
+      <div class="uc-tags">${u.tags.map(t=>`<span class="tag ${t}">${t}</span>`).join("")}</div>
+      <div class="uc-desc">${u.desc}</div>
+      <div class="uc-foot"><span>${pillarMeta[u.pillar].label}</span><span>Details →</span></div>
+    </div>`).join("");
+}
+
+function openModal(id){
+  const u = useCases.find(x=>x.id===id);
+  const cfgRows = (adminTemplates[u.tags[0]]||[]).concat(adminTemplates[u.tags[1]]?adminTemplates[u.tags[1]].slice(0,1):[]);
+  document.getElementById("modal").innerHTML = `
+    <div class="modal-head">
+      <div>
+        <span class="uc-num">UC${String(u.id).padStart(2,'0')} · ${pillarMeta[u.pillar].label}</span>
+        <div class="uc-tags" style="margin-top:8px;">${u.tags.map(t=>`<span class="tag ${t}">${t}</span>`).join("")}</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <h3>${u.title}</h3>
+      <div class="desc">${u.desc}</div>
+      <div class="impact-box"><b>Impact:</b> ${u.impact}</div>
+      <div class="admin-panel">
+        <div class="lbl-row">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3.5v5.2C19 16.8 16 20 12 21c-4-1-7-4.2-7-9.3V6.5L12 3z"/></svg>
+          <b>Admin &amp; usability controls for this use case</b>
+        </div>
+        <div class="cfg-grid">
+          <div class="cfg-row"><div class="k">Enabled for</div><div class="v">6 of 6 plants</div></div>
+          <div class="cfg-row"><div class="k">Rollout status</div><div class="v">${u.status==='live'?'Live in production':'Pilot — 2 sites'}</div></div>
+          ${cfgRows.map(r=>`<div class="cfg-row"><div class="k">${r[0]}</div><div class="v">${r[1]}</div></div>`).join("")}
+          <div class="cfg-row"><div class="k">Human approval required</div><div class="v"><span class="toggle-mini"><span class="sw"></span> ${u.tags.includes('AGENTIC')?'Yes, for high-risk actions':'No — advisory only'}</span></div></div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById("overlay").classList.add("open");
+}
+function closeModal(){document.getElementById("overlay").classList.remove("open");}
+document.addEventListener("keydown",e=>{if(e.key==="Escape") closeModal();});
+
+buildFilters();
+renderUseCases();
+
+/* ======================= AGENTS ======================= */
+document.getElementById("agent-grid").innerHTML = agents.map(a=>`
+  <div class="agent-card">
+    <div class="agent-top">
+      <span class="agent-dot ${a.status}"></span>
+      <span class="agent-name">${a.n}</span>
+      <button class="switch" onclick="this.classList.toggle('off')"></button>
+    </div>
+    <div class="agent-desc">${a.desc}</div>
+    <div class="agent-meta"><span>${a.sig}</span><span>${a.last}</span></div>
+  </div>`).join("");
+
+/* ======================= ADMIN CONSOLE SUBNAV ======================= */
+document.querySelectorAll(".subnav button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".subnav button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    document.querySelectorAll(".admin-pane").forEach(p=>p.classList.remove("active"));
+    document.getElementById("pane-"+b.dataset.pane).classList.add("active");
+  });
+});
+
+const connectors = [
+  ["🧾","SAP ERP (BAPI / REST)","Production, finance and materials data — CO11N / MB31 / QM01 native.","Connected"],
+  ["🏭","MES / SCADA / PLC","Line-level throughput, machine status and control-system telemetry.","Connected"],
+  ["📋","EHS / Permit-to-Work System","Permits, incidents and compliance records synced in real time.","Connected"],
+  ["📡","IoT Gateway (MQTT)","Sensor ingestion from vibration, temperature and gas monitors.","Connected"],
+  ["🎥","CCTV / NVR (Vision AI)","Existing camera infrastructure — no new hardware required.","Connected"],
+  ["⌚","Wearables / Health IoT","Vital-sign and fatigue monitoring devices.","Pilot"],
+  ["💬","MS Teams / Email / SMS","Notification and escalation delivery channels.","Connected"],
+  ["🧩","Custom ERP / Navision","API-first connector for non-SAP environments.","Available"],
+  ["🔑","Identity Provider (SSO)","Azure AD / Okta / SAML 2.0 federation.","Connected"],
+];
+document.getElementById("conn-grid").innerHTML = connectors.map(c=>`
+  <div class="conn-card">
+    <div class="conn-top"><div class="conn-ico">${c[0]}</div><div class="conn-name">${c[1]}</div></div>
+    <div class="conn-desc">${c[2]}</div>
+    <div class="conn-foot">
+      <span class="pill ${c[3]==='Connected'?'green':c[3]==='Pilot'?'amber':'gray'}">${c[3]}</span>
+      <button class="btn-ghost" onclick="event.stopPropagation();alert('Opens connector configuration — credentials, field mapping and sync frequency.')">Configure</button>
+    </div>
+  </div>`).join("");
+
+const guardrails = [
+  ["Human-in-the-loop approval for high-risk actions","Required before any agent commits a production, safety or financial action above threshold","On"],
+  ["Explainability logging","Every AI decision is traceable — inputs, model version and reasoning summary retained","On"],
+  ["Model change approval workflow","Two-person review before any model or prompt update reaches production","On"],
+  ["Data residency","Edge-first processing; on-prem or regional cloud, configurable per site","Configurable"],
+  ["Red-team & safety evaluation schedule","Independent adversarial testing of every agent","Quarterly"],
+  ["PII / privacy masking on vision feeds","Faces and license plates blurred by default outside safety review","On"],
+];
+document.getElementById("guard-list").innerHTML = guardrails.map(g=>`
+  <div class="guard-row">
+    <div class="gtext"><div class="gtitle">${g[0]}</div><div class="gsub">${g[1]}</div></div>
+    <span class="pill ${g[2]==='On'?'green':g[2]==='Configurable'?'blue':'amber'}">${g[2]}</span>
+  </div>`).join("");
+
+const rules = [
+  ["IF","permit expires within 2h AND is not renewed","notify Permit Holder + Shift Supervisor (SMS + App) within 5 min; escalate to HSE Head if unacknowledged in 15 min."],
+  ["IF","predicted equipment failure probability exceeds 80%","raise a work order in SAP and notify the Maintenance Lead automatically."],
+  ["IF","a PPE violation is detected twice in the same zone within 1 hour","notify the Site Safety Officer and log a formal incident."],
+  ["IF","SO₂ reading exceeds the regulatory limit for 10 minutes","notify the Environmental Compliance Agent owner and auto-generate a report."],
+];
+document.getElementById("rule-list").innerHTML = rules.map(r=>`
+  <div class="rule-row">
+    <span class="rif">${r[0]}</span> <b>${r[1]}</b><br>
+    <span class="rif">THEN</span> ${r[2]}
+    <div class="rmeta"><span>No-code rule builder</span><span>Editable by Plant Digital Head</span><span>Full audit trail</span></div>
+  </div>`).join("");
+
+const channels = [["📧","Email"],["📱","SMS"],["💬","MS Teams"],["🟢","WhatsApp Business"],["🔔","Mobile Push"],["📥","SAP Inbox"]];
+document.getElementById("chan-grid").innerHTML = channels.map((c,i)=>`
+  <div class="chan-card">
+    <span style="font-size:16px;">${c[0]}</span>
+    <span class="cname">${c[1]}</span>
+    <button class="switch ${i===channels.length-1?'off':''}" onclick="this.classList.toggle('off')"></button>
+  </div>`).join("");
+
+/* ======================= ANALYTICS BARS ======================= */
+const adoption = [["Alpha",100],["Beta",67],["Gamma",83],["Delta",100],["Epsilon",50],["Zeta",33]];
+document.getElementById("bars").innerHTML = adoption.map(a=>`
+  <div class="bar-col">
+    <div class="bv">${a[1]}%</div>
+    <div class="bar" style="height:${a[1]}%;"></div>
+    <div class="bl">${a[0]}</div>
+  </div>`).join("");
+</script>
+</body>
+</html>
