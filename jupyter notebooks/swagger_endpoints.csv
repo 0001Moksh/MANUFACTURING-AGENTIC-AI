@@ -1,671 +1,671 @@
 Method,Endpoint,Summary,Description,Authentication,Request Body,Parameters
-GET,/api/v1/account,,,False,,0
-POST,/api/v1/account/user-creation,,,False,Yes,0
-GET,/api/v1/account/roles,,"{'tool_name': 'get_work_orders', 'description': 'Returns active work orders for AI-driven production monitoring and scheduling. Accessible by the Agentic AI platform for automatic tool registration and execution. Recommended for Operations and Production Planning agents only. Not intended for maintenance, inventory, or finance-related tasks.', 'agent_accessible': True, 'auto_register': True}",False,,0
-GET,/api/v1/account/menu,,,False,,0
-GET,/api/v1/account/user-by-id/{id},,,False,,1
-POST,/api/v1/account/login,,,False,Yes,0
-GET,/api/v1/production/alerts/get-alert,,,False,,10
-POST,/api/v1/production/alerts/{alertId}/acknowledge,,,False,,1
-POST,/api/v1/production/alerts/{alertId}/resolve,,,False,Yes,1
-POST,/api/v1/production/alerts/Add-alert,,,False,Yes,0
-POST,/api/v1/production/alerts/bulk-resolve,,,False,Yes,0
-GET,/api/v1/production/alerts/conflict/{conflictId}/resolutions,,,False,,2
-POST,/api/v1/production/alerts/conflict/resolve,,,False,Yes,0
-GET,/api/v1/production/alerts/notifications/rules,,,False,,0
-POST,/api/v1/production/alerts/notifications/rules,,,False,Yes,0
-DELETE,/api/v1/production/alerts/notifications/rules/{ruleId},,,False,,1
-POST,/api/v1/attachment/upload-files,,,False,Yes,2
-DELETE,/api/v1/attachment/delete/{id},,,False,,1
-GET,/api/v1/attachment/profile-photo/{id},,,False,,1
-GET,/api/v1/attachment/file-by-id/{id},,,False,,1
-GET,/api/v1/attachment/downaload-by-id/{id},,,False,,1
-GET,/api/v1/production/capacity,,,False,,8
-GET,/api/v1/production/capacity/machine/{machineId},,,False,,3
-GET,/api/v1/production/capacity/skill-matrix,,,False,,0
-POST,/api/v1/production/capacity/balance,,,False,Yes,0
-GET,/api/v1/production/capacity/forecast,,,False,,1
-GET,/api/v1/production/capacity/machine-availability/{machineId},,,False,,1
-GET,/api/v1/production/capacity/machine-availability,,,False,,0
-POST,/api/v1/production/capacity/simulation,,,False,Yes,0
-POST,/api/v1/production/capacity/simulation/change,,,False,Yes,0
-POST,/api/v1/production/capacity/simulation/commit,,,False,Yes,0
-GET,/api/v1/dashboard,,,False,,0
-GET,/api/v1/dashboard/pormDashboardData,,,False,,0
-GET,/api/v1/dashboard/production-summaries,,,False,,0
-GET,/api/v1/dashboard/production-monthly-summaries,,,False,,0
-GET,/api/v1/dashboard/forecast-vs-actual,,,False,,0
-GET,/api/v1/dashboard/salesorderReport,,,False,,1
-GET,/api/v1/gatemanagement,,,False,,0
-POST,/api/v1/gatemanagement/gate-entry,,,False,Yes,28
-GET,/api/v1/gatemanagement/entry-details/{requestId},,,False,,1
-GET,/api/v1/gatemanagement/qr-code/{requestId},,,False,,1
-GET,/api/v1/gatemanagement/entry-files/{requestId},,,False,,1
-POST,/api/v1/gatemanagement/exit-entry,,,False,Yes,0
-POST,/api/v1/gatemanagement/visitor-entry,,,False,Yes,0
-POST,/api/v1/gatemanagement/visitor-update,,,False,Yes,0
-GET,/api/v1/gatemanagement/visitor/{requestId},,,False,,1
-GET,/api/v1/gatemanagement/visitor-list,,,False,,0
-GET,/api/v1/gatemanagement/visitor-files/{requestId},,,False,,1
-GET,/api/v1/gatemanagement/vehicle,,,False,,0
-GET,/api/v1/gatemanagement/all-steps/{requestId},,,False,,1
-GET,/api/v1/gatemanagement/all-actions/{requestId},,,False,,1
-GET,/api/v1/gatemanagement/action-history/{requestId},,,False,,1
-POST,/api/v1/gatemanagement/action,,,False,Yes,0
-POST,/api/v1/gatemanagement/warehouse-manager,,,False,Yes,0
-GET,/api/v1/iot/grafana/dashboards,,,False,,0
-POST,/api/v1/iot/grafana/dashboards/{dashboardUid}/panels,,,False,,1
-GET,/api/v1/iot/influx/machines,,,False,,0
-GET,/api/v1/iot/influx/machines/{machineId}/latest,,,False,,1
-GET,/api/v1/iot/influx/machines/{machineId}/history,,,False,,3
-GET,/api/v1/influx,,,False,,0
-GET,/api/v1/integrations,,,False,,0
-POST,/api/v1/integrations/machine-data,,,False,Yes,0
-POST,/api/v1/iot/webhook/data,,,False,Yes,0
-GET,/api/v1/iot/webhook/ping,,,False,,0
-GET,/api/v1/maintenance,,,False,,0
-POST,/api/v1/maintenance/add-workrequest,,,False,Yes,0
-DELETE,/api/v1/maintenance/delete-workrequest/{workRequestId},,,False,,1
-POST,/api/v1/maintenance/trigger-workrequest,,,False,Yes,0
-GET,/api/v1/maintenance/workrequests,,,False,,3
-GET,/api/v1/maintenance/workrequest-byid/{requestId},,,False,,1
-GET,/api/v1/maintenance/get-WorkOrders,,,False,,0
-GET,/api/v1/maintenance/workorder-byid/{requestId},,,False,,1
-POST,/api/v1/maintenance/create-workorder,,,False,Yes,0
-GET,/api/v1/maintenance/all-steps-template/{workflowType},,,False,,1
-GET,/api/v1/maintenance/all-steps/{requestId},,,False,,1
-GET,/api/v1/maintenance/all-actions/{requestId},,,False,,1
-GET,/api/v1/maintenance/action-history/{requestId},,,False,,1
-POST,/api/v1/maintenance/action,,,False,Yes,0
-POST,/api/v1/maintenance/action-workflow,,,False,Yes,0
-POST,/api/v1/maintenance/storemanager-action,,,False,Yes,0
-POST,/api/v1/maintenance/request-parts,,,False,Yes,0
-POST,/api/v1/maintenance/add-labourtask,,,False,Yes,0
-POST,/api/v1/maintenance/assign-labour,,,False,Yes,0
-GET,/api/v1/maintenance/labourtasks/{workorderid},,,False,,1
-GET,/api/v1/maintenance/labourtasks,,,False,,0
-GET,/api/v1/maintenance/parts/{workorderid},,,False,,1
-GET,/api/v1/maintenance/parts-by-request-id/{partrequestId},,,False,,1
-POST,/api/v1/maintenance/update-quantity,,,False,Yes,0
-POST,/api/v1/maintenance/dashboard/{groupby},,,False,Yes,1
-GET,/api/v1/maintenance/scheduled/{month}/{year},,,False,,2
-GET,/api/v1/maintenance/inspection-by-request-number/{inspectionRequestNumber},,,False,,1
-GET,/api/v1/maintenance/get-inspection,,,False,,0
-POST,/api/v1/maintenance/add-inspectionForm,,,False,Yes,0
-POST,/api/v1/maintenance/update-verifier,,,False,Yes,0
-GET,/api/v1/maintenance/pending-inspection,,,False,,0
-GET,/api/v1/maintenance/maintenance-maintenanceReport,,,False,,0
-GET,/api/v1/maintenance/breakdownAnalysisReport,,,False,,0
-GET,/api/v1/maintenance/top-causes,,,False,,0
-GET,/api/v1/maintenance/monthly-weeks/{month}/{year},,,False,,2
-GET,/api/v1/maintenance/workOrderSummary,,,False,,0
-GET,/api/v1/maintenance/workOrderCount,,,False,,0
-GET,/api/v1/maintenance/sparePartsReport,,,False,,0
-POST,/api/v1/maintenance/event,,,False,Yes,0
-POST,/api/v1/maintenance/add-breakdown,,,False,Yes,0
-GET,/api/v1/maintenance/get-all-breakdown,,,False,,0
-POST,/api/v1/maintenance/request-tools,,,False,Yes,0
-POST,/api/v1/maintenance/assign-tool,,,False,Yes,0
-POST,/api/v1/maintenance/receive-tool,,,False,Yes,0
-GET,/api/v1/maintenance/tools/{workorderid},,,False,,1
-GET,/api/v1/maintenance/getToolsOrder,,,False,,0
-GET,/api/v1/maintenance/dashboard-live/{selectedDateTime},,,False,,1
-GET,/api/v1/maintenance/dashboard-live-charts/{selectedDateTime},,,False,,1
-GET,/api/v1/masters/exciseClassification,,,False,,0
-POST,/api/v1/masters/add-exciseClassification,,,False,Yes,0
-DELETE,/api/v1/masters/remove-exciseClassification/{exciseClassificationId},,,False,,1
-GET,/api/v1/masters/plasticMaterialType,,,False,,0
-POST,/api/v1/masters/add-plasticMaterialType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-plasticMaterialType/{plasticTypeId},,,False,,1
-GET,/api/v1/masters/plasticCategory,,,False,,0
-POST,/api/v1/masters/add-plasticCategory,,,False,Yes,0
-DELETE,/api/v1/masters/remove-plasticCategory/{plasticCategoryId},,,False,,1
-GET,/api/v1/masters/containerCapacity,,,False,,0
-POST,/api/v1/masters/add-containerCapacity,,,False,Yes,0
-DELETE,/api/v1/masters/remove-containerCapacity/{containerCapacityId},,,False,,1
-GET,/api/v1/masters/spareType,,,False,,0
-POST,/api/v1/masters/add-spareType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-spareType/{spareTypeId},,,False,,1
-GET,/api/v1/masters/itemColour,,,False,,0
-POST,/api/v1/masters/add-itemColour,,,False,Yes,0
-DELETE,/api/v1/masters/remove-itemColour/{itemColourId},,,False,,1
-GET,/api/v1/masters/itemMake,,,False,,0
-POST,/api/v1/masters/add-itemMake,,,False,Yes,0
-DELETE,/api/v1/masters/remove-itemMake/{itemMakeId},,,False,,1
-GET,/api/v1/masters/measurementUnit,,,False,,0
-POST,/api/v1/masters/add-measurementUnit,,,False,Yes,0
-DELETE,/api/v1/masters/remove-measurementUnit/{measurementUnitId},,,False,,1
-GET,/api/v1/masters/alternateUnit,,,False,,0
-POST,/api/v1/masters/add-alternateUnit,,,False,Yes,0
-DELETE,/api/v1/masters/remove-alternateUnit/{alternateUnitId},,,False,,1
-GET,/api/v1/masters/store,,,False,,0
-POST,/api/v1/masters/add-store,,,False,Yes,0
-DELETE,/api/v1/masters/remove-store/{storeId},,,False,,1
-GET,/api/v1/masters/itemCategory/{itemCategory},,,False,,1
-GET,/api/v1/masters/rmGrade,,,False,,0
-POST,/api/v1/masters/add-rmGrade,,,False,Yes,0
-DELETE,/api/v1/masters/remove-rmGrade/{rmGradeId},,,False,,1
-GET,/api/v1/masters/GetStoreNameByItem/{materialCode},,,False,,1
-GET,/api/v1/masters/sfg,,,False,,0
-GET,/api/v1/masters/machineDetails,,,False,,0
-GET,/api/v1/masters/details/{equipmentName},,,False,,1
-GET,/api/v1/masters/equipmentDetails/{machineName},,,False,,1
-GET,/api/v1/masters/maintenancetype,,,False,,0
-DELETE,/api/v1/masters/remove-externalFinised/{externalFinisedId},,,False,,1
-GET,/api/v1/masters/stage,,,False,,0
-POST,/api/v1/masters/add-stage,,,False,Yes,0
-DELETE,/api/v1/masters/remove-stage/{stageScreenId},,,False,,1
-POST,/api/v1/masters/add-userrolemodulemapping,,,False,Yes,0
-POST,/api/v1/masters/add-updatrole,,,False,Yes,0
-POST,/api/v1/masters/add-update-user,,,False,Yes,0
-POST,/api/v1/masters/assets,,,False,Yes,0
-POST,/api/v1/masters/add-or-update-assest,,,False,Yes,0
-DELETE,/api/v1/masters/delete-assest/{assestId},,,False,,1
-POST,/api/v1/masters/departments,,,False,Yes,0
-GET,/api/v1/masters/maintenace-subtype/{code},,,False,,1
-GET,/api/v1/masters/iotMachineData,,,False,,0
-GET,/api/v1/masters/iotMachineDataGetById/{id},,,False,,1
-GET,/api/v1/masters/iotmachine-fg-mapping/{machineType},,,False,,1
-GET,/api/v1/masters/inventories,,,False,,3
-GET,/api/v1/masters/horizons,,,False,,0
-POST,/api/v1/masters/add-horizon,,,False,Yes,0
-DELETE,/api/v1/masters/remove-horizon/{horizonId},,,False,,1
-GET,/api/v1/masters/versions,,,False,,0
-POST,/api/v1/masters/add-version,,,False,Yes,0
-DELETE,/api/v1/masters/remove-version/{versionId},,,False,,1
-GET,/api/v1/masters/storeManager,,,False,,3
-GET,/api/v1/masters/customer,,,False,,0
-POST,/api/v1/masters/add-customer,,,False,Yes,0
-DELETE,/api/v1/masters/remove-customer/{customerId},,,False,,1
-GET,/api/v1/masters/rawMaterial,,,False,,0
-POST,/api/v1/masters/add-rawMaterial,,,False,Yes,0
-DELETE,/api/v1/masters/remove-rawMaterial/{rawMaterialId},,,False,,1
-GET,/api/v1/masters/salesPerson,,,False,,0
-POST,/api/v1/masters/add-salesPerson,,,False,Yes,0
-DELETE,/api/v1/masters/remove-salesPerson/{salesPersonId},,,False,,1
-GET,/api/v1/masters/packagingType,,,False,,0
-POST,/api/v1/masters/add-packagingType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-PackagingType/{packagingTypeId},,,False,,1
-GET,/api/v1/masters/toleranceLevel,,,False,,0
-POST,/api/v1/masters/add-toleranceLevel,,,False,Yes,0
-DELETE,/api/v1/masters/remove-toleranceLevel/{toleranceLevelId},,,False,,1
-GET,/api/v1/masters/shift,,,False,,0
-POST,/api/v1/masters/add-shift,,,False,Yes,0
-DELETE,/api/v1/masters/remove-shift/{shiftlId},,,False,,2
-GET,/api/v1/masters/finishedGood,,,False,,0
-POST,/api/v1/masters/add-finishedGood,,,False,Yes,0
-DELETE,/api/v1/masters/remove-finishedGood/{fgId},,,False,,1
-GET,/api/v1/masters/machine,,,False,,0
-POST,/api/v1/masters/add-machine,,,False,Yes,0
-DELETE,/api/v1/masters/remove-machine/{machineId},,,False,,1
-GET,/api/v1/masters/semiFinishedGood,,,False,,0
-POST,/api/v1/masters/add-semiFinishedGood,,,False,Yes,0
-DELETE,/api/v1/masters/remove-semiFinishedGood/{sfgId},,,False,,1
-GET,/api/v1/masters/cavity,,,False,,0
-POST,/api/v1/masters/add-cavity,,,False,Yes,0
-DELETE,/api/v1/masters/remove-cavity/{cavityId},,,False,,1
-GET,/api/v1/masters/materialWithSample,,,False,,0
-GET,/api/v1/masters/customer-saleperson/{salesPersonId},,,False,,1
-GET,/api/v1/masters/salesperson-details/{salesPersonId},,,False,,1
-GET,/api/v1/masters/materials,,,False,,0
-POST,/api/v1/masters/materials-list,,,False,Yes,0
-POST,/api/v1/masters/add-materials,,,False,Yes,0
-GET,/api/v1/masters/material-details/{materialName},,,False,,1
-DELETE,/api/v1/masters/remove-materials/{referenceNo},,,False,,1
-GET,/api/v1/masters/itemGroup,,,False,,0
-POST,/api/v1/masters/add-itemGroup,,,False,Yes,0
-DELETE,/api/v1/masters/remove-itemGroup/{itemGroupId},,,False,,1
-GET,/api/v1/masters/itemCategory,,,False,,0
-POST,/api/v1/masters/add-itemCategory,,,False,Yes,0
-DELETE,/api/v1/masters/remove-itemCategory/{itemCategoryId},,,False,,1
-GET,/api/v1/masters/neckType,,,False,,0
-POST,/api/v1/masters/add-neckType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-neckType/{neckTypeId},,,False,,1
-GET,/api/v1/masters/assetType,,,False,,0
-POST,/api/v1/masters/add-assetType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-assestType/{assetTypeId},,,False,,1
-GET,/api/v1/masters/serviceType,,,False,,0
-POST,/api/v1/masters/add-serviceType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-serviceType/{serviceTypeId},,,False,,1
-GET,/api/v1/masters/itemType,,,False,,0
-POST,/api/v1/masters/add-itemType,,,False,Yes,0
-DELETE,/api/v1/masters/remove-itemType/{itemTypeId},,,False,,1
-GET,/api/v1/masters/hsnCode,,,False,,0
-POST,/api/v1/masters/add-hsnCode,,,False,Yes,0
-DELETE,/api/v1/masters/remove-hsnCode/{hsnCodeId},,,False,,1
-GET,/api/v1/masters,,,False,,0
-GET,/api/v1/masters/user-list,,,False,,0
-GET,/api/v1/masters/locations,,,False,,0
-GET,/api/v1/masters/vendors,,,False,,0
-GET,/api/v1/masters/warehouse,,,False,,0
-GET,/api/v1/masters/states,,,False,,0
-GET,/api/v1/masters/company,,,False,,0
-GET,/api/v1/masters/modules,,,False,,0
-GET,/api/v1/masters/modules-company,,,False,,0
-GET,/api/v1/masters/cities,,,False,,0
-GET,/api/v1/masters/materialcategories,,,False,,0
-GET,/api/v1/masters/material-states,,,False,,0
-GET,/api/v1/masters/material-types,,,False,,0
-GET,/api/v1/masters/yard-locations,,,False,,0
-GET,/api/v1/masters/yard-location,,,False,,0
-GET,/api/v1/masters/yards,,,False,,0
-GET,/api/v1/masters/plants,,,False,,0
-GET,/api/v1/masters/groups,,,False,,0
-POST,/api/v1/masters/add-material-categories,,,False,Yes,0
-POST,/api/v1/masters/add-material-types,,,False,Yes,0
-POST,/api/v1/masters/add-material-states,,,False,Yes,0
-POST,/api/v1/masters/add-vendors,,,False,Yes,0
-POST,/api/v1/masters/add-warehouses,,,False,Yes,0
-POST,/api/v1/masters/add-location,,,False,Yes,0
-POST,/api/v1/masters/add-company,,,False,Yes,0
-POST,/api/v1/masters/add-cities,,,False,Yes,0
-POST,/api/v1/masters/add-countries,,,False,Yes,0
-POST,/api/v1/masters/add-states,,,False,Yes,0
-DELETE,/api/v1/masters/remove-company/{companyId},,,False,,1
-DELETE,/api/v1/masters/remove-city/{cityId},,,False,,1
-DELETE,/api/v1/masters/remove-country/{countryId},,,False,,1
-DELETE,/api/v1/masters/remove-vendors/{vendorId},,,False,,1
-DELETE,/api/v1/masters/remove-warehouse/{warehouseId},,,False,,1
-DELETE,/api/v1/masters/remove-state/{stateId},,,False,,1
-DELETE,/api/v1/masters/remove-location/{locationId},,,False,,1
-GET,/api/v1/masters/contractingagency,,,False,,0
-GET,/api/v1/masters/driver,,,False,,0
-GET,/api/v1/masters/driverdetails/{driverId},,,False,,1
-POST,/api/v1/masters/add-drivers,,,False,Yes,0
-DELETE,/api/v1/masters/remove-drivers/{driverId},,,False,,1
-POST,/api/v1/masters/add-yarlocations,,,False,Yes,0
-POST,/api/v1/masters/add-yard,,,False,Yes,0
-POST,/api/v1/masters/add-plant,,,False,Yes,0
-DELETE,/api/v1/masters/remove-materialstates/{id},,,False,,1
-DELETE,/api/v1/masters/remove-materialtypes/{id},,,False,,1
-DELETE,/api/v1/masters/remove-materialcategories/{id},,,False,,1
-DELETE,/api/v1/masters/remove-contractingagency/{agencyId},,,False,,1
-POST,/api/v1/masters/add-contractingagency,,,False,Yes,0
-GET,/api/v1/masters/vehicletype,,,False,,0
-POST,/api/v1/masters/add-vehicletype,,,False,Yes,0
-DELETE,/api/v1/masters/remove-vehicletype/{vehicleId},,,False,,1
-GET,/api/v1/masters/gates,,,False,,0
-POST,/api/v1/masters/add-gates,,,False,Yes,0
-GET,/api/v1/masters/location-gates/{locationId},,,False,,1
-GET,/api/v1/masters/licensetypes,,,False,,0
-POST,/api/v1/masters/add-licensetypes,,,False,Yes,0
-DELETE,/api/v1/masters/remove-licensetypes/{id},,,False,,1
-GET,/api/v1/masters/drivertypes,,,False,,0
-POST,/api/v1/masters/add-drivertypes,,,False,Yes,0
-DELETE,/api/v1/masters/remove-drivertypes/{id},,,False,,1
-POST,/api/v1/masters/blockdriver,,,False,Yes,0
-DELETE,/api/v1/masters/remove-yards/{id},,,False,,1
-DELETE,/api/v1/masters/remove-plants/{id},,,False,,1
-GET,/api/v1/masters/bin,,,False,,0
-POST,/api/v1/masters/add-bin,,,False,Yes,0
-DELETE,/api/v1/masters/remove-bin/{binId},,,False,,1
-GET,/api/v1/masters/process,,,False,,0
-POST,/api/v1/masters/add-process,,,False,Yes,0
-DELETE,/api/v1/masters/remove-process/{processId},,,False,,1
-GET,/api/v1/masters/forgingBatch,,,False,,0
-POST,/api/v1/masters/add-forgingBatch,,,False,Yes,0
-DELETE,/api/v1/masters/remove-forgingBatch/{forgingBatchId},,,False,,1
-GET,/api/v1/masters/partCode,,,False,,0
-POST,/api/v1/masters/add-partCode,,,False,Yes,0
-DELETE,/api/v1/masters/remove-partCode/{partCodeId},,,False,,1
-GET,/api/v1/masters/internalFinised,,,False,,0
-POST,/api/v1/masters/add-internalFinised,,,False,Yes,0
-DELETE,/api/v1/masters/remove-internalFinised/{internalFinisedId},,,False,,1
-GET,/api/v1/masters/externalFinised,,,False,,0
-POST,/api/v1/masters/add-externalFinised,,,False,Yes,0
-POST,/api/v1/masters/add-or-update-equipment,,,False,Yes,0
-DELETE,/api/v1/masters/delete-equipment/{equipmentId},,,False,,1
-GET,/api/v1/masters/get-equipment/{equipmentId},,,False,,1
-GET,/api/v1/masters/get-all-equipment,,,False,,0
-GET,/api/v1/material,,,False,,0
-POST,/api/v1/material/add-material,,,False,Yes,0
-PUT,/api/v1/material/update-material/{id},,,False,Yes,1
-GET,/api/v1/material/get-all-material,,,False,,0
-GET,/api/v1/material/get-plant-user/{requestId},,,False,,1
-POST,/api/v1/material/material-list,,,False,Yes,0
-GET,/api/v1/material/get-material-by-id/{id},,,False,,1
-GET,/api/v1/material/material-files/{id},,,False,,1
-GET,/api/v1/material/get-consumption/{id},,,False,,1
-GET,/api/v1/material/material-by-requestId/{requestId},,,False,,1
-POST,/api/v1/material/material-warehouse,,,False,Yes,0
-POST,/api/v1/material/material-shopfloor,,,False,Yes,0
-GET,/api/v1/material/material-qrcode/{requestId},,,False,,1
-GET,/api/v1/material/material-fifo/{requestId},,,False,,1
-PUT,/api/v1/material/update-m/{id},,,False,,1
-GET,/api/v1/material/qrcode/{requestId},,,False,,1
-GET,/api/v1/material/all-steps,,,False,,0
-POST,/api/v1/material/create-workflow/{requestId},,,False,,1
-GET,/api/v1/material/all-steps/{requestId},,,False,,1
-GET,/api/v1/material/all-actions/{requestId},,,False,,1
-GET,/api/v1/material/action-history/{requestId},,,False,,1
-POST,/api/v1/material/action,,,False,Yes,0
-GET,/api/v1/material/material-dashboard-count,,,False,,0
-GET,/api/v1/wiptracking,,,False,,0
-POST,/api/v1/wiptracking/add-workrequest,,,False,Yes,0
-GET,/api/v1/wiptracking/workrequests,,,False,,3
-GET,/api/v1/wiptracking/workrequest-byid/{requestId},,,False,,1
-GET,/api/v1/wiptracking/workorder-byid/{requestId},,,False,,1
-POST,/api/v1/wiptracking/create-workorder,,,False,Yes,0
-POST,/api/v1/wiptracking/action,,,False,Yes,0
-POST,/api/v1/wiptracking/add-saveWorkSteps,,,False,Yes,0
-GET,/api/v1/wiptracking/{masterType},,,False,,1
-POST,/api/v1/mps/save,,,False,Yes,0
-POST,/api/v1/mps/save-header,,,False,Yes,0
-GET,/api/v1/mps/plant/{plantId},,,False,,1
-POST,/api/v1/mps/simulate/{mpsId},,,False,,3
-POST,/api/v1/mps/approve/{mpsHeaderId},,,False,,2
-POST,/api/v1/mps/release/{mpsHeaderId},,,False,,1
-GET,/api/v1/iot/node-red/flows,,,False,,0
-GET,/api/v1/iot/node-red/flows/{flowId}/nodes,,,False,,1
-POST,/api/v1/iot/node-red/flows/{nodeId}/trigger,,,False,,1
-GET,/api/v1/iot/setup/webhook-status,,,False,,0
-GET,/api/v1/production/order/getOrder/{workOrderId},,,False,,1
-POST,/api/v1/production/order/{workOrderId}/comment,,,False,Yes,1
-POST,/api/v1/production/order/{workOrderId}/resolve-exception,,,False,Yes,1
-GET,/api/v1/production/order/{workOrderId}/alternatives/{resourceType},,,False,,2
-POST,/api/v1/production/order/{workOrderId}/reassign,,,False,Yes,1
-GET,/api/v1/planning/overview,,,False,,3
-GET,/api/v1/planning/kpis,,,False,,2
-GET,/api/v1/planning/bom/{productCode},,,False,,1
-GET,/api/v1/planning/mpsOverviewDetails/{productCode},,,False,,1
-GET,/api/v1/planning/exceptions/{mpsId},,,False,,1
-GET,/api/v1/production/dashboard/getDashboard,,,False,,12
-POST,/api/v1/production/dashboard/orders,,,False,Yes,0
-PUT,/api/v1/production/dashboard/order/{workOrderId},,,False,Yes,1
-POST,/api/v1/production/dashboard/order/{workOrderId}/release,,,False,Yes,1
-POST,/api/v1/production/dashboard/order/{workOrderId}/cancel,,,False,Yes,1
-POST,/api/v1/production/dashboard/orders/bulk-action,,,False,Yes,0
-POST,/api/v1/productionplanning/workorder,,,False,Yes,0
-GET,/api/v1/productionplanning/getWorkorder,,,False,,0
-DELETE,/api/v1/productionplanning/workorder/{workOrderId},,,False,,1
-POST,/api/v1/productionplanning/mrp/run/{monthYear}/{weekNumber},,,False,,2
-GET,/api/v1/pplookups,,,False,,0
-GET,/api/v1/pplookups/product,,,False,,0
-POST,/api/v1/pplookups/add-product,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-product/{id},,,False,,1
-GET,/api/v1/pplookups/bom-master,,,False,,0
-POST,/api/v1/pplookups/add-bom-master,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-bom-master/{id},,,False,,1
-GET,/api/v1/pplookups/bom-line,,,False,,0
-GET,/api/v1/pplookups/bom-line/{bomId},,,False,,1
-POST,/api/v1/pplookups/add-bom-line,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-bom-line/{id},,,False,,1
-GET,/api/v1/pplookups/routing,,,False,,0
-POST,/api/v1/pplookups/add-routing,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-routing/{id},,,False,,1
-GET,/api/v1/pplookups/priority,,,False,,0
-POST,/api/v1/pplookups/add-priority,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-priority/{id},,,False,,1
-POST,/api/v1/pplookups/add-mps,,,False,Yes,0
-GET,/api/v1/pplookups/get-mps/{productName},,,False,,1
-DELETE,/api/v1/pplookups/remove-mps/{mpsId},,,False,,1
-GET,/api/v1/pplookups/get-mps/id/{MpsId},,,False,,1
-GET,/api/v1/pplookups/get-mpsmaster,,,False,,0
-GET,/api/v1/pplookups/capacity-analysis/{plantId}/{productCode}/{horizonWeeks},,,False,,3
-POST,/api/v1/pplookups/add-machine,,,False,Yes,0
-GET,/api/v1/pplookups/get-machine-details,,,False,,0
-GET,/api/v1/pplookups/get-machine,,,False,,0
-DELETE,/api/v1/pplookups/remove-machine/{id},,,False,,1
-GET,/api/v1/pplookups/shifts/screen,,,False,,2
-GET,/api/v1/pplookups/shifts,,,False,,0
-POST,/api/v1/pplookups/add-shift,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-shift/{shiftId},,,False,,1
-GET,/api/v1/pplookups/shifts/calendar,,,False,,2
-POST,/api/v1/pplookups/add-calendar-day,,,False,Yes,0
-POST,/api/v1/pplookups/bulk-calendar,,,False,Yes,0
-GET,/api/v1/pplookups/maintenance,,,False,,2
-POST,/api/v1/pplookups/add-maintenance,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-maintenance/{maintenanceId},,,False,,1
-GET,/api/v1/pplookups/screen,,,False,,3
-GET,/api/v1/pplookups/bars,,,False,,4
-POST,/api/v1/pplookups/add-bar,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-bar/{ganttScheduleId},,,False,,1
-POST,/api/v1/pplookups/reschedule,,,False,Yes,0
-GET,/api/v1/pplookups/{id}/detail,,,False,,1
-GET,/api/v1/pplookups/getAllRouting,,,False,,0
-POST,/api/v1/pplookups/add-template,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-template/{id},,,False,,1
-POST,/api/v1/pplookups/add-step,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-step/{id},,,False,,1
-POST,/api/v1/pplookups/{workOrderId}/complete-step,,,False,,1
-POST,/api/v1/pplookups/reorder-steps,,,False,Yes,0
-GET,/api/v1/pplookups/operators,,,False,,2
-POST,/api/v1/pplookups/add-operator,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-operator/{operatorId},,,False,,1
-GET,/api/v1/pplookups/tooling,,,False,,2
-POST,/api/v1/pplookups/add-tool,,,False,Yes,0
-DELETE,/api/v1/pplookups/remove-tool/{toolId},,,False,,1
-GET,/api/v1/pplookups/resource-screen,,,False,,0
-GET,/api/v1/pplookups/resource-kpis,,,False,,0
-GET,/api/v1/pplookups/alertScreen,,,False,,0
-POST,/api/v1/pplookups/refresh,,,False,,0
-POST,/api/v1/pplookups/resolve,,,False,Yes,0
-POST,/api/v1/pplookups/acknowledge-all,,,False,Yes,0
-POST,/api/v1/pplookups/mps/rawmaterial/save,,,False,Yes,0
-GET,/api/v1/pplookups/mps/rawmaterial/{mpsId},,,False,,1
-GET,/api/v1/reports,,,False,,0
-GET,/api/v1/reports/vehicle-count/{fromMonthYear}/{toMonthYear},,,False,,2
-GET,/api/v1/reports/monthly-count/{fromMonthYear}/{toMonthYear},,,False,,2
-GET,/api/v1/reports/overstay/{fromMonthYear}/{toMonthYear},,,False,,2
-GET,/api/v1/forecastmaster,,,False,,0
-GET,/api/v1/saleforecasting,,,False,,0
-GET,/api/v1/saleforecasting/forecastHeader,,,False,,0
-GET,/api/v1/saleforecasting/validate-forecastdate,,,False,,0
-GET,/api/v1/saleforecasting/forecasts,,,False,,0
-POST,/api/v1/saleforecasting/save-forecast,,,False,Yes,0
-GET,/api/v1/saleforecasting/forecasts-by-request/{requestId},,,False,,1
-GET,/api/v1/saleforecasting/forecasts-count/{materialCode},,,False,,1
-GET,/api/v1/saleforecasting/all-steps/{requestId},,,False,,1
-GET,/api/v1/saleforecasting/all-actions/{requestId},,,False,,1
-GET,/api/v1/saleforecasting/action-history/{requestId},,,False,,1
-POST,/api/v1/saleforecasting/action,,,False,Yes,0
-GET,/api/v1/saleforecasting/neckTypeReport,,,False,,0
-GET,/api/v1/saleforecasting/forcastneckType,,,False,,0
-GET,/api/v1/saleforecasting/forecasts-by-monthYear/{monthYear},,,False,,1
-GET,/api/v1/saleforecasting/forecasts-by-customersales/{neckType},,,False,,1
-GET,/api/v1/saleforecasting/machineMaterialReport,,,False,,0
-GET,/api/v1/saleforecasting/machine-utilisation/{monthYear},,,False,,1
-GET,/api/v1/training,,,False,,0
-GET,/api/v1/training/training,,,False,,0
-GET,/api/v1/training/training/{id},,,False,,1
-GET,/api/v1/training/training-by-driver/{id},,,False,,1
-GET,/api/v1/training/my-training,,,False,,0
-GET,/api/v1/training/question-type,,,False,,0
-GET,/api/v1/training/batches,,,False,,0
-POST,/api/v1/training/batches,,,False,Yes,0
-POST,/api/v1/training/batches-driver-mapping,,,False,Yes,0
-GET,/api/v1/training/batches-driver-mapping/{batchId},,,False,,1
-GET,/api/v1/training/verifiers,,,False,,0
-POST,/api/v1/training/create-training,,,False,Yes,0
-GET,/api/v1/training/drivers-training,,,False,,0
-GET,/api/v1/training/drivers-training/{driverId}/{trainingId},,,False,,2
-POST,/api/v1/training/training-feedback,,,False,Yes,0
-GET,/api/v1/training/admin-dashboard,,,False,,0
-POST,/api/v1/training/declined,,,False,Yes,0
-POST,/api/v1/training/warning,,,False,Yes,0
-GET,/api/v1/training/complete-training/{trainingId}/{batchId},,,False,,2
-GET,/api/v1/training/my-batches,,,False,,0
-GET,/api/v1/training/my-warnings/{driverId},,,False,,1
-GET,/api/v1/training/my-batches/{bathcId},,,False,,2
-GET,/WeatherForecast,,,False,,0
-GET,/api/v1/wiptraceability/all-steps/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/all-actions/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/action-history/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/getinventory/{category},,,False,,1
-GET,/api/v1/wiptraceability/wipstoragelocation/{wipstoragelocationId},,,False,,1
-GET,/api/v1/wiptraceability/wiplocation/{itemCode},,,False,,1
-GET,/api/v1/wiptraceability/wipStoragelocation,,,False,,2
-POST,/api/v1/wiptraceability/add-wipstoragelocation,,,False,Yes,0
-GET,/api/v1/wiptraceability/finishedgood/{materialCode}/{isOnHold},,,False,,2
-GET,/api/v1/wiptraceability/hold/{materialCode}/{isOnHold},,,False,,2
-GET,/api/v1/wiptraceability/validate-holdbag/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/validate-fgbag/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/semifinishedgood/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/scrapQty/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/rejected/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/isBagValid/{sourceType}/{bagName},,,False,,2
-GET,/api/v1/wiptraceability/onlineHold/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/fglist/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/validate-onlineHoldbag/{bagName},,,False,,1
-POST,/api/v1/wiptraceability/onlineHold-Process,,,False,Yes,0
-POST,/api/v1/wiptraceability/Hold-Process,,,False,Yes,0
-POST,/api/v1/wiptraceability/fg-Process,,,False,Yes,0
-POST,/api/v1/wiptraceability/process-Jumbo,,,False,Yes,0
-GET,/api/v1/wiptraceability/jumbo,,,False,,1
-GET,/api/v1/wiptraceability/jumbobagvalidate/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/getScrapList,,,False,,0
-GET,/api/v1/wiptraceability/getRejectedList,,,False,,0
-POST,/api/v1/wiptraceability/dispatchjumboPackage,,,False,Yes,0
+GET,/api/v1/account,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by AccountApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/account/user-creation,,"{'tool_name': 'create_user_profile', 'description': 'Executes CreateUserProfile. Usable by AccountApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/account/roles,,"{'tool_name': 'get_roles', 'description': 'Executes GetRoles. Usable by AccountApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/account/menu,,"{'tool_name': 'get_menus', 'description': 'Executes GetMenus. Usable by AccountApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/account/user-by-id/{id},,"{'tool_name': 'user_by_id', 'description': 'Executes UserById. Usable by AccountApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/account/login,,"{'tool_name': 'login', 'description': 'Executes Login. Usable by AccountApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/production/alerts/get-alert,,"{'tool_name': 'get_alert_screen', 'description': 'Executes GetAlertScreen. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,10
+POST,/api/v1/production/alerts/{alertId}/acknowledge,,"{'tool_name': 'acknowledge_alert', 'description': 'Executes AcknowledgeAlert. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/production/alerts/{alertId}/resolve,,"{'tool_name': 'resolve_alert', 'description': 'Executes ResolveAlert. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/production/alerts/Add-alert,,"{'tool_name': 'create_alert', 'description': 'Executes CreateAlert. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/production/alerts/bulk-resolve,,"{'tool_name': 'bulk_resolve_alerts', 'description': 'Executes BulkResolveAlerts. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/production/alerts/conflict/{conflictId}/resolutions,,"{'tool_name': 'get_conflict_resolutions', 'description': 'Executes GetConflictResolutions. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/production/alerts/conflict/resolve,,"{'tool_name': 'apply_conflict_resolution', 'description': 'Executes ApplyConflictResolution. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/production/alerts/notifications/rules,,"{'tool_name': 'get_notification_rules', 'description': 'Executes GetNotificationRules. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/production/alerts/notifications/rules,,"{'tool_name': 'save_notification_rule', 'description': 'Executes SaveNotificationRule. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/production/alerts/notifications/rules/{ruleId},,"{'tool_name': 'delete_notification_rule', 'description': 'Executes DeleteNotificationRule. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/attachment/upload-files,,"{'tool_name': 'upload_files', 'description': 'Executes UploadFiles. Usable by AttachmentApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,2
+DELETE,/api/v1/attachment/delete/{id},,"{'tool_name': 'delete', 'description': 'Executes Delete. Usable by AttachmentApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/attachment/profile-photo/{id},,"{'tool_name': 'get_profile_photo', 'description': 'Executes GetProfilePhoto. Usable by AttachmentApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/attachment/file-by-id/{id},,"{'tool_name': 'get_file_by_id', 'description': 'Executes GetFileById. Usable by AttachmentApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/attachment/downaload-by-id/{id},,"{'tool_name': 'download', 'description': 'Executes Download. Usable by AttachmentApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/production/capacity,,"{'tool_name': 'get_capacity_screen', 'description': 'Executes GetCapacityScreen. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,8
+GET,/api/v1/production/capacity/machine/{machineId},,"{'tool_name': 'get_machine_utilization_detail', 'description': 'Executes GetMachineUtilizationDetail. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/production/capacity/skill-matrix,,"{'tool_name': 'get_skill_matrix', 'description': 'Executes GetSkillMatrix. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/production/capacity/balance,,"{'tool_name': 'apply_balance_suggestion', 'description': 'Executes ApplyBalanceSuggestion. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/production/capacity/forecast,,"{'tool_name': 'get_capacity_forecast', 'description': 'Executes GetCapacityForecast. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/production/capacity/machine-availability/{machineId},,"{'tool_name': 'get_machine_availability', 'description': 'Executes GetMachineAvailability. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/production/capacity/machine-availability,,"{'tool_name': 'get_machine_availability', 'description': 'Executes GetMachineAvailability. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/production/capacity/simulation,,"{'tool_name': 'create_simulation_session', 'description': 'Executes CreateSimulationSession. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/production/capacity/simulation/change,,"{'tool_name': 'apply_simulation_change', 'description': 'Executes ApplySimulationChange. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/production/capacity/simulation/commit,,"{'tool_name': 'commit_simulation', 'description': 'Executes CommitSimulation. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/dashboard,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by DashboardApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/dashboard/pormDashboardData,,"{'tool_name': 'get_summary', 'description': 'Executes GetSummary. Usable by DashboardApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/dashboard/production-summaries,,"{'tool_name': 'get_all_production_summaries', 'description': 'Executes GetAllProductionSummaries. Usable by DashboardApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/dashboard/production-monthly-summaries,,"{'tool_name': 'get_monthly_production_summaries', 'description': 'Executes GetMonthlyProductionSummaries. Usable by DashboardApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/dashboard/forecast-vs-actual,,"{'tool_name': 'get_forecast_vs_actual', 'description': 'Executes GetForecastVsActual. Usable by DashboardApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/dashboard/salesorderReport,,"{'tool_name': 'get', 'description': 'Executes Get. Usable by DashboardApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/gatemanagement/gate-entry,,"{'tool_name': 'handle', 'description': 'Executes Handle. Usable by GateManagement agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,28
+GET,/api/v1/gatemanagement/entry-details/{requestId},,"{'tool_name': 'get_entry_details', 'description': 'Executes GetEntryDetails. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement/qr-code/{requestId},,"{'tool_name': 'get_qr_code', 'description': 'Executes GetQrCode. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement/entry-files/{requestId},,"{'tool_name': 'get_files', 'description': 'Executes GetFiles. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/gatemanagement/exit-entry,,"{'tool_name': 'update_exit_entry', 'description': 'Executes UpdateExitEntry. Usable by GateManagement agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/gatemanagement/visitor-entry,,"{'tool_name': 'add_visitor', 'description': 'Executes AddVisitor. Usable by GateManagement agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/gatemanagement/visitor-update,,"{'tool_name': 'update_visitor_entry', 'description': 'Executes UpdateVisitorEntry. Usable by GateManagement agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/gatemanagement/visitor/{requestId},,"{'tool_name': 'get_visitor', 'description': 'Executes GetVisitor. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement/visitor-list,,"{'tool_name': 'get_visitor_list', 'description': 'Executes GetVisitorList. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/gatemanagement/visitor-files/{requestId},,"{'tool_name': 'get_visitor_files', 'description': 'Executes GetVisitorFiles. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement/vehicle,,"{'tool_name': 'get_vehicle', 'description': 'Executes GetVehicle. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/gatemanagement/all-steps/{requestId},,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement/all-actions/{requestId},,"{'tool_name': 'get_actions', 'description': 'Executes GetActions. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/gatemanagement/action-history/{requestId},,"{'tool_name': 'get_action_history', 'description': 'Executes GetActionHistory. Usable by GateManagement agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/gatemanagement/action,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by GateManagement agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/gatemanagement/warehouse-manager,,"{'tool_name': 'ware_house_manager_action', 'description': 'Executes WareHouseManagerAction. Usable by GateManagement agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/iot/grafana/dashboards,,"{'tool_name': 'get_dashboards', 'description': 'Executes GetDashboards. Usable by Grafana agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/iot/grafana/dashboards/{dashboardUid}/panels,,"{'tool_name': 'get_dashboard_panels', 'description': 'Executes GetDashboardPanels. Usable by Grafana agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/iot/influx/machines,,"{'tool_name': 'get_machines', 'description': 'Executes GetMachines. Usable by Influx agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/iot/influx/machines/{machineId}/latest,,"{'tool_name': 'get_machine_latest', 'description': 'Executes GetMachineLatest. Usable by Influx agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/iot/influx/machines/{machineId}/history,,"{'tool_name': 'get_machine_history', 'description': 'Executes GetMachineHistory. Usable by Influx agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/influx,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by Influx agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/integrations,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by Integration agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/integrations/machine-data,,"{'tool_name': 'post_machine_data', 'description': 'Executes PostMachineData. Usable by Integration agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/iot/webhook/data,,"{'tool_name': 'receive_data', 'description': 'Executes ReceiveData. Usable by IoTWebhook agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/iot/webhook/ping,,"{'tool_name': 'ping', 'description': 'Executes Ping. Usable by IoTWebhook agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/maintenance/add-workrequest,,"{'tool_name': 'create_work_request', 'description': 'Executes CreateWorkRequest. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/maintenance/delete-workrequest/{workRequestId},,"{'tool_name': 'delete_work_request', 'description': 'Executes DeleteWorkRequest. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/maintenance/trigger-workrequest,,"{'tool_name': 'trigger_work_request', 'description': 'Executes TriggerWorkRequest. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/maintenance/workrequests,,"{'tool_name': 'get_all_work_request', 'description': 'Executes GetAllWorkRequest. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/maintenance/workrequest-byid/{requestId},,"{'tool_name': 'get_request_by_id', 'description': 'Executes GetRequestById. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/get-WorkOrders,,"{'tool_name': 'get_all_work_orders', 'description': 'Executes GetAllWorkOrders. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/workorder-byid/{requestId},,"{'tool_name': 'get_work_order', 'description': 'Executes GetWorkOrder. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/maintenance/create-workorder,,"{'tool_name': 'create_work_order', 'description': 'Executes CreateWorkOrder. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/maintenance/all-steps-template/{workflowType},,"{'tool_name': 'get_all_steps_template', 'description': 'Executes GetAllStepsTemplate. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/all-steps/{requestId},,"{'tool_name': 'get_all_steps', 'description': 'Executes GetAllSteps. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/all-actions/{requestId},,"{'tool_name': 'get_actions', 'description': 'Executes GetActions. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/action-history/{requestId},,"{'tool_name': 'get_action_history', 'description': 'Executes GetActionHistory. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/maintenance/action,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/action-workflow,,"{'tool_name': 'submit_workflow', 'description': 'Executes SubmitWorkflow. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/storemanager-action,,"{'tool_name': 'store_manager_action', 'description': 'Executes StoreManagerAction. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/request-parts,,"{'tool_name': 'request_parts', 'description': 'Executes RequestParts. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/add-labourtask,,"{'tool_name': 'add_labour_task', 'description': 'Executes AddLabourTask. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/assign-labour,,"{'tool_name': 'assign_labour', 'description': 'Executes AssignLabour. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/maintenance/labourtasks/{workorderid},,"{'tool_name': 'get_labour_task', 'description': 'Executes GetLabourTask. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/labourtasks,,"{'tool_name': 'get_labour_task', 'description': 'Executes GetLabourTask. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/parts/{workorderid},,"{'tool_name': 'requested_part', 'description': 'Executes RequestedPart. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/parts-by-request-id/{partrequestId},,"{'tool_name': 'part_by_request_id', 'description': 'Executes PartByRequestId. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/maintenance/update-quantity,,"{'tool_name': 'update_quantity', 'description': 'Executes UpdateQuantity. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/dashboard/{groupby},,"{'tool_name': 'get_dashbaord', 'description': 'Executes GetDashbaord. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/maintenance/scheduled/{month}/{year},,"{'tool_name': 'get_schedule_maintenace', 'description': 'Executes GetScheduleMaintenace. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/maintenance/inspection-by-request-number/{inspectionRequestNumber},,"{'tool_name': 'get_inspection_by_request_number', 'description': 'Executes GetInspectionByRequestNumber. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/get-inspection,,"{'tool_name': 'get_all', 'description': 'Executes GetAll. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/maintenance/add-inspectionForm,,"{'tool_name': 'submit', 'description': 'Executes Submit. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/update-verifier,,"{'tool_name': 'verify', 'description': 'Executes Verify. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/maintenance/pending-inspection,,"{'tool_name': 'pending', 'description': 'Executes Pending. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/maintenance-maintenanceReport,,"{'tool_name': 'get_maintenance_dashboard', 'description': 'Executes GetMaintenanceDashboard. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/breakdownAnalysisReport,,"{'tool_name': 'get_breakdown_summary', 'description': 'Executes GetBreakdownSummary. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/top-causes,,"{'tool_name': 'get_top_failure_causes', 'description': 'Executes GetTopFailureCauses. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/monthly-weeks/{month}/{year},,"{'tool_name': 'get_breakdowns_by_weeks_in_month', 'description': 'Executes GetBreakdownsByWeeksInMonth. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/maintenance/workOrderSummary,,"{'tool_name': 'get_work_order_list', 'description': 'Executes GetWorkOrderList. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/workOrderCount,,"{'tool_name': 'get_work_order_summary', 'description': 'Executes GetWorkOrderSummary. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/sparePartsReport,,"{'tool_name': 'get_spare_parts_async', 'description': 'Executes GetSparePartsAsync. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/maintenance/event,,"{'tool_name': 'receive_event', 'description': 'Executes ReceiveEvent. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/add-breakdown,,"{'tool_name': 'add_break_down', 'description': 'Executes AddBreakDown. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/maintenance/get-all-breakdown,,"{'tool_name': 'get_all_breakdowns', 'description': 'Executes GetAllBreakdowns. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/maintenance/request-tools,,"{'tool_name': 'request_tools', 'description': 'Executes RequestTools. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/assign-tool,,"{'tool_name': 'assign_tool', 'description': 'Executes AssignTool. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/maintenance/receive-tool,,"{'tool_name': 'receive_tool', 'description': 'Executes ReceiveTool. Usable by MaintenanceApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/maintenance/tools/{workorderid},,"{'tool_name': 'get_requested_tools', 'description': 'Executes GetRequestedTools. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/getToolsOrder,,"{'tool_name': 'get_tools_order', 'description': 'Executes GetToolsOrder. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/maintenance/dashboard-live/{selectedDateTime},,"{'tool_name': 'get_live_dashboard', 'description': 'Executes GetLiveDashboard. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/maintenance/dashboard-live-charts/{selectedDateTime},,"{'tool_name': 'get_live_dashboard_charts', 'description': 'Executes GetLiveDashboardCharts. Usable by MaintenanceApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/exciseClassification,,"{'tool_name': 'get_excise_classification', 'description': 'Executes GetExciseClassification. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-exciseClassification,,"{'tool_name': 'add_excise_classificatione', 'description': 'Executes AddExciseClassificatione. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-exciseClassification/{exciseClassificationId},,"{'tool_name': 'remove_excise_classification', 'description': 'Executes RemoveExciseClassification. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/plasticMaterialType,,"{'tool_name': 'get_plastic_material_type', 'description': 'Executes GetPlasticMaterialType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-plasticMaterialType,,"{'tool_name': 'add_plastic_material_type', 'description': 'Executes AddPlasticMaterialType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-plasticMaterialType/{plasticTypeId},,"{'tool_name': 'remove_plastic_material_type', 'description': 'Executes RemovePlasticMaterialType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/plasticCategory,,"{'tool_name': 'get_plastic_category', 'description': 'Executes GetPlasticCategory. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-plasticCategory,,"{'tool_name': 'add_plastic_category', 'description': 'Executes AddPlasticCategory. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-plasticCategory/{plasticCategoryId},,"{'tool_name': 'remove_plastic_category', 'description': 'Executes RemovePlasticCategory. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/containerCapacity,,"{'tool_name': 'get_container_capacity', 'description': 'Executes GetContainerCapacity. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-containerCapacity,,"{'tool_name': 'add_container_capacity', 'description': 'Executes AddContainerCapacity. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-containerCapacity/{containerCapacityId},,"{'tool_name': 'remove_container_capacity', 'description': 'Executes RemoveContainerCapacity. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/spareType,,"{'tool_name': 'get_spare_type', 'description': 'Executes GetSpareType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-spareType,,"{'tool_name': 'add_spare_type', 'description': 'Executes AddSpareType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-spareType/{spareTypeId},,"{'tool_name': 'remove_spare_type', 'description': 'Executes RemoveSpareType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/itemColour,,"{'tool_name': 'get_item_colour', 'description': 'Executes GetItemColour. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-itemColour,,"{'tool_name': 'add_item_colour', 'description': 'Executes AddItemColour. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-itemColour/{itemColourId},,"{'tool_name': 'remove_item_colour', 'description': 'Executes RemoveItemColour. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/itemMake,,"{'tool_name': 'get_item_make', 'description': 'Executes GetItemMake. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-itemMake,,"{'tool_name': 'add_item_make', 'description': 'Executes AddItemMake. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-itemMake/{itemMakeId},,"{'tool_name': 'remove_item_make', 'description': 'Executes RemoveItemMake. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/measurementUnit,,"{'tool_name': 'get_measurement_unit', 'description': 'Executes GetMeasurementUnit. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-measurementUnit,,"{'tool_name': 'add_measurement_unit', 'description': 'Executes AddMeasurementUnit. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-measurementUnit/{measurementUnitId},,"{'tool_name': 'remove_measurement_unit', 'description': 'Executes RemoveMeasurementUnit. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/alternateUnit,,"{'tool_name': 'get_alternate_unit', 'description': 'Executes GetAlternateUnit. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-alternateUnit,,"{'tool_name': 'add_alternate_unit', 'description': 'Executes AddAlternateUnit. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-alternateUnit/{alternateUnitId},,"{'tool_name': 'remove_alternate_unit', 'description': 'Executes RemoveAlternateUnit. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/store,,"{'tool_name': 'get_store', 'description': 'Executes GetStore. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-store,,"{'tool_name': 'add_store', 'description': 'Executes AddStore. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-store/{storeId},,"{'tool_name': 'remove_store', 'description': 'Executes RemoveStore. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/itemCategory/{itemCategory},,"{'tool_name': 'get_items_by_category', 'description': 'Executes GetItemsByCategory. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/rmGrade,,"{'tool_name': 'get_r_m_grade', 'description': 'Executes GetRMGrade. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-rmGrade,,"{'tool_name': 'add_r_m_grade', 'description': 'Executes AddRMGrade. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-rmGrade/{rmGradeId},,"{'tool_name': 'remove_r_m_grade', 'description': 'Executes RemoveRMGrade. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/GetStoreNameByItem/{materialCode},,"{'tool_name': 'get_store_name_by_item', 'description': 'Executes GetStoreNameByItem. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/sfg,,"{'tool_name': 'get_semi_finished_goods', 'description': 'Executes GetSemiFinishedGoods. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/machineDetails,,"{'tool_name': 'machine_details', 'description': 'Executes MachineDetails. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/details/{equipmentName},,"{'tool_name': 'get_equipment_by_name', 'description': 'Executes GetEquipmentByName. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/equipmentDetails/{machineName},,"{'tool_name': 'get_equipment_by_machine_name', 'description': 'Executes GetEquipmentByMachineName. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/maintenancetype,,"{'tool_name': 'get_maintenance_type', 'description': 'Executes GetMaintenanceType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+DELETE,/api/v1/masters/remove-externalFinised/{externalFinisedId},,"{'tool_name': 'remove_external_finised', 'description': 'Executes RemoveExternalFinised. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/stage,,"{'tool_name': 'get_stage', 'description': 'Executes GetStage. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-stage,,"{'tool_name': 'add_stage', 'description': 'Executes AddStage. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-stage/{stageScreenId},,"{'tool_name': 'remove_stage', 'description': 'Executes RemoveStage. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/masters/add-userrolemodulemapping,,"{'tool_name': 'add_user_role_module_mapping', 'description': 'Executes AddUserRoleModuleMapping. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-updatrole,,"{'tool_name': 'add_or_update_role', 'description': 'Executes AddOrUpdateRole. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-update-user,,"{'tool_name': 'add_or_update_user', 'description': 'Executes AddOrUpdateUser. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/assets,,"{'tool_name': 'get_assets', 'description': 'Executes GetAssets. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-or-update-assest,,"{'tool_name': 'add_or_update_assest', 'description': 'Executes AddOrUpdateAssest. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/delete-assest/{assestId},,"{'tool_name': 'delete_assest', 'description': 'Executes DeleteAssest. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/masters/departments,,"{'tool_name': 'get_all_department', 'description': 'Executes GetAllDepartment. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/masters/maintenace-subtype/{code},,"{'tool_name': 'get_maintenance_sub_thype', 'description': 'Executes GetMaintenanceSubThype. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/iotMachineData,,"{'tool_name': 'get_all', 'description': 'Executes GetAll. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/iotMachineDataGetById/{id},,"{'tool_name': 'get_by_id', 'description': 'Executes GetById. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/iotmachine-fg-mapping/{machineType},,"{'tool_name': 'get_machine_f_g_mapping', 'description': 'Executes GetMachineFGMapping. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/inventories,,"{'tool_name': 'get_inventorie', 'description': 'Executes GetInventorie. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/masters/horizons,,"{'tool_name': 'get_horizons', 'description': 'Executes GetHorizons. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-horizon,,"{'tool_name': 'add_horizon', 'description': 'Executes AddHorizon. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-horizon/{horizonId},,"{'tool_name': 'remove_horizon', 'description': 'Executes RemoveHorizon. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/versions,,"{'tool_name': 'get_versions', 'description': 'Executes GetVersions. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-version,,"{'tool_name': 'add_version', 'description': 'Executes AddVersion. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-version/{versionId},,"{'tool_name': 'remove_version', 'description': 'Executes RemoveVersion. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/storeManager,,"{'tool_name': 'get_store_manager', 'description': 'Executes GetStoreManager. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/masters/customer,,"{'tool_name': 'get_customer', 'description': 'Executes GetCustomer. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-customer,,"{'tool_name': 'add_customer', 'description': 'Executes AddCustomer. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-customer/{customerId},,"{'tool_name': 'remove_customer', 'description': 'Executes RemoveCustomer. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/rawMaterial,,"{'tool_name': 'get_raw_material', 'description': 'Executes GetRawMaterial. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-rawMaterial,,"{'tool_name': 'add_raw_material', 'description': 'Executes AddRawMaterial. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-rawMaterial/{rawMaterialId},,"{'tool_name': 'remove_raw_material', 'description': 'Executes RemoveRawMaterial. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/salesPerson,,"{'tool_name': 'get_sales_person', 'description': 'Executes GetSalesPerson. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-salesPerson,,"{'tool_name': 'add_sales_person', 'description': 'Executes AddSalesPerson. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-salesPerson/{salesPersonId},,"{'tool_name': 'remove_sales_person', 'description': 'Executes RemoveSalesPerson. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/packagingType,,"{'tool_name': 'get_packaging_type', 'description': 'Executes GetPackagingType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-packagingType,,"{'tool_name': 'add_packaging_type', 'description': 'Executes AddPackagingType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-PackagingType/{packagingTypeId},,"{'tool_name': 'remove_packaging_type', 'description': 'Executes RemovePackagingType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/toleranceLevel,,"{'tool_name': 'get_tolerance_level', 'description': 'Executes GetToleranceLevel. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-toleranceLevel,,"{'tool_name': 'add_tolerance_level', 'description': 'Executes AddToleranceLevel. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-toleranceLevel/{toleranceLevelId},,"{'tool_name': 'remove_tolerance_level', 'description': 'Executes RemoveToleranceLevel. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/shift,,"{'tool_name': 'get_shift', 'description': 'Executes GetShift. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-shift,,"{'tool_name': 'add_shift', 'description': 'Executes AddShift. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-shift/{shiftlId},,"{'tool_name': 'remove_shift', 'description': 'Executes RemoveShift. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,2
+GET,/api/v1/masters/finishedGood,,"{'tool_name': 'get_finished_good', 'description': 'Executes GetFinishedGood. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-finishedGood,,"{'tool_name': 'add_finished_good', 'description': 'Executes AddFinishedGood. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-finishedGood/{fgId},,"{'tool_name': 'remove_finished_good', 'description': 'Executes RemoveFinishedGood. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/machine,,"{'tool_name': 'get_machine', 'description': 'Executes GetMachine. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-machine,,"{'tool_name': 'add_machine', 'description': 'Executes AddMachine. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-machine/{machineId},,"{'tool_name': 'remove_machine', 'description': 'Executes RemoveMachine. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/semiFinishedGood,,"{'tool_name': 'get_semi_finished_good', 'description': 'Executes GetSemiFinishedGood. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-semiFinishedGood,,"{'tool_name': 'add_semi_finished_good', 'description': 'Executes AddSemiFinishedGood. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-semiFinishedGood/{sfgId},,"{'tool_name': 'remove_semi_finished_good', 'description': 'Executes RemoveSemiFinishedGood. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/cavity,,"{'tool_name': 'get_cavity', 'description': 'Executes GetCavity. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-cavity,,"{'tool_name': 'add_cavity', 'description': 'Executes AddCavity. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-cavity/{cavityId},,"{'tool_name': 'remove_cavity', 'description': 'Executes RemoveCavity. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/materialWithSample,,"{'tool_name': 'get_v_w__material_with_sample', 'description': 'Executes GetVW_MaterialWithSample. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/customer-saleperson/{salesPersonId},,"{'tool_name': 'get_sales_person_customer_mapping', 'description': 'Executes GetSalesPersonCustomerMapping. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/salesperson-details/{salesPersonId},,"{'tool_name': 'get_sale_person', 'description': 'Executes GetSalePerson. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/materials,,"{'tool_name': 'get_materials', 'description': 'Executes GetMaterials. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/materials-list,,"{'tool_name': 'get_materialist', 'description': 'Executes GetMaterialist. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-materials,,"{'tool_name': 'add_materials', 'description': 'Executes AddMaterials. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/masters/material-details/{materialName},,"{'tool_name': 'get_material_details_by_name', 'description': 'Executes GetMaterialDetailsByName. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-materials/{referenceNo},,"{'tool_name': 'remove_materials', 'description': 'Executes RemoveMaterials. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/itemGroup,,"{'tool_name': 'get_item_group', 'description': 'Executes GetItemGroup. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-itemGroup,,"{'tool_name': 'add_item_group', 'description': 'Executes AddItemGroup. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-itemGroup/{itemGroupId},,"{'tool_name': 'remove_item_group', 'description': 'Executes RemoveItemGroup. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/itemCategory,,"{'tool_name': 'get_item_category', 'description': 'Executes GetItemCategory. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-itemCategory,,"{'tool_name': 'add_item_category', 'description': 'Executes AddItemCategory. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-itemCategory/{itemCategoryId},,"{'tool_name': 'remove_item_category', 'description': 'Executes RemoveItemCategory. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/neckType,,"{'tool_name': 'get_neck_type', 'description': 'Executes GetNeckType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-neckType,,"{'tool_name': 'add_neck_type', 'description': 'Executes AddNeckType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-neckType/{neckTypeId},,"{'tool_name': 'remove_neck_type', 'description': 'Executes RemoveNeckType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/assetType,,"{'tool_name': 'get_asset_type', 'description': 'Executes GetAssetType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-assetType,,"{'tool_name': 'add_asset_type', 'description': 'Executes AddAssetType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-assestType/{assetTypeId},,"{'tool_name': 'remove_asset_type', 'description': 'Executes RemoveAssetType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/serviceType,,"{'tool_name': 'get_service_type', 'description': 'Executes GetServiceType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-serviceType,,"{'tool_name': 'add_service_type', 'description': 'Executes AddServiceType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-serviceType/{serviceTypeId},,"{'tool_name': 'remove_service_type', 'description': 'Executes RemoveServiceType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/itemType,,"{'tool_name': 'get_item_type', 'description': 'Executes GetItemType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-itemType,,"{'tool_name': 'add_item_type', 'description': 'Executes AddItemType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-itemType/{itemTypeId},,"{'tool_name': 'remove_item_type', 'description': 'Executes RemoveItemType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/hsnCode,,"{'tool_name': 'get_h_s_n_code', 'description': 'Executes GetHSNCode. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-hsnCode,,"{'tool_name': 'add_h_s_n_code', 'description': 'Executes AddHSNCode. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-hsnCode/{hsnCodeId},,"{'tool_name': 'remove_h_s_n_code', 'description': 'Executes RemoveHSNCode. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/user-list,,"{'tool_name': 'get_all_user', 'description': 'Executes GetAllUser. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/locations,,"{'tool_name': 'get_all_locations', 'description': 'Executes GetAllLocations. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/vendors,,"{'tool_name': 'getvendors', 'description': 'Executes Getvendors. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/warehouse,,"{'tool_name': 'get_warehouse', 'description': 'Executes GetWarehouse. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/states,,"{'tool_name': 'get_states', 'description': 'Executes GetStates. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/company,,"{'tool_name': 'get_company', 'description': 'Executes GetCompany. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/modules,,"{'tool_name': 'get_modules', 'description': 'Executes GetModules. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/modules-company,,"{'tool_name': 'get_modules_by_company', 'description': 'Executes GetModulesByCompany. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/cities,,"{'tool_name': 'get_cities', 'description': 'Executes GetCities. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/materialcategories,,"{'tool_name': 'get_material_category', 'description': 'Executes GetMaterialCategory. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/material-states,,"{'tool_name': 'get_material_states', 'description': 'Executes GetMaterialStates. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/material-types,,"{'tool_name': 'get_material_types', 'description': 'Executes GetMaterialTypes. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/yard-locations,,"{'tool_name': 'get_yard_locations', 'description': 'Executes GetYardLocations. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/yard-location,,"{'tool_name': 'get_yard_location', 'description': 'Executes GetYardLocation. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/yards,,"{'tool_name': 'get_yard', 'description': 'Executes GetYard. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/plants,,"{'tool_name': 'get_plants', 'description': 'Executes GetPlants. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/groups,,"{'tool_name': 'get_groups', 'description': 'Executes GetGroups. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-material-categories,,"{'tool_name': 'add_material_category', 'description': 'Executes AddMaterialCategory. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-material-types,,"{'tool_name': 'add_material_types', 'description': 'Executes AddMaterialTypes. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-material-states,,"{'tool_name': 'add_material_states', 'description': 'Executes AddMaterialStates. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-vendors,,"{'tool_name': 'add_vendors', 'description': 'Executes AddVendors. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-warehouses,,"{'tool_name': 'add_warehouses', 'description': 'Executes AddWarehouses. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-location,,"{'tool_name': 'add_location', 'description': 'Executes AddLocation. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-company,,"{'tool_name': 'add_cities', 'description': 'Executes AddCities. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-cities,,"{'tool_name': 'add_cities', 'description': 'Executes AddCities. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-countries,,"{'tool_name': 'add_countries', 'description': 'Executes AddCountries. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-states,,"{'tool_name': 'add_state', 'description': 'Executes AddState. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-company/{companyId},,"{'tool_name': 'remove_company', 'description': 'Executes RemoveCompany. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-city/{cityId},,"{'tool_name': 'remove_city', 'description': 'Executes RemoveCity. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-country/{countryId},,"{'tool_name': 'remove_country', 'description': 'Executes RemoveCountry. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-vendors/{vendorId},,"{'tool_name': 'remove_vendors', 'description': 'Executes RemoveVendors. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-warehouse/{warehouseId},,"{'tool_name': 'remove_warehouse', 'description': 'Executes RemoveWarehouse. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-state/{stateId},,"{'tool_name': 'remove_state', 'description': 'Executes RemoveState. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-location/{locationId},,"{'tool_name': 'remove_locations', 'description': 'Executes RemoveLocations. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/contractingagency,,"{'tool_name': 'get_contracting_agency', 'description': 'Executes GetContractingAgency. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/driver,,"{'tool_name': 'get_driver', 'description': 'Executes GetDriver. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/masters/driverdetails/{driverId},,"{'tool_name': 'get_driver_details', 'description': 'Executes GetDriverDetails. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/masters/add-drivers,,"{'tool_name': 'add_drivers', 'description': 'Executes AddDrivers. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-drivers/{driverId},,"{'tool_name': 'remove_driver', 'description': 'Executes RemoveDriver. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/masters/add-yarlocations,,"{'tool_name': 'add_yard_location', 'description': 'Executes AddYardLocation. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-yard,,"{'tool_name': 'add_yard', 'description': 'Executes AddYard. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-plant,,"{'tool_name': 'add_plants', 'description': 'Executes AddPlants. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-materialstates/{id},,"{'tool_name': 'remove_material_states', 'description': 'Executes RemoveMaterialStates. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-materialtypes/{id},,"{'tool_name': 'remove_material_types', 'description': 'Executes RemoveMaterialTypes. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-materialcategories/{id},,"{'tool_name': 'remove_material_categories', 'description': 'Executes RemoveMaterialCategories. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-contractingagency/{agencyId},,"{'tool_name': 'remove_contracting_agency', 'description': 'Executes RemoveContractingAgency. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/masters/add-contractingagency,,"{'tool_name': 'add_contracting_agency', 'description': 'Executes AddContractingAgency. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/masters/vehicletype,,"{'tool_name': 'get_vehicle_type', 'description': 'Executes GetVehicleType. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-vehicletype,,"{'tool_name': 'add_vehicle_type', 'description': 'Executes AddVehicleType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-vehicletype/{vehicleId},,"{'tool_name': 'remove_vehicle_type', 'description': 'Executes RemoveVehicleType. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/gates,,"{'tool_name': 'get_all_gates', 'description': 'Executes GetAllGates. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-gates,,"{'tool_name': 'add_gates', 'description': 'Executes AddGates. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/masters/location-gates/{locationId},,"{'tool_name': 'gate_by_locatio', 'description': 'Executes GateByLocatio. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/licensetypes,,"{'tool_name': 'get_license_types', 'description': 'Executes GetLicenseTypes. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-licensetypes,,"{'tool_name': 'add_license_types', 'description': 'Executes AddLicenseTypes. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-licensetypes/{id},,"{'tool_name': 'remove_license_types', 'description': 'Executes RemoveLicenseTypes. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/drivertypes,,"{'tool_name': 'get_driver_types', 'description': 'Executes GetDriverTypes. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-drivertypes,,"{'tool_name': 'add_driver_types', 'description': 'Executes AddDriverTypes. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-drivertypes/{id},,"{'tool_name': 'remove_driver_types', 'description': 'Executes RemoveDriverTypes. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/masters/blockdriver,,"{'tool_name': 'block_driver', 'description': 'Executes BlockDriver. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-yards/{id},,"{'tool_name': 'removeyard', 'description': 'Executes Removeyard. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+DELETE,/api/v1/masters/remove-plants/{id},,"{'tool_name': 'remove_plants', 'description': 'Executes RemovePlants. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/bin,,"{'tool_name': 'get_bin', 'description': 'Executes GetBin. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-bin,,"{'tool_name': 'add_bin', 'description': 'Executes AddBin. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-bin/{binId},,"{'tool_name': 'remove_bin', 'description': 'Executes RemoveBin. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/process,,"{'tool_name': 'get_process', 'description': 'Executes GetProcess. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-process,,"{'tool_name': 'add_process', 'description': 'Executes AddProcess. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-process/{processId},,"{'tool_name': 'remove_process', 'description': 'Executes RemoveProcess. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/forgingBatch,,"{'tool_name': 'get_forging_batch', 'description': 'Executes GetForgingBatch. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-forgingBatch,,"{'tool_name': 'add_forging_batch', 'description': 'Executes AddForgingBatch. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-forgingBatch/{forgingBatchId},,"{'tool_name': 'remove_forging_batch', 'description': 'Executes RemoveForgingBatch. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/partCode,,"{'tool_name': 'get_part_code', 'description': 'Executes GetPartCode. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-partCode,,"{'tool_name': 'add_part_code', 'description': 'Executes AddPartCode. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-partCode/{partCodeId},,"{'tool_name': 'remove_part_code', 'description': 'Executes RemovePartCode. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/internalFinised,,"{'tool_name': 'get_internal_finised', 'description': 'Executes GetInternalFinised. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-internalFinised,,"{'tool_name': 'add_internal_finised', 'description': 'Executes AddInternalFinised. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/remove-internalFinised/{internalFinisedId},,"{'tool_name': 'remove_internal_finised', 'description': 'Executes RemoveInternalFinised. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/externalFinised,,"{'tool_name': 'get_external_finised', 'description': 'Executes GetExternalFinised. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/masters/add-externalFinised,,"{'tool_name': 'add_external_finised', 'description': 'Executes AddExternalFinised. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/masters/add-or-update-equipment,,"{'tool_name': 'add_or_update_equipment', 'description': 'Executes AddOrUpdateEquipment. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/masters/delete-equipment/{equipmentId},,"{'tool_name': 'delete_equipment', 'description': 'Executes DeleteEquipment. Usable by MasterApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/masters/get-equipment/{equipmentId},,"{'tool_name': 'get_equipment', 'description': 'Executes GetEquipment. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/masters/get-all-equipment,,"{'tool_name': 'get_all_equipment', 'description': 'Executes GetAllEquipment. Usable by MasterApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/material,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/material/add-material,,"{'tool_name': 'add_material', 'description': 'Executes AddMaterial. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+PUT,/api/v1/material/update-material/{id},,"{'tool_name': 'update_material', 'description': 'Executes UpdateMaterial. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/material/get-all-material,,"{'tool_name': 'get_all_material', 'description': 'Executes GetAllMaterial. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/material/get-plant-user/{requestId},,"{'tool_name': 'get_plantuser', 'description': 'Executes GetPlantuser. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/material/material-list,,"{'tool_name': 'get_material_list', 'description': 'Executes GetMaterialList. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/material/get-material-by-id/{id},,"{'tool_name': 'get_material_by_id', 'description': 'Executes GetMaterialById. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/material-files/{id},,"{'tool_name': 'get_material_files', 'description': 'Executes GetMaterialFiles. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/get-consumption/{id},,"{'tool_name': 'get_consumptions', 'description': 'Executes GetConsumptions. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/material-by-requestId/{requestId},,"{'tool_name': 'get_material_by_request_id', 'description': 'Executes GetMaterialByRequestId. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/material/material-warehouse,,"{'tool_name': 'ware_house_manager_action', 'description': 'Executes WareHouseManagerAction. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/material/material-shopfloor,,"{'tool_name': 'ware_house_manager_action', 'description': 'Executes WareHouseManagerAction. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/material/material-qrcode/{requestId},,"{'tool_name': 'material_q_r_code', 'description': 'Executes MaterialQRCode. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/material-fifo/{requestId},,"{'tool_name': 'material_fifo', 'description': 'Executes MaterialFifo. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+PUT,/api/v1/material/update-m/{id},,"{'tool_name': 'update_m', 'description': 'Executes UpdateM. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/material/qrcode/{requestId},,"{'tool_name': 'generate_q_r_code', 'description': 'Executes GenerateQRCode. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/all-steps,,"{'tool_name': 'get_all_gates', 'description': 'Executes GetAllGates. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/material/create-workflow/{requestId},,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/material/all-steps/{requestId},,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/all-actions/{requestId},,"{'tool_name': 'get_actions', 'description': 'Executes GetActions. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/material/action-history/{requestId},,"{'tool_name': 'get_action_history', 'description': 'Executes GetActionHistory. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/material/action,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by MaterialApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/material/material-dashboard-count,,"{'tool_name': 'get_dashboard_count', 'description': 'Executes GetDashboardCount. Usable by MaterialApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptracking,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by MaterialWIPApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptracking/add-workrequest,,"{'tool_name': 'create_work_request', 'description': 'Executes CreateWorkRequest. Usable by MaterialWIPApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptracking/workrequests,,"{'tool_name': 'get_all_work_request', 'description': 'Executes GetAllWorkRequest. Usable by MaterialWIPApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/wiptracking/workrequest-byid/{requestId},,"{'tool_name': 'get_request_by_id', 'description': 'Executes GetRequestById. Usable by MaterialWIPApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptracking/workorder-byid/{requestId},,"{'tool_name': 'get_work_order', 'description': 'Executes GetWorkOrder. Usable by MaterialWIPApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptracking/create-workorder,,"{'tool_name': 'create_work_order', 'description': 'Executes CreateWorkOrder. Usable by MaterialWIPApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptracking/action,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by MaterialWIPApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptracking/add-saveWorkSteps,,"{'tool_name': 'save_work_steps', 'description': 'Executes SaveWorkSteps. Usable by MaterialWIPApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptracking/{masterType},,"{'tool_name': 'get_master_data', 'description': 'Executes GetMasterData. Usable by MaterialWIPApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/mps/save,,"{'tool_name': 'save_mps', 'description': 'Executes SaveMps. Usable by Mps agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/mps/save-header,,"{'tool_name': 'save_mps_header', 'description': 'Executes SaveMpsHeader. Usable by Mps agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/mps/plant/{plantId},,"{'tool_name': 'get_by_plant', 'description': 'Executes GetByPlant. Usable by Mps agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/mps/simulate/{mpsId},,"{'tool_name': 'simulate', 'description': 'Executes Simulate. Usable by Mps agents.', 'agent_accessible': False, 'auto_register': True}",False,,3
+POST,/api/v1/mps/approve/{mpsHeaderId},,"{'tool_name': 'approve', 'description': 'Executes Approve. Usable by Mps agents.', 'agent_accessible': False, 'auto_register': True}",False,,2
+POST,/api/v1/mps/release/{mpsHeaderId},,"{'tool_name': 'release', 'description': 'Executes Release. Usable by Mps agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/iot/node-red/flows,,"{'tool_name': 'get_flows', 'description': 'Executes GetFlows. Usable by NodeRed agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/iot/node-red/flows/{flowId}/nodes,,"{'tool_name': 'get_flow_nodes', 'description': 'Executes GetFlowNodes. Usable by NodeRed agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/iot/node-red/flows/{nodeId}/trigger,,"{'tool_name': 'trigger_node', 'description': 'Executes TriggerNode. Usable by NodeRed agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/iot/setup/webhook-status,,"{'tool_name': 'get_webhook_status', 'description': 'Executes GetWebhookStatus. Usable by NodeRedSetup agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/production/order/getOrder/{workOrderId},,"{'tool_name': 'get_order_detail', 'description': 'Executes GetOrderDetail. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/production/order/{workOrderId}/comment,,"{'tool_name': 'add_comment', 'description': 'Executes AddComment. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/production/order/{workOrderId}/resolve-exception,,"{'tool_name': 'resolve_exception', 'description': 'Executes ResolveException. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/production/order/{workOrderId}/alternatives/{resourceType},,"{'tool_name': 'get_alternative_resources', 'description': 'Executes GetAlternativeResources. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/production/order/{workOrderId}/reassign,,"{'tool_name': 'reassign_resource', 'description': 'Executes ReassignResource. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/planning/overview,,"{'tool_name': 'overview', 'description': 'Executes Overview. Usable by PlanningScreen agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/planning/kpis,,"{'tool_name': 'kpis', 'description': 'Executes Kpis. Usable by PlanningScreen agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/planning/bom/{productCode},,"{'tool_name': 'bom', 'description': 'Executes Bom. Usable by PlanningScreen agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/planning/mpsOverviewDetails/{productCode},,"{'tool_name': 'get_mps_overview_by_product_code', 'description': 'Executes GetMpsOverviewByProductCode. Usable by PlanningScreen agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/planning/exceptions/{mpsId},,"{'tool_name': 'exceptions', 'description': 'Executes Exceptions. Usable by PlanningScreen agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/production/dashboard/getDashboard,,"{'tool_name': 'get_dashboard_screen', 'description': 'Executes GetDashboardScreen. Usable by ProductionDashboard agents.', 'agent_accessible': True, 'auto_register': True}",False,,12
+POST,/api/v1/production/dashboard/orders,,"{'tool_name': 'get_filtered_orders', 'description': 'Executes GetFilteredOrders. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+PUT,/api/v1/production/dashboard/order/{workOrderId},,"{'tool_name': 'update_work_order', 'description': 'Executes UpdateWorkOrder. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/production/dashboard/order/{workOrderId}/release,,"{'tool_name': 'release_work_order', 'description': 'Executes ReleaseWorkOrder. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/production/dashboard/order/{workOrderId}/cancel,,"{'tool_name': 'cancel_work_order', 'description': 'Executes CancelWorkOrder. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/production/dashboard/orders/bulk-action,,"{'tool_name': 'bulk_order_action', 'description': 'Executes BulkOrderAction. Usable by ProductionDashboard agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/productionplanning/workorder,,"{'tool_name': 'create_work_order', 'description': 'Executes CreateWorkOrder. Usable by ProductionPlanning agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/productionplanning/getWorkorder,,"{'tool_name': 'get_all_work_orders', 'description': 'Executes GetAllWorkOrders. Usable by ProductionPlanning agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+DELETE,/api/v1/productionplanning/workorder/{workOrderId},,"{'tool_name': 'delete_work_order', 'description': 'Executes DeleteWorkOrder. Usable by ProductionPlanning agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/productionplanning/mrp/run/{monthYear}/{weekNumber},,"{'tool_name': 'run_mrp', 'description': 'Executes RunMrp. Usable by ProductionPlanning agents.', 'agent_accessible': False, 'auto_register': True}",False,,2
+GET,/api/v1/pplookups,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/pplookups/product,,"{'tool_name': 'get_product_master', 'description': 'Executes GetProductMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/add-product,,"{'tool_name': 'add_product_master', 'description': 'Executes AddProductMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-product/{id},,"{'tool_name': 'remove_product_master', 'description': 'Executes RemoveProductMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/bom-master,,"{'tool_name': 'get_bom_master', 'description': 'Executes GetBomMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/add-bom-master,,"{'tool_name': 'add_bom_master', 'description': 'Executes AddBomMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-bom-master/{id},,"{'tool_name': 'remove_bom_master', 'description': 'Executes RemoveBomMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/bom-line,,"{'tool_name': 'get_bom_line', 'description': 'Executes GetBomLine. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/pplookups/bom-line/{bomId},,"{'tool_name': 'get_bom_line', 'description': 'Executes GetBomLine. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/pplookups/add-bom-line,,"{'tool_name': 'add_bom_line', 'description': 'Executes AddBomLine. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-bom-line/{id},,"{'tool_name': 'remove_bom_line', 'description': 'Executes RemoveBomLine. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/routing,,"{'tool_name': 'get_routing_master', 'description': 'Executes GetRoutingMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/add-routing,,"{'tool_name': 'add_routing_master', 'description': 'Executes AddRoutingMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-routing/{id},,"{'tool_name': 'remove_routing_master', 'description': 'Executes RemoveRoutingMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/priority,,"{'tool_name': 'get_priority_master', 'description': 'Executes GetPriorityMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/add-priority,,"{'tool_name': 'add_priority_master', 'description': 'Executes AddPriorityMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-priority/{id},,"{'tool_name': 'remove_priority_master', 'description': 'Executes RemovePriorityMaster. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/pplookups/add-mps,,"{'tool_name': 'add_or_update_mps', 'description': 'Executes AddOrUpdateMps. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/pplookups/get-mps/{productName},,"{'tool_name': 'get_mps_by_product', 'description': 'Executes GetMpsByProduct. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+DELETE,/api/v1/pplookups/remove-mps/{mpsId},,"{'tool_name': 'remove_mps', 'description': 'Executes RemoveMps. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/get-mps/id/{MpsId},,"{'tool_name': 'get_mps_by_mps_id', 'description': 'Executes GetMpsByMpsId. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/get-mpsmaster,,"{'tool_name': 'get_all_mps', 'description': 'Executes GetAllMps. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/pplookups/capacity-analysis/{plantId}/{productCode}/{horizonWeeks},,"{'tool_name': 'get_capacity_analysis', 'description': 'Executes GetCapacityAnalysis. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+POST,/api/v1/pplookups/add-machine,,"{'tool_name': 'add_update_machine', 'description': 'Executes AddUpdateMachine. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/pplookups/get-machine-details,,"{'tool_name': 'get_machine_details', 'description': 'Executes GetMachineDetails. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/pplookups/get-machine,,"{'tool_name': 'get_machine_data', 'description': 'Executes GetMachineData. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+DELETE,/api/v1/pplookups/remove-machine/{id},,"{'tool_name': 'delete_machine', 'description': 'Executes DeleteMachine. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/shifts/screen,,"{'tool_name': 'get_shifts_screen', 'description': 'Executes GetShiftsScreen. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/pplookups/shifts,,"{'tool_name': 'get_all_shifts', 'description': 'Executes GetAllShifts. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/add-shift,,"{'tool_name': 'add_or_update_shift', 'description': 'Executes AddOrUpdateShift. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-shift/{shiftId},,"{'tool_name': 'delete_shift', 'description': 'Executes DeleteShift. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/shifts/calendar,,"{'tool_name': 'get_shift_calendar', 'description': 'Executes GetShiftCalendar. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/pplookups/add-calendar-day,,"{'tool_name': 'add_or_update_calendar_day', 'description': 'Executes AddOrUpdateCalendarDay. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/pplookups/bulk-calendar,,"{'tool_name': 'bulk_upsert_calendar', 'description': 'Executes BulkUpsertCalendar. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/pplookups/maintenance,,"{'tool_name': 'get_maintenance_windows', 'description': 'Executes GetMaintenanceWindows. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/pplookups/add-maintenance,,"{'tool_name': 'add_or_update_maintenance', 'description': 'Executes AddOrUpdateMaintenance. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-maintenance/{maintenanceId},,"{'tool_name': 'delete_maintenance', 'description': 'Executes DeleteMaintenance. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/screen,,"{'tool_name': 'get_gantt_screen', 'description': 'Executes GetGanttScreen. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/pplookups/bars,,"{'tool_name': 'get_gantt_bars', 'description': 'Executes GetGanttBars. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,4
+POST,/api/v1/pplookups/add-bar,,"{'tool_name': 'add_or_update_bar', 'description': 'Executes AddOrUpdateBar. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-bar/{ganttScheduleId},,"{'tool_name': 'delete_bar', 'description': 'Executes DeleteBar. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/pplookups/reschedule,,"{'tool_name': 'reschedule', 'description': 'Executes Reschedule. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/pplookups/{id}/detail,,"{'tool_name': 'get_detail', 'description': 'Executes GetDetail. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/getAllRouting,,"{'tool_name': 'get_all_routing_templates', 'description': 'Executes GetAllRoutingTemplates. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/add-template,,"{'tool_name': 'add_or_update_template', 'description': 'Executes AddOrUpdateTemplate. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-template/{id},,"{'tool_name': 'delete_template', 'description': 'Executes DeleteTemplate. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/pplookups/add-step,,"{'tool_name': 'add_or_update_step', 'description': 'Executes AddOrUpdateStep. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-step/{id},,"{'tool_name': 'delete_step', 'description': 'Executes DeleteStep. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/pplookups/{workOrderId}/complete-step,,"{'tool_name': 'complete_routing_step', 'description': 'Executes CompleteRoutingStep. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/pplookups/reorder-steps,,"{'tool_name': 'reorder_steps', 'description': 'Executes ReorderSteps. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/pplookups/operators,,"{'tool_name': 'get_operators', 'description': 'Executes GetOperators. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/pplookups/add-operator,,"{'tool_name': 'add_or_update_operator', 'description': 'Executes AddOrUpdateOperator. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-operator/{operatorId},,"{'tool_name': 'delete_operator', 'description': 'Executes DeleteOperator. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/tooling,,"{'tool_name': 'get_tooling', 'description': 'Executes GetTooling. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/pplookups/add-tool,,"{'tool_name': 'add_or_update_tool', 'description': 'Executes AddOrUpdateTool. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/pplookups/remove-tool/{toolId},,"{'tool_name': 'delete_tool', 'description': 'Executes DeleteTool. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+GET,/api/v1/pplookups/resource-screen,,"{'tool_name': 'get_resource_screen', 'description': 'Executes GetResourceScreen. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/pplookups/resource-kpis,,"{'tool_name': 'get_resource_kpis', 'description': 'Executes GetResourceKpis. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/pplookups/alertScreen,,"{'tool_name': 'get_alert_screen', 'description': 'Executes GetAlertScreen. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/refresh,,"{'tool_name': 'refresh_alerts', 'description': 'Executes RefreshAlerts. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,,0
+POST,/api/v1/pplookups/resolve,,"{'tool_name': 'resolve_alert', 'description': 'Executes ResolveAlert. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/pplookups/acknowledge-all,,"{'tool_name': 'acknowledge_all', 'description': 'Executes AcknowledgeAll. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/pplookups/mps/rawmaterial/save,,"{'tool_name': 'save_mps_raw_material', 'description': 'Executes SaveMpsRawMaterial. Usable by ProductionPlanningMaster agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/pplookups/mps/rawmaterial/{mpsId},,"{'tool_name': 'get_mps_raw_material', 'description': 'Executes GetMpsRawMaterial. Usable by ProductionPlanningMaster agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/reports,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by ReportApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/reports/vehicle-count/{fromMonthYear}/{toMonthYear},,"{'tool_name': 'get_vehicle_entry_count', 'description': 'Executes GetVehicleEntryCount. Usable by ReportApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/reports/monthly-count/{fromMonthYear}/{toMonthYear},,"{'tool_name': 'vehicle_month_count', 'description': 'Executes VehicleMonthCount. Usable by ReportApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/reports/overstay/{fromMonthYear}/{toMonthYear},,"{'tool_name': 'over_stay', 'description': 'Executes OverStay. Usable by ReportApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/forecastmaster,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by SalesForeCastCommonDataApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting/forecastHeader,,"{'tool_name': 'get_forecast_header', 'description': 'Executes GetForecastHeader. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting/validate-forecastdate,,"{'tool_name': 'fore_cast_date_validation', 'description': 'Executes ForeCastDateValidation. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting/forecasts,,"{'tool_name': 'get_forecast', 'description': 'Executes GetForecast. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/saleforecasting/save-forecast,,"{'tool_name': 'add_forecast', 'description': 'Executes AddForecast. Usable by SalesForecastingApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/saleforecasting/forecasts-by-request/{requestId},,"{'tool_name': 'get_forecast_by_request', 'description': 'Executes GetForecastByRequest. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/saleforecasting/forecasts-count/{materialCode},,"{'tool_name': 'get_forecat_count_by_material_code', 'description': 'Executes GetForecatCountByMaterialCode. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/saleforecasting/all-steps/{requestId},,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/saleforecasting/all-actions/{requestId},,"{'tool_name': 'get_actions', 'description': 'Executes GetActions. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/saleforecasting/action-history/{requestId},,"{'tool_name': 'get_action_history', 'description': 'Executes GetActionHistory. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/saleforecasting/action,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by SalesForecastingApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/saleforecasting/neckTypeReport,,"{'tool_name': 'get_forecasts_by_neck_type', 'description': 'Executes GetForecastsByNeckType. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting/forcastneckType,,"{'tool_name': 'get_forecasts_by_neck_type_report', 'description': 'Executes GetForecastsByNeckTypeReport. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting/forecasts-by-monthYear/{monthYear},,"{'tool_name': 'get_fore_casts_by_month_year', 'description': 'Executes GetForeCastsByMonthYear. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/saleforecasting/forecasts-by-customersales/{neckType},,"{'tool_name': 'get_forecast_by_customer_sales', 'description': 'Executes GetForecastByCustomerSales. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/saleforecasting/machineMaterialReport,,"{'tool_name': 'get_machine_material_data', 'description': 'Executes GetMachineMaterialData. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/saleforecasting/machine-utilisation/{monthYear},,"{'tool_name': 'get_machine_utilisation_grouped_by_machine_type_async', 'description': 'Executes GetMachineUtilisationGroupedByMachineTypeAsync. Usable by SalesForecastingApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/training,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/training/training,,"{'tool_name': 'get_all_training', 'description': 'Executes GetAllTraining. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/training/training/{id},,"{'tool_name': 'get_traning_by_id', 'description': 'Executes GetTraningById. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/training/training-by-driver/{id},,"{'tool_name': 'get_training_by_driver_id', 'description': 'Executes GetTrainingByDriverId. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/training/my-training,,"{'tool_name': 'get_my_training', 'description': 'Executes GetMyTraining. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/training/question-type,,"{'tool_name': 'get_question_types', 'description': 'Executes GetQuestionTypes. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/training/batches,,"{'tool_name': 'get_batches', 'description': 'Executes GetBatches. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/training/batches,,"{'tool_name': 'add_batche', 'description': 'Executes AddBatche. Usable by TrainingModuelApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/training/batches-driver-mapping,,"{'tool_name': 'map_driver_with_batch', 'description': 'Executes MapDriverWithBatch. Usable by TrainingModuelApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/training/batches-driver-mapping/{batchId},,"{'tool_name': 'get_batch_driver_mapping', 'description': 'Executes GetBatchDriverMapping. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/training/verifiers,,"{'tool_name': 'get_all_verifier', 'description': 'Executes GetAllVerifier. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/training/create-training,,"{'tool_name': 'create_training', 'description': 'Executes CreateTraining. Usable by TrainingModuelApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/training/drivers-training,,"{'tool_name': 'get_driver_training', 'description': 'Executes GetDriverTraining. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/training/drivers-training/{driverId}/{trainingId},,"{'tool_name': 'get_driver_bytraining_id', 'description': 'Executes GetDriverBytrainingId. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/training/training-feedback,,"{'tool_name': 'training_feedback', 'description': 'Executes TrainingFeedback. Usable by TrainingModuelApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/training/admin-dashboard,,"{'tool_name': 'get_dashboard_count', 'description': 'Executes GetDashboardCount. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/training/declined,,"{'tool_name': 'declined_certificate', 'description': 'Executes DeclinedCertificate. Usable by TrainingModuelApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/training/warning,,"{'tool_name': 'add_warning', 'description': 'Executes AddWarning. Usable by TrainingModuelApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/training/complete-training/{trainingId}/{batchId},,"{'tool_name': 'gomplete_training', 'description': 'Executes GompleteTraining. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/training/my-batches,,"{'tool_name': 'get_my_batche', 'description': 'Executes GetMyBatche. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/training/my-warnings/{driverId},,"{'tool_name': 'get_warnings', 'description': 'Executes GetWarnings. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/training/my-batches/{bathcId},,"{'tool_name': 'get_my_batche', 'description': 'Executes GetMyBatche. Usable by TrainingModuelApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/WeatherForecast,,"{'tool_name': 'get', 'description': 'Executes Get. Usable by WeatherForecast agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/all-steps/{requestId},,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/all-actions/{requestId},,"{'tool_name': 'get_actions', 'description': 'Executes GetActions. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/action-history/{requestId},,"{'tool_name': 'get_action_history', 'description': 'Executes GetActionHistory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/getinventory/{category},,"{'tool_name': 'get_material_code_and_quantity_by_category', 'description': 'Executes GetMaterialCodeAndQuantityByCategory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/wipstoragelocation/{wipstoragelocationId},,"{'tool_name': 'get_r_m_by_w_i_p_storage_location_id', 'description': 'Executes GetRMByWIPStorageLocationId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/wiplocation/{itemCode},,"{'tool_name': 'get_w_i_p_storage_location_by_item_code', 'description': 'Executes GetWIPStorageLocationByItemCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/wipStoragelocation,,"{'tool_name': 'get_w_i_p_storage_locations', 'description': 'Executes GetWIPStorageLocations. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/wiptraceability/add-wipstoragelocation,,"{'tool_name': 'add_or_update_locations', 'description': 'Executes AddOrUpdateLocations. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/finishedgood/{materialCode}/{isOnHold},,"{'tool_name': 'get_by_material_code_async', 'description': 'Executes GetByMaterialCodeAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/hold/{materialCode}/{isOnHold},,"{'tool_name': 'get_grouped_finished_goods_for_hold_async', 'description': 'Executes GetGroupedFinishedGoodsForHoldAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/validate-holdbag/{bagName},,"{'tool_name': 'validate_hold_bag', 'description': 'Executes ValidateHoldBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/validate-fgbag/{bagName},,"{'tool_name': 'validate_finished_good_bag', 'description': 'Executes ValidateFinishedGoodBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/semifinishedgood/{materialCode},,"{'tool_name': 'get_by_material_code_s_f_g_async', 'description': 'Executes GetByMaterialCodeSFGAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/scrapQty/{materialCode},,"{'tool_name': 'get_by_material_code_scrap_async', 'description': 'Executes GetByMaterialCodeScrapAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/rejected/{materialCode},,"{'tool_name': 'get_by_material_code_rejected_async', 'description': 'Executes GetByMaterialCodeRejectedAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/isBagValid/{sourceType}/{bagName},,"{'tool_name': 'is_bag_valid', 'description': 'Executes IsBagValid. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/onlineHold/{materialCode},,"{'tool_name': 'get_by_material_code_online_async', 'description': 'Executes GetByMaterialCodeOnlineAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fglist/{materialCode},,"{'tool_name': 'get_by_material_code_async', 'description': 'Executes GetByMaterialCodeAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/validate-onlineHoldbag/{bagName},,"{'tool_name': 'validate_online_hold_bag', 'description': 'Executes ValidateOnlineHoldBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/onlineHold-Process,,"{'tool_name': 'process_selections', 'description': 'Executes ProcessSelections. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/Hold-Process,,"{'tool_name': 'hold_process_selections', 'description': 'Executes HoldProcessSelections. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/fg-Process,,"{'tool_name': 'f_g_process_selections', 'description': 'Executes FGProcessSelections. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/process-Jumbo,,"{'tool_name': 'process_jumbo', 'description': 'Executes ProcessJumbo. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/jumbo,,"{'tool_name': 'get_jumbo_packaging_details', 'description': 'Executes GetJumboPackagingDetails. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/jumbobagvalidate/{bagName},,"{'tool_name': 'get_existing_jumbo_bag_async', 'description': 'Executes GetExistingJumboBagAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/getScrapList,,"{'tool_name': 'get_scrap_list', 'description': 'Executes GetScrapList. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/getRejectedList,,"{'tool_name': 'get_rejected_list', 'description': 'Executes GetRejectedList. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/dispatchjumboPackage,,"{'tool_name': 'update_customer_name', 'description': 'Executes UpdateCustomerName. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
 GET,/api/v1/wiptraceability/getIncompleteJumboBag/{category},,,False,,1
-POST,/api/v1/wiptraceability/moveToFG,,,False,Yes,0
-GET,/api/v1/wiptraceability/machineStatus/{parentRequestId},,,False,,1
-GET,/api/v1/wiptraceability/validate-returnbag/{bagName},,,False,,1
-POST,/api/v1/wiptraceability/add-returnData,,,False,Yes,0
-GET,/api/v1/wiptraceability/returnData,,,False,,0
-POST,/api/v1/wiptraceability/return-Process,,,False,Yes,0
-GET,/api/v1/wiptraceability/returnList,,,False,,1
-GET,/api/v1/wiptraceability/repackList,,,False,,2
-GET,/api/v1/wiptraceability/returnBy/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/fgBY/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/repackaging,,,False,,1
-GET,/api/v1/wiptraceability/validate-repackagingbag/{bagName},,,False,,1
-POST,/api/v1/wiptraceability/common-repackage,,,False,Yes,0
-DELETE,/api/v1/wiptraceability/remove-return/{id},,,False,,1
-POST,/api/v1/wiptraceability/repackformat,,,False,Yes,0
-GET,/api/v1/wiptraceability/weighingmachine/{machineName}/{inputDate},,,False,,2
-GET,/api/v1/wiptraceability/return-validate/{dispatchNumber}/{bagName},,,False,,2
-GET,/api/v1/wiptraceability/customer-validate/{customerName}/{bagName},,,False,,2
-GET,/api/v1/wiptraceability/weekly-planning,,,False,,0
-POST,/api/v1/wiptraceability/weekly-planning,,,False,Yes,0
-POST,/api/v1/wiptraceability/stop-production,,,False,Yes,0
-GET,/api/v1/wiptraceability/rm-requirement,,,False,,0
-GET,/api/v1/wiptraceability/planned-qty/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/quantityInStock/{materialCode},,,False,,1
-GET,/api/v1/wiptraceability/get-transitdata,,,False,,0
-POST,/api/v1/wiptraceability/add-materialTransit,,,False,Yes,0
-POST,/api/v1/wiptraceability/add-blockQuantityforsalesperson,,,False,Yes,0
-POST,/api/v1/wiptraceability/dispatch-date/{soNumber},,,False,Yes,1
-GET,/api/v1/wiptraceability/get-blockedData,,,False,,1
-GET,/api/v1/wiptraceability/get-blockedqtyData,,,False,,0
-GET,/api/v1/wiptraceability/validate-bag/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/rmInwardsBag/{requestId}/bags,,,False,,2
-POST,/api/v1/wiptraceability/add-purchaseReturn,,,False,Yes,0
-GET,/api/v1/wiptraceability/get-purchasereturn,,,False,,1
-GET,/api/v1/wiptraceability/requiredRMQty/{rmCode}/{fgQtyKg},,,False,,2
-POST,/api/v1/wiptraceability/add-fg,,,False,Yes,0
-POST,/api/v1/wiptraceability/add-inventory-fg,,,False,Yes,0
-GET,/api/v1/wiptraceability,,,False,,0
-GET,/api/v1/wiptraceability/get-inventory,,,False,,2
-GET,/api/v1/wiptraceability/get-priorityList,,,False,,0
-GET,/api/v1/wiptraceability/get-details/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/validate-Approvedbag/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/get-invoice/{poNumber},,,False,,1
-GET,/api/v1/wiptraceability/get-invoicedate/{invoiceNo},,,False,,1
-GET,/api/v1/wiptraceability/po,,,False,,0
-POST,/api/v1/wiptraceability/po,,,False,Yes,0
-GET,/api/v1/wiptraceability/po/{poNumber},,,False,,1
-GET,/api/v1/wiptraceability/rminvoices/{poNumber}/{pageIndex}/{pageSize},,,False,,3
-POST,/api/v1/wiptraceability/add-invoice,,,False,Yes,0
-GET,/api/v1/wiptraceability/GetRMInwardSummary,,,False,,0
-POST,/api/v1/wiptraceability/inventories-by-category,,,False,Yes,0
-POST,/api/v1/wiptraceability/fg-quantity/{itemCode},,,False,,1
-POST,/api/v1/wiptraceability/sfg-inventory,,,False,Yes,0
-POST,/api/v1/wiptraceability/fg-inventory,,,False,Yes,0
-POST,/api/v1/wiptraceability/scrap-inventory,,,False,Yes,0
-GET,/api/v1/wiptraceability/inventory-by-category,,,False,,0
-GET,/api/v1/wiptraceability/rm-by-store/{itemCode}/{itemName},,,False,,2
-POST,/api/v1/wiptraceability/rmrequestId/{requestId},,,False,,1
-POST,/api/v1/wiptraceability/rmInward,,,False,Yes,0
-POST,/api/v1/wiptraceability/rmInwards-rejection,,,False,Yes,0
-POST,/api/v1/wiptraceability/rmInwards-hold,,,False,Yes,0
-POST,/api/v1/wiptraceability/rmInwards,,,False,Yes,0
-GET,/api/v1/wiptraceability/rmInward-by-status/{status}/{pageIndex}/{pageSize},,,False,,3
-GET,/api/v1/wiptraceability/rm-bag/{bagName},,,False,,1
-POST,/api/v1/wiptraceability/add-rmInward,,,False,Yes,0
-POST,/api/v1/wiptraceability/po-reject,,,False,Yes,0
-GET,/api/v1/wiptraceability/getRMDetails/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/get-qrcodes/{requestId}/{category}/{materialCode},,,False,,3
-GET,/api/v1/wiptraceability/materialStockByRM,,,False,,0
-POST,/api/v1/wiptraceability/stock-inventories,,,False,Yes,0
-POST,/api/v1/wiptraceability/action-storemanager,,,False,Yes,0
-GET,/api/v1/wiptraceability/all-machinemapping,,,False,,0
-GET,/api/v1/wiptraceability/mapping-bymachine/{machineId},,,False,,1
-GET,/api/v1/wiptraceability/mapping-bySFG/{sfgCode},,,False,,1
-GET,/api/v1/wiptraceability/mapping-byRM/{rmCode},,,False,,1
-POST,/api/v1/wiptraceability/add-machinemapping,,,False,Yes,0
-PUT,/api/v1/wiptraceability/update-machinemapping,,,False,Yes,0
-GET,/api/v1/wiptraceability/machine-rm/{machineId},,,False,,1
-GET,/api/v1/wiptraceability/sfg-by-rm/{rmCode},,,False,,1
-GET,/api/v1/wiptraceability/fg-by-sfg/{sfgCode},,,False,,1
-GET,/api/v1/wiptraceability/machine-fg/{machineType},,,False,,1
-GET,/api/v1/wiptraceability/fg-rm/{fgCode},,,False,,1
-GET,/api/v1/wiptraceability/fg-sfg/{fgCode},,,False,,1
-GET,/api/v1/wiptraceability/sfgDetails/{sfgCode},,,False,,1
-GET,/api/v1/wiptraceability/rm-sfg/{rmCode},,,False,,1
-GET,/api/v1/wiptraceability/sfg-fg/{sfgCode},,,False,,1
-GET,/api/v1/wiptraceability/machineType-fg/{fgCode},,,False,,1
-GET,/api/v1/wiptraceability/getSoNumber,,,False,,0
-GET,/api/v1/wiptraceability/getCustomerBySo/{customerCode},,,False,,1
-POST,/api/v1/wiptraceability/salesorder,,,False,Yes,0
-GET,/api/v1/wiptraceability/salesorder-by-so/{sonumber},,,False,,1
-GET,/api/v1/wiptraceability/dispatchDetails,,,False,,3
-GET,/api/v1/wiptraceability/materialdispatch,,,False,,1
-GET,/api/v1/wiptraceability/dispatchdetails/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/multipledataforDispatch/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/dispatchNo/{soNumber},,,False,,1
-GET,/api/v1/wiptraceability/dispatch/{soNumber},,,False,,1
-GET,/api/v1/wiptraceability/solist/{customerCode},,,False,,1
-POST,/api/v1/wiptraceability/add-dispatch,,,False,Yes,0
-POST,/api/v1/wiptraceability/action-dispatch,,,False,Yes,0
-GET,/api/v1/wiptraceability/vehicle/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/fgListDetails/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/fgListBySoNumber/{soNumber},,,False,,1
-GET,/api/v1/wiptraceability/fgListByDispatchNumber/{dispatchNumber},,,False,,1
-GET,/api/v1/wiptraceability/getGroupedDispatchByBatch/{dispatchNumber},,,False,,1
-GET,/api/v1/wiptraceability/fgListByvehicleNumber/{vehicleNumber},,,False,,1
-GET,/api/v1/wiptraceability/check-bag-status/{bagName},,,False,,1
-GET,/api/v1/wiptraceability/rmqtyByRMGrade/{rmGrade}/{monthYear}/{weekNumber},,,False,,3
-GET,/api/v1/wiptraceability/getrmName/{rmName},,,False,,1
-GET,/api/v1/wiptraceability/productionplanning,,,False,,0
-POST,/api/v1/wiptraceability/add-productionplanning,,,False,Yes,0
-GET,/api/v1/wiptraceability/productionplanning/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/productionplanningDetails/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/wipStorage,,,False,,0
-POST,/api/v1/wiptraceability/add-wipstorage,,,False,Yes,0
-GET,/api/v1/wiptraceability/wipstoarge/{requestId},,,False,,1
-POST,/api/v1/wiptraceability/action-operator,,,False,Yes,0
-POST,/api/v1/wiptraceability/action-sfgmanager,,,False,Yes,0
-GET,/api/v1/wiptraceability/remaining-rm/{requestId},,,False,,1
-GET,/api/v1/wiptraceability/wipstoargedetails/{requestId},,,False,,1
-POST,/api/v1/wiptraceability/get-material-track,,,False,Yes,0
-GET,/api/v1/workflow,,,False,,0
-GET,/api/v1/workflow/all-steps,,,False,,0
-POST,/api/v1/workflow/inbox,,,False,Yes,0
-POST,/api/v1/workflow/tracking,,,False,Yes,0
-GET,/api/v1/workflow/pending-action-count/{istracking},,,False,,1
-POST,/api/v1/workflow/create-workflow/{requestId},,,False,,1
-POST,/api/v1/productionplanning/draft,,,False,Yes,0
-POST,/api/v1/productionplanning/{workOrderId}/submit,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/approve,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/reject,,,False,Yes,1
-GET,/api/v1/productionplanning/pending-approvals,,,False,,0
-POST,/api/v1/productionplanning/bulk-approve,,,False,Yes,0
-POST,/api/v1/productionplanning/bulk-reject,,,False,Yes,0
-POST,/api/v1/productionplanning/{workOrderId}/hold,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/resume,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/start,,,False,,1
-POST,/api/v1/productionplanning/{workOrderId}/complete,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/partial-complete,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/close,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/duplicate,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/split,,,False,Yes,1
-POST,/api/v1/productionplanning/merge,,,False,Yes,0
-POST,/api/v1/productionplanning/{workOrderId}/reschedule,,,False,Yes,1
-POST,/api/v1/productionplanning/{workOrderId}/priority,,,False,Yes,1
-GET,/api/v1/productionplanning/{workOrderId}/history,,,False,,1
-POST,/api/v1/productionplanning/{workOrderId}/validate-bom,,,False,,1
-POST,/api/v1/productionplanning/validate-capacity,,,False,Yes,0
-GET,/api/v1/productionplanning/{workOrderId}/print-data,,,False,,1
-GET,/api/v1/productionplanning/statuses,,,False,,0
-GET,/api/v1/productionplanning/rejection-reasons,,,False,,0
-GET,/api/v1/productionplanning/hold-reasons,,,False,,0
+POST,/api/v1/wiptraceability/moveToFG,,"{'tool_name': 'move_to_f_g', 'description': 'Executes MoveToFG. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/machineStatus/{parentRequestId},,"{'tool_name': 'get_wip_status', 'description': 'Executes GetWipStatus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/validate-returnbag/{bagName},,"{'tool_name': 'validate_return_bag', 'description': 'Executes ValidateReturnBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/add-returnData,,"{'tool_name': 'add_or_update_return_data', 'description': 'Executes AddOrUpdateReturnData. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/returnData,,"{'tool_name': 'get_return_data', 'description': 'Executes GetReturnData. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/return-Process,,"{'tool_name': 'process_return', 'description': 'Executes ProcessReturn. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/returnList,,"{'tool_name': 'get_grouped_return_async', 'description': 'Executes GetGroupedReturnAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/repackList,,"{'tool_name': 'get_grouped_repack_async', 'description': 'Executes GetGroupedRepackAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/returnBy/{requestId},,"{'tool_name': 'get_return_by_request_number_async', 'description': 'Executes GetReturnByRequestNumberAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fgBY/{requestId},,"{'tool_name': 'get_f_g_by_request_number_async', 'description': 'Executes GetFGByRequestNumberAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/repackaging,,"{'tool_name': 'get_repackaging', 'description': 'Executes GetRepackaging. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/validate-repackagingbag/{bagName},,"{'tool_name': 'validate_repackaging_bag', 'description': 'Executes ValidateRepackagingBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/common-repackage,,"{'tool_name': 'common_repack', 'description': 'Executes CommonRepack. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+DELETE,/api/v1/wiptraceability/remove-return/{id},,"{'tool_name': 'delete_return_by_id_async', 'description': 'Executes DeleteReturnByIdAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/repackformat,,"{'tool_name': 'repack_from_repack', 'description': 'Executes RepackFromRepack. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/weighingmachine/{machineName}/{inputDate},,"{'tool_name': 'get_weighing_summary', 'description': 'Executes GetWeighingSummary. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/return-validate/{dispatchNumber}/{bagName},,"{'tool_name': 'validate_bag_name_against_dispatch_async', 'description': 'Executes ValidateBagNameAgainstDispatchAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/customer-validate/{customerName}/{bagName},,"{'tool_name': 'validate_bag_name_against_customer_async', 'description': 'Executes ValidateBagNameAgainstCustomerAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/weekly-planning,,"{'tool_name': 'weekly_plnning', 'description': 'Executes WeeklyPlnning. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/weekly-planning,,"{'tool_name': 'post_weekly_planning', 'description': 'Executes PostWeeklyPlanning. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/stop-production,,"{'tool_name': 'stop_production', 'description': 'Executes StopProduction. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/rm-requirement,,"{'tool_name': 'r_m_requirement_summary', 'description': 'Executes RMRequirementSummary. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/planned-qty/{materialCode},,"{'tool_name': 'get_planned_qty_by_material_code_async', 'description': 'Executes GetPlannedQtyByMaterialCodeAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/quantityInStock/{materialCode},,"{'tool_name': 'get_quantity_in_stock_by_material_code', 'description': 'Executes GetQuantityInStockByMaterialCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/get-transitdata,,"{'tool_name': 'get_material_transit', 'description': 'Executes GetMaterialTransit. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/add-materialTransit,,"{'tool_name': 'add_or_update', 'description': 'Executes AddOrUpdate. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/add-blockQuantityforsalesperson,,"{'tool_name': 'block_or_release', 'description': 'Executes BlockOrRelease. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/dispatch-date/{soNumber},,"{'tool_name': 'update_dispatch_date', 'description': 'Executes UpdateDispatchDate. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/wiptraceability/get-blockedData,,"{'tool_name': 'get_sales_person_qty_blocked_details', 'description': 'Executes GetSalesPersonQtyBlockedDetails. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/get-blockedqtyData,,"{'tool_name': 'get_sales_person_qty_blocked', 'description': 'Executes GetSalesPersonQtyBlocked. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/validate-bag/{bagName},,"{'tool_name': 'validate_bag', 'description': 'Executes ValidateBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/rmInwardsBag/{requestId}/bags,,"{'tool_name': 'get_bags_by_status', 'description': 'Executes GetBagsByStatus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/wiptraceability/add-purchaseReturn,,"{'tool_name': 'add_purchase_return', 'description': 'Executes AddPurchaseReturn. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/get-purchasereturn,,"{'tool_name': 'get_purchase_returns', 'description': 'Executes GetPurchaseReturns. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/requiredRMQty/{rmCode}/{fgQtyKg},,"{'tool_name': 'get_required_r_m_qty', 'description': 'Executes GetRequiredRMQty. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/wiptraceability/add-fg,,"{'tool_name': 'add_finished_goods', 'description': 'Executes AddFinishedGoods. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/add-inventory-fg,,"{'tool_name': 'add_finished_good_mes', 'description': 'Executes AddFinishedGoodMes. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/get-inventory,,"{'tool_name': 'get_inventory', 'description': 'Executes GetInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+GET,/api/v1/wiptraceability/get-priorityList,,"{'tool_name': 'get_priority_r_m_inward_details_list', 'description': 'Executes GetPriorityRMInwardDetailsList. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/get-details/{bagName},,"{'tool_name': 'get_details_by_bag_name_async', 'description': 'Executes GetDetailsByBagNameAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/validate-Approvedbag/{bagName},,"{'tool_name': 'validate_approved_bag', 'description': 'Executes ValidateApprovedBag. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/get-invoice/{poNumber},,"{'tool_name': 'get_invoice', 'description': 'Executes GetInvoice. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/get-invoicedate/{invoiceNo},,"{'tool_name': 'get_invoices_date_by_invoice', 'description': 'Executes GetInvoicesDateByInvoice. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/po,,"{'tool_name': 'get_p_o_details', 'description': 'Executes GetPODetails. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/po,,"{'tool_name': 'get_po_paging', 'description': 'Executes GetPoPaging. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/po/{poNumber},,"{'tool_name': 'get_p_o_details_by_po_number', 'description': 'Executes GetPODetailsByPoNumber. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/rminvoices/{poNumber}/{pageIndex}/{pageSize},,"{'tool_name': 'get_r_m_invoice', 'description': 'Executes GetRMInvoice. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+POST,/api/v1/wiptraceability/add-invoice,,"{'tool_name': 'add_invoice', 'description': 'Executes AddInvoice. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/GetRMInwardSummary,,"{'tool_name': 'get_r_m_inward_summary', 'description': 'Executes GetRMInwardSummary. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/inventories-by-category,,"{'tool_name': 'get_inventory', 'description': 'Executes GetInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/fg-quantity/{itemCode},,"{'tool_name': 'get_f_g_inventory', 'description': 'Executes GetFGInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/sfg-inventory,,"{'tool_name': 'get_s_f_g_inventory', 'description': 'Executes GetSFGInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/fg-inventory,,"{'tool_name': 'get_f_g_inventory', 'description': 'Executes GetFGInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/scrap-inventory,,"{'tool_name': 'get_scrap_inventory', 'description': 'Executes GetScrapInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/inventory-by-category,,"{'tool_name': 'get_inventory_by_category', 'description': 'Executes GetInventoryByCategory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/rm-by-store/{itemCode}/{itemName},,"{'tool_name': 'get_r_m_by_store', 'description': 'Executes GetRMByStore. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,2
+POST,/api/v1/wiptraceability/rmrequestId/{requestId},,"{'tool_name': 'get_r_m_by_request_id', 'description': 'Executes GetRMByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/rmInward,,"{'tool_name': 'get_r_m_inward_by_p_o_number', 'description': 'Executes GetRMInwardByPONumber. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/rmInwards-rejection,,"{'tool_name': 'get_r_m_inward_by_p_o_and_code', 'description': 'Executes GetRMInwardByPOAndCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/rmInwards-hold,,"{'tool_name': 'approve_or_reject_hold_bag_async', 'description': 'Executes ApproveOrRejectHoldBagAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/rmInwards,,"{'tool_name': 'get_r_m_inward_by_p_o_and_code', 'description': 'Executes GetRMInwardByPOAndCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/rmInward-by-status/{status}/{pageIndex}/{pageSize},,"{'tool_name': 'get_r_m_by_status', 'description': 'Executes GetRMByStatus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/wiptraceability/rm-bag/{bagName},,"{'tool_name': 'check_r_m_bag_staus', 'description': 'Executes CheckRMBagStaus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/add-rmInward,,"{'tool_name': 'add_or_update_r_m_inward', 'description': 'Executes AddOrUpdateRMInward. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/po-reject,,"{'tool_name': 'reject_p_o', 'description': 'Executes RejectPO. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/getRMDetails/{requestId},,"{'tool_name': 'get_r_m_details', 'description': 'Executes GetRMDetails. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/get-qrcodes/{requestId}/{category}/{materialCode},,"{'tool_name': 'get_r_m_details', 'description': 'Executes GetRMDetails. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/wiptraceability/materialStockByRM,,"{'tool_name': 'get_material_stock_by_r_m', 'description': 'Executes GetMaterialStockByRM. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/stock-inventories,,"{'tool_name': 'get_stock_inventory', 'description': 'Executes GetStockInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/action-storemanager,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/all-machinemapping,,"{'tool_name': 'get_all_mappings', 'description': 'Executes GetAllMappings. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/mapping-bymachine/{machineId},,"{'tool_name': 'get_mapping_by_machine_id', 'description': 'Executes GetMappingByMachineId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/mapping-bySFG/{sfgCode},,"{'tool_name': 'get_mappings_by_s_f_g_code', 'description': 'Executes GetMappingsBySFGCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/mapping-byRM/{rmCode},,"{'tool_name': 'get_mappings_by_r_m_code', 'description': 'Executes GetMappingsByRMCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/add-machinemapping,,"{'tool_name': 'add_mapping', 'description': 'Executes AddMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+PUT,/api/v1/wiptraceability/update-machinemapping,,"{'tool_name': 'update_mapping', 'description': 'Executes UpdateMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/machine-rm/{machineId},,"{'tool_name': 'get_machine_r_m_with_inventory', 'description': 'Executes GetMachineRMWithInventory. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/sfg-by-rm/{rmCode},,"{'tool_name': 'get_sfg_by_r_m', 'description': 'Executes GetSfgByRM. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fg-by-sfg/{sfgCode},,"{'tool_name': 'get_f_g_by_s_f_g', 'description': 'Executes GetFGBySFG. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/machine-fg/{machineType},,"{'tool_name': 'get_machine_f_g_mapping', 'description': 'Executes GetMachineFGMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fg-rm/{fgCode},,"{'tool_name': 'get_f_g_r_m_mapping', 'description': 'Executes GetFGRMMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fg-sfg/{fgCode},,"{'tool_name': 'get_f_g_s_f_g_mapping', 'description': 'Executes GetFGSFGMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/sfgDetails/{sfgCode},,"{'tool_name': 'get_f_g_s_f_g_mapping_by_sfg_code_async', 'description': 'Executes GetFGSFGMappingBySfgCodeAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/rm-sfg/{rmCode},,"{'tool_name': 'get_r_m_s_f_g_mapping', 'description': 'Executes GetRMSFGMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/sfg-fg/{sfgCode},,"{'tool_name': 'get_s_f_g_f_g_mapping', 'description': 'Executes GetSFGFGMapping. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/machineType-fg/{fgCode},,"{'tool_name': 'get_machine_by_fg_code', 'description': 'Executes GetMachineByFgCode. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/getSoNumber,,"{'tool_name': 'get_s_o_details', 'description': 'Executes GetSODetails. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/wiptraceability/getCustomerBySo/{customerCode},,"{'tool_name': 'get_customer_by_so_async', 'description': 'Executes GetCustomerBySoAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/salesorder,,"{'tool_name': 'get_sales_order', 'description': 'Executes GetSalesOrder. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/salesorder-by-so/{sonumber},,"{'tool_name': 'get_sales_order_by_s_o', 'description': 'Executes GetSalesOrderBySO. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/dispatchDetails,,"{'tool_name': 'get_material_dispatch', 'description': 'Executes GetMaterialDispatch. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/wiptraceability/materialdispatch,,"{'tool_name': 'get_material_dispatchs', 'description': 'Executes GetMaterialDispatchs. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/dispatchdetails/{requestId},,"{'tool_name': 'get_sales_order_data_by_request_id', 'description': 'Executes GetSalesOrderDataByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/multipledataforDispatch/{requestId},,"{'tool_name': 'get_dispatchdetails_by_request_id', 'description': 'Executes GetDispatchdetailsByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/dispatchNo/{soNumber},,"{'tool_name': 'get_dispatch_by_s_o_async', 'description': 'Executes GetDispatchBySOAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/dispatch/{soNumber},,"{'tool_name': 'get_dispatch_by_request_id', 'description': 'Executes GetDispatchByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/solist/{customerCode},,"{'tool_name': 'get_dispatch_by_s_o_number', 'description': 'Executes GetDispatchBySONumber. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/add-dispatch,,"{'tool_name': 'add_or_update', 'description': 'Executes AddOrUpdate. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/action-dispatch,,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/vehicle/{requestId},,"{'tool_name': 'get_by_request_number_async', 'description': 'Executes GetByRequestNumberAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fgListDetails/{requestId},,"{'tool_name': 'get_vehicle_list_b_y_request_id', 'description': 'Executes GetVehicleListBYRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fgListBySoNumber/{soNumber},,"{'tool_name': 'get_s_o_numbert_b_y_request_id', 'description': 'Executes GetSONumbertBYRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fgListByDispatchNumber/{dispatchNumber},,"{'tool_name': 'get_dispatch_numbert_b_y_request_id', 'description': 'Executes GetDispatchNumbertBYRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/getGroupedDispatchByBatch/{dispatchNumber},,"{'tool_name': 'get_grouped_dispatch_by_batch', 'description': 'Executes GetGroupedDispatchByBatch. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/fgListByvehicleNumber/{vehicleNumber},,"{'tool_name': 'get_f_g_list_by_vehicle_number_async', 'description': 'Executes GetFGListByVehicleNumberAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/check-bag-status/{bagName},,"{'tool_name': 'check_bag_status', 'description': 'Executes CheckBagStatus. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/rmqtyByRMGrade/{rmGrade}/{monthYear}/{weekNumber},,"{'tool_name': 'get_requirement_in_m_t_by_r_m_grade_async', 'description': 'Executes GetRequirementInMTByRMGradeAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,3
+GET,/api/v1/wiptraceability/getrmName/{rmName},,"{'tool_name': 'get_r_m_grade_by_r_m_name_async', 'description': 'Executes GetRMGradeByRMNameAsync. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/productionplanning,,"{'tool_name': 'get_production_planning', 'description': 'Executes GetProductionPlanning. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/add-productionplanning,,"{'tool_name': 'add_or_update_production_planning', 'description': 'Executes AddOrUpdateProductionPlanning. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/productionplanning/{requestId},,"{'tool_name': 'get_w_i_p_r_m_request_by_request_id', 'description': 'Executes GetWIPRMRequestByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/productionplanningDetails/{requestId},,"{'tool_name': 'get_p_p_details_by_request_id', 'description': 'Executes GetPPDetailsByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/wipStorage,,"{'tool_name': 'get_w_i_p_storage', 'description': 'Executes GetWIPStorage. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/wiptraceability/add-wipstorage,,"{'tool_name': 'add_w_i_p_storage', 'description': 'Executes AddWIPStorage. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/wipstoarge/{requestId},,"{'tool_name': 'get_w_i_p_storage_request_by_request_id', 'description': 'Executes GetWIPStorageRequestByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/action-operator,,"{'tool_name': 'w_i_p_storage_approvals', 'description': 'Executes WIPStorageApprovals. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/wiptraceability/action-sfgmanager,,"{'tool_name': 'w_i_p_s_f_g_approvals', 'description': 'Executes WIPSFGApprovals. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/wiptraceability/remaining-rm/{requestId},,"{'tool_name': 'get_remaining_r_m_qty', 'description': 'Executes GetRemainingRMQty. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/wiptraceability/wipstoargedetails/{requestId},,"{'tool_name': 'get_details_by_request_id', 'description': 'Executes GetDetailsByRequestId. Usable by WIPTraceabilityApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/wiptraceability/get-material-track,,"{'tool_name': 'get_material_track_data', 'description': 'Executes GetMaterialTrackData. Usable by WIPTraceabilityApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/workflow,,"{'tool_name': 'get_status', 'description': 'Executes GetStatus. Usable by WorkflowApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/workflow/all-steps,,"{'tool_name': 'get_all_gates', 'description': 'Executes GetAllGates. Usable by WorkflowApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/workflow/inbox,,"{'tool_name': 'inbox', 'description': 'Executes Inbox. Usable by WorkflowApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/workflow/tracking,,"{'tool_name': 'get_tracking', 'description': 'Executes GetTracking. Usable by WorkflowApi agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/workflow/pending-action-count/{istracking},,"{'tool_name': 'get_all_pending_action', 'description': 'Executes GetAllPendingAction. Usable by WorkflowApi agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/workflow/create-workflow/{requestId},,"{'tool_name': 'initiate_workflow', 'description': 'Executes InitiateWorkflow. Usable by WorkflowApi agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/productionplanning/draft,,"{'tool_name': 'create_work_order_draft', 'description': 'Executes CreateWorkOrderDraft. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/productionplanning/{workOrderId}/submit,,"{'tool_name': 'submit_for_approval', 'description': 'Executes SubmitForApproval. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/approve,,"{'tool_name': 'approve_work_order', 'description': 'Executes ApproveWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/reject,,"{'tool_name': 'reject_work_order', 'description': 'Executes RejectWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/productionplanning/pending-approvals,,"{'tool_name': 'get_pending_approvals', 'description': 'Executes GetPendingApprovals. Usable by WorkOrderLifecycle agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+POST,/api/v1/productionplanning/bulk-approve,,"{'tool_name': 'bulk_approve_work_orders', 'description': 'Executes BulkApproveWorkOrders. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/productionplanning/bulk-reject,,"{'tool_name': 'bulk_reject_work_orders', 'description': 'Executes BulkRejectWorkOrders. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/productionplanning/{workOrderId}/hold,,"{'tool_name': 'hold_work_order', 'description': 'Executes HoldWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/resume,,"{'tool_name': 'resume_work_order', 'description': 'Executes ResumeWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/start,,"{'tool_name': 'start_production', 'description': 'Executes StartProduction. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/productionplanning/{workOrderId}/complete,,"{'tool_name': 'complete_work_order', 'description': 'Executes CompleteWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/partial-complete,,"{'tool_name': 'partial_complete_work_order', 'description': 'Executes PartialCompleteWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/close,,"{'tool_name': 'close_work_order', 'description': 'Executes CloseWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/duplicate,,"{'tool_name': 'duplicate_work_order', 'description': 'Executes DuplicateWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/split,,"{'tool_name': 'split_work_order', 'description': 'Executes SplitWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/merge,,"{'tool_name': 'merge_work_orders', 'description': 'Executes MergeWorkOrders. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+POST,/api/v1/productionplanning/{workOrderId}/reschedule,,"{'tool_name': 'reschedule_work_order', 'description': 'Executes RescheduleWorkOrder. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+POST,/api/v1/productionplanning/{workOrderId}/priority,,"{'tool_name': 'update_priority', 'description': 'Executes UpdatePriority. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,1
+GET,/api/v1/productionplanning/{workOrderId}/history,,"{'tool_name': 'get_work_order_history', 'description': 'Executes GetWorkOrderHistory. Usable by WorkOrderLifecycle agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+POST,/api/v1/productionplanning/{workOrderId}/validate-bom,,"{'tool_name': 'validate_bom_availability', 'description': 'Executes ValidateBomAvailability. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,,1
+POST,/api/v1/productionplanning/validate-capacity,,"{'tool_name': 'validate_capacity_availability', 'description': 'Executes ValidateCapacityAvailability. Usable by WorkOrderLifecycle agents.', 'agent_accessible': False, 'auto_register': True}",False,Yes,0
+GET,/api/v1/productionplanning/{workOrderId}/print-data,,"{'tool_name': 'get_work_order_print_data', 'description': 'Executes GetWorkOrderPrintData. Usable by WorkOrderLifecycle agents.', 'agent_accessible': True, 'auto_register': True}",False,,1
+GET,/api/v1/productionplanning/statuses,,"{'tool_name': 'get_work_order_statuses', 'description': 'Executes GetWorkOrderStatuses. Usable by WorkOrderLifecycle agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/productionplanning/rejection-reasons,,"{'tool_name': 'get_rejection_reasons', 'description': 'Executes GetRejectionReasons. Usable by WorkOrderLifecycle agents.', 'agent_accessible': True, 'auto_register': True}",False,,0
+GET,/api/v1/productionplanning/hold-reasons,,"{'tool_name': 'get_hold_reasons', 'description': 'Executes GetHoldReasons. Usable by WorkOrderLifecycle agents.', 'agent_accessible': True, 'auto_register': True}",False,,0

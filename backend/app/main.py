@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.reporting_router import router as reporting_router
+
 # Application Metadata
 app = FastAPI(
     title="IIIoT Manufacturing Agentic AI Platform",
@@ -33,9 +35,7 @@ async def root_health_check():
     }
 
 
-# Future Routes Will Be Included Here
-# from app.api.router import api_router
-# app.include_router(api_router, prefix="/api/v1")
+app.include_router(reporting_router)
 
 if __name__ == "__main__":
     import uvicorn
