@@ -71,7 +71,6 @@ cover/
 # Databases
 *.db
 *.sqlite3
-*.sql
 *.dump
 
 # IDE & Editor
