@@ -1,12 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useOutletContext } from 'react-router-dom';
 import { Sidebar } from '../common/Sidebar';
 import { Topbar } from '../common/Topbar';
-
-export type PersonaType = 'both' | 'mfg' | 'it';
+import { useStore, type PersonaType } from '../../store';
+import { telemetryService } from '../../services/api';
+import { ChatBot } from '../common/ChatBot';
 
 export const Layout: React.FC = () => {
-  const [persona, setPersona] = useState<PersonaType>('both');
+  const { persona, setPersona, setTelemetryStats } = useStore();
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const stats = await telemetryService.getStats();
+        setTelemetryStats(stats);
+      } catch (err) {
+        console.error('Failed to load telemetry stats', err);
+      }
+    };
+    fetchStats();
+    
+    // Refresh stats every 15 seconds
+    const interval = setInterval(fetchStats, 15000);
+    return () => clearInterval(interval);
+  }, [setTelemetryStats]);
 
   // Add persona classes to body for global styling effects if needed
   useEffect(() => {
@@ -27,6 +44,7 @@ export const Layout: React.FC = () => {
           IIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.
         </footer>
       </div>
+      <ChatBot />
     </div>
   );
 };
@@ -34,3 +52,4 @@ export const Layout: React.FC = () => {
 export function usePersona() {
   return useOutletContext<{ persona: PersonaType }>();
 }
+

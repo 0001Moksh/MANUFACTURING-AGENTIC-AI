@@ -34,21 +34,64 @@ export const LiveFeedStream: React.FC = () => {
     }
     setFeed(initialFeed);
 
-    const interval = setInterval(() => {
-      const pick = feedPool[Math.floor(Math.random() * feedPool.length)];
-      setFeed(prev => {
-        const newItem = {
-          id: Math.random().toString(36).substr(2, 9),
-          agent: pick[0],
-          msg: pick[1],
-          sev: pick[2],
-          time: new Date().toLocaleTimeString('en-GB')
-        };
-        return [newItem, ...prev].slice(0, 14);
-      });
-    }, 4500);
+    let ws: WebSocket | null = null;
+    let fallbackInterval: any = null;
 
-    return () => clearInterval(interval);
+    const startFallback = () => {
+      if (fallbackInterval) return;
+      fallbackInterval = setInterval(() => {
+        const pick = feedPool[Math.floor(Math.random() * feedPool.length)];
+        setFeed(prev => {
+          const newItem = {
+            id: Math.random().toString(36).substr(2, 9),
+            agent: pick[0],
+            msg: pick[1],
+            sev: pick[2],
+            time: new Date().toLocaleTimeString('en-GB')
+          };
+          return [newItem, ...prev].slice(0, 14);
+        });
+      }, 6000);
+    };
+
+    const connectWS = () => {
+      try {
+        ws = new WebSocket('ws://localhost:8000/api/ws/telemetry');
+        
+        ws.onmessage = (event) => {
+          try {
+            const newItem = JSON.parse(event.data);
+            if (newItem.status === 'ack') return; // Skip ack messages
+            setFeed(prev => {
+              // Avoid duplicates
+              if (prev.some(item => item.id === newItem.id)) return prev;
+              return [newItem, ...prev].slice(0, 14);
+            });
+          } catch (e) {
+            console.error('Error parsing WS message', e);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('WS connection closed. Reverting to local simulation.');
+          startFallback();
+        };
+
+        ws.onerror = () => {
+          if (ws) ws.close();
+        };
+      } catch (err) {
+        console.error('Failed to create WS client', err);
+        startFallback();
+      }
+    };
+
+    connectWS();
+
+    return () => {
+      if (ws) ws.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
   }, []);
 
   return (

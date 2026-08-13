@@ -1,7 +1,11 @@
 import React from 'react';
 import { connectors } from '../../data/mockData';
+import { useStore } from '../../store';
 
 export const ConnectorsGrid: React.FC = () => {
+  const { telemetryStats } = useStore();
+  const dbStatus = telemetryStats?.mes_db_status;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
       {connectors.map((c, i) => (
@@ -18,11 +22,25 @@ export const ConnectorsGrid: React.FC = () => {
             {c[2]}
           </div>
           <div className="flex justify-between items-center mt-[4px]">
-            <span className={`text-[10.5px] font-bold py-[3px] px-[9px] rounded-[20px] ${
-              c[3] === 'Connected' ? 'bg-green-tint text-green' : c[3] === 'Pilot' ? 'bg-amber-tint text-[#9A6400]' : 'bg-[#EEF0F5] text-muted'
-            }`}>
-              {c[3]}
-            </span>
+            {c[1] === 'MES / SCADA / PLC' ? (
+              dbStatus?.connected ? (
+                <div className="inline-flex items-center gap-[5px] text-[10.5px] font-bold text-green bg-green-tint py-[3px] px-[9px] rounded-[20px]">
+                  <span className="w-[5px] h-[5px] rounded-full bg-green animate-pulse" />
+                  SQL Server (mes_new)
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-[5px] text-[10.5px] font-bold text-[#9A6400] bg-amber-tint py-[3px] px-[9px] rounded-[20px]">
+                  <span className="w-[5px] h-[5px] rounded-full bg-amber animate-pulse" />
+                  Local SQLite
+                </div>
+              )
+            ) : (
+              <span className={`text-[10.5px] font-bold py-[3px] px-[9px] rounded-[20px] ${
+                c[3] === 'Connected' ? 'bg-green-tint text-green' : c[3] === 'Pilot' ? 'bg-amber-tint text-[#9A6400]' : 'bg-[#EEF0F5] text-muted'
+              }`}>
+                {c[3]}
+              </span>
+            )}
             <button 
               onClick={(e) => {
                 e.stopPropagation();

@@ -1,54 +1,64 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-from app.api.v1.reporting_router import router as reporting_router
+# Load environment variables
+load_dotenv()
 
-# Application Metadata
+from app.db import init_db
+from app.routes import router, stream_agent_events
+from app.scheduler import start_scheduler, stop_scheduler
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database tables and seed values
+    print("Initializing database...")
+    await init_db()
+    print("Database initialized successfully.")
+    
+    # Start WebSocket background broadcaster
+    event_loop_task = asyncio.create_task(stream_agent_events())
+    
+    # Start APScheduler
+    start_scheduler()
+    
+    yield
+    
+    # Cleanup tasks
+    stop_scheduler()
+    event_loop_task.cancel()
+    try:
+        await event_loop_task
+    except asyncio.CancelledError:
+        pass
+
 app = FastAPI(
-    title="IIIoT Manufacturing Agentic AI Platform",
-    description="Enterprise Multi-Agent Intelligence Core for MES, Vision, and IoT Integration",
+    title="Manufacturing Agentic AI (MAI) Platform",
+    description="Enterprise Industrial Intelligence and Agentic AI Orchestration layer.",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
-# CORS Middleware Setup (React Frontend se communication ke liye)
+# Enable CORS for frontend origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Production me Specific Domain/Port set karenge
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include routes
+from fastapi.staticfiles import StaticFiles
+import os
 
-@app.get("/", tags=["Health Check"])
-async def root_health_check():
-    """
-    Health check endpoint to verify backend system status.
-    """
-    return {
-        "status": "online",
-        "system": "IIIoT Agentic AI Platform",
-        "environment": "development",
-        "message": "FastAPI Core Engine is running smoothly.",
-    }
+os.makedirs("reports", exist_ok=True)
+app.mount("/reports", StaticFiles(directory="reports"), name="reports")
 
-
-app.include_router(reporting_router)
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
-
-
-
-# cd backend
-# python -m venv venv
-# .\venv\Scripts\activate
-# pip install -r requirements.txt
-# uvicorn app.main:app --reload --port 8000
-
-# Server Health: http://localhost:8000
-# Interactive Swagger Documentation: http://localhost:8000/docs
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

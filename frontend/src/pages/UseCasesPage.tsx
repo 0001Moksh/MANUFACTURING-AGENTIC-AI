@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FilterBar } from '../components/usecases/FilterBar';
 import { UseCaseCard } from '../components/usecases/UseCaseCard';
-import { UseCaseModal } from '../components/usecases/UseCaseModal';
-import { useCases, type UseCase } from '../data/mockData';
+import { useNavigate } from 'react-router-dom';
+import { useCases } from '../data/mockData';
 
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null);
+  const navigate = useNavigate();
 
   const filtered = useCases.filter(u => {
     if (activePillar !== 'all' && u.pillar !== activePillar) return false;
@@ -54,17 +54,12 @@ export const UseCasesPage: React.FC = () => {
           <UseCaseCard 
             key={u.id} 
             useCase={u} 
-            onClick={() => setSelectedUseCase(u)} 
+            onClick={() => navigate(`/use-cases/${u.id}`)} 
           />
         ))}
       </div>
 
-      {selectedUseCase && (
-        <UseCaseModal 
-          useCase={selectedUseCase} 
-          onClose={() => setSelectedUseCase(null)} 
-        />
-      )}
+
     </motion.div>
   );
 };

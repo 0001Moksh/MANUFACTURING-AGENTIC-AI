@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { PersonaToggle } from './PersonaToggle';
+import { useStore } from '../../store';
 
 interface TopbarProps {
   persona: 'both' | 'mfg' | 'it';
@@ -19,6 +21,7 @@ const routeTitles: Record<string, [string, string]> = {
 export const Topbar: React.FC<TopbarProps> = ({ persona, setPersona }) => {
   const [time, setTime] = useState<string>('');
   const location = useLocation();
+  const { user, logout } = useStore();
 
   useEffect(() => {
     const tickClock = () => {
@@ -31,6 +34,7 @@ export const Topbar: React.FC<TopbarProps> = ({ persona, setPersona }) => {
   }, []);
 
   const [title, subtitle] = routeTitles[location.pathname] || ["Command Centre", "Alpha Refinery"];
+  const userInitials = user?.username ? user.username.slice(0, 2).toUpperCase() : 'GU';
 
   return (
     <header className="h-[64px] shrink-0 bg-panel border-b border-border-color flex items-center gap-[16px] px-[26px] sticky top-0 z-20 shadow-sm">
@@ -43,8 +47,24 @@ export const Topbar: React.FC<TopbarProps> = ({ persona, setPersona }) => {
       <div className="font-mono text-[12px] text-muted pl-[16px] border-l border-border-color min-w-[100px]">
         {time}
       </div>
-      <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-purple to-[#4B3FCB] text-white flex items-center justify-center font-bold text-[12.5px] font-head shadow-sm cursor-pointer hover:brightness-110 transition-all">
-        SD
+      <div className="flex items-center gap-3 pl-[16px] border-l border-border-color">
+        <div className="flex flex-col text-right hidden sm:flex">
+          <span className="text-[12px] font-bold text-ink leading-none mb-0.5">{user?.username || 'Guest'}</span>
+          <span className="text-[9.5px] text-muted font-medium leading-none">{user?.role || 'Operator'}</span>
+        </div>
+        <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-purple to-[#4B3FCB] text-white flex items-center justify-center font-bold text-[12px] font-head shadow-sm select-none">
+          {userInitials}
+        </div>
+        <button 
+          onClick={() => {
+            logout();
+            window.location.reload();
+          }}
+          title="Logout"
+          className="w-[30px] h-[30px] rounded-full bg-transparent hover:bg-red/10 text-muted hover:text-red border border-border-color hover:border-red/20 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+        >
+          <LogOut className="w-[13px] h-[13px]" />
+        </button>
       </div>
     </header>
   );

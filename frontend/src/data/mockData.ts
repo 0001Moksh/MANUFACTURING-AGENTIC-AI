@@ -109,6 +109,7 @@ export interface Agent {
 export const agents: Agent[] = [
   {n:"Operations Agent",status:"active",sig:"12 live signals",desc:"Monitors throughput, OEE and shift targets in real time; recommends corrective scheduling.",last:"2 min ago",owner:"Plant Digital Head"},
   {n:"Maintenance Agent",status:"watch",sig:"1 critical flag",desc:"LSTM predictive models flag failures up to 2 weeks early; raises work orders automatically.",last:"1 min ago",owner:"Maintenance Lead"},
+  {n:"Reporting Agent",status:"active",sig:"2 daily reports",desc:"Automates end-of-shift reporting, aggregates KPIs, and emails PDF summaries to stakeholders.",last:"just now",owner:"Plant Manager"},
   {n:"Safety & Quality Agent",status:"active",sig:"0 incidents",desc:"AI vision for PPE compliance, intrusion detection and quality inspection, 97%+ defect coverage.",last:"just now",owner:"HSE Officer"},
   {n:"Energy Agent",status:"watch",sig:"3 high-draw lines",desc:"Machine-level kWh tracking with AI peak-demand shaving and 2-week energy forecasting.",last:"4 min ago",owner:"Plant Digital Head"},
   {n:"ESG & Compliance Agent",status:"watch",sig:"1 watch item",desc:"Tracks SO₂, CO₂ and permit thresholds; auto-generates regulatory reports before breach.",last:"6 min ago",owner:"HSE Officer"},

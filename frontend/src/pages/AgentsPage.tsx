@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AgentCard } from '../components/agents/AgentCard';
+import { AgentChatConsole } from '../components/agents/ReportingAgentConsole';
+import { MaintenanceAgentConsole } from '../components/agents/MaintenanceAgentConsole';
 import { agents } from '../data/mockData';
 
 export const AgentsPage: React.FC = () => {
+  const [activeAgentName, setActiveAgentName] = useState('Operations Agent');
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -15,18 +18,30 @@ export const AgentsPage: React.FC = () => {
           Always On, Always Acting
         </div>
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
-          12 Specialized AI Agents
+          13 Specialized AI Agents
         </h2>
         <p className="m-0 text-muted text-[13.5px] max-w-[720px] leading-relaxed">
           Each agent can be toggled per site by a Plant Digital Head. Turning an agent off here is simulated — thresholds, schedules and escalation contacts are configurable per agent.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px] mb-8">
         {agents.map((a, i) => (
-          <AgentCard key={i} agent={a} />
+          <AgentCard 
+            key={i} 
+            agent={a} 
+            isSelected={activeAgentName === a.n}
+            onClick={() => setActiveAgentName(a.n)}
+          />
         ))}
       </div>
+
+      {activeAgentName === 'Maintenance Agent' ? (
+        <MaintenanceAgentConsole />
+      ) : (
+        <AgentChatConsole />
+      )}
     </motion.div>
   );
 };
+

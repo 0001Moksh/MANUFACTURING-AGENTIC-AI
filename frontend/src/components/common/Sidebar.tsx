@@ -1,8 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Bot, Settings2, BarChart3, Settings } from 'lucide-react';
+import { useStore } from '../../store';
 
 export const Sidebar: React.FC = () => {
+  const { telemetryStats } = useStore();
+  const dbStatus = telemetryStats?.mes_db_status;
+
   return (
     <aside className="w-[248px] shrink-0 bg-gradient-to-b from-navy-950 via-navy-900 to-navy-800 text-white flex flex-col sticky top-0 h-screen">
       <div className="flex items-center gap-[10px] py-[22px] px-[20px] pb-[18px] border-b border-white/10">
@@ -86,19 +90,6 @@ export const Sidebar: React.FC = () => {
           )}
         </NavLink>
       </nav>
-      
-      <div className="py-[14px] px-[18px] pb-[18px] border-t border-white/10">
-        <div className="inline-flex items-center gap-[6px] text-[10.5px] font-semibold tracking-[0.4px] text-[#B9F2D8] bg-[#1FA971]/15 border border-[#1FA971]/35 py-[4px] px-[9px] rounded-[20px] mb-[10px]">
-          <span className="w-[6px] h-[6px] rounded-full bg-green animate-pulse" />
-          SANDBOX · LIVE DEMO
-        </div>
-        <button 
-          onClick={() => alert('In a live engagement this opens a 2-week POC scoping form for your first pilot zone.')}
-          className="block w-full text-center bg-gradient-to-br from-teal to-[#017377] text-white border-none rounded-[9px] py-[10px] font-bold text-[12.5px] tracking-[0.2px] hover:brightness-110 transition-all cursor-pointer"
-        >
-          Scope a POC →
-        </button>
-      </div>
     </aside>
   );
 };
