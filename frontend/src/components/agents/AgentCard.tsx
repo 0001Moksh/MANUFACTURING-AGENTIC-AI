@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { type Agent } from '../../data/mockData';
+import { type Agent, useCases } from '../../data/mockData';
 import { agentService } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface AgentCardProps {
   agent: Agent;
@@ -9,7 +10,10 @@ interface AgentCardProps {
 }
 
 export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected }) => {
+  const navigate = useNavigate();
   const [isOn, setIsOn] = useState(true);
+
+  const poweredUseCases = useCases.filter(u => u.poweredBy?.includes(agent.n));
 
   const handleToggle = async () => {
     const nextState = !isOn;
@@ -52,9 +56,43 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
         </button>
       </div>
       
-      <div className="text-[12px] text-muted leading-[1.5] mb-[12px] flex-1">
+      <div className="text-[12px] text-muted leading-[1.5] mb-[10px] flex-1">
         {agent.desc}
       </div>
+
+      {/* Powered Use Cases Badge section */}
+      <div className="mb-2.5 pt-2 border-t border-border-color/60">
+        <div className="text-[10px] font-bold text-faint uppercase tracking-wider mb-1 flex items-center justify-between">
+          <span>Powers {poweredUseCases.length} Use Case{poweredUseCases.length !== 1 ? 's' : ''}</span>
+        </div>
+        {poweredUseCases.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {poweredUseCases.map(uc => (
+              <button
+                key={uc.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/use-cases/${uc.id}`);
+                }}
+                className="bg-canvas hover:bg-teal-tint hover:text-teal-deep text-ink text-[10px] font-medium py-0.5 px-2 rounded border border-border-color/80 transition-colors truncate max-w-[190px] cursor-pointer"
+                title={uc.title}
+              >
+                UC{String(uc.id).padStart(2, '0')}: {uc.title}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="text-[10px] text-faint italic">Infrastructure / Universal Agent</div>
+        )}
+      </div>
+
+      {agent.n === 'Reporting Agent' && (
+        <div className="mb-2.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal bg-teal-tint/60 px-2 py-0.5 rounded border border-teal/20">
+            Open LangGraph SQL Console ↗
+          </span>
+        </div>
+      )}
       
       <div className="flex justify-between text-[11px] text-faint border-t border-border-color pt-[10px] font-mono">
         <span>{agent.sig}</span>

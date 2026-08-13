@@ -54,7 +54,13 @@ export const UseCasesPage: React.FC = () => {
           <UseCaseCard 
             key={u.id} 
             useCase={u} 
-            onClick={() => navigate(`/use-cases/${u.id}`)} 
+            onClick={() => {
+              if (u.id === 6) {
+                navigate('/use-cases/executive-insights');
+                return;
+              }
+              navigate(`/use-cases/${u.id}`);
+            }} 
           />
         ))}
       </div>

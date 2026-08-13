@@ -44,7 +44,27 @@ interface PlatformState {
   
   humanInLoop: boolean;
   setHumanInLoop: (enabled: boolean) => void;
+
+  reportingAgentState: {
+    query: string;
+    model: string;
+    status: 'idle' | 'running' | 'success' | 'requires_approval' | 'error';
+    result: any;
+    errorMsg: string;
+    showLogs: boolean;
+  };
+  setReportingAgentState: (state: Partial<PlatformState['reportingAgentState']>) => void;
+  resetReportingAgentState: () => void;
 }
+
+const defaultReportingAgentState = {
+  query: '',
+  model: 'auto',
+  status: 'idle' as const,
+  result: null,
+  errorMsg: '',
+  showLogs: false,
+};
 
 export const useStore = create<PlatformState>((set) => {
   const rawToken = localStorage.getItem('token');
@@ -89,5 +109,13 @@ export const useStore = create<PlatformState>((set) => {
   
   humanInLoop: true,
   setHumanInLoop: (enabled) => set({ humanInLoop: enabled }),
+
+  reportingAgentState: defaultReportingAgentState,
+  setReportingAgentState: (partialState) =>
+    set((state) => ({
+      reportingAgentState: { ...state.reportingAgentState, ...partialState },
+    })),
+  resetReportingAgentState: () =>
+    set({ reportingAgentState: defaultReportingAgentState }),
   };
 });

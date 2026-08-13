@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { type UseCase, pillarMeta } from '../../data/mockData';
 
 interface UseCaseCardProps {
@@ -17,6 +18,8 @@ const tagColors: Record<string, string> = {
 };
 
 export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) => {
+  const navigate = useNavigate();
+
   return (
     <motion.div
       whileHover={{ y: -4, boxShadow: '0 10px 24px -12px rgba(20,33,61,0.25)', borderColor: '#CBD6EE' }}
@@ -49,8 +52,30 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
       <div className="text-[12px] text-muted leading-[1.5] flex-1">
         {useCase.desc}
       </div>
+
+      {useCase.poweredBy && useCase.poweredBy.length > 0 && (
+        <div className="flex items-center gap-1 flex-wrap pt-2 border-t border-border-color/60 text-[10.5px]">
+          <span className="text-faint font-semibold uppercase text-[9.5px]">Powered by:</span>
+          {useCase.poweredBy.map(agentName => (
+            <button
+              key={agentName}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (agentName === 'Reporting Agent') {
+                  navigate('/agents/reporting');
+                } else {
+                  navigate('/agents');
+                }
+              }}
+              className="bg-teal-tint/60 hover:bg-teal hover:text-white text-teal-deep font-semibold px-1.5 py-0.5 rounded text-[9.5px] transition-colors border-none cursor-pointer"
+            >
+              {agentName}
+            </button>
+          ))}
+        </div>
+      )}
       
-      <div className="flex justify-between items-center mt-[2px] text-[11.5px] text-teal-deep font-bold">
+      <div className="flex justify-between items-center mt-[2px] text-[11.5px] text-teal-deep font-bold border-t border-border-color/40 pt-2">
         <span>{pillarMeta[useCase.pillar].label}</span>
         <span>Details →</span>
       </div>

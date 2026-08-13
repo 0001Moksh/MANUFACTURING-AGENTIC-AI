@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
-import { Terminal, Database, Cpu, AlertTriangle, CheckCircle, RefreshCw, Send, ShieldCheck, FileDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Terminal, Database, Cpu, AlertTriangle, CheckCircle, RefreshCw, Send, ShieldCheck, FileDown, RotateCcw } from 'lucide-react';
 import { agentService } from '../../services/api';
 import { parseMarkdown } from '../../utils/markdownParser';
 import { useStore } from '../../store';
 
-export const AgentChatConsole: React.FC = () => {
-  const [query, setQuery] = useState('');
-  const [model, setModel] = useState('gemini-3.5-flash');
+interface AgentChatConsoleProps {
+  agentName?: string;
+}
+
+export const AgentChatConsole: React.FC<AgentChatConsoleProps> = ({ agentName = 'reporting' }) => {
+  const { explainableLogs, humanInLoop, reportingAgentState, setReportingAgentState, resetReportingAgentState } = useStore();
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'requires_approval' | 'error'>('idle');
-  const [result, setResult] = useState<any>(null);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [showLogs, setShowLogs] = useState(false);
-  const { explainableLogs, humanInLoop } = useStore();
+  const [messages, setMessages] = useState<Array<{ id: string; role: 'user'|'assistant'; text: string }>>([]);
+  const [streaming, setStreaming] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    const el = document.getElementById('maintenance-chat-scroll');
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, streaming]);
+
+  const { query, model, status, result, errorMsg, showLogs } = reportingAgentState;
 
   const handleDownloadPdf = (pdfUrl: string) => {
     if (pdfUrl) {
@@ -24,38 +34,131 @@ export const AgentChatConsole: React.FC = () => {
     e.preventDefault();
     if (!query.trim()) return;
 
+    // If maintenance agent, use websocket streaming chat
+    if (agentName === 'maintenance') {
+      const userId = String(Date.now());
+      const userMsg = { id: userId, role: 'user' as const, text: query };
+      setMessages((m) => [...m, userMsg]);
+      setReportingAgentState({ status: 'running', result: null, errorMsg: '' });
+      setStreaming(true);
+
+      // open websocket
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const host = window.location.host;
+      const wsUrl = `${protocol}://${host}/api/ws/agent/maintenance`;
+
+      try {
+        wsRef.current = new WebSocket(wsUrl);
+
+        wsRef.current.onopen = () => {
+          wsRef.current?.send(JSON.stringify({ query }));
+        };
+
+        let assistantBuffer = '';
+        let assistantId = `a-${Date.now()}`;
+
+        wsRef.current.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === 'event') {
+              const data = msg.data;
+              // If the backend streams partial assistant text pieces
+              if (data?.content) {
+                assistantBuffer += data.content;
+                // upsert assistant message
+                setMessages((cur) => {
+                  const exists = cur.find((c) => c.id === assistantId);
+                  if (exists) {
+                    return cur.map((c) => (c.id === assistantId ? { ...c, text: assistantBuffer } : c));
+                  }
+                  return [...cur, { id: assistantId, role: 'assistant', text: assistantBuffer }];
+                });
+              }
+              // if full messages array is sent
+              if (data?.messages && Array.isArray(data.messages)) {
+                const latest = data.messages[data.messages.length - 1];
+                if (latest?.type === 'ai' && latest.content) {
+                  assistantBuffer = latest.content;
+                  setMessages((cur) => [...cur, { id: assistantId, role: 'assistant', text: assistantBuffer }]);
+                }
+              }
+            } else if (msg.type === 'done') {
+              setStreaming(false);
+              setReportingAgentState({ status: 'success', result: { insights: assistantBuffer }, errorMsg: '' });
+              wsRef.current?.close();
+            } else if (msg.type === 'error') {
+              setStreaming(false);
+              setReportingAgentState({ status: 'error', errorMsg: msg.error || 'Stream error' });
+              wsRef.current?.close();
+            }
+          } catch (e) {
+            // ignore parse errors
+          }
+        };
+
+        wsRef.current.onclose = () => {
+          setStreaming(false);
+        };
+
+      } catch (err) {
+        setStreaming(false);
+        setReportingAgentState({ status: 'error', errorMsg: 'Failed to open streaming connection.' });
+      }
+
+      // clear query input
+      setReportingAgentState({ query: '' });
+
+      return;
+    }
+
+    // Fallback: existing non-streaming behavior (reporting agent)
     setLoading(true);
-    setStatus('running');
-    setResult(null);
-    setErrorMsg('');
+    setReportingAgentState({
+      status: 'running',
+      result: null,
+      errorMsg: '',
+    });
 
     try {
-      let data = await agentService.query(query, model);
-      setResult(data);
+      let data = await agentService.query(query, model, agentName);
       
       if (data.status === 'requires_approval') {
         if (!humanInLoop) {
           // Auto-approve if HITL is disabled
           try {
             data = await agentService.approve(data);
-            setResult(data);
-            setStatus('success');
+            setReportingAgentState({
+              result: data,
+              status: 'success',
+            });
           } catch (err: any) {
-            setStatus('error');
-            setErrorMsg(err.response?.data?.detail || 'Failed to execute auto-approved action.');
+            setReportingAgentState({
+              status: 'error',
+              errorMsg: err.response?.data?.detail || 'Failed to execute auto-approved action.',
+            });
           }
         } else {
-          setStatus('requires_approval');
+          setReportingAgentState({
+            result: data,
+            status: 'requires_approval',
+          });
         }
       } else if (data.status === 'blocked') {
-        setStatus('error');
-        setErrorMsg(`Blocked by AI Security Firewall: ${data.reason}`);
+        setReportingAgentState({
+          status: 'error',
+          errorMsg: `Blocked by AI Security Firewall: ${data.reason}`,
+        });
       } else {
-        setStatus('success');
+        setReportingAgentState({
+          result: data,
+          status: 'success',
+        });
       }
     } catch (err: any) {
-      setStatus('error');
-      setErrorMsg(err.response?.data?.detail || 'An error occurred during workflow execution.');
+      setReportingAgentState({
+        status: 'error',
+        errorMsg: err.response?.data?.detail || 'An error occurred during workflow execution.',
+      });
     } finally {
       setLoading(false);
     }
@@ -65,15 +168,19 @@ export const AgentChatConsole: React.FC = () => {
     if (!result || !result.workflow_id) return;
 
     setLoading(true);
-    setStatus('running');
+    setReportingAgentState({ status: 'running' });
 
     try {
       const data = await agentService.approve(result);
-      setResult(data);
-      setStatus('success');
+      setReportingAgentState({
+        result: data,
+        status: 'success',
+      });
     } catch (err: any) {
-      setStatus('error');
-      setErrorMsg(err.response?.data?.detail || 'Failed to execute database write action.');
+      setReportingAgentState({
+        status: 'error',
+        errorMsg: err.response?.data?.detail || 'Failed to execute database write action.',
+      });
     } finally {
       setLoading(false);
     }
@@ -81,53 +188,116 @@ export const AgentChatConsole: React.FC = () => {
 
   return (
     <div className="bg-panel border border-border-color rounded-[14px] p-6 mt-6 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        <Terminal className="text-teal-deep w-[20px] h-[20px]" />
-        <h3 className="font-head text-[16px] font-bold m-0">LangGraph SQL Reporting Agent</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Terminal className="text-teal-deep w-[20px] h-[20px]" />
+          <h3 className="font-head text-[16px] font-bold m-0">
+            {agentName === 'maintenance' ? 'Maintenance Agent Chat' : 'LangGraph SQL Reporting Agent'}
+          </h3>
+        </div>
+
+        {status !== 'idle' && (
+          <button
+            type="button"
+            onClick={resetReportingAgentState}
+            className="flex items-center gap-1.5 text-[11.5px] font-semibold text-muted hover:text-red transition-colors bg-surface hover:bg-red-tint/30 border border-border-color rounded-lg px-2.5 py-1 cursor-pointer"
+            title="Reset query and clear conversation state"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset State
+          </button>
+        )}
       </div>
 
       <p className="text-[12.5px] text-muted mb-4">
-        Ask Deva to pull telemetry or query orders (e.g. <i>"Show me completed quantity and planned quantity for WO-88213"</i> or <i>"Find machines in Zone 3"</i>).
+        {agentName === 'maintenance'
+          ? <>Ask Deva about machine health, scheduled maintenance, or work orders (e.g. <i>"What is the health status of Machine-452?"</i>).</>
+          : <>Ask Deva to pull telemetry or query orders (e.g. <i>"Show me completed quantity and planned quantity for WO-88213"</i> or <i>"Find machines in Zone 3"</i>).</>
+        }
       </p>
 
-      <form onSubmit={handleQuery} className="flex gap-2 mb-5">
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            placeholder="Type your query to database..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+      {/* If maintenance agent, render chat bubbles with streaming */}
+      {agentName === 'maintenance' ? (
+        <>
+          <div className="mb-4">
+            <div className="h-[420px] overflow-y-auto p-4 flex flex-col gap-3 bg-white rounded-[10px] border border-border-color" id="maintenance-chat-scroll">
+              {messages.length === 0 && (
+                <div className="text-[13px] text-muted">Start the maintenance conversation. Ask about machine health, schedules, or work orders.</div>
+              )}
+
+              {messages.map((m) => (
+                <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[78%] p-3 rounded-xl shadow-sm ${m.role === 'assistant' ? 'bg-[#0d9488] text-white rounded-tl-none' : 'bg-gray-100 text-ink rounded-tr-none'}`}>
+                    <div className="text-[13px] leading-relaxed whitespace-pre-line">{m.text}</div>
+                  </div>
+                </div>
+              ))}
+              {streaming && (
+                <div className="flex justify-start">
+                  <div className="max-w-[60%] p-2 rounded-xl bg-[#0d9488] text-white">
+                    <div className="text-[13px]">Deva is typing...</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <form onSubmit={handleQuery} className="flex gap-2 mb-5 items-center">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Ask Deva about Machine-452 or maintenance windows..."
+                value={query}
+                onChange={(e) => setReportingAgentState({ query: e.target.value })}
+                disabled={streaming}
+                className="w-full bg-[#FAFBFE] border border-border-color rounded-[999px] p-[10px_14px] text-[13px] text-ink focus:outline-none focus:border-teal/50"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={streaming}
+              className="bg-[#0d9488] text-white border-none rounded-full p-3 text-[12px] font-bold cursor-pointer hover:brightness-90 transition-colors flex items-center gap-1 shrink-0"
+            >
+              {streaming ? <RefreshCw className="animate-spin w-[14px] h-[14px]" /> : <Send className="w-[14px] h-[14px]" />}
+            </button>
+          </form>
+        </>
+      ) : (
+        <form onSubmit={handleQuery} className="flex gap-2 mb-5">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Type your query to database..."
+              value={query}
+              onChange={(e) => setReportingAgentState({ query: e.target.value })}
+              disabled={loading}
+              className="w-full bg-[#FAFBFE] border border-border-color rounded-[9px] p-[10px_14px] text-[13px] text-ink focus:outline-none focus:border-teal/50"
+            />
+          </div>
+
+          {/* Model selection removed — using automatic routing to the configured LLM gateway */}
+          <div className="bg-white border border-border-color rounded-[9px] p-[10px] text-[12px] font-semibold text-muted flex items-center">
+            Model: Auto
+          </div>
+
+          <button
+            type="submit"
             disabled={loading}
-            className="w-full bg-[#FAFBFE] border border-border-color rounded-[9px] p-[10px_14px] text-[13px] text-ink focus:outline-none focus:border-teal/50"
-          />
-        </div>
-
-        <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          disabled={loading}
-          className="bg-white border border-border-color rounded-[9px] p-[10px] text-[12px] font-semibold text-muted cursor-pointer"
-        >
-          <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-          <option value="groq/llama-3.3-70b-versatile">Llama 3.3 70B (Groq)</option>
-        </select>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-teal text-white border-none rounded-[9px] p-[10px_18px] text-[12px] font-bold cursor-pointer hover:bg-teal-deep transition-colors flex items-center gap-1 shrink-0"
-        >
-          {loading ? <RefreshCw className="animate-spin w-[14px] h-[14px]" /> : <Send className="w-[14px] h-[14px]" />}
-          Send
-        </button>
-      </form>
+            className="bg-teal text-white border-none rounded-[9px] p-[10px_18px] text-[12px] font-bold cursor-pointer hover:bg-teal-deep transition-colors flex items-center gap-1 shrink-0"
+          >
+            {loading ? <RefreshCw className="animate-spin w-[14px] h-[14px]" /> : <Send className="w-[14px] h-[14px]" />}
+            Send
+          </button>
+        </form>
+      )}
 
       {/* Traversal Pipeline Logs (Toggleable, collapsed by default) */}
       {status !== 'idle' && explainableLogs && (
         <div className="mb-4">
           <button
             type="button"
-            onClick={() => setShowLogs(!showLogs)}
+            onClick={() => setReportingAgentState({ showLogs: !showLogs })}
             className="text-[11.5px] font-semibold text-teal hover:text-teal-deep flex items-center gap-1 cursor-pointer bg-transparent border-none py-1 focus:outline-none"
           >
             {showLogs ? "Hide execution trace logs ▲" : "Show execution trace logs ▼"}

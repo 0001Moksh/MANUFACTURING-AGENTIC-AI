@@ -73,8 +73,8 @@ export const telemetryService = {
 };
 
 export const agentService = {
-  query: async (query: string, model: string = 'gemini-3.5-flash-lite') => {
-    const res = await api.post('/agent/query', { query, model });
+  query: async (query: string, model: string = 'auto', agent: string = 'reporting') => {
+    const res = await api.post('/agent/query', { query, model, agent });
     return res.data;
   },
   approve: async (state: any) => {

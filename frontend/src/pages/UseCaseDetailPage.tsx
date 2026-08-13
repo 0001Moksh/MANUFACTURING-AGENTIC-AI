@@ -119,17 +119,29 @@ export const UseCaseDetailPage: React.FC = () => {
             <b className="text-ink font-bold">Impact:</b> {useCase.impact}
           </div>
 
-          <div className="mb-[24px] flex items-center gap-[12px]">
-            <span className="text-[11px] font-bold text-muted uppercase tracking-[0.5px]">Powered by</span>
-            <div className="flex gap-[8px]">
-              <span className="bg-navy-900 text-white text-[11px] font-semibold py-[4px] px-[10px] rounded-full">
-                Operations Agent
-              </span>
-              <span className="bg-navy-900 text-white text-[11px] font-semibold py-[4px] px-[10px] rounded-full">
-                Safety & Quality Agent
-              </span>
+          {useCase.poweredBy && useCase.poweredBy.length > 0 && (
+            <div className="mb-[24px] flex items-center gap-[12px] flex-wrap">
+              <span className="text-[11px] font-bold text-muted uppercase tracking-[0.5px]">Powered by AI Workforce</span>
+              <div className="flex gap-[8px] flex-wrap">
+                {useCase.poweredBy.map(agentName => (
+                  <button
+                    key={agentName}
+                    onClick={() => {
+                      if (agentName === 'Reporting Agent') {
+                        navigate('/agents/reporting');
+                      } else {
+                        navigate('/agents');
+                      }
+                    }}
+                    className="bg-navy-900 hover:bg-teal text-white text-[11px] font-semibold py-[4px] px-[12px] rounded-full transition-colors cursor-pointer border-none flex items-center gap-1 shadow-sm"
+                  >
+                    <span>🤖</span>
+                    {agentName}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           
           <div className="grid lg:grid-cols-2 gap-[24px] flex-1">
              <div className="flex flex-col h-full">

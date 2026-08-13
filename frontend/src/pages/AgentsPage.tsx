@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { AgentCard } from '../components/agents/AgentCard';
-import { AgentChatConsole } from '../components/agents/ReportingAgentConsole';
-import { MaintenanceAgentConsole } from '../components/agents/MaintenanceAgentConsole';
 import { agents } from '../data/mockData';
 
 export const AgentsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeAgentName, setActiveAgentName] = useState('Operations Agent');
+
+  const handleAgentClick = (agentName: string) => {
+    if (agentName === 'Reporting Agent') {
+      navigate('/agents/reporting');
+    } else if (agentName === 'Maintenance Agent') {
+      navigate('/agents/maintenance');
+    } else {
+      setActiveAgentName(agentName);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -31,17 +42,13 @@ export const AgentsPage: React.FC = () => {
             key={i} 
             agent={a} 
             isSelected={activeAgentName === a.n}
-            onClick={() => setActiveAgentName(a.n)}
+            onClick={() => handleAgentClick(a.n)}
           />
         ))}
       </div>
-
-      {activeAgentName === 'Maintenance Agent' ? (
-        <MaintenanceAgentConsole />
-      ) : (
-        <AgentChatConsole />
-      )}
     </motion.div>
   );
 };
+
+
 

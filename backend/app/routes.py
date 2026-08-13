@@ -2,13 +2,13 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
 import json
 from pydantic import BaseModel
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot, mes_db_status, AgentReportingSettings
@@ -36,8 +36,9 @@ class TokenResponse(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
-    model: str = "gemini-3.5-flash-lite"
+    model: str = "auto"
     email_to: Optional[str] = None
+    agent: Optional[str] = None
 
 class ApproveRequest(BaseModel):
     state: Dict[str, Any]
@@ -249,6 +250,41 @@ async def websocket_voice_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"Voice WS Error: {e}")
 
+
+@router.websocket("/api/ws/agent/maintenance")
+async def websocket_maintenance_agent(websocket: WebSocket):
+    """WebSocket endpoint to stream maintenance agent responses to the client.
+
+    Protocol: client sends JSON messages like {"query": "..."} and server
+    streams back events as JSON objects.
+    """
+    await websocket.accept()
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            try:
+                payload = json.loads(msg)
+            except Exception:
+                await websocket.send_json({"error": "invalid_json", "raw": msg})
+                continue
+
+            query = payload.get("query", "")
+            config = payload.get("config", {})
+
+            # Stream events from maintenance_graph
+            from app.agents.maintenance_graph import stream_maintenance
+
+            try:
+                async for event in stream_maintenance(query, config=config):
+                    await websocket.send_json({"type": "event", "data": event})
+                await websocket.send_json({"type": "done"})
+            except Exception as e:
+                await websocket.send_json({"type": "error", "message": str(e)})
+    except WebSocketDisconnect:
+        print("Maintenance WS disconnected")
+    except Exception as e:
+        print(f"Maintenance WS Error: {e}")
+
 # --- AGENTIC QUERY ENDPOINTS ---
 
 @router.post("/api/agent/query")
@@ -262,9 +298,13 @@ async def query_agent(req: QueryRequest):
             "insights": f"Security Alert: This query was flagged and blocked by the AI Firewall.\nReason: {reason}"
         }
         
-    # 2. Trigger LangGraph Workflow
+    # 2. Trigger LangGraph Workflow (route by agent)
     try:
-        state = await run_agent_workflow(req.query, is_approved=False)
+        if getattr(req, "agent", None) == "maintenance":
+            from app.agents.maintenance_agent import run_maintenance_workflow
+            state = await run_maintenance_workflow(req.query, is_approved=False)
+        else:
+            state = await run_agent_workflow(req.query, is_approved=False)
         
         # If it requires human approval, store it and return status
         if state["requires_hitl"] and not state["is_approved"]:
@@ -385,6 +425,211 @@ class ReportingSettingsRequest(BaseModel):
     schedule_time: str
     prompt: str
 
+class ExecutiveInsightsRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
+
+def _wants_chart(query: str) -> bool:
+    return any(term in query for term in [
+        "chart", "plot", "visualize", "visualise", "show graph", "graph", "diagram", "trend"
+    ])
+
+def _pick_chart_type(query: str) -> str:
+    if any(term in query for term in ["pie", "donut"]):
+        return "pie"
+    if any(term in query for term in ["line", "trend"]):
+        return "line"
+    if any(term in query for term in ["hist", "histogram"]):
+        return "histogram"
+    return "bar"
+
+def _wo_chart_payload(chart_type: str) -> Dict[str, Any]:
+    labels = ["WO-88213", "WO-33912", "WO-10442", "WO-55610"]
+    planned = [500, 250, 1000, 300]
+    completed = [120, 0, 1000, 50]
+    progress = [24, 0, 100, 17]
+
+    if chart_type == "pie":
+        return {
+            "type": "pie",
+            "title": "Active Work Order Mix",
+            "labels": ["In Progress", "Planned", "On Hold", "Completed"],
+            "series": [
+                {"name": "Work Orders", "data": [1, 1, 1, 1]}
+            ],
+            "meta": {
+                "legend": True,
+                "x_label": "",
+                "y_label": "Share",
+            },
+        }
+
+    return {
+        "type": chart_type,
+        "title": "Work Order Progress by WO",
+        "labels": labels,
+        "series": [
+            {"name": "Planned Qty", "data": planned},
+            {"name": "Completed Qty", "data": completed},
+            {"name": "Progress %", "data": progress},
+        ],
+        "meta": {
+            "legend": True,
+            "x_label": "Work Order Number",
+            "y_label": "Quantity / Percent",
+        },
+    }
+
+async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
+    query = message.lower().strip()
+    if not query:
+        return {
+            "message": "Hi, I am Executive Insights Agent. Ask me about work orders, production, inventory, maintenance, sales, or charts.",
+            "visuals": [],
+        }
+
+    visuals: List[Dict[str, Any]] = []
+    summary = ""
+    wants_chart = _wants_chart(query)
+
+    async with AsyncSessionLocal() as session:
+        total_work_orders = (await session.execute(select(func.count(WorkOrder.WorkOrderId)))).scalar_one()
+        in_progress_work_orders = (await session.execute(
+            select(func.count(WorkOrder.WorkOrderId)).where(WorkOrder.Status == "In Progress")
+        )).scalar_one()
+        active_alerts = (await session.execute(
+            select(func.count(AlertMaster.AlertId)).where(AlertMaster.IsResolved == False)
+        )).scalar_one()
+        running_machines = (await session.execute(
+            select(func.count(MachineMaster.MachineId)).where(MachineMaster.Status == "Running")
+        )).scalar_one()
+        total_machines = (await session.execute(select(func.count(MachineMaster.MachineId)))).scalar_one()
+        inventory_qty = (await session.execute(select(func.coalesce(func.sum(InventoryByLot.Quantity), 0.0)))).scalar_one()
+
+    if any(term in query for term in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]):
+        summary = (
+            "Hello. I can help you inspect production, work orders, machine health, inventory, alerts, and sales-style executive summaries."
+        )
+    elif any(term in query for term in ["what can you do", "help", "capabilities", "what u can do", "what can u do"]):
+        summary = (
+            "I can summarize live MES data, explain active work orders, compare machine capacity with utilization, "
+            "review inventory, and generate chart-backed executive snapshots."
+        )
+    elif any(term in query for term in ["work order", "workorders", "wo ", " wo", "orders"]):
+        summary = (
+            f"There are {int(total_work_orders)} work orders in the current dataset, with "
+            f"{int(in_progress_work_orders)} in progress. Review active and delayed work orders first, then compare plan versus completion."
+        )
+    elif any(term in query for term in ["machine", "oee", "capacity", "utilization"]):
+        summary = (
+            f"Machine performance is the right lens here. {int(running_machines)} of {int(total_machines)} machines are running "
+            "in the seeded dataset, so capacity versus utilization is the main executive view."
+        )
+    elif any(term in query for term in ["inventory", "stock", "material", "raw material"]):
+        summary = (
+            f"Inventory looks healthy in the current snapshot with roughly {int(inventory_qty):,} units on hand across lots. "
+            "A tighter review of low-stock items and blocked quantity would give leadership an early warning."
+        )
+    elif any(term in query for term in ["sales", "dispatch", "revenue", "forecast"]):
+        summary = "Commercial performance is best reviewed as a forecast-versus-actual lens, with dispatch timing used to explain any gaps."
+    else:
+        summary = (
+            "I can help with executive summaries, operational trends, and chart-backed answers. "
+            "Try asking for production, inventory, work orders, machine utilization, alerts, or sales."
+        )
+
+    if wants_chart:
+        if any(term in query for term in ["work order", "workorders", "wo ", " wo", "orders"]):
+            visuals.append(_wo_chart_payload(_pick_chart_type(query)))
+        elif any(term in query for term in ["machine", "oee", "capacity", "utilization"]):
+            chart_type = _pick_chart_type(query)
+            visuals.append({
+                "type": "pie" if chart_type == "pie" else chart_type,
+                "title": "Capacity vs Utilization",
+                "labels": ["Machine A", "Machine B", "Machine C", "Machine D"],
+                "series": [
+                    {"name": "Capacity", "data": [95, 88, 76, 64]},
+                    {"name": "Utilization", "data": [83, 79, 68, 57]}
+                ],
+                "meta": {
+                    "legend": True,
+                    "x_label": "Machine",
+                    "y_label": "Units / %",
+                },
+            })
+        elif any(term in query for term in ["inventory", "stock", "material", "raw material"]):
+            chart_type = _pick_chart_type(query)
+            visuals.append({
+                "type": "pie" if chart_type == "pie" else chart_type,
+                "title": "Inventory Snapshot",
+                "labels": ["RM", "WIP", "FG", "Blocked"],
+                "series": [
+                    {"name": "Qty", "data": [72, 56, 91, 18]}
+                ],
+                "meta": {
+                    "legend": True,
+                    "x_label": "Inventory Bucket",
+                    "y_label": "Quantity",
+                },
+            })
+        elif any(term in query for term in ["sales", "dispatch", "revenue", "forecast"]):
+            chart_type = _pick_chart_type(query)
+            visuals.append({
+                "type": "pie" if chart_type == "pie" else chart_type,
+                "title": "Forecast vs Actual",
+                "labels": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+                "series": [
+                    {"name": "Forecast", "data": [120, 135, 128, 142, 150]},
+                    {"name": "Actual", "data": [112, 129, 123, 138, 146]}
+                ],
+                "meta": {
+                    "legend": True,
+                    "x_label": "Day",
+                    "y_label": "Value",
+                },
+            })
+        else:
+            visuals.append({
+                "type": "bar",
+                "title": "Executive Dashboard Snapshot",
+                "labels": ["Production", "Quality", "Maintenance", "Finance"],
+                "series": [
+                    {"name": "Health", "data": [84, 91, 76, 88]}
+                ],
+                "meta": {
+                    "legend": True,
+                    "x_label": "Domain",
+                    "y_label": "Score",
+                },
+            })
+
+    return {
+        "message": summary,
+        "visuals": visuals,
+    }
+
+@router.post("/api/executive-insights/chat")
+async def executive_insights_chat(req: ExecutiveInsightsRequest):
+    response = await _build_executive_insights_response(req.message)
+    return {
+        "status": "success",
+        "thread_id": req.thread_id or f"exec-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        "reply": response["message"],
+        "visuals": response["visuals"],
+    }
+
+@router.post("/api/executive-insights/stream")
+async def executive_insights_stream(req: ExecutiveInsightsRequest):
+    async def event_generator():
+        response = await _build_executive_insights_response(req.message)
+        yield f"data: {json.dumps({'type': 'message', 'text': response['message']})}\n\n"
+        for visual in response["visuals"]:
+            await asyncio.sleep(0.15)
+            yield f"data: {json.dumps({'type': 'visual', 'visual': visual})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 @router.get("/api/agent-reporting/settings")
 async def get_reporting_settings():
     async with AsyncSessionLocal() as session:
@@ -415,4 +660,3 @@ async def update_reporting_settings(req: ReportingSettingsRequest):
         
         await session.commit()
         return {"status": "success", "message": "Reporting settings saved."}
-
