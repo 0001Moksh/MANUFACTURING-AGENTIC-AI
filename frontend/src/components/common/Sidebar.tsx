@@ -4,8 +4,7 @@ import { LayoutDashboard, BookOpen, Bot, Settings2, BarChart3, Settings } from '
 import { useStore } from '../../store';
 
 export const Sidebar: React.FC = () => {
-  const { telemetryStats } = useStore();
-  const dbStatus = telemetryStats?.mes_db_status;
+  useStore();
 
   return (
     <aside className="w-[248px] shrink-0 bg-gradient-to-b from-navy-950 via-navy-900 to-navy-800 text-white flex flex-col sticky top-0 h-screen">

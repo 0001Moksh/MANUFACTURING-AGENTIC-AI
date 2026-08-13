@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, MicOff, AudioLines } from 'lucide-react';
+import { Mic, AudioLines } from 'lucide-react';
 
 interface VoiceInteractionProps {
   useCaseName: string;
@@ -20,7 +20,6 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({ useCaseName 
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }]);
 
-  const [inputValue, setInputValue] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
 
@@ -188,20 +187,6 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({ useCaseName 
       streamRef.current = null;
     }
     setIsListening(false);
-  };
-
-  const handleSendMessage = () => {
-    // Only manual text sending fallback. 
-    // Usually user just speaks.
-    if (!inputValue.trim()) return;
-    // Just mock it since we are primarily doing voice now
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`,
-      sender: 'user',
-      text: inputValue,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }]);
-    setInputValue('');
   };
 
   return (

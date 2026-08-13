@@ -279,7 +279,7 @@ export const ChatBot: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-panel">
-              {messages.map((msg, index) => (
+              {messages.map((msg) => (
                 <motion.div
                   key={msg.id}
                   initial={{ opacity: 0, y: 10 }}

@@ -15,6 +15,7 @@ from app.db import get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, Mach
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
+from app.agents.maintenance_agent import run_maintenance_conversation
 from app.email_service import send_pdf_report_email
 from app.voice.manager import VoiceConversationManager
 
@@ -50,6 +51,10 @@ class RuleCreate(BaseModel):
 class AgentToggleRequest(BaseModel):
     name: str
     enabled: bool
+
+class MaintenanceChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
 
 # In-memory set of active agents
 active_agents = {
@@ -251,40 +256,6 @@ async def websocket_voice_endpoint(websocket: WebSocket):
         print(f"Voice WS Error: {e}")
 
 
-@router.websocket("/api/ws/agent/maintenance")
-async def websocket_maintenance_agent(websocket: WebSocket):
-    """WebSocket endpoint to stream maintenance agent responses to the client.
-
-    Protocol: client sends JSON messages like {"query": "..."} and server
-    streams back events as JSON objects.
-    """
-    await websocket.accept()
-    try:
-        while True:
-            msg = await websocket.receive_text()
-            try:
-                payload = json.loads(msg)
-            except Exception:
-                await websocket.send_json({"error": "invalid_json", "raw": msg})
-                continue
-
-            query = payload.get("query", "")
-            config = payload.get("config", {})
-
-            # Stream events from maintenance_graph
-            from app.agents.maintenance_graph import stream_maintenance
-
-            try:
-                async for event in stream_maintenance(query, config=config):
-                    await websocket.send_json({"type": "event", "data": event})
-                await websocket.send_json({"type": "done"})
-            except Exception as e:
-                await websocket.send_json({"type": "error", "message": str(e)})
-    except WebSocketDisconnect:
-        print("Maintenance WS disconnected")
-    except Exception as e:
-        print(f"Maintenance WS Error: {e}")
-
 # --- AGENTIC QUERY ENDPOINTS ---
 
 @router.post("/api/agent/query")
@@ -301,20 +272,31 @@ async def query_agent(req: QueryRequest):
     # 2. Trigger LangGraph Workflow (route by agent)
     try:
         if getattr(req, "agent", None) == "maintenance":
-            from app.agents.maintenance_agent import run_maintenance_workflow
-            state = await run_maintenance_workflow(req.query, is_approved=False)
+            maintenance = await run_maintenance_conversation(req.query)
+            return {
+                "status": "success",
+                "sql_query": "",
+                "sql_result": "",
+                "insights": maintenance.get("reply", ""),
+                "execution_steps": [],
+                "pdf_url": "",
+                "email_status": None,
+                "error_message": "",
+                "cost_usd": 0.0,
+                "visuals": maintenance.get("visuals", []),
+            }
         else:
             state = await run_agent_workflow(req.query, is_approved=False)
         
         # If it requires human approval, store it and return status
-        if state["requires_hitl"] and not state["is_approved"]:
+        if state.get("requires_hitl") and not state.get("is_approved"):
             workflow_id = f"hitl-{datetime.utcnow().strftime('%s')}"
             paused_workflows[workflow_id] = state
             return {
                 "status": "requires_approval",
                 "workflow_id": workflow_id,
-                "sql_query": state["sql_query"],
-                "execution_steps": state["execution_steps"],
+                "sql_query": state.get("sql_query", ""),
+                "execution_steps": state.get("execution_steps", []),
                 "insights": "Pending administrator approval: This query requires executing modifications on the live database."
             }
             
@@ -328,10 +310,10 @@ async def query_agent(req: QueryRequest):
             
         return {
             "status": "success",
-            "sql_query": state["sql_query"],
-            "sql_result": state["sql_result"],
-            "insights": state["insights"],
-            "execution_steps": state["execution_steps"],
+            "sql_query": state.get("sql_query", ""),
+            "sql_result": state.get("sql_result", ""),
+            "insights": state.get("insights", state.get("reply", "")),
+            "execution_steps": state.get("execution_steps", []),
             "pdf_url": state.get("pdf_url", ""),
             "email_status": email_status,
             "error_message": state.get("error_message", ""),
@@ -341,6 +323,16 @@ async def query_agent(req: QueryRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {e}")
+
+@router.post("/api/maintenance/chat")
+async def maintenance_chat(req: MaintenanceChatRequest):
+    response = await run_maintenance_conversation(req.message, thread_id=req.thread_id)
+    return {
+        "status": "success",
+        "thread_id": req.thread_id or f"maint-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+        "reply": response["reply"],
+        "visuals": response["visuals"],
+    }
 
 @router.post("/api/agent/approve")
 async def approve_workflow(req: ApproveRequest):
@@ -429,19 +421,101 @@ class ExecutiveInsightsRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
-def _wants_chart(query: str) -> bool:
-    return any(term in query for term in [
-        "chart", "plot", "visualize", "visualise", "show graph", "graph", "diagram", "trend"
-    ])
+class ExecutiveIntent(BaseModel):
+    reply_type: str = "text"
+    topic: str = "general"
+    chart_type: Optional[str] = None
+    diagram_type: Optional[str] = None
+    wants_visual: bool = False
+    reply: str = ""
 
-def _pick_chart_type(query: str) -> str:
-    if any(term in query for term in ["pie", "donut"]):
-        return "pie"
-    if any(term in query for term in ["line", "trend"]):
-        return "line"
-    if any(term in query for term in ["hist", "histogram"]):
-        return "histogram"
-    return "bar"
+async def _build_maintenance_response(message: str) -> Dict[str, Any]:
+    query = message.lower().strip()
+    if not query:
+        return {
+            "message": "Hi sir, I am the Maintenance Agent. Ask me about machine health, predictive maintenance schedules, work orders, alerts, or breakdown status.",
+            "visuals": [],
+        }
+
+    async with AsyncSessionLocal() as session:
+        machines = (await session.execute(select(MachineMaster))).scalars().all()
+        work_orders = (await session.execute(select(WorkOrder))).scalars().all()
+        alerts = (await session.execute(select(AlertMaster).where(AlertMaster.IsResolved == False))).scalars().all()
+
+    maintenance_machines = [m for m in machines if (m.Status or "").lower() in {"maintenance", "offline"}]
+    active_work_orders = [w for w in work_orders if (w.Status or "").lower() in {"planned", "in progress", "on hold"}]
+
+    reply = ""
+    visuals: List[Dict[str, Any]] = []
+
+    if any(term in query for term in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]):
+        reply = "Hello sir. I can help with machine health, scheduled maintenance, predictive alerts, and maintenance work orders."
+    elif any(term in query for term in ["machine health", "health status", "machine status", "status of machine"]):
+        reply = f"There are {len(machines)} machines in the dataset, with {len(maintenance_machines)} currently in maintenance or offline status."
+        visuals.append({
+            "type": "bar",
+            "title": "Machine Health Snapshot",
+            "labels": [m.MachineCode for m in machines[:4]],
+            "series": [
+                {"name": "Capacity", "data": [float(getattr(m, 'CapacityPerHour', 0) or 0) for m in machines[:4]]},
+                {"name": "Health Score", "data": [55 if (m.Status or '').lower() == 'maintenance' else 90 if (m.Status or '').lower() == 'running' else 70 for m in machines[:4]]},
+            ],
+            "meta": {"legend": True, "x_label": "Machine", "y_label": "Score / Capacity"},
+        })
+    elif any(term in query for term in ["schedule", "maintenance window", "preventive", "predictive"]):
+        reply = f"I found {len(maintenance_machines)} machines needing attention and {len(active_work_orders)} maintenance-related work orders."
+        visuals.append({
+            "type": "line",
+            "title": "Maintenance Workload Trend",
+            "labels": ["Now", "Soon", "Later", "Later+"],
+            "series": [
+                {"name": "Open Work Orders", "data": [len(active_work_orders), max(len(active_work_orders) - 1, 0), max(len(active_work_orders) - 2, 0), max(len(active_work_orders) - 3, 0)]},
+                {"name": "Alerts", "data": [len(alerts), len(alerts), len(alerts), len(alerts)]},
+            ],
+            "meta": {"legend": True, "x_label": "Horizon", "y_label": "Count"},
+        })
+    elif any(term in query for term in ["work order", "wo", "maintenance order", "repair order"]):
+        reply = f"There are {len(active_work_orders)} active maintenance-related work orders in the current dataset."
+        visuals.append({
+            "type": "bar",
+            "title": "Maintenance Work Orders",
+            "labels": [w.WorkOrderNumber for w in active_work_orders[:4]],
+            "series": [
+                {"name": "Planned Qty", "data": [float(w.PlannedQty or 0) for w in active_work_orders[:4]]},
+                {"name": "Completed Qty", "data": [float(w.CompletedQty or 0) for w in active_work_orders[:4]]},
+            ],
+            "meta": {"legend": True, "x_label": "Work Order", "y_label": "Quantity"},
+        })
+    elif any(term in query for term in ["alerts", "breakdown", "fault", "failure"]):
+        reply = f"There are {len(alerts)} unresolved alerts and {len(maintenance_machines)} machines currently not in healthy running state."
+        visuals.append({
+            "type": "pie",
+            "title": "Alert Mix",
+            "labels": ["Maintenance", "Safety", "Compliance", "Finance"],
+            "series": [{"name": "Alerts", "data": [max(len(alerts), 1), 1, 1, 1]}],
+            "meta": {"legend": True, "x_label": "", "y_label": "Share"},
+        })
+    else:
+        reply = "I can help with machine health status, predictive maintenance schedules, and maintenance work order queries."
+        visuals.append({
+            "type": "flow",
+            "title": "Maintenance Workflow",
+            "labels": ["Inspect", "Diagnose", "Plan", "Execute"],
+            "nodes": [
+                {"id": "inspect", "label": "Inspect"},
+                {"id": "diagnose", "label": "Diagnose"},
+                {"id": "plan", "label": "Plan"},
+                {"id": "execute", "label": "Execute"},
+            ],
+            "edges": [
+                {"from": "inspect", "to": "diagnose"},
+                {"from": "diagnose", "to": "plan"},
+                {"from": "plan", "to": "execute"},
+            ],
+            "meta": {"legend": False, "x_label": "", "y_label": ""},
+        })
+
+    return {"message": reply, "visuals": visuals}
 
 def _wo_chart_payload(chart_type: str) -> Dict[str, Any]:
     labels = ["WO-88213", "WO-33912", "WO-10442", "WO-55610"]
@@ -480,6 +554,142 @@ def _wo_chart_payload(chart_type: str) -> Dict[str, Any]:
         },
     }
 
+def _build_chart_payload(topic: str, chart_type: str) -> Dict[str, Any]:
+    if topic == "work_order":
+        return _wo_chart_payload(chart_type)
+    if topic == "machine":
+        return {
+            "type": chart_type if chart_type != "histogram" else "bar",
+            "title": "Machine Utilization",
+            "labels": ["Machine A", "Machine B", "Machine C", "Machine D"],
+            "series": [
+                {"name": "Capacity", "data": [95, 88, 76, 64]},
+                {"name": "Utilization", "data": [83, 79, 68, 57]},
+            ],
+            "meta": {"legend": True, "x_label": "Machine", "y_label": "Score"},
+        }
+    if topic == "inventory":
+        if chart_type == "pie":
+            return {
+                "type": "pie",
+                "title": "Inventory Distribution",
+                "labels": ["RM", "WIP", "FG", "Blocked"],
+                "series": [{"name": "Qty", "data": [72, 56, 91, 18]}],
+                "meta": {"legend": True, "x_label": "", "y_label": "Share"},
+            }
+        return {
+            "type": chart_type if chart_type != "histogram" else "bar",
+            "title": "Inventory Snapshot",
+            "labels": ["RM", "WIP", "FG", "Blocked"],
+            "series": [{"name": "Qty", "data": [72, 56, 91, 18]}],
+            "meta": {"legend": True, "x_label": "Bucket", "y_label": "Quantity"},
+        }
+    if topic == "sales":
+        return {
+            "type": chart_type if chart_type != "histogram" else "bar",
+            "title": "Forecast vs Actual",
+            "labels": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            "series": [
+                {"name": "Forecast", "data": [120, 135, 128, 142, 150]},
+                {"name": "Actual", "data": [112, 129, 123, 138, 146]},
+            ],
+            "meta": {"legend": True, "x_label": "Day", "y_label": "Value"},
+        }
+    return {
+        "type": chart_type if chart_type != "histogram" else "bar",
+        "title": "Executive Dashboard Snapshot",
+        "labels": ["Production", "Quality", "Maintenance", "Finance"],
+        "series": [{"name": "Health", "data": [84, 91, 76, 88]}],
+        "meta": {"legend": True, "x_label": "Domain", "y_label": "Score"},
+    }
+
+def _build_flow_visual(diagram_type: str = "flow") -> Dict[str, Any]:
+    return {
+        "type": "flow",
+        "title": "Work Order Pipeline",
+        "labels": ["Request", "Planning", "Approval", "Execution", "Closeout"],
+        "nodes": [
+            {"id": "req", "label": "Request"},
+            {"id": "plan", "label": "Planning"},
+            {"id": "approve", "label": "Approval"},
+            {"id": "exec", "label": "Execution"},
+            {"id": "close", "label": "Closeout"},
+        ],
+        "edges": [
+            {"from": "req", "to": "plan"},
+            {"from": "plan", "to": "approve"},
+            {"from": "approve", "to": "exec"},
+            {"from": "exec", "to": "close"},
+        ],
+        "meta": {
+            "legend": False,
+            "x_label": "",
+            "y_label": "",
+        },
+    }
+
+def _build_machine_network_visual() -> Dict[str, Any]:
+    return {
+        "type": "flow",
+        "title": "Machine Dependency Network",
+        "labels": ["Input", "Machine A", "Machine B", "Output"],
+        "nodes": [
+            {"id": "input", "label": "Input"},
+            {"id": "ma", "label": "Machine A"},
+            {"id": "mb", "label": "Machine B"},
+            {"id": "output", "label": "Output"},
+        ],
+        "edges": [
+            {"from": "input", "to": "ma"},
+            {"from": "ma", "to": "mb"},
+            {"from": "mb", "to": "output"},
+        ],
+        "meta": {
+            "legend": False,
+            "x_label": "",
+            "y_label": "",
+        },
+    }
+
+async def _parse_executive_intent(message: str) -> ExecutiveIntent:
+    system_prompt = (
+        "You are an intent parser for an Executive Insights agent. "
+        "Return ONLY valid JSON with keys: reply_type, topic, chart_type, diagram_type, wants_visual, reply. "
+        "reply_type must be one of: text, chart, diagram, capability. "
+        "topic must be one of: general, work_order, machine, inventory, sales, process, capability. "
+        "chart_type must be one of: bar, line, pie, histogram, stacked_bar, gauge or null. "
+        "diagram_type must be one of: flow, network, sankey, gantt or null. "
+        "If the user asks what you can build, reply_type should be capability and reply should list supported visuals. "
+        "If they ask for a workflow/pipeline/architecture, reply_type should be diagram. "
+        "If they ask for a chart/graph/visualization, reply_type should be chart."
+    )
+    result = await execute_completion(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message},
+        ],
+        model="gemini/gemini-3.5-flash-lite",
+        temperature=0.0,
+    )
+    raw = result.get("text", "").strip()
+    try:
+        payload = json.loads(raw)
+        return ExecutiveIntent(**payload)
+    except Exception:
+        lowered = message.lower()
+        if any(x in lowered for x in ["what can", "how many charts", "capabilities"]):
+            return ExecutiveIntent(
+                reply_type="capability",
+                topic="capability",
+                wants_visual=False,
+                reply="Yes. I can generate bar, line, pie, histogram, stacked bar, gauge / KPI, flowchart, node-edge, Sankey, and Gantt visuals."
+            )
+        if any(x in lowered for x in ["pipeline", "workflow", "process", "flow", "architecture"]):
+            return ExecutiveIntent(reply_type="diagram", topic="process", diagram_type="flow", wants_visual=True)
+        if any(x in lowered for x in ["chart", "plot", "visualize", "graph"]):
+            return ExecutiveIntent(reply_type="chart", topic="general", chart_type="bar", wants_visual=True)
+        return ExecutiveIntent(reply_type="text", topic="general", wants_visual=False)
+
 async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
     query = message.lower().strip()
     if not query:
@@ -490,7 +700,7 @@ async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
 
     visuals: List[Dict[str, Any]] = []
     summary = ""
-    wants_chart = _wants_chart(query)
+    intent = await _parse_executive_intent(message)
 
     async with AsyncSessionLocal() as session:
         total_work_orders = (await session.execute(select(func.count(WorkOrder.WorkOrderId)))).scalar_one()
@@ -510,10 +720,9 @@ async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
         summary = (
             "Hello. I can help you inspect production, work orders, machine health, inventory, alerts, and sales-style executive summaries."
         )
-    elif any(term in query for term in ["what can you do", "help", "capabilities", "what u can do", "what can u do"]):
-        summary = (
-            "I can summarize live MES data, explain active work orders, compare machine capacity with utilization, "
-            "review inventory, and generate chart-backed executive snapshots."
+    elif intent.reply_type == "capability":
+        summary = intent.reply or (
+            "Yes. I can generate bar, line, pie, histogram, stacked bar, gauge / KPI, flowchart, node-edge, Sankey, and Gantt visuals."
         )
     elif any(term in query for term in ["work order", "workorders", "wo ", " wo", "orders"]):
         summary = (
@@ -538,70 +747,38 @@ async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
             "Try asking for production, inventory, work orders, machine utilization, alerts, or sales."
         )
 
-    if wants_chart:
-        if any(term in query for term in ["work order", "workorders", "wo ", " wo", "orders"]):
-            visuals.append(_wo_chart_payload(_pick_chart_type(query)))
-        elif any(term in query for term in ["machine", "oee", "capacity", "utilization"]):
-            chart_type = _pick_chart_type(query)
+    if intent.reply_type == "diagram":
+        if intent.topic == "machine" or "machine" in query and any(term in query for term in ["diagram", "network", "dependency"]):
+            visuals.append(_build_machine_network_visual())
+        if intent.diagram_type == "flow" or any(term in query for term in ["pipeline", "workflow", "process"]):
+            visuals.append(_build_flow_visual(intent.diagram_type or "flow"))
+        elif intent.diagram_type == "sankey":
             visuals.append({
-                "type": "pie" if chart_type == "pie" else chart_type,
-                "title": "Capacity vs Utilization",
-                "labels": ["Machine A", "Machine B", "Machine C", "Machine D"],
-                "series": [
-                    {"name": "Capacity", "data": [95, 88, 76, 64]},
-                    {"name": "Utilization", "data": [83, 79, 68, 57]}
+                "type": "flow",
+                "title": "Material Flow",
+                "nodes": [
+                    {"id": "raw", "label": "Raw Material"},
+                    {"id": "wip", "label": "WIP"},
+                    {"id": "fg", "label": "Finished Goods"},
                 ],
-                "meta": {
-                    "legend": True,
-                    "x_label": "Machine",
-                    "y_label": "Units / %",
-                },
-            })
-        elif any(term in query for term in ["inventory", "stock", "material", "raw material"]):
-            chart_type = _pick_chart_type(query)
-            visuals.append({
-                "type": "pie" if chart_type == "pie" else chart_type,
-                "title": "Inventory Snapshot",
-                "labels": ["RM", "WIP", "FG", "Blocked"],
-                "series": [
-                    {"name": "Qty", "data": [72, 56, 91, 18]}
+                "edges": [
+                    {"from": "raw", "to": "wip"},
+                    {"from": "wip", "to": "fg"},
                 ],
-                "meta": {
-                    "legend": True,
-                    "x_label": "Inventory Bucket",
-                    "y_label": "Quantity",
-                },
-            })
-        elif any(term in query for term in ["sales", "dispatch", "revenue", "forecast"]):
-            chart_type = _pick_chart_type(query)
-            visuals.append({
-                "type": "pie" if chart_type == "pie" else chart_type,
-                "title": "Forecast vs Actual",
-                "labels": ["Mon", "Tue", "Wed", "Thu", "Fri"],
-                "series": [
-                    {"name": "Forecast", "data": [120, 135, 128, 142, 150]},
-                    {"name": "Actual", "data": [112, 129, 123, 138, 146]}
-                ],
-                "meta": {
-                    "legend": True,
-                    "x_label": "Day",
-                    "y_label": "Value",
-                },
+                "meta": {"legend": False, "x_label": "", "y_label": ""},
             })
         else:
-            visuals.append({
-                "type": "bar",
-                "title": "Executive Dashboard Snapshot",
-                "labels": ["Production", "Quality", "Maintenance", "Finance"],
-                "series": [
-                    {"name": "Health", "data": [84, 91, 76, 88]}
-                ],
-                "meta": {
-                    "legend": True,
-                    "x_label": "Domain",
-                    "y_label": "Score",
-                },
-            })
+            visuals.append(_build_flow_visual("flow"))
+    elif intent.reply_type == "chart" or intent.wants_visual:
+        topic = intent.topic if intent.topic in {"work_order", "machine", "inventory", "sales"} else (
+            "work_order" if any(term in query for term in ["work order", "workorders", "wo ", " wo", "orders"]) else
+            "machine" if any(term in query for term in ["machine", "oee", "capacity", "utilization"]) else
+            "inventory" if any(term in query for term in ["inventory", "stock", "material", "raw material"]) else
+            "sales" if any(term in query for term in ["sales", "dispatch", "revenue", "forecast"]) else
+            "general"
+        )
+        chart_type = intent.chart_type or "bar"
+        visuals.append(_build_chart_payload(topic, chart_type))
 
     return {
         "message": summary,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Database, Sparkles, FileText, Bot, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Database, Sparkles, FileText, ShieldCheck } from 'lucide-react';
 import { AgentChatConsole } from '../components/agents/ReportingAgentConsole';
 
 export const ReportingAgentPage: React.FC = () => {
@@ -79,7 +79,7 @@ export const ReportingAgentPage: React.FC = () => {
       </div>
 
       {/* Embedded SQL Reporting Agent Console */}
-      <AgentChatConsole agentName="reporting" />
+      <AgentChatConsole />
     </motion.div>
   );
 };

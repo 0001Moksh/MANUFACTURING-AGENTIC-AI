@@ -27,11 +27,17 @@ type ChatItem = {
 
 const greeting = "Hi, I am Executive Insights Agent. Ask me about production, inventory, work orders, machine utilization, or sales.";
 const PIE_COLORS = ['#0B1730', '#00A9AE', '#7C6FF0', '#F59E0B', '#1FA971', '#E24C4C'];
+const capabilityReply = [
+  'Yes. I can generate both analytical visuals and structural diagrams.',
+  'Analytical charts: bar, column, line, trend, pie, donut, histogram, stacked bar, gauge / KPI cards.',
+  'Process visuals: flowcharts, block diagrams, node-edge graphs, Sankey-style flows, and Gantt-style timelines.',
+  'For process questions, ask for the pipeline, dependencies, or workflow and I will return a diagram schema.',
+].join(' ');
 
 const chartData = (visual: ExecutiveVisual) =>
-  visual.labels.map((label, i) => ({
+  (visual.labels || []).map((label, i) => ({
     name: label,
-    ...Object.fromEntries(visual.series.map(series => [series.name, series.data[i]])),
+    ...Object.fromEntries((visual.series || []).map(series => [series.name, series.data[i]])),
   }));
 
 const fallbackResponse = (message: string): { reply: string; visuals: ExecutiveVisual[] } => {
@@ -43,7 +49,42 @@ const fallbackResponse = (message: string): { reply: string; visuals: ExecutiveV
     };
   }
 
-  if (q.includes('work order') || q.includes('workorder') || q.includes('order')) {
+  if (q.includes('what can you do') || q.includes('what can u do') || q.includes('how many charts') || q.includes('can you generate charts')) {
+    return {
+      reply: capabilityReply,
+      visuals: [],
+    };
+  }
+
+  if (q.includes('pipeline') || q.includes('workflow') || q.includes('flow') || q.includes('process') || q.includes('work order pipeline')) {
+    return {
+      reply: 'Here is the work-order pipeline as a flow diagram. You can ask for a specific step if you want more detail.',
+      visuals: [
+        {
+          type: 'flow',
+          title: 'Work Order Pipeline',
+          labels: [],
+          nodes: [
+            { id: 'req', label: 'Request' },
+            { id: 'plan', label: 'Planning' },
+            { id: 'approve', label: 'Approval' },
+            { id: 'exec', label: 'Execution' },
+            { id: 'close', label: 'Closeout' },
+          ],
+          edges: [
+            { from: 'req', to: 'plan' },
+            { from: 'plan', to: 'approve' },
+            { from: 'approve', to: 'exec' },
+            { from: 'exec', to: 'close' },
+          ],
+          series: [],
+          meta: { legend: false },
+        },
+      ],
+    };
+  }
+
+  if (q.includes('work order') || q.includes('workorder') || q.includes('wo ')) {
     return {
       reply: 'I found a work-order focused view. Review active and delayed work orders first, then compare plan versus completion.',
       visuals: [
@@ -123,8 +164,70 @@ const fallbackResponse = (message: string): { reply: string; visuals: ExecutiveV
           meta: { legend: true, x_label: 'Domain', y_label: 'Score' },
         },
       ],
-    };
   };
+};
+
+const FlowDiagram: React.FC<{ visual: ExecutiveVisual }> = ({ visual }) => {
+  const nodes = visual.nodes || [];
+  const edges = visual.edges || [];
+  const width = 860;
+  const height = 180;
+  const nodePositions = nodes.map((node, index) => {
+    const x = 80 + (index * (width - 160)) / Math.max(nodes.length - 1, 1);
+    return { ...node, x, y: 90 };
+  });
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+      {edges.map((edge, idx) => {
+        const from = nodePositions.find(n => n.id === edge.from);
+        const to = nodePositions.find(n => n.id === edge.to);
+        if (!from || !to) return null;
+        return (
+          <line
+            key={idx}
+            x1={from.x + 48}
+            y1={from.y}
+            x2={to.x - 48}
+            y2={to.y}
+            stroke="#00A9AE"
+            strokeWidth="2.5"
+            markerEnd="url(#arrowhead)"
+          />
+        );
+      })}
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <polygon points="0 0, 8 4, 0 8" fill="#00A9AE" />
+        </marker>
+      </defs>
+      {nodePositions.map(node => (
+        <g key={node.id}>
+          <rect x={node.x - 48} y={node.y - 26} width="96" height="52" rx="16" fill="#0B1730" />
+          <text x={node.x} y={node.y + 5} textAnchor="middle" fill="#fff" fontSize="12" fontWeight="700">
+            {node.label}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+};
+
+const HistogramBars: React.FC<{ visual: ExecutiveVisual }> = ({ visual }) => {
+  const data = chartData(visual);
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey={visual.series[0]?.name || 'Frequency'} fill="#0B1730" radius={[6, 6, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
 
 export const ExecutiveInsightsPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatItem[]>([
@@ -176,10 +279,19 @@ export const ExecutiveInsightsPage: React.FC = () => {
   };
 
   const renderChart = (visual: ExecutiveVisual) => {
-    const data = chartData(visual);
     const showLegend = visual.meta?.legend !== false;
     const xLabel = visual.meta?.x_label;
     const yLabel = visual.meta?.y_label;
+
+    if (visual.type === 'flow') {
+      return <FlowDiagram visual={visual} />;
+    }
+
+    if (visual.type === 'histogram') {
+      return <HistogramBars visual={visual} />;
+    }
+
+    const data = chartData(visual);
 
     if (visual.type === 'pie') {
       const pieData = visual.labels.map((name, i) => ({
@@ -249,6 +361,19 @@ export const ExecutiveInsightsPage: React.FC = () => {
 
       <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-0">
         <div className="overflow-y-auto p-5 space-y-4">
+          <div className="flex flex-wrap gap-2 text-[11px] text-muted">
+            <span className="font-semibold uppercase tracking-[0.14em] text-faint">Supported outputs:</span>
+            <span>Bar / Column</span>
+            <span>Line / Trend</span>
+            <span>Pie / Donut</span>
+            <span>Histogram</span>
+            <span>Stacked Bar</span>
+            <span>Gauge / KPI</span>
+            <span>Flowchart / Block Diagram</span>
+            <span>Node-Edge Graph</span>
+            <span>Sankey</span>
+            <span>Gantt</span>
+          </div>
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[860px] rounded-[18px] p-4 ${msg.role === 'user' ? 'bg-navy-900 text-white rounded-br-[6px]' : 'bg-canvas text-ink border border-border-color rounded-bl-[6px]'}`}>

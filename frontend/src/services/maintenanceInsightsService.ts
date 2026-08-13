@@ -1,13 +1,10 @@
 import { api } from './api';
 
-export type ExecutiveVisual = {
-  type: 'bar' | 'line' | 'pie' | 'histogram' | 'flow';
+export type MaintenanceVisual = {
+  type: 'bar' | 'line' | 'pie' | 'flow';
   title: string;
   labels: string[];
-  series: Array<{
-    name: string;
-    data: number[];
-  }>;
+  series: Array<{ name: string; data: number[] }>;
   nodes?: Array<{ id: string; label: string }>;
   edges?: Array<{ from: string; to: string }>;
   meta?: {
@@ -17,16 +14,16 @@ export type ExecutiveVisual = {
   };
 };
 
-export type ExecutiveInsightResponse = {
+export type MaintenanceResponse = {
   status: 'success';
   thread_id: string;
   reply: string;
-  visuals: ExecutiveVisual[];
+  visuals: MaintenanceVisual[];
 };
 
-export const executiveInsightsService = {
+export const maintenanceInsightsService = {
   chat: async (message: string, threadId?: string) => {
-    const res = await api.post<ExecutiveInsightResponse>('/executive-insights/chat', {
+    const res = await api.post<MaintenanceResponse>('/maintenance/chat', {
       message,
       thread_id: threadId,
     });
