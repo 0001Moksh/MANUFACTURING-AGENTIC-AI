@@ -17,6 +17,7 @@ from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.maintenance_agent import run_maintenance_conversation
 from app.agents.safety_quality_agent import run_safety_quality_conversation
+from app.agents.ppe_vision_agent import run_ppe_conversation
 from app.email_service import send_pdf_report_email
 from app.voice.manager import VoiceConversationManager
 
@@ -58,6 +59,10 @@ class MaintenanceChatRequest(BaseModel):
     thread_id: Optional[str] = None
 
 class SafetyQualityChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
+
+class PPEVisionChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
@@ -855,3 +860,17 @@ async def safety_quality_chat(req: SafetyQualityChatRequest):
         "thread_id": result["thread_id"],
         "reply": result["reply"],
     }
+
+
+# ── PPE & Behavior Vision Agent ───────────────────────────────────────────────
+
+@router.post("/api/ppe-agent/chat")
+async def ppe_vision_chat(req: PPEVisionChatRequest):
+    """Chat endpoint for the Deva PPE & Behavior Vision LangGraph agent."""
+    result = await run_ppe_conversation(req.message, req.thread_id)
+    return {
+        "status": "success",
+        "thread_id": result["thread_id"],
+        "reply": result["reply"],
+    }
+

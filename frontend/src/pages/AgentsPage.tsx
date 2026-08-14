@@ -15,6 +15,8 @@ export const AgentsPage: React.FC = () => {
       navigate('/agents/maintenance');
     } else if (agentName === 'Safety & Quality Agent') {
       navigate('/agents/safety-quality');
+    } else if (agentName === 'PPE & Behavior Vision Agent') {
+      navigate('/agents/ppe-vision');
     } else {
       setActiveAgentName(agentName);
     }
