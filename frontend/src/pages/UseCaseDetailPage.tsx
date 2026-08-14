@@ -28,6 +28,11 @@ export const UseCaseDetailPage: React.FC = () => {
   const [isSaving, setIsSaving] = React.useState(false);
 
   useEffect(() => {
+    if (useCase && useCase.id === 9) {
+      navigate('/use-cases/safety-site-intelligence', { replace: true });
+      return;
+    }
+
     if (useCase && useCase.id === 1) {
       fetch('http://localhost:8000/api/agent-reporting/settings')
         .then(res => res.json())
@@ -38,7 +43,7 @@ export const UseCaseDetailPage: React.FC = () => {
         })
         .catch(err => console.error("Failed to load settings", err));
     }
-  }, [useCase]);
+  }, [useCase, navigate]);
 
   const saveSettings = async () => {
     setIsSaving(true);
@@ -129,6 +134,12 @@ export const UseCaseDetailPage: React.FC = () => {
                     onClick={() => {
                       if (agentName === 'Reporting Agent') {
                         navigate('/agents/reporting');
+                      } else if (agentName === 'Maintenance Agent') {
+                        navigate('/agents/maintenance');
+                      } else if (agentName === 'Safety & Quality Agent') {
+                        navigate('/agents/safety-quality');
+                      } else if (agentName === 'PPE & Behavior Vision Agent') {
+                        navigate('/agents/ppe-vision');
                       } else {
                         navigate('/agents');
                       }
@@ -241,7 +252,14 @@ export const UseCaseDetailPage: React.FC = () => {
              </div>
 
              <div className="h-[500px] lg:h-auto min-h-[400px]">
-                <VoiceInteraction useCaseName={useCase.title} />
+                <VoiceInteraction 
+                  useCaseName={useCase.title} 
+                  defaultAgent={
+                    useCase.poweredBy?.includes('Safety & Quality Agent') ? 'safety_quality' :
+                    useCase.poweredBy?.includes('PPE & Behavior Vision Agent') ? 'ppe_vision' :
+                    useCase.poweredBy?.includes('Maintenance Agent') ? 'maintenance' : 'auto'
+                  }
+                />
              </div>
           </div>
         </div>

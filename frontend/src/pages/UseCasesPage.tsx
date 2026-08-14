@@ -59,6 +59,10 @@ export const UseCasesPage: React.FC = () => {
                 navigate('/use-cases/executive-insights');
                 return;
               }
+              if (u.id === 9) {
+                navigate('/use-cases/safety-site-intelligence');
+                return;
+              }
               navigate(`/use-cases/${u.id}`);
             }} 
           />

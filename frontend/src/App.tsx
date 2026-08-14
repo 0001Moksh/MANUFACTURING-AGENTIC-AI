@@ -9,6 +9,7 @@ import { ReportingAgentPage } from './pages/ReportingAgentPage';
 import { MaintenanceAgentPage } from './pages/MaintenanceAgentPage';
 import { SafetyQualityAgentPage } from './pages/SafetyQualityAgentPage';
 import { PPEVisionAgentPage } from './pages/PPEVisionAgentPage';
+import { SafetySiteIntelligencePage } from './pages/SafetySiteIntelligencePage';
 import { AdminConsolePage } from './pages/AdminConsolePage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -29,6 +30,7 @@ function App() {
           <Route index element={<OverviewPage />} />
           <Route path="use-cases" element={<UseCasesPage />} />
           <Route path="use-cases/executive-insights" element={<ExecutiveInsightsPage />} />
+          <Route path="use-cases/safety-site-intelligence" element={<SafetySiteIntelligencePage />} />
           <Route path="use-cases/:id" element={<UseCaseDetailPage />} />
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/reporting" element={<ReportingAgentPage />} />

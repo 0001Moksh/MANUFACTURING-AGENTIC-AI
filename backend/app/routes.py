@@ -18,6 +18,7 @@ from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.maintenance_agent import run_maintenance_conversation
 from app.agents.safety_quality_agent import run_safety_quality_conversation
 from app.agents.ppe_vision_agent import run_ppe_conversation
+from app.agents.safety_site_intelligence_agent import run_safety_site_intelligence_conversation
 from app.email_service import send_pdf_report_email
 from app.voice.manager import VoiceConversationManager
 
@@ -63,6 +64,10 @@ class SafetyQualityChatRequest(BaseModel):
     thread_id: Optional[str] = None
 
 class PPEVisionChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
+
+class SafetySiteIntelligenceChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
@@ -246,9 +251,9 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @router.websocket("/api/ws/voice")
-async def websocket_voice_endpoint(websocket: WebSocket):
+async def websocket_voice_endpoint(websocket: WebSocket, agent: Optional[str] = "auto"):
     await websocket.accept()
-    manager = VoiceConversationManager(websocket)
+    manager = VoiceConversationManager(websocket, agent_id=agent or "auto")
     try:
         while True:
             # We receive raw PCM audio (bytes) or control messages (text)
@@ -257,9 +262,13 @@ async def websocket_voice_endpoint(websocket: WebSocket):
                 await manager.handle_audio_frame(message["bytes"])
             elif "text" in message:
                 data = json.loads(message["text"])
-                if data.get("type") == "audio_played":
-                    # Update truncation logic if needed
+                msg_type = data.get("type")
+                if msg_type == "audio_played":
                     manager.played_text = data.get("text", "")
+                elif msg_type == "set_agent":
+                    await manager.set_agent(data.get("agent", "auto"))
+                elif msg_type in ["query_text", "user_text"]:
+                    await manager.process_text_turn(data.get("text", ""))
     except WebSocketDisconnect:
         pass
     except Exception as e:
@@ -873,4 +882,18 @@ async def ppe_vision_chat(req: PPEVisionChatRequest):
         "thread_id": result["thread_id"],
         "reply": result["reply"],
     }
+
+
+# ── Safety & Site Intelligence Multi-Agent ───────────────────────────────────
+
+@router.post("/api/safety-site-intelligence/chat")
+async def safety_site_intelligence_chat(req: SafetySiteIntelligenceChatRequest):
+    """Chat endpoint for the Deva Safety & Site Intelligence Multi-Agent (135 tools)."""
+    result = await run_safety_site_intelligence_conversation(req.message, req.thread_id)
+    return {
+        "status": "success",
+        "thread_id": result["thread_id"],
+        "reply": result["reply"],
+    }
+
 

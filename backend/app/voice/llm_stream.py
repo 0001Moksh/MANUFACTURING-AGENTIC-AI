@@ -45,30 +45,45 @@ async def transcribe_audio(pcm_data: bytes, sample_rate: int = 16000) -> str:
         print(f"STT Error: {e}")
         return ""
 
-async def stream_llm_response(prompt: str, history: list = None) -> AsyncGenerator[str, None]:
+async def stream_llm_response(prompt: str, history: list = None, agent_context: str = "") -> AsyncGenerator[str, None]:
     """
-    Streams a response from Groq LLM (llama-3-8b or 70b).
-    history is a list of {"role": "user"/"assistant", "content": "..."}
+    Streams a voice-optimized response from Groq LLM (llama-3.1-8b-instant).
+    Converts rich agent database findings into concise, spoken 1-2 sentence speech.
     """
     if history is None:
         history = []
-        
+
+    system_instruction = (
+        "You are Deva, the voice interaction layer for Industrial AI Agents (created by Moksh Bhardwaj). "
+        "Your job is to speak the operational answers directly to the user (addressing them respectfully as 'sir'). "
+        "RULES FOR VOICE OUTPUT:\n"
+        "1. MUST respond in the EXACT same language the user spoke in (English or Hindi).\n"
+        "2. If responding in Hindi, YOU MUST USE DEVANAGARI SCRIPT (e.g., नमस्ते सर, आज २ सुरक्षा नियम उल्लंघन हुए हैं). NEVER use Latin/English alphabets for Hindi.\n"
+        "3. Keep answers EXTREMELY short and natural for speech (1 to 2 spoken sentences maximum).\n"
+        "4. Summarize key figures, alerts, or status numbers clearly. DO NOT use markdown, tables, bullet points, asterisks (*), hashtags, or parentheses, as this text will be read aloud by Text-to-Speech.\n"
+    )
+
+    user_content = prompt
+    if agent_context:
+        user_content = f"{prompt}\n\n[Agent Ground-Truth Database Insights]:\n{agent_context}\n\n[Task]: Speak a 1-2 sentence spoken summary of this ground-truth data for the user."
+
     messages = [
-        {"role": "system", "content": "You are a helpful Voice Assistant. You MUST respond in the EXACT same language the user spoke in. If responding in Hindi, YOU MUST USE THE DEVANAGARI SCRIPT (e.g., नमस्ते), NEVER use Latin/English script for Hindi. Keep your answers EXTREMELY short and conversational (1 sentence max). Do not use markdown or parentheses."}
-    ] + history + [{"role": "user", "content": prompt}]
-    
+        {"role": "system", "content": system_instruction}
+    ] + history + [{"role": "user", "content": user_content}]
+
     try:
         stream = await client.chat.completions.create(
             messages=messages,
-            model="llama-3.1-8b-instant", # Fast inference model
-            temperature=0.5,
-            max_tokens=256,
+            model="llama-3.1-8b-instant",
+            temperature=0.3,
+            max_tokens=200,
             stream=True
         )
-        
+
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
     except Exception as e:
         print(f"LLM Stream Error: {e}")
-        yield "I encountered an error while thinking."
+        yield "Sir, I encountered an issue retrieving the live agent data."
+

@@ -7,10 +7,12 @@ from app.voice.vad import EnergyVAD
 from app.voice.llm_stream import transcribe_audio, stream_llm_response
 from app.voice.tts_stream import stream_tts
 from app.voice.turn_detection import is_actual_interruption
+from app.voice.agent_router import execute_agent_query
 
 class VoiceConversationManager:
-    def __init__(self, websocket: WebSocket):
+    def __init__(self, websocket: WebSocket, agent_id: str = "auto"):
         self.ws = websocket
+        self.agent_id = agent_id or "auto"
         self.state = "IDLE"
         self.vad = EnergyVAD(threshold=0.01) # adjust threshold as needed
         
@@ -23,6 +25,10 @@ class VoiceConversationManager:
         # To track what the user actually heard
         self.generated_text_so_far = ""
         self.played_text = ""
+
+    async def set_agent(self, new_agent_id: str):
+        self.agent_id = new_agent_id or "auto"
+        await self._log(f"Active agent switched to: {self.agent_id}")
 
     async def _log(self, msg: str):
         print(f"[VOICE] {msg}")
@@ -106,22 +112,55 @@ class VoiceConversationManager:
         
         self.llm_task = asyncio.create_task(self.run_llm_tts_pipeline(user_text, gen_id))
 
+    async def process_text_turn(self, user_text: str):
+        """Processes a typed query: executes the agent tool pipeline and speaks back the response."""
+        if not user_text or not user_text.strip():
+            return
+            
+        self.state = "THINKING"
+        await self._log(f"User (Typed Query): {user_text}")
+        
+        # Cancel any previous ongoing speech/generation
+        if self.llm_task and not self.llm_task.done():
+            self.llm_task.cancel()
+            
+        self.history.append({"role": "user", "content": user_text})
+        await self.ws.send_text(json.dumps({"type": "transcript", "text": user_text, "role": "user"}))
+        
+        self.current_generation_id = str(uuid.uuid4())
+        gen_id = self.current_generation_id
+        
+        self.llm_task = asyncio.create_task(self.run_llm_tts_pipeline(user_text, gen_id))
+
     async def run_llm_tts_pipeline(self, prompt: str, gen_id: str):
         self.state = "SPEAKING"
         self.generated_text_so_far = ""
         self.played_text = ""
         
         try:
-            # Query the backend agent workflow to get DB insights
-            from app.agents.agent_workflow import run_agent_workflow
-            workflow_state = await run_agent_workflow(prompt, is_approved=False)
-            db_insights = workflow_state.get("insights", "")
+            # Query the multi-agent router to execute specialized agent tools
+            agent_res = await execute_agent_query(
+                prompt=prompt,
+                agent_id=self.agent_id,
+                thread_id=f"voice-session-{self.agent_id}"
+            )
             
-            if db_insights:
-                prompt = f"{prompt}\n\n[System DB Context]: {db_insights}"
+            # Send notification to UI about which agent answered
+            await self.ws.send_text(json.dumps({
+                "type": "agent_routed",
+                "agent_id": agent_res["agent_id"],
+                "agent_name": agent_res["agent_name"]
+            }))
+            
+            db_insights = agent_res.get("reply", "")
+            await self._log(f"Agent ({agent_res['agent_name']}) returned {len(db_insights)} chars of insights.")
                 
             sentence_buffer = ""
-            async for text_chunk in stream_llm_response(prompt, self.history[:-1]): # Exclude current prompt from history param as it's passed in
+            async for text_chunk in stream_llm_response(
+                prompt=prompt,
+                history=self.history[:-1],
+                agent_context=db_insights
+            ):
                 if self.current_generation_id != gen_id:
                     return # Interrupted
                     
