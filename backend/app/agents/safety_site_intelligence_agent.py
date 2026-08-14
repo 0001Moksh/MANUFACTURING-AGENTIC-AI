@@ -113,12 +113,34 @@ print("[Multi-Agent] Deva Safety & Site Intelligence Multi-Agent Graph compiled 
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
-async def run_safety_site_intelligence_conversation(message: str, thread_id: Optional[str] = None) -> dict:
-    """Async entry-point for FastAPI endpoint."""
+async def run_safety_site_intelligence_conversation(
+    message: str,
+    thread_id: Optional[str] = None,
+    ui_context: Optional[dict] = None,
+) -> dict:
+    """Async entry-point for FastAPI endpoint with UI context injection."""
     config = {"configurable": {"thread_id": thread_id or "safety-site-intel-default"}}
+    
+    # Inject UI Context if user is interacting with a specific zone/heatmap state
+    input_content = message
+    if ui_context:
+        ctx_parts = []
+        if ui_context.get("time_filter"):
+            ctx_parts.append(f"Active Time Filter: {ui_context['time_filter']}")
+        if ui_context.get("zone_name"):
+            ctx_parts.append(
+                f"Selected Zone: {ui_context['zone_name']} (ID: {ui_context.get('zone_id')}, Risk Level: {ui_context.get('risk_level')}, Risk Score: {ui_context.get('risk_score')}/100, Violations: {ui_context.get('incident_count')})"
+            )
+        if ui_context.get("top_violations"):
+            ctx_parts.append(f"Zone Violations Breakdown: {ui_context['top_violations']}")
+        
+        if ctx_parts:
+            context_header = "[UI Context: " + "; ".join(ctx_parts) + "]\n"
+            input_content = f"{context_header}User query: {message}"
+
     final_state = await asyncio.to_thread(
         lambda: deva_safety_site_intelligence_agent.invoke(
-            {"messages": [HumanMessage(content=message)]},
+            {"messages": [HumanMessage(content=input_content)]},
             config=config,
         )
     )
