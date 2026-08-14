@@ -7,6 +7,7 @@ import { ExecutiveInsightsPage } from './pages/ExecutiveInsightsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { ReportingAgentPage } from './pages/ReportingAgentPage';
 import { MaintenanceAgentPage } from './pages/MaintenanceAgentPage';
+import { SafetyQualityAgentPage } from './pages/SafetyQualityAgentPage';
 import { AdminConsolePage } from './pages/AdminConsolePage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -31,6 +32,7 @@ function App() {
           <Route path="agents" element={<AgentsPage />} />
           <Route path="agents/reporting" element={<ReportingAgentPage />} />
           <Route path="agents/maintenance" element={<MaintenanceAgentPage />} />
+          <Route path="agents/safety-quality" element={<SafetyQualityAgentPage />} />
           <Route path="reporting-agent" element={<ReportingAgentPage />} />
           <Route path="admin" element={<AdminConsolePage />} />
           <Route path="analytics" element={<AnalyticsPage />} />

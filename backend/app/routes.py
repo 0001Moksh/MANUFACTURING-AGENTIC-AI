@@ -16,6 +16,7 @@ from app.llm_gateway import execute_completion, get_usage_audit
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.maintenance_agent import run_maintenance_conversation
+from app.agents.safety_quality_agent import run_safety_quality_conversation
 from app.email_service import send_pdf_report_email
 from app.voice.manager import VoiceConversationManager
 
@@ -53,6 +54,10 @@ class AgentToggleRequest(BaseModel):
     enabled: bool
 
 class MaintenanceChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
+
+class SafetyQualityChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
@@ -837,3 +842,16 @@ async def update_reporting_settings(req: ReportingSettingsRequest):
         
         await session.commit()
         return {"status": "success", "message": "Reporting settings saved."}
+
+
+# ── Safety & Quality Agent ────────────────────────────────────────────────────
+
+@router.post("/api/safety-agent/chat")
+async def safety_quality_chat(req: SafetyQualityChatRequest):
+    """Chat endpoint for the Deva Safety & Quality LangGraph agent."""
+    result = await run_safety_quality_conversation(req.message, req.thread_id)
+    return {
+        "status": "success",
+        "thread_id": result["thread_id"],
+        "reply": result["reply"],
+    }
