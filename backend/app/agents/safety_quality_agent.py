@@ -20,17 +20,17 @@ from langgraph.prebuilt import ToolNode
 from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
-# ── Database engine for construction_ai_backup ──────────────────────────────
+# ── Database engine for construction_ai ──────────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
     "CONSTRUCTION_DB_URL",
-    "postgresql+psycopg2://postgres:0987654321@localhost:5432/construction_ai_backup",
+    "postgresql+psycopg2://postgres:0987654321@localhost:5432/construction_ai",
 )
 
 try:
     _construction_engine = create_engine(_CONSTRUCTION_DB_URL)
     with _construction_engine.connect() as _test_conn:
         _test_conn.execute(text("SELECT 1"))
-    print("[Safety Agent] Connected to construction_ai_backup")
+    print("[Safety Agent] Connected to construction_ai")
 except Exception as _e:
     _construction_engine = None
     print(f"[Safety Agent WARNING] DB unavailable: {_e}")

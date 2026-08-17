@@ -63,6 +63,14 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
                 e.stopPropagation();
                 if (agentName === 'Reporting Agent') {
                   navigate('/agents/reporting');
+                } else if (agentName === 'Maintenance Agent') {
+                  navigate('/agents/maintenance');
+                } else if (agentName === 'Safety & Quality Agent') {
+                  navigate('/agents/safety-quality');
+                } else if (agentName === 'PPE & Behavior Vision Agent') {
+                  navigate('/agents/ppe-vision');
+                } else if (agentName === 'Permit-to-Work Agent' || agentName === 'Permit to Work Agent') {
+                  navigate('/agents/permit-to-work');
                 } else {
                   navigate('/agents');
                 }

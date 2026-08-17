@@ -19,6 +19,7 @@ from app.agents.maintenance_agent import run_maintenance_conversation
 from app.agents.safety_quality_agent import run_safety_quality_conversation
 from app.agents.ppe_vision_agent import run_ppe_conversation
 from app.agents.safety_site_intelligence_agent import run_safety_site_intelligence_conversation
+from app.agents.permit_to_work_agent import run_ptw_conversation
 from app.email_service import send_pdf_report_email
 from app.voice.manager import VoiceConversationManager
 
@@ -71,6 +72,10 @@ class SafetySiteIntelligenceChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
     ui_context: Optional[Dict[str, Any]] = None
+
+class PermitToWorkChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
 
 # In-memory set of active agents
 active_agents = {
@@ -304,6 +309,20 @@ async def query_agent(req: QueryRequest):
                 "error_message": "",
                 "cost_usd": 0.0,
                 "visuals": maintenance.get("visuals", []),
+            }
+        elif getattr(req, "agent", None) in ["permit-to-work", "ptw", "permit"]:
+            ptw_res = await run_ptw_conversation(req.query)
+            return {
+                "status": "success",
+                "sql_query": "",
+                "sql_result": "",
+                "insights": ptw_res.get("reply", ""),
+                "execution_steps": [],
+                "pdf_url": "",
+                "email_status": None,
+                "error_message": "",
+                "cost_usd": 0.0,
+                "visuals": [],
             }
         else:
             state = await run_agent_workflow(req.query, is_approved=False)
@@ -899,6 +918,33 @@ async def safety_site_intelligence_chat(req: SafetySiteIntelligenceChatRequest):
         "status": "success",
         "thread_id": result["thread_id"],
         "reply": result["reply"],
+    }
+
+
+# ── Permit-to-Work Agent ──────────────────────────────────────────────────────
+
+@router.post("/api/permit-to-work/chat")
+@router.post("/api/ptw-agent/chat")
+async def permit_to_work_chat(req: PermitToWorkChatRequest):
+    """Chat endpoint for the Deva Permit-to-Work LangGraph agent (54 tools)."""
+    result = await run_ptw_conversation(req.message, req.thread_id)
+    return {
+        "status": "success",
+        "thread_id": result["thread_id"],
+        "reply": result["reply"],
+    }
+
+
+@router.get("/api/permit-to-work/summary")
+async def permit_to_work_summary():
+    """Summary KPI metrics for the Permit-to-Work dashboard & agent console."""
+    return {
+        "status": "success",
+        "active_high_risk_contexts": 4,
+        "unresolved_breaches": 6,
+        "maintenance_windows_open": 2,
+        "expired_permits_flagged": 4,
+        "safety_compliance_rate": "98.2%",
     }
 
 
