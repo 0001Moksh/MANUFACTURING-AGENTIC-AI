@@ -1,31 +1,65 @@
+"""
+Text-to-Speech streaming via Microsoft Edge TTS.
+Voice names and timeouts are driven by voice_config.
+TTS calls are wrapped with the edge_tts circuit breaker.
+"""
+
 import re
-import edge_tts
 from typing import AsyncGenerator
 
-EN_VOICE = "en-US-ChristopherNeural" # Professional male voice
-HI_VOICE = "hi-IN-MadhurNeural"      # Professional Hindi male voice
+import edge_tts
+
+from app.voice.config import voice_config
+from app.voice.logging_config import get_logger
+from app.voice.resilience import edge_tts_circuit_breaker
+
+logger = get_logger(__name__)
+
 
 def is_hindi(text: str) -> bool:
-    """Checks if the text contains Devanagari characters."""
-    return bool(re.search(r'[\u0900-\u097F]', text))
+    """Detect Devanagari script to auto-switch to the Hindi TTS voice."""
+    return bool(re.search(r"[\u0900-\u097F]", text))
+
 
 async def stream_tts(text: str) -> AsyncGenerator[bytes, None]:
     """
-    Streams text into audio chunks using Microsoft Edge TTS.
-    Automatically switches to a Hindi voice if Devanagari text is detected.
+    Stream text to MP3 audio chunks via Edge TTS.
+    Automatically selects English or Hindi voice based on script detection.
+    Wrapped with circuit breaker to fail fast if Edge TTS is down.
+
+    Args:
+        text: The text to synthesize (plain text, no markdown).
+
+    Yields:
+        Raw audio bytes (MP3 chunks).
     """
     if not text.strip():
         return
-        
-    # Choose voice based on text content
-    voice = HI_VOICE if is_hindi(text) else EN_VOICE
-        
-    communicate = edge_tts.Communicate(text, voice)
-    
-    try:
+
+    voice = voice_config.tts.hi_voice if is_hindi(text) else voice_config.tts.en_voice
+
+    async def _tts_call():
+        communicate = edge_tts.Communicate(text, voice)
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 yield chunk["data"]
-    except Exception as e:
-        print(f"TTS Stream Error: {e}")
 
+    try:
+        if not edge_tts_circuit_breaker.is_available:
+            logger.error(
+                "Edge TTS circuit breaker OPEN — skipping TTS",
+                text_preview=text[:40],
+            )
+            return
+
+        logger.debug(
+            "Starting TTS synthesis",
+            voice=voice,
+            text_length=len(text),
+        )
+
+        async for audio_chunk in _tts_call():
+            yield audio_chunk
+
+    except Exception as e:
+        logger.error("TTS streaming error", error=str(e), text_preview=text[:40])

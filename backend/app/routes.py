@@ -262,23 +262,52 @@ async def websocket_voice_endpoint(websocket: WebSocket, agent: Optional[str] = 
     manager = VoiceConversationManager(websocket, agent_id=agent or "auto")
     try:
         while True:
-            # We receive raw PCM audio (bytes) or control messages (text)
+            # We receive raw PCM audio (bytes) or control messages (text/JSON)
             message = await websocket.receive()
+
             if "bytes" in message:
+                # Binary frames = raw PCM audio from VoiceStreamingWorklet
                 await manager.handle_audio_frame(message["bytes"])
+
             elif "text" in message:
-                data = json.loads(message["text"])
+                try:
+                    data = json.loads(message["text"])
+                except json.JSONDecodeError:
+                    continue
+
                 msg_type = data.get("type")
-                if msg_type == "audio_played":
+
+                if msg_type == "audio":
+                    # Base64-encoded audio (alternative client encoding)
+                    import base64
+                    pcm = base64.b64decode(data.get("data", ""))
+                    await manager.handle_audio_frame(pcm)
+
+                elif msg_type == "audio_played":
+                    # Frontend acks how much audio was actually played (for interruption handling)
                     manager.played_text = data.get("text", "")
+
                 elif msg_type == "set_agent":
                     await manager.set_agent(data.get("agent", "auto"))
-                elif msg_type in ["query_text", "user_text"]:
+
+                elif msg_type in ["query", "query_text", "user_text"]:
                     await manager.process_text_turn(data.get("text", ""))
+
+                elif msg_type == "ping":
+                    import asyncio
+                    await websocket.send_json(
+                        {"type": "pong", "ts": asyncio.get_event_loop().time()}
+                    )
+
     except WebSocketDisconnect:
-        pass
+        pass  # Normal client disconnect — cleanup handled in finally
     except Exception as e:
-        print(f"Voice WS Error: {e}")
+        # Log but do not re-raise: cleanup must always run
+        import logging
+        logging.getLogger("voice.ws").error(f"Voice WS error: {e}")
+    finally:
+        # CRITICAL: cancel all pending tasks and release buffers
+        await manager.cleanup()
 
 
 # --- AGENTIC QUERY ENDPOINTS ---
