@@ -15,6 +15,8 @@ DB_SERVER = os.getenv("DB_SERVER", "localhost")
 DB_NAME = os.getenv("DB_NAME", "mes_new")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./mai_platform.db")
 
+import time
+
 # Sync engine for pyodbc/MSSQL testing if available
 mes_db_status = {
     "connected": False,
@@ -22,10 +24,25 @@ mes_db_status = {
     "details": "Local offline platform db (sqlite)"
 }
 
-sync_mes_engine = None
+video_analytics_db_status = {
+    "connected": False,
+    "type": "SQLite (Simulated / Fallback)",
+    "details": "Local offline platform db (sqlite)"
+}
 
-def test_mes_connection():
-    global mes_db_status, sync_mes_engine
+sync_mes_engine = None
+_last_mes_check_time = 0
+_last_va_check_time = 0
+
+def test_mes_connection(force: bool = False) -> dict:
+    global mes_db_status, sync_mes_engine, _last_mes_check_time
+    now = time.time()
+    if not force and mes_db_status["connected"] and (now - _last_mes_check_time < 30):
+        return mes_db_status
+    if not force and not mes_db_status["connected"] and (now - _last_mes_check_time < 5):
+        return mes_db_status
+
+    _last_mes_check_time = now
     try:
         import pyodbc
         connection_string = (
@@ -37,11 +54,12 @@ def test_mes_connection():
             "Encrypt=no;"
             "MARS_Connection=yes;"
         )
-        conn = pyodbc.connect(connection_string, timeout=2)
+        conn = pyodbc.connect(connection_string, timeout=5)
         conn.close()
         
-        # Connection test succeeded, build SQL Alchemy sync engine for reporting agent
-        sync_mes_engine = create_sync_engine("mssql+pyodbc:///?odbc_connect=" + quote_plus(connection_string))
+        if sync_mes_engine is None:
+            sync_mes_engine = create_sync_engine("mssql+pyodbc:///?odbc_connect=" + quote_plus(connection_string))
+            
         mes_db_status = {
             "connected": True,
             "type": "MS SQL Server (Real Connection)",
@@ -49,9 +67,49 @@ def test_mes_connection():
         }
         print("Real MES database (SQL Server) connected successfully!")
     except Exception as e:
+        mes_db_status = {
+            "connected": False,
+            "type": "SQLite (Simulated / Fallback)",
+            "details": f"Local offline platform db (sqlite): {e}"
+        }
         print("Could not connect to MS SQL Server (using SQLite fallback):", e)
+    return mes_db_status
 
-test_mes_connection()
+
+def test_video_analytics_connection(force: bool = False) -> dict:
+    global video_analytics_db_status, _last_va_check_time
+    now = time.time()
+    if not force and video_analytics_db_status["connected"] and (now - _last_va_check_time < 30):
+        return video_analytics_db_status
+    if not force and not video_analytics_db_status["connected"] and (now - _last_va_check_time < 5):
+        return video_analytics_db_status
+
+    _last_va_check_time = now
+    try:
+        import psycopg2
+        pg_url = os.getenv(
+            "CONSTRUCTION_AI_PG_URL",
+            "postgresql://postgres:0987654321@localhost:5432/construction_ai"
+        )
+        conn = psycopg2.connect(pg_url, connect_timeout=5)
+        conn.close()
+        video_analytics_db_status = {
+            "connected": True,
+            "type": "PostgreSQL (Real Connection)",
+            "details": "Connected to PostgreSQL database 'construction_ai'"
+        }
+        print("Real Video Analytics database (PostgreSQL construction_ai) connected successfully!")
+    except Exception as e:
+        video_analytics_db_status = {
+            "connected": False,
+            "type": "SQLite (Simulated / Fallback)",
+            "details": f"PostgreSQL offline fallback: {e}"
+        }
+        print("Could not connect to PostgreSQL construction_ai:", e)
+    return video_analytics_db_status
+
+test_mes_connection(force=True)
+test_video_analytics_connection(force=True)
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -93,6 +151,16 @@ class AgentReportingSettings(Base):
     schedule_time: Mapped[str] = mapped_column(String(10), nullable=True) # e.g. "08:00"
     prompt: Mapped[str] = mapped_column(String(2000), nullable=True)
     last_run_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+class GlobalGovernanceSettings(Base):
+    """Stores platform-wide governance toggles accessible from the Admin Console."""
+    __tablename__ = "global_governance_settings"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    setting_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)  # e.g. 'explainability_logging', 'hitl_approval'
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    label: Mapped[str] = mapped_column(String(200), nullable=True)       # Display label
+    description: Mapped[str] = mapped_column(String(500), nullable=True) # Display description
 
 class AlertMaster(Base):
     __tablename__ = "AlertMaster"
@@ -232,6 +300,32 @@ async def init_db():
                 IntegrationConfig(name="Video Analytics", is_enabled=True),
             ]
             session.add_all(integrations)
+            await session.commit()
+
+        # Check and seed global governance settings
+        gov_result = await session.execute(select(GlobalGovernanceSettings).limit(1))
+        if not gov_result.scalars().first():
+            gov_settings = [
+                GlobalGovernanceSettings(
+                    setting_key="explainability_logging",
+                    is_enabled=True,
+                    label="Explainability Logging",
+                    description="Every AI decision is traceable — inputs, model version and reasoning summary retained"
+                ),
+                GlobalGovernanceSettings(
+                    setting_key="hitl_approval",
+                    is_enabled=False,
+                    label="Human-in-the-loop approval for high-risk actions",
+                    description="Required before any agent commits a production, safety or financial action above threshold"
+                ),
+                GlobalGovernanceSettings(
+                    setting_key="global_kill_switch",
+                    is_enabled=True,
+                    label="Global Kill Switch",
+                    description="Master switch — when OFF, all agent API calls return HTTP 503 immediately"
+                ),
+            ]
+            session.add_all(gov_settings)
             await session.commit()
 
 # Dependency to get session

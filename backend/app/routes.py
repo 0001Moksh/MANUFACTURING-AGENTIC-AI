@@ -11,7 +11,11 @@ from pydantic import BaseModel
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot, mes_db_status, AgentReportingSettings
+from app.db import (
+    get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot,
+    mes_db_status, video_analytics_db_status, test_mes_connection, test_video_analytics_connection,
+    AgentReportingSettings
+)
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
@@ -62,6 +66,10 @@ class AgentToggleRequest(BaseModel):
 
 class IntegrationToggleRequest(BaseModel):
     name: str
+    enabled: bool
+
+class GovernanceSettingToggleRequest(BaseModel):
+    setting_key: str  # e.g. 'explainability_logging', 'hitl_approval'
     enabled: bool
 
 class MaintenanceChatRequest(BaseModel):
@@ -225,6 +233,10 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 @router.get("/api/telemetry")
 async def get_telemetry(db: AsyncSession = Depends(get_db)):
+    # Dynamically re-verify DB connections if disconnected or cached timer expired
+    current_mes_status = test_mes_connection()
+    current_va_status = test_video_analytics_connection()
+    
     # Calculate live stats
     # OEE avg, total active work orders, total alerts
     result_wo = await db.execute(select(WorkOrder))
@@ -251,7 +263,8 @@ async def get_telemetry(db: AsyncSession = Depends(get_db)):
         "active_alerts": active_alerts,
         "running_machines": running_machines,
         "total_machines": len(machines),
-        "mes_db_status": mes_db_status
+        "mes_db_status": current_mes_status,
+        "video_analytics_db_status": current_va_status
     }
 
 # --- INTEGRATIONS ---
@@ -273,6 +286,39 @@ async def toggle_integration(req: IntegrationToggleRequest, db: AsyncSession = D
         await db.commit()
         return {"status": "success", "name": req.name, "is_enabled": req.enabled}
     raise HTTPException(status_code=404, detail="Integration not found")
+
+
+# --- GLOBAL GOVERNANCE SETTINGS ---
+
+@router.get("/api/admin/governance/settings")
+async def get_governance_settings(db: AsyncSession = Depends(get_db)):
+    """Returns all global governance settings (explainability, HITL, kill switch)."""
+    from app.db import GlobalGovernanceSettings
+    result = await db.execute(select(GlobalGovernanceSettings))
+    settings = result.scalars().all()
+    return [
+        {
+            "setting_key": s.setting_key,
+            "is_enabled": s.is_enabled,
+            "label": s.label,
+            "description": s.description,
+        }
+        for s in settings
+    ]
+
+@router.post("/api/admin/governance/settings")
+async def toggle_governance_setting(req: GovernanceSettingToggleRequest, db: AsyncSession = Depends(get_db)):
+    """Toggles a specific global governance setting and persists to the database."""
+    from app.db import GlobalGovernanceSettings
+    result = await db.execute(
+        select(GlobalGovernanceSettings).where(GlobalGovernanceSettings.setting_key == req.setting_key)
+    )
+    setting = result.scalars().first()
+    if not setting:
+        raise HTTPException(status_code=404, detail=f"Governance setting '{req.setting_key}' not found")
+    setting.is_enabled = req.enabled
+    await db.commit()
+    return {"status": "success", "setting_key": req.setting_key, "is_enabled": req.enabled}
 
 
 # --- INTEGRATION ACCESS GUARD ---

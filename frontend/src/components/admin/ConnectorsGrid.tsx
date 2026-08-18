@@ -41,6 +41,7 @@ export const ConnectorsGrid: React.FC = () => {
   const { telemetryStats } = useStore();
   const { integrationStates, loading, toggleIntegration } = useIntegrations();
   const mesDbConnected = telemetryStats?.mes_db_status?.connected ?? false;
+  const vaDbConnected = telemetryStats?.video_analytics_db_status?.connected ?? false;
 
   if (loading) {
     return (
@@ -63,8 +64,8 @@ export const ConnectorsGrid: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
         {INTEGRATION_CARDS.map(card => {
           const isEnabled = integrationStates[card.key] ?? true;
-          // MES additionally reflects real SQL Server connection state
-          const isLive = card.key === 'MES' ? (mesDbConnected && isEnabled) : isEnabled;
+          const isDbConnected = card.key === 'MES' ? mesDbConnected : vaDbConnected;
+          const isLive = isDbConnected && isEnabled;
 
           return (
             <div
@@ -113,8 +114,8 @@ export const ConnectorsGrid: React.FC = () => {
                     <span className="w-[5px] h-[5px] rounded-full bg-green animate-pulse" />
                     {card.connectedLabel}
                   </div>
-                ) : isEnabled && card.key === 'MES' ? (
-                  /* MES enabled but falling back to SQLite */
+                ) : isEnabled ? (
+                  /* Enabled but falling back to SQLite */
                   <div className="inline-flex items-center gap-[6px] text-[10.5px] font-bold text-[#9A6400] bg-amber-tint py-[3px] px-[10px] rounded-[20px]">
                     <span className="w-[5px] h-[5px] rounded-full bg-amber animate-pulse" />
                     Local SQLite (Simulated)

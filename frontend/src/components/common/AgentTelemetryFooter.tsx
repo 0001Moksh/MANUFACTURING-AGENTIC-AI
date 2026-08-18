@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { TurnTelemetry, ToolInvocation } from '../../types/telemetry';
 import { formatFriendlyToolName } from '../../utils/telemetryHelper';
+import { useStore } from '../../store';
 
 interface AgentTelemetryFooterProps {
   telemetry?: TurnTelemetry;
@@ -27,8 +28,13 @@ export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
   rawText,
   className = '',
 }) => {
+  const { explainableLogs } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  if (!explainableLogs) {
+    return null;
+  }
 
   const activeTools = telemetry?.tools_used || tools;
   const executionTime = telemetry?.execution_time_sec ?? 1.25;

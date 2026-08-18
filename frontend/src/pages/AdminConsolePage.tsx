@@ -10,7 +10,7 @@ import { ShieldCheck, Settings } from 'lucide-react';
 
 export const AdminConsolePage: React.FC = () => {
   const { persona } = usePersona();
-  const { explainableLogs, setExplainableLogs, humanInLoop, setHumanInLoop } = useStore();
+  const { explainableLogs, humanInLoop, toggleGovernanceSetting } = useStore();
   const [activePane, setActivePane] = useState('users');
 
   const panes = [
@@ -152,43 +152,55 @@ export const AdminConsolePage: React.FC = () => {
           
           {activePane === 'guardrails' && (
             <div className="flex flex-col gap-[10px]">
-              {guardrails.map((g, i) => {
-                const isExplainableLogs = g[0] === "Explainability logging";
-                const isHITL = g[0] === "Human-in-the-loop approval for high-risk actions";
-                const isToggleable = isExplainableLogs || isHITL;
-                const isOn = isExplainableLogs ? explainableLogs : (isHITL ? humanInLoop : false);
-                
-                return (
+              {/* ── Functional DB-backed toggles ── */}
+              {[
+                {
+                  key: 'explainability_logging',
+                  label: 'Explainability Logging',
+                  desc: 'Every AI decision is traceable — inputs, model version and reasoning summary retained.',
+                  isOn: explainableLogs,
+                },
+                {
+                  key: 'hitl_approval',
+                  label: 'Human-in-the-Loop Approval for High-Risk Actions',
+                  desc: 'Required before any agent commits a production, safety or financial action above threshold.',
+                  isOn: humanInLoop,
+                },
+              ].map(({ key, label, desc, isOn }) => (
+                <div key={key} className="flex items-center gap-[14px] bg-panel border border-border-color rounded-[11px] p-[13px_16px] hover:border-teal/40 transition-colors">
+                  <div className="flex-1">
+                    <div className="font-bold text-[13px] mb-[2px]">{label}</div>
+                    <div className="text-[11.5px] text-muted">{desc}</div>
+                  </div>
+                  <button
+                    onClick={() => toggleGovernanceSetting(key, !isOn)}
+                    className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
+                      isOn ? 'bg-green' : 'bg-[#D7DCE8]'
+                    }`}
+                  >
+                    <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 shadow-sm ${
+                      isOn ? 'right-[2px]' : 'left-[2px]'
+                    }`} />
+                  </button>
+                </div>
+              ))}
+
+              {/* ── Static read-only guardrails ── */}
+              {guardrails
+                .filter(g => g[0] !== 'Explainability logging' && g[0] !== 'Human-in-the-loop approval for high-risk actions')
+                .map((g, i) => (
                   <div key={i} className="flex items-center gap-[14px] bg-panel border border-border-color rounded-[11px] p-[13px_16px]">
                     <div className="flex-1">
                       <div className="font-bold text-[13px] mb-[2px]">{g[0]}</div>
                       <div className="text-[11.5px] text-muted">{g[1]}</div>
                     </div>
-                    
-                    {isToggleable ? (
-                      <button 
-                        onClick={() => {
-                          if (isExplainableLogs) setExplainableLogs(!explainableLogs);
-                          if (isHITL) setHumanInLoop(!humanInLoop);
-                        }}
-                        className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
-                          isOn ? 'bg-green' : 'bg-[#D7DCE8]'
-                        }`}
-                      >
-                        <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 ${
-                          isOn ? 'right-[2px]' : 'left-[2px]'
-                        }`} />
-                      </button>
-                    ) : (
-                      <span className={`text-[10.5px] font-bold py-[3px] px-[9px] rounded-[20px] ${
-                        g[2] === 'On' ? 'bg-green-tint text-green' : g[2] === 'Configurable' ? 'bg-blue-tint text-[#2258b0]' : 'bg-amber-tint text-[#9A6400]'
-                      }`}>
-                        {g[2]}
-                      </span>
-                    )}
+                    <span className={`text-[10.5px] font-bold py-[3px] px-[9px] rounded-[20px] ${
+                      g[2] === 'On' ? 'bg-green-tint text-green' : g[2] === 'Configurable' ? 'bg-blue-tint text-[#2258b0]' : 'bg-amber-tint text-[#9A6400]'
+                    }`}>
+                      {g[2]}
+                    </span>
                   </div>
-                );
-              })}
+                ))}
             </div>
           )}
           

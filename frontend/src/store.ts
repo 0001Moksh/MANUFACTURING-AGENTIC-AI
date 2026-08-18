@@ -36,6 +36,11 @@ interface PlatformState {
       type: string;
       details: string;
     };
+    video_analytics_db_status?: {
+      connected: boolean;
+      type: string;
+      details: string;
+    };
   } | null;
   setTelemetryStats: (stats: any) => void;
   
@@ -44,6 +49,11 @@ interface PlatformState {
   
   humanInLoop: boolean;
   setHumanInLoop: (enabled: boolean) => void;
+
+  // Fetches governance settings from the backend and syncs to store
+  fetchGovernanceSettings: () => Promise<void>;
+  // Toggles a specific governance setting via API and updates store
+  toggleGovernanceSetting: (setting_key: string, enabled: boolean) => Promise<void>;
 
   reportingAgentState: {
     query: string;
@@ -107,8 +117,43 @@ export const useStore = create<PlatformState>((set) => {
   explainableLogs: true,
   setExplainableLogs: (enabled) => set({ explainableLogs: enabled }),
   
-  humanInLoop: true,
+  humanInLoop: false,
   setHumanInLoop: (enabled) => set({ humanInLoop: enabled }),
+
+  fetchGovernanceSettings: async () => {
+    try {
+      const res = await fetch('http://localhost:8000/api/admin/governance/settings');
+      if (!res.ok) return;
+      const settings: { setting_key: string; is_enabled: boolean }[] = await res.json();
+      const explainability = settings.find(s => s.setting_key === 'explainability_logging');
+      const hitl = settings.find(s => s.setting_key === 'hitl_approval');
+      set({
+        explainableLogs: explainability ? explainability.is_enabled : true,
+        humanInLoop: hitl ? hitl.is_enabled : false,
+      });
+    } catch (e) {
+      // Silently fail — defaults remain in store
+      console.warn('[Store] Could not fetch governance settings:', e);
+    }
+  },
+
+  toggleGovernanceSetting: async (setting_key, enabled) => {
+    // Optimistically update local state first
+    if (setting_key === 'explainability_logging') set({ explainableLogs: enabled });
+    if (setting_key === 'hitl_approval') set({ humanInLoop: enabled });
+    try {
+      await fetch('http://localhost:8000/api/admin/governance/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setting_key, enabled }),
+      });
+    } catch (e) {
+      // Revert on failure
+      console.error('[Store] Failed to persist governance setting:', e);
+      if (setting_key === 'explainability_logging') set({ explainableLogs: !enabled });
+      if (setting_key === 'hitl_approval') set({ humanInLoop: !enabled });
+    }
+  },
 
   reportingAgentState: defaultReportingAgentState,
   setReportingAgentState: (partialState) =>

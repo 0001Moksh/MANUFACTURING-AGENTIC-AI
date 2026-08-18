@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { OverviewPage } from './pages/OverviewPage';
@@ -20,7 +21,14 @@ import { useStore } from './store';
 import { IntegrationProvider } from './services/IntegrationContext';
 
 function App() {
-  const { token } = useStore();
+  const { token, fetchGovernanceSettings } = useStore();
+
+  useEffect(() => {
+    if (token) {
+      // Sync governance settings from DB on app startup
+      fetchGovernanceSettings();
+    }
+  }, [token, fetchGovernanceSettings]);
 
   if (!token) {
     return <LoginPage />;
