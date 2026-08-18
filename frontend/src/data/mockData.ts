@@ -160,16 +160,26 @@ export const feedPool = [
 ];
 
 export const connectors = [
-  ["🧾","SAP ERP (BAPI / REST)","Production, finance and materials data — CO11N / MB31 / QM01 native.","Connected"],
-  ["🏭","MES / SCADA / PLC","Line-level throughput, machine status and control-system telemetry.","Connected"],
-  ["📋","EHS / Permit-to-Work System","Permits, incidents and compliance records synced in real time.","Connected"],
-  ["📡","IoT Gateway (MQTT)","Sensor ingestion from vibration, temperature and gas monitors.","Connected"],
-  ["🎥","CCTV / NVR (Vision AI)","Existing camera infrastructure — no new hardware required.","Connected"],
-  ["⌚","Wearables / Health IoT","Vital-sign and fatigue monitoring devices.","Pilot"],
-  ["💬","MS Teams / Email / SMS","Notification and escalation delivery channels.","Connected"],
-  ["🧩","Custom ERP / Navision","API-first connector for non-SAP environments.","Available"],
-  ["🔑","Identity Provider (SSO)","Azure AD / Okta / SAML 2.0 federation.","Connected"],
+  ["🏭", "MES", "Line-level throughput, machine status and control telemetry.", "Connected", "SQL Server (mes_new)"],
+  ["🎥", "Video Analytics", "Existing camera infrastructure for safety and site monitoring.", "Connected", "Construction DB (construction_db)"],
 ];
+
+// Maps each agent name to the integration key it requires (null = no external dependency)
+export const AGENT_INTEGRATION_DEPENDENCY: Record<string, 'MES' | 'Video Analytics' | null> = {
+  "Operations Agent":                    "MES",
+  "Maintenance Agent":                   "MES",
+  "Reporting Agent":                     "MES",
+  "Energy Agent":                        "MES",
+  "Finance Agent":                       "MES",
+  "Permit-to-Work Agent":                "MES",
+  "Incident & Investigation Agent":      "MES",
+  "Environmental Compliance Agent":      "MES",
+  "Predictive Safety Intelligence Agent":"MES",
+  "Contractor & Asset Risk Agent":       "MES",
+  "Safety & Quality Agent":              "Video Analytics",
+  "PPE & Behavior Vision Agent":         "Video Analytics",
+  "ESG & Compliance Agent":             null,
+};
 
 export const guardrails = [
   ["Human-in-the-loop approval for high-risk actions","Required before any agent commits a production, safety or financial action above threshold","On"],

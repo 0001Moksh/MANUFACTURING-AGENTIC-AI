@@ -274,6 +274,41 @@ async def toggle_integration(req: IntegrationToggleRequest, db: AsyncSession = D
         return {"status": "success", "name": req.name, "is_enabled": req.enabled}
     raise HTTPException(status_code=404, detail="Integration not found")
 
+
+# --- INTEGRATION ACCESS GUARD ---
+# Call _require_integration(name) at the top of any agent endpoint that depends on
+# a specific integration.  Raises HTTP 503 with a descriptive message if disabled.
+
+def _require_integration(name: str) -> None:
+    """Guard: raise HTTP 503 if the named integration is disabled in the MAI database.
+
+    Args:
+        name: The integration key, e.g. 'MES' or 'Video Analytics'.
+
+    Raises:
+        HTTPException(503): With a human-readable message the frontend can display
+            directly in the chat UI or agent console.
+    """
+    from app.db import is_integration_enabled
+    if not is_integration_enabled(name):
+        if name == "MES":
+            msg = (
+                "Please connect your MES application so we can use it. "
+                "Enable the MES integration in Admin Console → Integrations."
+            )
+        elif name == "Video Analytics":
+            msg = (
+                "Please connect Video Analytics so we can use it. "
+                "Enable the Video Analytics integration in Admin Console → Integrations."
+            )
+        else:
+            msg = (
+                f"The '{name}' integration is currently disabled. "
+                "Please enable it in Admin Console → Integrations."
+            )
+        raise HTTPException(status_code=503, detail=msg)
+
+
 # --- WEBSOCKET ROUTE ---
 
 @router.websocket("/api/ws/telemetry")
@@ -357,7 +392,19 @@ async def query_agent(req: QueryRequest):
         
     # 2. Trigger LangGraph Workflow (route by agent)
     try:
-        if getattr(req, "agent", None) == "maintenance":
+        agent_id = getattr(req, "agent", None)
+        # Apply integration guards before branching
+        if agent_id == "maintenance":
+            _require_integration("MES")
+        elif agent_id in ["permit-to-work", "ptw", "permit"]:
+            _require_integration("MES")
+        elif agent_id in ["incident-investigation", "incident", "investigation", "forensic"]:
+            _require_integration("MES")
+        else:
+            # Default / reporting / operations workflow also requires MES
+            _require_integration("MES")
+
+        if agent_id == "maintenance":
             maintenance = await run_maintenance_conversation(req.query)
             return {
                 "status": "success",
@@ -440,6 +487,7 @@ async def query_agent(req: QueryRequest):
 
 @router.post("/api/maintenance/chat")
 async def maintenance_chat(req: MaintenanceChatRequest):
+    _require_integration("MES")
     response = await run_maintenance_conversation(req.message, thread_id=req.thread_id)
     return {
         "status": "success",
@@ -958,6 +1006,7 @@ async def update_reporting_settings(req: ReportingSettingsRequest):
 @router.post("/api/safety-agent/chat")
 async def safety_quality_chat(req: SafetyQualityChatRequest):
     """Chat endpoint for the Deva Safety & Quality LangGraph agent."""
+    _require_integration("Video Analytics")
     result = await run_safety_quality_conversation(req.message, req.thread_id)
     return {
         "status": "success",
@@ -971,6 +1020,7 @@ async def safety_quality_chat(req: SafetyQualityChatRequest):
 @router.post("/api/ppe-agent/chat")
 async def ppe_vision_chat(req: PPEVisionChatRequest):
     """Chat endpoint for the Deva PPE & Behavior Vision LangGraph agent."""
+    _require_integration("Video Analytics")
     result = await run_ppe_conversation(req.message, req.thread_id)
     return {
         "status": "success",
@@ -984,6 +1034,7 @@ async def ppe_vision_chat(req: PPEVisionChatRequest):
 @router.post("/api/safety-site-intelligence/chat")
 async def safety_site_intelligence_chat(req: SafetySiteIntelligenceChatRequest):
     """Chat endpoint for the Deva Safety & Site Intelligence Multi-Agent (135 tools) with UI context."""
+    _require_integration("Video Analytics")
     result = await run_safety_site_intelligence_conversation(
         req.message,
         thread_id=req.thread_id,
@@ -1002,6 +1053,7 @@ async def safety_site_intelligence_chat(req: SafetySiteIntelligenceChatRequest):
 @router.post("/api/ptw-agent/chat")
 async def permit_to_work_chat(req: PermitToWorkChatRequest):
     """Chat endpoint for the Deva Permit-to-Work LangGraph agent (54 tools)."""
+    _require_integration("MES")
     result = await run_ptw_conversation(req.message, req.thread_id)
     return {
         "status": "success",
@@ -1182,6 +1234,7 @@ async def get_safety_spatial_heatmap(time_filter: str = "30_DAYS"):
 @router.post("/api/incident-investigation/chat")
 async def incident_investigation_chat(req: IncidentInvestigationChatRequest):
     """Chat endpoint for Deva Incident & Investigation Agent with full telemetry."""
+    _require_integration("MES")
     result = await run_incident_investigation_conversation(req.message, req.thread_id)
     return result
 
@@ -1189,6 +1242,7 @@ async def incident_investigation_chat(req: IncidentInvestigationChatRequest):
 @router.post("/api/incident-investigation/stream")
 async def incident_investigation_stream(req: IncidentInvestigationChatRequest):
     """Streaming SSE endpoint for real-time tool animation, token generation, and response telemetry."""
+    _require_integration("MES")
     return StreamingResponse(
         stream_incident_investigation_events(req.message, req.thread_id),
         media_type="text/event-stream",

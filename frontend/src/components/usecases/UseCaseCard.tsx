@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { type UseCase, pillarMeta } from '../../data/mockData';
+import { type UseCase, pillarMeta, AGENT_INTEGRATION_DEPENDENCY } from '../../data/mockData';
+import { useIntegrations } from '../../services/IntegrationContext';
 
 interface UseCaseCardProps {
   useCase: UseCase;
@@ -17,41 +18,89 @@ const tagColors: Record<string, string> = {
   IOT: 'bg-blue-tint text-[#2258b0]',
 };
 
+/**
+ * Returns the first blocked integration name for this use case,
+ * or null if all dependencies are satisfied.
+ */
+function useBlockedIntegration(useCase: UseCase): string | null {
+  const { integrationStates } = useIntegrations();
+  if (!useCase.poweredBy || useCase.poweredBy.length === 0) return null;
+
+  for (const agentName of useCase.poweredBy) {
+    const required = AGENT_INTEGRATION_DEPENDENCY[agentName] ?? null;
+    if (required !== null && integrationStates[required] === false) {
+      return required;
+    }
+  }
+  return null;
+}
+
 export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) => {
   const navigate = useNavigate();
+  const blockedIntegration = useBlockedIntegration(useCase);
+  const isBlocked = blockedIntegration !== null;
 
   return (
     <motion.div
-      whileHover={{ y: -4, boxShadow: '0 10px 24px -12px rgba(20,33,61,0.25)', borderColor: '#CBD6EE' }}
-      onClick={onClick}
-      className="bg-panel border border-border-color rounded-[13px] p-[16px_17px] flex flex-col gap-[9px] cursor-pointer transition-colors"
+      whileHover={
+        isBlocked
+          ? {}
+          : { y: -4, boxShadow: '0 10px 24px -12px rgba(20,33,61,0.25)', borderColor: '#CBD6EE' }
+      }
+      onClick={isBlocked ? undefined : onClick}
+      className={`bg-panel border border-border-color rounded-[13px] p-[16px_17px] flex flex-col gap-[9px] transition-colors ${
+        isBlocked
+          ? 'opacity-60 grayscale-[0.25] cursor-not-allowed'
+          : 'cursor-pointer hover:border-border-color/80'
+      }`}
     >
+      {/* Header row: UC code + status badge */}
       <div className="flex items-start gap-[10px]">
         <span className="font-mono text-[10.5px] text-faint bg-canvas rounded-[6px] py-[2px] px-[6px] shrink-0">
           UC{String(useCase.id).padStart(2, '0')}
         </span>
-        <span className={`ml-auto text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[7px] rounded-[20px] ${
-          useCase.status === 'live' ? 'bg-green-tint text-green' : 'bg-amber-tint text-[#9A6400]'
-        }`}>
-          {useCase.status === 'live' ? 'LIVE' : 'PILOT'}
-        </span>
+
+        {/* Status chip — replaced with "Requires Connection" badge when blocked */}
+        {isBlocked ? (
+          <span className="ml-auto inline-flex items-center gap-[4px] text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[8px] rounded-[20px] bg-amber-tint text-[#9A6400] whitespace-nowrap">
+            <span>⚠</span>
+            Requires {blockedIntegration}
+          </span>
+        ) : (
+          <span
+            className={`ml-auto text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[7px] rounded-[20px] ${
+              useCase.status === 'live' ? 'bg-green-tint text-green' : 'bg-amber-tint text-[#9A6400]'
+            }`}
+          >
+            {useCase.status === 'live' ? 'LIVE' : 'PILOT'}
+          </span>
+        )}
       </div>
-      
-      <div className="font-head text-[14px] font-bold leading-[1.3]">
-        {useCase.title}
-      </div>
-      
+
+      <div className="font-head text-[14px] font-bold leading-[1.3]">{useCase.title}</div>
+
       <div className="flex gap-[5px] flex-wrap">
         {useCase.tags.map(t => (
-          <span key={t} className={`text-[9.5px] font-bold tracking-[0.4px] py-[3px] px-[7px] rounded-[5px] uppercase ${tagColors[t]}`}>
+          <span
+            key={t}
+            className={`text-[9.5px] font-bold tracking-[0.4px] py-[3px] px-[7px] rounded-[5px] uppercase ${tagColors[t]}`}
+          >
             {t}
           </span>
         ))}
       </div>
-      
-      <div className="text-[12px] text-muted leading-[1.5] flex-1">
-        {useCase.desc}
-      </div>
+
+      <div className="text-[12px] text-muted leading-[1.5] flex-1">{useCase.desc}</div>
+
+      {/* "Connect to activate" footer note when blocked */}
+      {isBlocked && (
+        <div className="flex items-center gap-[6px] bg-amber-tint/60 border border-amber/15 rounded-[7px] px-[9px] py-[6px]">
+          <span className="text-[12px]">🔌</span>
+          <span className="text-[10.5px] text-[#9A6400] font-medium">
+            Connect <span className="font-bold">{blockedIntegration}</span> in Admin Console to activate.
+          </span>
+        </div>
+      )}
 
       {useCase.poweredBy && useCase.poweredBy.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap pt-2 border-t border-border-color/60 text-[10.5px]">
@@ -59,7 +108,7 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
           {useCase.poweredBy.map(agentName => (
             <button
               key={agentName}
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 if (agentName === 'Reporting Agent') {
                   navigate('/agents/reporting');
@@ -82,10 +131,10 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
           ))}
         </div>
       )}
-      
+
       <div className="flex justify-between items-center mt-[2px] text-[11.5px] text-teal-deep font-bold border-t border-border-color/40 pt-2">
         <span>{pillarMeta[useCase.pillar].label}</span>
-        <span>Details →</span>
+        {!isBlocked && <span>Details →</span>}
       </div>
     </motion.div>
   );
