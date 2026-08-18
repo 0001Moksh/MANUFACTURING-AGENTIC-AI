@@ -56,6 +56,21 @@ test_mes_connection()
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
+# Sync engine for local DB (used by synchronous tools)
+from sqlalchemy import create_engine as create_sync_engine_sqlite, text
+sync_engine_local = create_sync_engine_sqlite("sqlite:///./mai_platform.db")
+
+def is_integration_enabled(name: str) -> bool:
+    try:
+        with sync_engine_local.connect() as conn:
+            result = conn.execute(text("SELECT is_enabled FROM IntegrationConfig WHERE name = :name"), {"name": name})
+            row = result.first()
+            if row:
+                return bool(row[0])
+            return True
+    except Exception as e:
+        return True
+
 Base = declarative_base()
 
 # --- DATABASE MODELS ---
@@ -133,7 +148,15 @@ class InventoryByLot(Base):
     ReservedQty: Mapped[float] = mapped_column(Float, default=0.0)
     LastUpdated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+class IntegrationConfig(Base):
+    __tablename__ = "IntegrationConfig"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
 # --- DB INIT & SEEDING ---
+
 
 async def seed_data(session: AsyncSession):
     # Check if users already exist
@@ -201,6 +224,15 @@ async def init_db():
         
     async with AsyncSessionLocal() as session:
         await seed_data(session)
+        # Check and seed integrations
+        result = await session.execute(select(IntegrationConfig).limit(1))
+        if not result.scalars().first():
+            integrations = [
+                IntegrationConfig(name="MES", is_enabled=True),
+                IntegrationConfig(name="Video Analytics", is_enabled=True),
+            ]
+            session.add_all(integrations)
+            await session.commit()
 
 # Dependency to get session
 async def get_db():

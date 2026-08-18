@@ -44,6 +44,10 @@ _BLOCKED = {
 
 def _execute_query(query: str, params: dict = None) -> str:
     """Execute a read-only SELECT and return JSON string."""
+    from app.db import is_integration_enabled
+    if not is_integration_enabled("Video Analytics"):
+        return "Error: Connection Blocked by Admin Console - Integration Disabled (Video Analytics)"
+        
     if _ppe_engine is None:
         return "Error: Database engine is not connected. Running in offline mode."
     upper_tokens = set(query.upper().split())

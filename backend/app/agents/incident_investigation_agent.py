@@ -48,6 +48,11 @@ _BLOCKED_SQL_PATTERNS = [
 
 def _execute_sql(query: str, params: dict = None) -> List[Dict[str, Any]]:
     """Helper to execute read-only SQL and return list of dictionaries with mock fallback."""
+    from app.db import is_integration_enabled
+    # We guard the MES / database query logic here based on integration toggles
+    if not is_integration_enabled("MES"):
+        return [{"error": "Connection Blocked by Admin Console - Integration Disabled (MES)"}]
+        
     query_lower = query.lower()
     for pattern in _BLOCKED_SQL_PATTERNS:
         if pattern in query_lower:

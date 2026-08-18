@@ -60,6 +60,10 @@ class AgentToggleRequest(BaseModel):
     name: str
     enabled: bool
 
+class IntegrationToggleRequest(BaseModel):
+    name: str
+    enabled: bool
+
 class MaintenanceChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
@@ -249,6 +253,26 @@ async def get_telemetry(db: AsyncSession = Depends(get_db)):
         "total_machines": len(machines),
         "mes_db_status": mes_db_status
     }
+
+# --- INTEGRATIONS ---
+
+@router.get("/api/admin/integrations")
+async def get_integrations(db: AsyncSession = Depends(get_db)):
+    from app.db import IntegrationConfig
+    result = await db.execute(select(IntegrationConfig))
+    integrations = result.scalars().all()
+    return [{"name": i.name, "is_enabled": i.is_enabled} for i in integrations]
+
+@router.post("/api/admin/integrations/toggle")
+async def toggle_integration(req: IntegrationToggleRequest, db: AsyncSession = Depends(get_db)):
+    from app.db import IntegrationConfig
+    result = await db.execute(select(IntegrationConfig).where(IntegrationConfig.name == req.name))
+    integration = result.scalars().first()
+    if integration:
+        integration.is_enabled = req.enabled
+        await db.commit()
+        return {"status": "success", "name": req.name, "is_enabled": req.enabled}
+    raise HTTPException(status_code=404, detail="Integration not found")
 
 # --- WEBSOCKET ROUTE ---
 

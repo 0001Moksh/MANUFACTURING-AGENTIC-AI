@@ -407,7 +407,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
 
       {/* ── Main Chat Interface ── */}
       <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-xs min-h-0">
-        
+
         {/* Messages Stream */}
         <div className="overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar">
           {messages.map((msg) => (
@@ -422,11 +422,10 @@ export const PermitToWorkAgentPage: React.FC = () => {
               )}
 
               <div
-                className={`group relative max-w-[880px] rounded-[18px] p-4 text-[13.5px] leading-relaxed shadow-2xs ${
-                  msg.role === 'user'
+                className={`group relative max-w-[880px] rounded-[18px] p-4 text-[13.5px] leading-relaxed shadow-2xs ${msg.role === 'user'
                     ? 'bg-navy-900 text-white rounded-br-[4px]'
                     : 'bg-canvas text-ink border border-border-color rounded-bl-[4px]'
-                }`}
+                  }`}
               >
                 {/* Message Header */}
                 <div className="flex items-center justify-between gap-4 mb-1.5 text-[11px] opacity-70">
@@ -489,7 +488,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
 
         {/* Suggested Queries & Input Bar */}
         <div className="border-t border-border-color bg-white p-3.5 md:p-4 space-y-3 shrink-0">
-          
+
           {/* Suggestion Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
             <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider shrink-0 flex items-center gap-1">
@@ -540,9 +539,9 @@ export const PermitToWorkAgentPage: React.FC = () => {
               <span>Read-only database guardrails active · Dual Gateway (Gemini 3.5 / Groq LLaMA 3.3)</span>
             </div>
             <div className="flex items-center gap-3">
-              <span>PostgreSQL (construction_ai)</span>
+              <span>connected (Video_analytics)</span>
               <span>•</span>
-              <span>SQL Server (mes_new)</span>
+              <span>connected(MES)</span>
             </div>
           </div>
 
