@@ -40,7 +40,7 @@ class LLMConfig:
     """LLM & Transcription settings."""
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     whisper_model: str = os.getenv("WHISPER_MODEL", "whisper-large-v3")
-    llm_model: str = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+    llm_model: str = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
     llm_temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.3"))
     llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "200"))
     request_timeout_seconds: int = int(os.getenv("LLM_TIMEOUT", "30"))

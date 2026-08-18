@@ -20,6 +20,10 @@ from app.agents.safety_quality_agent import run_safety_quality_conversation
 from app.agents.ppe_vision_agent import run_ppe_conversation
 from app.agents.safety_site_intelligence_agent import run_safety_site_intelligence_conversation
 from app.agents.permit_to_work_agent import run_ptw_conversation
+from app.agents.incident_investigation_agent import (
+    run_incident_investigation_conversation,
+    stream_incident_investigation_events,
+)
 from app.email_service import send_pdf_report_email
 from app.voice.manager import VoiceConversationManager
 
@@ -74,6 +78,10 @@ class SafetySiteIntelligenceChatRequest(BaseModel):
     ui_context: Optional[Dict[str, Any]] = None
 
 class PermitToWorkChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
+
+class IncidentInvestigationChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
@@ -351,6 +359,20 @@ async def query_agent(req: QueryRequest):
                 "email_status": None,
                 "error_message": "",
                 "cost_usd": 0.0,
+                "visuals": [],
+            }
+        elif getattr(req, "agent", None) in ["incident-investigation", "incident", "investigation", "forensic"]:
+            inv_res = await run_incident_investigation_conversation(req.query)
+            return {
+                "status": "success",
+                "sql_query": "",
+                "sql_result": "",
+                "insights": inv_res.get("reply", ""),
+                "execution_steps": [f"Executed {t.get('name')}" for t in inv_res.get("tools_used", [])],
+                "pdf_url": "",
+                "email_status": None,
+                "error_message": "",
+                "cost_usd": inv_res.get("cost_usd", 0.0),
                 "visuals": [],
             }
         else:
@@ -1128,6 +1150,44 @@ async def get_safety_spatial_heatmap(time_filter: str = "30_DAYS"):
             "safety_index": max(45, 100 - int(total_violations * 0.4)),
         },
         "zones": processed_zones,
+    }
+
+
+# ── Incident & Investigation Agent ───────────────────────────────────────────
+
+@router.post("/api/incident-investigation/chat")
+async def incident_investigation_chat(req: IncidentInvestigationChatRequest):
+    """Chat endpoint for Deva Incident & Investigation Agent with full telemetry."""
+    result = await run_incident_investigation_conversation(req.message, req.thread_id)
+    return result
+
+
+@router.post("/api/incident-investigation/stream")
+async def incident_investigation_stream(req: IncidentInvestigationChatRequest):
+    """Streaming SSE endpoint for real-time tool animation, token generation, and response telemetry."""
+    return StreamingResponse(
+        stream_incident_investigation_events(req.message, req.thread_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/api/incident-investigation/summary")
+async def incident_investigation_summary():
+    """Summary KPI metrics for the Incident & Investigation dashboard & console."""
+    return {
+        "status": "success",
+        "trir_ytd": "0.42",
+        "zero_harm_index": "98.4",
+        "open_spill_alerts": 0,
+        "active_anomaly_flags": 3,
+        "audited_cameras": 24,
+        "ltifr_rate": "0.00",
+        "safety_audit_status": "OPTIMAL",
     }
 
 

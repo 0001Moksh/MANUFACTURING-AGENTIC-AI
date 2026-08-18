@@ -30,12 +30,12 @@ logger = get_logger(__name__)
 
 # ── Model configuration ─────────────────────────────────────────────────────
 # Primary: Gemini (fast, cheap, no rate issues)
-# Fallback: Groq llama-3.1-8b-instant (widely available on all Groq tiers)
+# Fallback: Groq llama-3.3-70b-versatile (widely available on all Groq tiers)
 _GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 _GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-_PRIMARY_MODEL = "gemini/gemini-3.5-flash-lite" if _GEMINI_API_KEY else "groq/llama-3.1-8b-instant"
-_FALLBACK_MODEL = "groq/llama-3.1-8b-instant" if _GROQ_API_KEY and _GEMINI_API_KEY else None
+_PRIMARY_MODEL = "gemini/gemini-3.5-flash-lite" if _GEMINI_API_KEY else "groq/llama-3.3-70b-versatile"
+_FALLBACK_MODEL = "groq/llama-3.3-70b-versatile" if _GROQ_API_KEY and _GEMINI_API_KEY else None
 
 # Groq client for Whisper transcription (audio-specific, Gemini doesn't do STT)
 _groq_client = AsyncGroq(api_key=_GROQ_API_KEY) if _GROQ_API_KEY else None
@@ -244,7 +244,7 @@ async def check_groq_health() -> bool:
         await with_timeout(
             _groq_client.chat.completions.create(
                 messages=[{"role": "user", "content": "ping"}],
-                model="llama-3.1-8b-instant",
+                model="llama-3.3-70b-versatile",
                 max_tokens=1,
             ),
             timeout_seconds=5.0,

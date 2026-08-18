@@ -5,8 +5,18 @@ import { useNavigate } from 'react-router-dom';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import type { MaintenanceVisual } from '../services/maintenanceInsightsService';
 import { maintenanceInsightsService } from '../services/maintenanceInsightsService';
+import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
+import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
+import { createEstimatedTelemetry } from '../utils/telemetryHelper';
 
-type ChatItem = { id: string; role: 'assistant' | 'user'; text: string; visuals?: MaintenanceVisual[] };
+type ChatItem = {
+  id: string;
+  role: 'assistant' | 'user';
+  text: string;
+  visuals?: MaintenanceVisual[];
+  telemetry?: TurnTelemetry;
+};
 
 const COLORS = ['#0B1730', '#00A9AE', '#7C6FF0', '#F59E0B'];
 
@@ -18,10 +28,18 @@ const renderData = (visual: MaintenanceVisual) => (visual.labels || []).map((lab
 export const MaintenanceAgentPage: React.FC = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatItem[]>([
-    { id: 'welcome', role: 'assistant', text: 'Hi sir, I am the Maintenance Agent. Ask me about machine health, predictive maintenance schedules, work orders, or alerts.' },
+    {
+      id: 'welcome',
+      role: 'assistant',
+      text: 'Hi sir, I am the Maintenance Agent. Ask me about machine health, predictive maintenance schedules, work orders, or alerts.',
+      telemetry: createEstimatedTelemetry(0.38, [
+        { name: 'query_machine_health', status: 'completed' },
+      ]),
+    },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
   const threadId = useMemo(() => `maint-${Date.now()}`, []);
 
   const send = async () => {
@@ -30,13 +48,47 @@ export const MaintenanceAgentPage: React.FC = () => {
     setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', text: prompt }]);
     setInput('');
     setLoading(true);
+
+    const startTime = performance.now();
+    setActiveSteps([
+      {
+        tool_name: 'query_machine_health',
+        friendly_label: 'Querying SCADA & Machine Health Telemetry...',
+        status: 'executing',
+        startTime: Date.now(),
+      },
+    ]);
+
     try {
       const res = await maintenanceInsightsService.chat(prompt, threadId);
-      setMessages(prev => [...prev, { id: `a-${Date.now()}`, role: 'assistant', text: res.reply, visuals: res.visuals }]);
+      const elapsedSec = (performance.now() - startTime) / 1000;
+      setActiveSteps((prev) =>
+        prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec }))
+      );
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: res.reply,
+          visuals: res.visuals,
+          telemetry: createEstimatedTelemetry(
+            elapsedSec,
+            [
+              { name: 'query_machine_health', status: 'completed' },
+              { name: 'get_predictive_maintenance_schedule', status: 'completed' },
+            ],
+            prompt,
+            res.reply
+          ),
+        },
+      ]);
     } catch {
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', text: 'Maintenance service is unavailable right now.' }]);
     } finally {
       setLoading(false);
+      setActiveSteps([]);
     }
   };
 
@@ -141,10 +193,22 @@ export const MaintenanceAgentPage: React.FC = () => {
                     <div className="h-[280px]">{renderVisual(visual)}</div>
                   </div>
                 ))}
+                {msg.role === 'assistant' && (
+                  <AgentTelemetryFooter
+                    telemetry={msg.telemetry}
+                    rawText={msg.text}
+                  />
+                )}
               </div>
             </div>
           ))}
-          {loading && <div className="text-[13px] text-muted">Maintenance Agent is thinking...</div>}
+          <div className="pl-2">
+            <AgentExecutionIndicator
+              activeSteps={activeSteps}
+              isStreaming={loading}
+              agentName="Maintenance Agent"
+            />
+          </div>
         </div>
         <div className="border-t border-border-color p-4 bg-white">
           <div className="flex gap-3 items-end">

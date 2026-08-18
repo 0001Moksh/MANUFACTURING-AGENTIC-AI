@@ -10,6 +10,7 @@ import { MaintenanceAgentPage } from './pages/MaintenanceAgentPage';
 import { SafetyQualityAgentPage } from './pages/SafetyQualityAgentPage';
 import { PPEVisionAgentPage } from './pages/PPEVisionAgentPage';
 import { PermitToWorkAgentPage } from './pages/PermitToWorkAgentPage';
+import { IncidentInvestigationAgentPage } from './pages/IncidentInvestigationAgentPage';
 import { SafetySiteIntelligencePage } from './pages/SafetySiteIntelligencePage';
 import { AdminConsolePage } from './pages/AdminConsolePage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -39,8 +40,10 @@ function App() {
           <Route path="agents/safety-quality" element={<SafetyQualityAgentPage />} />
           <Route path="agents/ppe-vision" element={<PPEVisionAgentPage />} />
           <Route path="agents/permit-to-work" element={<PermitToWorkAgentPage />} />
+          <Route path="agents/incident-investigation" element={<IncidentInvestigationAgentPage />} />
           <Route path="reporting-agent" element={<ReportingAgentPage />} />
           <Route path="permit-to-work-agent" element={<PermitToWorkAgentPage />} />
+          <Route path="incident-investigation-agent" element={<IncidentInvestigationAgentPage />} />
           <Route path="admin" element={<AdminConsolePage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="settings" element={<SettingsPage />} />

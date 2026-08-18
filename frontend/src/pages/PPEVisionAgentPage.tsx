@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Send,
@@ -20,7 +20,13 @@ interface ChatMessage {
   id: string;
   role: ChatRole;
   text: string;
+  telemetry?: TurnTelemetry;
 }
+
+import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
+import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
+import { createEstimatedTelemetry } from '../utils/telemetryHelper';
 
 // ─── Lightweight Markdown Renderer ───────────────────────────────────────────
 
@@ -118,44 +124,37 @@ function inlineMarkdown(text: string): React.ReactNode {
 }
 
 function MarkdownTable({ lines }: { lines: string[] }) {
-  const rows = lines
-    .filter((l) => !l.replace(/[|\s-]/g, '').trim() === false || !/^[|\s-]+$/.test(l))
-    .filter((l) => !/^[\s|:-]+$/.test(l));
+  if (lines.length < 2) return null;
 
-  if (rows.length < 2) return null;
-
-  const parseRow = (row: string) =>
-    row
+  const parseRow = (line: string) =>
+    line
       .split('|')
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
+      .slice(1, -1)
+      .map((c) => c.trim());
 
-  const headers = parseRow(rows[0]);
-  const dataRows = rows.slice(1);
+  const headers = parseRow(lines[0]);
+  const rows = lines.slice(2).map(parseRow);
 
   return (
-    <div className="overflow-x-auto my-3 rounded-[12px] border border-border-color shadow-sm">
-      <table className="min-w-full text-[12.5px]">
-        <thead className="bg-[#FFFBEB]">
+    <div className="my-3 overflow-x-auto rounded-lg border border-border-color shadow-sm">
+      <table className="min-w-full divide-y divide-border-color text-[12.5px]">
+        <thead className="bg-[#F8FAFC]">
           <tr>
             {headers.map((h, i) => (
               <th
                 key={i}
-                className="px-3 py-2 text-left font-semibold text-amber-900 uppercase tracking-wide text-[11px] border-b border-amber-200"
+                className="px-3 py-2 text-left font-bold text-ink uppercase tracking-wider text-[11px]"
               >
                 {inlineMarkdown(h)}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
-          {dataRows.map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFA]'}>
-              {parseRow(row).map((cell, ci) => (
-                <td
-                  key={ci}
-                  className="px-3 py-2 border-b border-border-color/50 text-ink align-top"
-                >
+        <tbody className="divide-y divide-border-color bg-white">
+          {rows.map((row, rIdx) => (
+            <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-[#FAFCFF]'}>
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} className="px-3 py-2 text-muted font-medium whitespace-pre-wrap">
                   {inlineMarkdown(cell)}
                 </td>
               ))}
@@ -167,7 +166,7 @@ function MarkdownTable({ lines }: { lines: string[] }) {
   );
 }
 
-// ─── Message Bubble ──────────────────────────────────────────────────────────
+// ─── Chat Message Bubble ──────────────────────────────────────────────────────
 
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === 'user';
@@ -175,8 +174,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
     >
       {!isUser && (
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shrink-0 mr-2 mt-1 shadow-sm">
@@ -193,35 +191,17 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         {isUser ? (
           <p className="text-[14px] leading-relaxed">{msg.text}</p>
         ) : (
-          <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
+          <div>
+            <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
+            <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
+          </div>
         )}
       </div>
     </motion.div>
   );
 }
 
-// ─── Typing Indicator ─────────────────────────────────────────────────────────
 
-function TypingIndicator() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 6 }}
-      className="flex items-center gap-2"
-    >
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shrink-0 shadow-sm">
-        <HardHat className="w-4 h-4 text-white" />
-      </div>
-      <div className="bg-white border border-border-color rounded-[18px] rounded-bl-[5px] px-5 py-3 flex items-center gap-2 shadow-sm">
-        <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin" />
-        <span className="text-[12.5px] text-muted italic font-medium">
-          Deva is analyzing site intelligence...
-        </span>
-      </div>
-    </motion.div>
-  );
-}
 
 // ─── Suggested Prompts ────────────────────────────────────────────────────────
 
@@ -244,14 +224,19 @@ export const PPEVisionAgentPage: React.FC = () => {
       id: 'welcome',
       role: 'assistant',
       text: "Hello sir! I am **Deva**, your PPE & Behavior Vision Agent (HSE Officer Assistant), created by Moksh Bhardwaj.\n\nI have access to **55 specialized computer vision & HSE database tools** tracking real-time PPE compliance (helmets, vests, eyewear), restricted-zone breaches, worker fatigue/collapse, camera status, and shift analytics.\n\nHow can I assist you with safety compliance, incident logs, or zone analytics today, sir?",
+      telemetry: createEstimatedTelemetry(0.45, [
+        { name: 'get_cctv_camera_health', status: 'completed' },
+        { name: 'query_ppe_violations', status: 'completed' },
+      ]),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  }, [messages, loading, activeSteps]);
 
   const send = async (text?: string) => {
     const prompt = (text ?? input).trim();
@@ -259,11 +244,40 @@ export const PPEVisionAgentPage: React.FC = () => {
     setInput('');
     setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', text: prompt }]);
     setLoading(true);
+
+    const startTime = performance.now();
+    setActiveSteps([
+      {
+        tool_name: 'query_ppe_violations',
+        friendly_label: 'Auditing PPE Compliance Records...',
+        status: 'executing',
+        startTime: Date.now(),
+      },
+    ]);
+
     try {
       const res = await ppeVisionService.chat(prompt, threadId);
+      const elapsedSec = (performance.now() - startTime) / 1000;
+      setActiveSteps((prev) =>
+        prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec }))
+      );
+
       setMessages((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', text: res.reply },
+        {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: res.reply,
+          telemetry: createEstimatedTelemetry(
+            elapsedSec,
+            [
+              { name: 'query_ppe_violations', status: 'completed' },
+              { name: 'get_personnel_in_hazard_zones', status: 'completed' },
+            ],
+            prompt,
+            res.reply
+          ),
+        },
       ]);
     } catch {
       setMessages((prev) => [
@@ -358,7 +372,13 @@ export const PPEVisionAgentPage: React.FC = () => {
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}
-          <AnimatePresence>{loading && <TypingIndicator />}</AnimatePresence>
+          <div className="pl-10">
+            <AgentExecutionIndicator
+              activeSteps={activeSteps}
+              isStreaming={loading}
+              agentName="Deva"
+            />
+          </div>
           <div ref={bottomRef} />
         </div>
 

@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { permitToWorkService } from '../services/permitToWorkService';
+import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
+import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
+import { createEstimatedTelemetry } from '../utils/telemetryHelper';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +26,7 @@ interface ChatMessage {
   role: ChatRole;
   text: string;
   timestamp?: string;
+  telemetry?: TurnTelemetry;
 }
 
 // ─── Lightweight Markdown & Table Renderer ────────────────────────────────────
@@ -238,6 +243,8 @@ export const PermitToWorkAgentPage: React.FC = () => {
     scrollToBottom();
   }, [messages, loading]);
 
+  const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
+
   const handleSend = async (textToSend?: string) => {
     const query = (textToSend ?? input).trim();
     if (!query || loading) return;
@@ -253,13 +260,37 @@ export const PermitToWorkAgentPage: React.FC = () => {
     setInput('');
     setLoading(true);
 
+    const startTime = performance.now();
+    setActiveSteps([
+      {
+        tool_name: 'get_active_high_risk_permits',
+        friendly_label: 'Scanning Hot Work & Confined Space Permits...',
+        status: 'executing',
+        startTime: Date.now(),
+      },
+    ]);
+
     try {
       const res = await permitToWorkService.chat(query, threadId);
+      const elapsedSec = (performance.now() - startTime) / 1000;
+      setActiveSteps((prev) =>
+        prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec }))
+      );
+
       const assistantMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         role: 'assistant',
         text: res.reply || 'No response returned from the Permit-to-Work engine.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        telemetry: createEstimatedTelemetry(
+          elapsedSec,
+          [
+            { name: 'get_active_high_risk_permits', status: 'completed' },
+            { name: 'validate_permit_authorization', status: 'completed' },
+          ],
+          query,
+          res.reply || ''
+        ),
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -272,6 +303,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
+      setActiveSteps([]);
     }
   };
 
@@ -422,7 +454,13 @@ export const PermitToWorkAgentPage: React.FC = () => {
                 {/* Content */}
                 <div className="prose prose-sm max-w-none">
                   {msg.role === 'assistant' ? (
-                    renderMarkdown(msg.text)
+                    <div>
+                      {renderMarkdown(msg.text)}
+                      <AgentTelemetryFooter
+                        telemetry={msg.telemetry}
+                        rawText={msg.text}
+                      />
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap m-0">{msg.text}</p>
                   )}
@@ -437,22 +475,14 @@ export const PermitToWorkAgentPage: React.FC = () => {
             </div>
           ))}
 
-          {/* Thinking / Loading indicator */}
-          {loading && (
-            <div className="flex gap-3 justify-start items-center">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shrink-0 animate-pulse">
-                <FileCheck2 className="w-4 h-4" />
-              </div>
-              <div className="bg-canvas border border-border-color rounded-[18px] rounded-bl-[4px] px-4 py-3 text-[13px] text-muted flex items-center gap-2.5 shadow-2xs">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                </div>
-                <span>Permit-to-Work Agent is correlating live camera breaches & MES work orders...</span>
-              </div>
-            </div>
-          )}
+          {/* ── Interactive Tool Execution Indicator ── */}
+          <div className="pl-11">
+            <AgentExecutionIndicator
+              activeSteps={activeSteps}
+              isStreaming={loading}
+              agentName="Permit-to-Work Agent"
+            />
+          </div>
 
           <div ref={messagesEndRef} />
         </div>

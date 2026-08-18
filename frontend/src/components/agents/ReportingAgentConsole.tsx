@@ -3,6 +3,10 @@ import { Terminal, Database, Cpu, AlertTriangle, CheckCircle, RefreshCw, Send, S
 import { agentService } from '../../services/api';
 import { parseMarkdown } from '../../utils/markdownParser';
 import { useStore } from '../../store';
+import { AgentExecutionIndicator } from '../common/AgentExecutionIndicator';
+import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
+import { createEstimatedTelemetry } from '../../utils/telemetryHelper';
+
 
 export const AgentChatConsole: React.FC = () => {
   const { explainableLogs, humanInLoop, reportingAgentState, setReportingAgentState, resetReportingAgentState } = useStore();
@@ -121,6 +125,23 @@ export const AgentChatConsole: React.FC = () => {
         </div>
       )}
 
+      {loading && (
+        <div className="mb-4">
+          <AgentExecutionIndicator
+            activeSteps={[
+              {
+                tool_name: 'execute_sql_reporting_query',
+                friendly_label: 'Executing Analytical SQL Reporting Pipeline...',
+                status: 'executing',
+                startTime: Date.now(),
+              },
+            ]}
+            isStreaming={true}
+            agentName="LangGraph SQL Reporting Agent"
+          />
+        </div>
+      )}
+
       {status === 'success' && result && (
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center border-b border-border-color pb-3">
@@ -132,7 +153,24 @@ export const AgentChatConsole: React.FC = () => {
             )}
           </div>
           {result.sql_query && <div className="border border-border-color rounded-[9px] overflow-hidden"><div className="bg-white/50 border-b border-border-color p-[8px_14px] text-[11px] font-bold flex items-center gap-1 text-muted"><Database className="w-[12px] h-[12px]" />Generated SELECT Query (Safe-Scoped)</div><pre className="m-0 p-3 bg-[#F8F9FB] font-mono text-[12px] text-ink overflow-x-auto select-all">{result.sql_query}</pre></div>}
-          <div className="border border-teal/20 rounded-[9px] overflow-hidden bg-teal-tint/10"><div className="bg-teal-tint/20 border-b border-teal/20 p-[8px_14px] text-[11px] font-bold text-teal-deep">Agent Narrative Insights & Action Recommendations</div><div className="p-4 text-[13px] text-ink leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2" dangerouslySetInnerHTML={{ __html: parseMarkdown(result.insights || '') }} /></div>
+          <div className="border border-teal/20 rounded-[9px] overflow-hidden bg-teal-tint/10">
+            <div className="bg-teal-tint/20 border-b border-teal/20 p-[8px_14px] text-[11px] font-bold text-teal-deep">Agent Narrative Insights & Action Recommendations</div>
+            <div className="p-4 text-[13px] text-ink leading-relaxed prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2" dangerouslySetInnerHTML={{ __html: parseMarkdown(result.insights || '') }} />
+            <div className="px-4 pb-3">
+              <AgentTelemetryFooter
+                telemetry={createEstimatedTelemetry(
+                  result.execution_time_sec || 1.15,
+                  (result.execution_steps || ['execute_sql_reporting_query']).map((s: string) => ({
+                    name: s,
+                    status: 'completed',
+                  })),
+                  query,
+                  result.insights || ''
+                )}
+                rawText={result.insights}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

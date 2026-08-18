@@ -19,6 +19,12 @@ export const AgentsPage: React.FC = () => {
       navigate('/agents/ppe-vision');
     } else if (agentName === 'Permit-to-Work Agent' || agentName === 'Permit to Work Agent') {
       navigate('/agents/permit-to-work');
+    } else if (
+      agentName === 'Incident & Investigation Agent' ||
+      agentName === 'Incident and Investigation Agent' ||
+      agentName === 'Incident & Investigation'
+    ) {
+      navigate('/agents/incident-investigation');
     } else {
       setActiveAgentName(agentName);
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Send,
@@ -12,6 +12,10 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { safetyQualityService } from '../services/safetyQualityService';
+import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
+import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
+import { createEstimatedTelemetry } from '../utils/telemetryHelper';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,10 +24,10 @@ interface ChatMessage {
   id: string;
   role: ChatRole;
   text: string;
+  telemetry?: TurnTelemetry;
 }
 
 // ─── Lightweight Markdown Renderer ───────────────────────────────────────────
-// Handles: bold, inline code, tables, and bullet lists — all Deva's common outputs.
 
 function renderMarkdown(raw: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
@@ -96,7 +100,7 @@ function renderMarkdown(raw: string): React.ReactNode[] {
     // Regular paragraph
     flushList();
     nodes.push(
-      <p key={`p-${i}`} className="text-[13.5px] leading-relaxed">
+      <p key={`p-${i}`} className="text-[13.5px] leading-relaxed text-ink">
         {inlineMarkdown(line)}
       </p>
     );
@@ -112,7 +116,7 @@ function inlineMarkdown(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, i) => {
     if (/^\*\*[^*]+\*\*$/.test(part)) {
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
+      return <strong key={i} className="font-semibold text-ink">{part.slice(2, -2)}</strong>;
     }
     if (/^`[^`]+`$/.test(part)) {
       return (
@@ -126,44 +130,36 @@ function inlineMarkdown(text: string): React.ReactNode {
 }
 
 function MarkdownTable({ lines }: { lines: string[] }) {
-  const rows = lines
-    .filter((l) => !l.replace(/[|\s-]/g, '').trim() === false || !/^[|\s-]+$/.test(l))
-    .filter((l) => !/^[\s|:-]+$/.test(l));
-
-  if (rows.length < 2) return null;
-
-  const parseRow = (row: string) =>
-    row
+  if (lines.length < 2) return null;
+  const parseRow = (line: string) =>
+    line
       .split('|')
-      .map((c) => c.trim())
-      .filter((c) => c.length > 0);
+      .slice(1, -1)
+      .map((c) => c.trim());
 
-  const headers = parseRow(rows[0]);
-  const dataRows = rows.slice(1);
+  const headers = parseRow(lines[0]);
+  const rows = lines.slice(2).map(parseRow);
 
   return (
-    <div className="overflow-x-auto my-3 rounded-[12px] border border-border-color shadow-sm">
-      <table className="min-w-full text-[12.5px]">
-        <thead className="bg-[#F0FDF9]">
+    <div className="my-3 overflow-x-auto rounded-lg border border-border-color shadow-sm">
+      <table className="min-w-full divide-y divide-border-color text-[12.5px]">
+        <thead className="bg-[#F8FAFC]">
           <tr>
             {headers.map((h, i) => (
               <th
                 key={i}
-                className="px-3 py-2 text-left font-semibold text-teal-700 uppercase tracking-wide text-[11px] border-b border-border-color"
+                className="px-3 py-2 text-left font-bold text-ink uppercase tracking-wider text-[11px]"
               >
                 {inlineMarkdown(h)}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
-          {dataRows.map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFA]'}>
-              {parseRow(row).map((cell, ci) => (
-                <td
-                  key={ci}
-                  className="px-3 py-2 border-b border-border-color/50 text-ink align-top"
-                >
+        <tbody className="divide-y divide-border-color bg-white">
+          {rows.map((row, rIdx) => (
+            <tr key={rIdx} className={rIdx % 2 === 0 ? 'bg-white' : 'bg-[#FAFCFF]'}>
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} className="px-3 py-2 text-muted font-medium whitespace-pre-wrap">
                   {inlineMarkdown(cell)}
                 </td>
               ))}
@@ -175,7 +171,7 @@ function MarkdownTable({ lines }: { lines: string[] }) {
   );
 }
 
-// ─── Message Bubble ──────────────────────────────────────────────────────────
+// ─── Chat Message Bubble ──────────────────────────────────────────────────────
 
 function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === 'user';
@@ -184,7 +180,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
     >
       {!isUser && (
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0 mr-2 mt-1 shadow-sm">
@@ -201,35 +197,17 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         {isUser ? (
           <p className="text-[14px] leading-relaxed">{msg.text}</p>
         ) : (
-          <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
+          <div>
+            <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
+            <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
+          </div>
         )}
       </div>
     </motion.div>
   );
 }
 
-// ─── Typing Indicator ─────────────────────────────────────────────────────────
 
-function TypingIndicator() {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 6 }}
-      className="flex items-center gap-2"
-    >
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0 shadow-sm">
-        <ShieldCheck className="w-4 h-4 text-white" />
-      </div>
-      <div className="bg-white border border-border-color rounded-[18px] rounded-bl-[5px] px-5 py-3 flex items-center gap-2 shadow-sm">
-        <Loader2 className="w-3.5 h-3.5 text-teal-500 animate-spin" />
-        <span className="text-[12.5px] text-muted italic font-medium">
-          Deva is analyzing site intelligence...
-        </span>
-      </div>
-    </motion.div>
-  );
-}
 
 // ─── Suggested Prompts ────────────────────────────────────────────────────────
 
@@ -252,14 +230,18 @@ export const SafetyQualityAgentPage: React.FC = () => {
       id: 'welcome',
       role: 'assistant',
       text: "Hello sir! I am **Deva**, your Safety & Quality Agent (HSE Officer Assistant), created by Moksh Bhardwaj.\n\nI have access to **80 specialized tools** covering quality inspections, defect analytics, material holds, vendor performance, inspector records, and compliance standards.\n\nHow can I assist you with site intelligence today, sir?",
+      telemetry: createEstimatedTelemetry(0.42, [
+        { name: 'get_today_quality_inspection_reports', status: 'completed' },
+      ]),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  }, [messages, loading, activeSteps]);
 
   const send = async (text?: string) => {
     const prompt = (text ?? input).trim();
@@ -267,11 +249,40 @@ export const SafetyQualityAgentPage: React.FC = () => {
     setInput('');
     setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', text: prompt }]);
     setLoading(true);
+
+    const startTime = performance.now();
+    setActiveSteps([
+      {
+        tool_name: 'get_today_quality_inspection_reports',
+        friendly_label: 'Retrieving Quality Inspection Logs...',
+        status: 'executing',
+        startTime: Date.now(),
+      },
+    ]);
+
     try {
       const res = await safetyQualityService.chat(prompt, threadId);
+      const elapsedSec = (performance.now() - startTime) / 1000;
+      setActiveSteps((prev) =>
+        prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec }))
+      );
+
       setMessages((prev) => [
         ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', text: res.reply },
+        {
+          id: `a-${Date.now()}`,
+          role: 'assistant',
+          text: res.reply,
+          telemetry: createEstimatedTelemetry(
+            elapsedSec,
+            [
+              { name: 'get_today_quality_inspection_reports', status: 'completed' },
+              { name: 'get_material_defect_analytics', status: 'completed' },
+            ],
+            prompt,
+            res.reply
+          ),
+        },
       ]);
     } catch {
       setMessages((prev) => [
@@ -367,7 +378,13 @@ export const SafetyQualityAgentPage: React.FC = () => {
           {messages.map((msg) => (
             <MessageBubble key={msg.id} msg={msg} />
           ))}
-          <AnimatePresence>{loading && <TypingIndicator />}</AnimatePresence>
+          <div className="pl-10">
+            <AgentExecutionIndicator
+              activeSteps={activeSteps}
+              isStreaming={loading}
+              agentName="Deva"
+            />
+          </div>
           <div ref={bottomRef} />
         </div>
 
