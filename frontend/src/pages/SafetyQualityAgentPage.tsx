@@ -9,6 +9,7 @@ import {
   ClipboardList,
   PackageCheck,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { safetyQualityService } from '../services/safetyQualityService';
@@ -238,6 +239,11 @@ export const SafetyQualityAgentPage: React.FC = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
+  const startNewConversation = () => {
+    setMessages([{ id: `welcome-${Date.now()}`, role: 'assistant', text: 'New conversation started. Ask about quality inspections, defects, material holds, or compliance.' }]);
+    setInput('');
+    setActiveSteps([]);
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -306,13 +312,7 @@ export const SafetyQualityAgentPage: React.FC = () => {
       className="h-[calc(100vh-110px)] flex flex-col gap-4"
     >
       {/* ── Back button ── */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0 w-fit"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to AI Agents
-      </button>
+      <div className="flex items-center justify-between"><button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0 w-fit"><ArrowLeft className="w-4 h-4" /> Back to AI Agents</button><button onClick={startNewConversation} className="inline-flex items-center gap-2 rounded-[10px] bg-navy-900 px-3 py-2 text-[12px] font-bold text-white hover:bg-navy-800 cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /> New Conversation</button></div>
 
       {/* ── Hero Banner ── */}
       <div className="bg-gradient-to-r from-[#0B1730] via-[#0D2040] to-[#00808A] text-white rounded-[20px] p-6 relative overflow-hidden shrink-0">

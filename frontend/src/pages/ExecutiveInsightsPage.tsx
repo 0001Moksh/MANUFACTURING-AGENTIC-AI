@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Sparkles } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import { ChatPageHeader } from '../components/common/ChatPageHeader';
 import type { TurnTelemetry } from '../types/telemetry';
 import {
   ResponsiveContainer,
@@ -241,6 +242,10 @@ export const ExecutiveInsightsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const threadId = useMemo(() => `exec-${Date.now()}`, []);
+  const startNewConversation = () => {
+    setMessages([{ id: `welcome-${Date.now()}`, role: 'assistant', text: greeting }]);
+    setInput('');
+  };
 
   const sendMessage = async () => {
     const prompt = input.trim();
@@ -353,16 +358,7 @@ export const ExecutiveInsightsPage: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-[calc(100vh-110px)] flex flex-col gap-4">
-      <div className="bg-gradient-to-r from-navy-900 via-navy-800 to-teal-deep text-white rounded-[20px] p-6 shadow-[0_20px_50px_-24px_rgba(6,11,22,0.55)]">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/70 font-bold mb-2">
-          <Sparkles className="w-4 h-4" />
-          Executive Insights
-        </div>
-        <h1 className="font-head text-[28px] font-extrabold mb-2">Chat with data, backed by visuals</h1>
-        <p className="text-white/80 max-w-[820px] leading-relaxed">
-          Ask for operational insight in natural language, and the agent will return a short executive summary plus chart-ready visuals.
-        </p>
-      </div>
+      <ChatPageHeader backLabel="Back to Use-Case Library" title="Executive Insights" description="Ask for operational insight in natural language and receive a concise executive summary with chart-ready visuals." tags={['Operational analytics', 'Charts', 'Executive summaries']} onNewConversation={startNewConversation} />
 
       <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-0">
         <div className="overflow-y-auto p-5 space-y-4">

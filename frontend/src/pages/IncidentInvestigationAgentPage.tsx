@@ -485,7 +485,7 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
               title="Reset Chat Session"
             >
               <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Reset</span>
+              <span className="hidden sm:inline">New Conversation</span>
             </button>
           </div>
         </div>

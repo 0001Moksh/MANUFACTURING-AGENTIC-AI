@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send, Wrench, Activity, CalendarDays, BellRing } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Send, Activity, CalendarDays, BellRing } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import type { MaintenanceVisual } from '../services/maintenanceInsightsService';
 import { maintenanceInsightsService } from '../services/maintenanceInsightsService';
@@ -9,6 +8,7 @@ import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndi
 import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
 import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
 import { createEstimatedTelemetry } from '../utils/telemetryHelper';
+import { ChatPageHeader } from '../components/common/ChatPageHeader';
 
 type ChatItem = {
   id: string;
@@ -26,7 +26,6 @@ const renderData = (visual: MaintenanceVisual) => (visual.labels || []).map((lab
 }));
 
 export const MaintenanceAgentPage: React.FC = () => {
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatItem[]>([
     {
       id: 'welcome',
@@ -41,6 +40,11 @@ export const MaintenanceAgentPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
   const threadId = useMemo(() => `maint-${Date.now()}`, []);
+  const startNewConversation = () => {
+    setMessages([{ id: `welcome-${Date.now()}`, role: 'assistant', text: 'New conversation started. Ask me about machine health, predictive maintenance schedules, work orders, or alerts.' }]);
+    setInput('');
+    setActiveSteps([]);
+  };
 
   const send = async () => {
     const prompt = input.trim();
@@ -167,20 +171,7 @@ export const MaintenanceAgentPage: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="h-[calc(100vh-110px)] flex flex-col gap-4">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0 w-fit">
-        <ArrowLeft className="w-4 h-4" /> Back to AI Agents
-      </button>
-      <div className="bg-gradient-to-r from-navy-900 via-navy-800 to-teal-deep text-white rounded-[20px] p-6">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/70 font-bold mb-2"><Wrench className="w-4 h-4" /> Maintenance Agent</div>
-        <h1 className="font-head text-[28px] font-extrabold mb-2">Predictive Maintenance Chat</h1>
-        <p className="text-white/80 max-w-[820px] leading-relaxed">Ask about machine health, maintenance schedules, work orders, and alerts. The agent returns concise answers plus maintenance-specific visuals.</p>
-        <div className="flex gap-2 mt-4 flex-wrap text-[11px] text-white/80">
-          <span className="px-2 py-1 rounded-full bg-white/10">Machine health</span>
-          <span className="px-2 py-1 rounded-full bg-white/10">Predictive schedules</span>
-          <span className="px-2 py-1 rounded-full bg-white/10">Work orders</span>
-          <span className="px-2 py-1 rounded-full bg-white/10">Alerts</span>
-        </div>
-      </div>
+      <ChatPageHeader title="Maintenance Agent" description="Ask about machine health, predictive maintenance schedules, work orders, and alerts. The agent returns concise answers and maintenance-specific visuals." tags={['Machine health', 'Predictive schedules', 'Work orders', 'Alerts']} onNewConversation={startNewConversation} />
       <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-0">
         <div className="overflow-y-auto p-5 space-y-4">
           {messages.map(msg => (

@@ -349,7 +349,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
             className="flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink bg-white border border-border-color px-3 py-1 rounded-[10px] transition-colors cursor-pointer shadow-2xs"
             title="Reset conversation thread"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> New Thread
+            <RefreshCw className="w-3.5 h-3.5" /> New Conversation
           </button>
         </div>
       </div>

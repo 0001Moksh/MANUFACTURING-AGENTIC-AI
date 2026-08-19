@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, AudioLines, ShieldCheck, Eye, Wrench, Sparkles, Send, Volume2 } from 'lucide-react';
+import { Mic, AudioLines, ShieldCheck, Eye, Wrench, Sparkles, Send, Volume2, RefreshCw } from 'lucide-react';
 import { websocketUrl } from '../../config/api';
 import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
 import type { TurnTelemetry } from '../../types/telemetry';
@@ -283,11 +283,22 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   };
 
   const currentSampleQueries = SAMPLE_QUERIES[selectedAgent] || SAMPLE_QUERIES.auto;
+  const startNewConversation = () => {
+    stopAllAudioPlayback();
+    setInputText('');
+    setMessages([{
+      id: `welcome-${Date.now()}`,
+      sender: 'agent',
+      text: 'New conversation started. You can speak or type your query in English or Hindi.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      agentName: 'Voice Assistant (Deva)',
+    }]);
+  };
 
   return (
     <div className="flex flex-col h-full w-full bg-white rounded-[16px] border border-border-color shadow-sm overflow-hidden">
       {/* ── Top Header with Agent Selection ── */}
-      <div className="bg-canvas border-b border-border-color p-[14px_18px] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+      <div className="bg-canvas border-b border-border-color p-[14px_18px] flex flex-col xl:flex-row xl:items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-[10px]">
           <div className="w-[9px] h-[9px] bg-green rounded-full relative">
             <span className="absolute inset-0 bg-green rounded-full animate-ping opacity-75"></span>
@@ -299,7 +310,11 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
         </div>
 
         {/* Agent Selector Pills */}
-        <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-border-color shrink-0 flex-wrap">
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+          <button onClick={startNewConversation} className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-2.5 py-1.5 text-[11.5px] font-bold text-white hover:bg-navy-800 transition-colors cursor-pointer">
+            <RefreshCw className="w-3.5 h-3.5" /> New Conversation
+          </button>
+          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-border-color flex-wrap">
           {AGENT_OPTIONS.map((opt) => (
             <button
               key={opt.id}
@@ -314,6 +329,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
               {opt.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
