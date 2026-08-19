@@ -17,7 +17,7 @@ export const ReportingAgentPage: React.FC = () => {
       {/* Navigation Header */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate('/agents')}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0"
         >
           <ArrowLeft className="w-4 h-4" />

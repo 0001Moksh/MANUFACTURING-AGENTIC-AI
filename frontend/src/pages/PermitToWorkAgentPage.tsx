@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Copy,
   Check,
-  Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { permitToWorkService } from '../services/permitToWorkService';
@@ -334,7 +333,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
       {/* ── Top Bar / Navigation ── */}
       <div className="flex items-center justify-between shrink-0">
         <button
-          onClick={() => navigate('/agents')}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0"
         >
           <ArrowLeft className="w-4 h-4" /> Back to AI Agents
@@ -491,7 +490,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
           {/* Suggestion Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
             <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider shrink-0 flex items-center gap-1">
-              <Zap className="w-3 h-3 text-amber-500" /> Quick Ask:
+              Quick Ask:
             </span>
             {SUGGESTED_QUERIES.map((sq, i) => (
               <button
@@ -500,7 +499,6 @@ export const PermitToWorkAgentPage: React.FC = () => {
                 disabled={loading}
                 className="shrink-0 bg-canvas hover:bg-amber-50 text-ink hover:text-amber-900 border border-border-color hover:border-amber-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <span>{sq.icon}</span>
                 <span>{sq.label}</span>
               </button>
             ))}

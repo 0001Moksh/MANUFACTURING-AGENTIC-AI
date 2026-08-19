@@ -436,7 +436,7 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate('/agents')}
+              onClick={() => navigate(-1)}
               className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-colors cursor-pointer border border-white/10"
               title="Back to Agents Dashboard"
             >

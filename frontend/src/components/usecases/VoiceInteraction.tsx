@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, AudioLines, ShieldCheck, Eye, Wrench, Sparkles, Send, Volume2 } from 'lucide-react';
 import { websocketUrl } from '../../config/api';
+import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
+import type { TurnTelemetry } from '../../types/telemetry';
 
 interface VoiceInteractionProps {
   useCaseName?: string;
@@ -13,6 +15,7 @@ interface ChatMessage {
   text: string;
   timestamp: string;
   agentName?: string;
+  telemetry?: TurnTelemetry;
 }
 
 const AGENT_OPTIONS = [
@@ -117,6 +120,19 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
             });
           }
           return newMsgs;
+        });
+      }
+      else if (data.type === 'telemetry') {
+        setMessages(prev => {
+          const messagesWithTelemetry = [...prev];
+          const lastAgentIndex = messagesWithTelemetry.map(message => message.sender).lastIndexOf('agent');
+          if (lastAgentIndex >= 0) {
+            messagesWithTelemetry[lastAgentIndex] = {
+              ...messagesWithTelemetry[lastAgentIndex],
+              telemetry: data as TurnTelemetry,
+            };
+          }
+          return messagesWithTelemetry;
         });
       }
       else if (data.type === 'audio_chunk') {
@@ -319,6 +335,9 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
                 </div>
               )}
               {msg.text}
+              {msg.sender === 'agent' && msg.telemetry && (
+                <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
+              )}
               <div className={`text-[9.5px] mt-[6px] ${msg.sender === 'user' ? 'text-white/70' : 'text-muted'} text-right`}>
                 {msg.timestamp}
               </div>

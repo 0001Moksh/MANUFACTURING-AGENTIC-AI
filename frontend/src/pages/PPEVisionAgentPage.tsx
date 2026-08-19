@@ -302,7 +302,7 @@ export const PPEVisionAgentPage: React.FC = () => {
     >
       {/* ── Back button ── */}
       <button
-        onClick={() => navigate('/agents')}
+        onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-amber-600 transition-colors bg-transparent border-none cursor-pointer p-0 w-fit"
       >
         <ArrowLeft className="w-4 h-4" />
