@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Sparkles } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
+import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import type { TurnTelemetry } from '../types/telemetry';
 import {
   ResponsiveContainer,
   BarChart,
@@ -23,6 +26,7 @@ type ChatItem = {
   role: 'assistant' | 'user';
   text: string;
   visuals?: ExecutiveVisual[];
+  telemetry?: TurnTelemetry;
 };
 
 const greeting = "Hi, I am Executive Insights Agent. Ask me about production, inventory, work orders, machine utilization, or sales.";
@@ -248,7 +252,7 @@ export const ExecutiveInsightsPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/executive-insights/chat', {
+      const response = await fetch(`${API_BASE_URL}/executive-insights/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: prompt, thread_id: threadId }),
@@ -264,6 +268,7 @@ export const ExecutiveInsightsPage: React.FC = () => {
         role: 'assistant',
         text: res.reply,
         visuals: res.visuals,
+        telemetry: res.telemetry,
       }]);
     } catch (err) {
       const fallback = fallbackResponse(prompt);
@@ -378,6 +383,7 @@ export const ExecutiveInsightsPage: React.FC = () => {
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[860px] rounded-[18px] p-4 ${msg.role === 'user' ? 'bg-navy-900 text-white rounded-br-[6px]' : 'bg-canvas text-ink border border-border-color rounded-bl-[6px]'}`}>
                 <div className="whitespace-pre-wrap leading-relaxed text-[14px]">{msg.text}</div>
+                {msg.role === 'assistant' && msg.telemetry && <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />}
                 {msg.visuals?.map((visual, idx) => (
                   <div key={`${msg.id}-${idx}`} className="mt-4 bg-white border border-border-color rounded-[16px] p-4">
                     <div className="font-semibold text-[13px] mb-3">{visual.title}</div>

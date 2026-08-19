@@ -1,7 +1,7 @@
-﻿# IIIoT Manufacturing Agentic AI Platform Documentation
+﻿# IIIIoT Manufacturing Agentic AI Platform Documentation
 
 ## Project Overview
-This repository is a NotebookLM-friendly documentation set derived from the HTML simulation of the IIIoT Manufacturing Agentic AI Platform.
+This repository is a NotebookLM-friendly documentation set derived from the HTML simulation of the IIIIoT Manufacturing Agentic AI Platform.
 
 ## Documentation Tree
 - [00_Project_Overview](./00_Project_Overview.md)

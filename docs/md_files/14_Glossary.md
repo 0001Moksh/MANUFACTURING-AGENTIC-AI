@@ -8,7 +8,7 @@ Define the recurring terms used throughout the documentation.
 | OEE | Overall Equipment Effectiveness, a composite manufacturing efficiency metric |
 | MES | Manufacturing Execution System |
 | ERP | Enterprise Resource Planning system |
-| IIoT | Industrial Internet of Things |
+| IIIoT | Industrial Internet of Things |
 | RBAC | Role-Based Access Control |
 | Agentic AI | AI that can plan, act, and escalate within guardrails |
 | Digital Twin | A live or simulated operational model used for what-if analysis |
@@ -32,7 +32,7 @@ See also:
 # Project Overview
 
 ## Purpose
-This repository documents the **IIIoT Manufacturing Agentic AI Platform** simulated in the source HTML walkthrough.
+This repository documents the **IIIIoT Manufacturing Agentic AI Platform** simulated in the source HTML walkthrough.
 
 ## Description
 The platform presents a unified command centre for manufacturing leaders, digital heads, HSE teams, and operations staff. It combines agentic AI, generative AI, vision AI, IoT telemetry, and enterprise integrations to support production, safety, finance, planning, and governance.

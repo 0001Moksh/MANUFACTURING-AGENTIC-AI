@@ -7,6 +7,7 @@ import { useIntegrations } from '../../services/IntegrationContext';
 interface UseCaseCardProps {
   useCase: UseCase;
   onClick: () => void;
+  isComingSoon?: boolean;
 }
 
 const tagColors: Record<string, string> = {
@@ -35,10 +36,11 @@ function useBlockedIntegration(useCase: UseCase): string | null {
   return null;
 }
 
-export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) => {
+export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isComingSoon: forcedComingSoon = false }) => {
   const navigate = useNavigate();
   const blockedIntegration = useBlockedIntegration(useCase);
-  const isBlocked = blockedIntegration !== null;
+  const isComingSoon = forcedComingSoon || useCase.status === 'pilot';
+  const isBlocked = blockedIntegration !== null || isComingSoon;
 
   return (
     <motion.div
@@ -50,7 +52,7 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
       onClick={isBlocked ? undefined : onClick}
       className={`bg-panel border border-border-color rounded-[13px] p-[16px_17px] flex flex-col gap-[9px] transition-colors ${
         isBlocked
-          ? 'opacity-60 grayscale-[0.25] cursor-not-allowed'
+          ? 'opacity-90 grayscale-0 cursor-not-allowed border-dashed bg-[#F8F9FC]'
           : 'cursor-pointer hover:border-border-color/80'
       }`}
     >
@@ -61,7 +63,9 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
         </span>
 
         {/* Status chip — replaced with "Requires Connection" badge when blocked */}
-        {isBlocked ? (
+        {isComingSoon ? (
+          <span className="ml-auto text-[9.5px] font-extrabold tracking-[0.6px] py-[3px] px-[8px] rounded-[5px] bg-navy-900 text-white border border-navy-800 shadow-sm whitespace-nowrap">COMING SOON</span>
+        ) : blockedIntegration ? (
           <span className="ml-auto inline-flex items-center gap-[4px] text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[8px] rounded-[20px] bg-amber-tint text-[#9A6400] whitespace-nowrap">
             <span>⚠</span>
             Requires {blockedIntegration}
@@ -93,7 +97,11 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
       <div className="text-[12px] text-muted leading-[1.5] flex-1">{useCase.desc}</div>
 
       {/* "Connect to activate" footer note when blocked */}
-      {isBlocked && (
+      {isComingSoon ? (
+        <div className="flex items-center gap-[6px] bg-canvas border border-border-color rounded-[7px] px-[9px] py-[6px]">
+          <span className="text-[10.5px] text-faint font-medium">This roadmap use case is not available yet.</span>
+        </div>
+      ) : blockedIntegration && (
         <div className="flex items-center gap-[6px] bg-amber-tint/60 border border-amber/15 rounded-[7px] px-[9px] py-[6px]">
           <span className="text-[12px]">🔌</span>
           <span className="text-[10.5px] text-[#9A6400] font-medium">
@@ -108,6 +116,7 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
           {useCase.poweredBy.map(agentName => (
             <button
               key={agentName}
+              disabled={isComingSoon}
               onClick={e => {
                 e.stopPropagation();
                 if (agentName === 'Reporting Agent') {
@@ -124,7 +133,7 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick }) =>
                   navigate('/agents');
                 }
               }}
-              className="bg-teal-tint/60 hover:bg-teal hover:text-white text-teal-deep font-semibold px-1.5 py-0.5 rounded text-[9.5px] transition-colors border-none cursor-pointer"
+              className={`font-semibold px-1.5 py-0.5 rounded text-[9.5px] transition-colors border-none ${isComingSoon ? 'bg-canvas text-faint cursor-not-allowed' : 'bg-teal-tint/60 hover:bg-teal hover:text-white text-teal-deep cursor-pointer'}`}
             >
               {agentName}
             </button>

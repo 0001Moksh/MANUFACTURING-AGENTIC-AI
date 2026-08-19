@@ -1,4 +1,4 @@
-# IIIoT Manufacturing Agentic AI Platform
+# IIIIoT Manufacturing Agentic AI Platform
 
 Enterprise Manufacturing Intelligence & Agentic AI Orchestration Platform for MES, Video Analytics, and Industrial IoT unification.
 

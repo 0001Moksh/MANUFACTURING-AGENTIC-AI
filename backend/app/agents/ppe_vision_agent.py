@@ -22,9 +22,7 @@ from typing_extensions import TypedDict
 
 # ── Re-use the shared construction_ai engine ─────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
-    "CONSTRUCTION_DB_URL",
-    "postgresql+psycopg2://postgres:0987654321@localhost:5432/construction_ai",
-)
+    "CONSTRUCTION_DB_URL")
 
 try:
     _ppe_engine = create_engine(_CONSTRUCTION_DB_URL)

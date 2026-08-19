@@ -405,7 +405,7 @@ export const SafetySiteIntelligencePage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="h-[calc(100vh-100px)] flex flex-col gap-3.5"
+      className="min-h-[calc(100vh-100px)] flex flex-col gap-3.5"
     >
       {/* ── Back button ── */}
       <button
@@ -457,9 +457,9 @@ export const SafetySiteIntelligencePage: React.FC = () => {
       </div>
 
       {/* ── Main Two-Column Layout: Spatial Heatmap + Context-Aware Chatbot ── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3.5 min-h-0 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 min-h-0">
         {/* Left Column (6/12): Spatial Floor Heatmap */}
-        <div className="lg:col-span-6 flex flex-col h-full min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="lg:col-span-6 flex flex-col min-w-0">
           <SpatialFloorHeatmap
             zones={zones}
             summary={summary}
@@ -473,7 +473,7 @@ export const SafetySiteIntelligencePage: React.FC = () => {
         </div>
 
         {/* Right Column (6/12): Integrated Context-Aware Chatbot */}
-        <div className="lg:col-span-6 flex flex-col bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-0">
+        <div className="lg:col-span-6 flex flex-col bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-[620px]">
           {/* Chat Header */}
           <div className="px-4 py-3 border-b border-border-color bg-canvas flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">

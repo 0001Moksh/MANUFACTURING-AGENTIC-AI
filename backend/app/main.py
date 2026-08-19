@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,12 +13,25 @@ from app.db import init_db
 from app.routes import router, stream_agent_events
 from app.scheduler import start_scheduler, stop_scheduler
 
+logger = logging.getLogger("mai.startup")
+DATABASE_STARTUP_TIMEOUT_SECONDS = float(os.getenv("DATABASE_STARTUP_TIMEOUT_SECONDS", "30"))
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize database tables and seed values
-    print("Initializing database...")
-    await init_db()
-    print("Database initialized successfully.")
+    logger.info("Initializing required platform database.")
+    try:
+        await asyncio.wait_for(init_db(), timeout=DATABASE_STARTUP_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError as exc:
+        logger.critical(
+            "Database initialization exceeded the %ss startup timeout.",
+            DATABASE_STARTUP_TIMEOUT_SECONDS,
+        )
+        raise RuntimeError("Database initialization timed out; application will not start.") from exc
+    except Exception:
+        logger.exception("Database initialization failed; application will not start.")
+        raise
+    logger.info("Required platform database initialized successfully.")
     
     # Start WebSocket background broadcaster
     event_loop_task = asyncio.create_task(stream_agent_events())
@@ -41,10 +56,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for frontend origin
+# Allow the configured frontend to make authenticated API requests.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,7 +67,6 @@ app.add_middleware(
 
 # Include routes
 from fastapi.staticfiles import StaticFiles
-import os
 
 os.makedirs("reports", exist_ok=True)
 app.mount("/reports", StaticFiles(directory="reports"), name="reports")
@@ -61,4 +75,11 @@ app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    reload_enabled = os.getenv("APP_RELOAD", "false").lower() in {"1", "true", "yes"}
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=reload_enabled,
+        reload_excludes=["reports/*", "logs/*", "*.pdf"] if reload_enabled else None,
+    )

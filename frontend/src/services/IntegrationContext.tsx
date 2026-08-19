@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-
-const API_BASE = 'http://localhost:8000/api';
+import { API_BASE_URL } from '../config/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +28,7 @@ export const IntegrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Fetch all integration states once on mount
   useEffect(() => {
-    fetch(`${API_BASE}/admin/integrations`)
+    fetch(`${API_BASE_URL}/admin/integrations`)
       .then(r => r.json())
       .then((data: { name: string; is_enabled: boolean }[]) => {
         const states: Record<string, boolean> = {};
@@ -47,7 +46,7 @@ export const IntegrationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const toggleIntegration = useCallback(async (name: string, currentState: boolean) => {
     const newState = !currentState;
     try {
-      const res = await fetch(`${API_BASE}/admin/integrations/toggle`, {
+      const res = await fetch(`${API_BASE_URL}/admin/integrations/toggle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, enabled: newState }),

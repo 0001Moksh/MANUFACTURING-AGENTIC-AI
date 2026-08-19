@@ -17,7 +17,7 @@ export const UsersTable: React.FC = () => {
           <tr className="border-b border-[#F0F2F7] last:border-b-0">
             <td className="p-[12px_14px] align-middle">
               <b className="font-bold">Super Admin</b><br />
-              <span className="text-muted text-[11.5px]">IIIoT Platform Team</span>
+              <span className="text-muted text-[11.5px]">IIIIoT Platform Team</span>
             </td>
             <td className="p-[12px_14px] align-middle">All sites</td>
             <td className="p-[12px_14px] align-middle">Full config · model governance · billing</td>

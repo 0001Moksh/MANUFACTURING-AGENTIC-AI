@@ -35,8 +35,7 @@ load_dotenv()
 
 # 1. PostgreSQL – construction_ai (Video Analytics / HSE)
 _PG_URL = os.getenv(
-    "CONSTRUCTION_DB_URL",
-    "postgresql+psycopg2://postgres:0987654321@localhost:5432/construction_ai",
+    "CONSTRUCTION_DB_URL"
 )
 
 try:

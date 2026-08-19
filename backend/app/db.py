@@ -5,15 +5,19 @@ from sqlalchemy import create_engine as create_sync_engine
 from urllib.parse import quote_plus
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, select
+from sqlalchemy import String, Integer, Float, Boolean, DateTime, select, text
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
-DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
-DB_SERVER = os.getenv("DB_SERVER", "localhost")
-DB_NAME = os.getenv("DB_NAME", "mes_new")
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./mai_platform.db")
+DB_DRIVER = os.getenv("DB_DRIVER")
+DB_SERVER = os.getenv("DB_SERVER")
+DB_NAME = os.getenv("DB_NAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_CONNECT_TIMEOUT_SECONDS = float(os.getenv("DATABASE_CONNECT_TIMEOUT_SECONDS", "10"))
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is required but was not configured.")
 
 import time
 
@@ -88,9 +92,7 @@ def test_video_analytics_connection(force: bool = False) -> dict:
     try:
         import psycopg2
         pg_url = os.getenv(
-            "CONSTRUCTION_AI_PG_URL",
-            "postgresql://postgres:0987654321@localhost:5432/construction_ai"
-        )
+            "CONSTRUCTION_DB_URL")
         conn = psycopg2.connect(pg_url, connect_timeout=5)
         conn.close()
         video_analytics_db_status = {
@@ -111,11 +113,19 @@ def test_video_analytics_connection(force: bool = False) -> dict:
 test_mes_connection(force=True)
 test_video_analytics_connection(force=True)
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    connect_args={
+        "timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
+        "command_timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
+    },
+)
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 # Sync engine for local DB (used by synchronous tools)
-from sqlalchemy import create_engine as create_sync_engine_sqlite, text
+from sqlalchemy import create_engine as create_sync_engine_sqlite
 sync_engine_local = create_sync_engine_sqlite("sqlite:///./mai_platform.db")
 
 def is_integration_enabled(name: str) -> bool:
@@ -286,6 +296,15 @@ async def seed_data(session: AsyncSession):
     await session.commit()
 
 async def init_db():
+    """Verify the required platform database before running schema initialization."""
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Required platform database connection failed ({DATABASE_URL!r}): {exc}"
+        ) from exc
+
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)

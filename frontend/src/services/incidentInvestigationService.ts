@@ -1,4 +1,5 @@
 import { api } from './api';
+import { API_BASE_URL } from '../config/api';
 
 export interface ToolInvocation {
   name: string;
@@ -73,7 +74,7 @@ export const incidentInvestigationService = {
     callbacks: StreamCallbacks
   ): Promise<void> => {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:8000/api/incident-investigation/stream', {
+    const response = await fetch(`${API_BASE_URL}/incident-investigation/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

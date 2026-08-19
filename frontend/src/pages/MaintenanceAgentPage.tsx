@@ -167,7 +167,7 @@ export const MaintenanceAgentPage: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="h-[calc(100vh-110px)] flex flex-col gap-4">
-      <button onClick={() => navigate('/agents')} className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0 w-fit">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0 w-fit">
         <ArrowLeft className="w-4 h-4" /> Back to AI Agents
       </button>
       <div className="bg-gradient-to-r from-navy-900 via-navy-800 to-teal-deep text-white rounded-[20px] p-6">

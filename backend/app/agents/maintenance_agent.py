@@ -17,7 +17,7 @@ from langchain_litellm import ChatLiteLLM
 from app.db import AlertMaster, MachineMaster, WorkOrder, sync_mes_engine
 
 
-SYSTEM_PROMPT = """You are Deva, a Smart IIoT Maintenance Assistant.
+SYSTEM_PROMPT = """You are Deva, a Smart IIIoT Maintenance Assistant.
 Address the user as 'sir'.
 
 Use the available tools to answer questions about:

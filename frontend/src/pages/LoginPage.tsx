@@ -37,7 +37,7 @@ export const LoginPage: React.FC = () => {
             <Terminal className="w-[28px] h-[28px]" />
           </div>
           <h2 className="font-head text-[22px] font-extrabold m-0 tracking-tight">Manufacturing Agentic AI</h2>
-          <p className="text-[12.5px] text-muted mt-1.5 leading-relaxed">Enterprise IIoT & MES Orchestration Console</p>
+          <p className="text-[12.5px] text-muted mt-1.5 leading-relaxed">Enterprise IIIoT & MES Orchestration Console</p>
         </div>
 
         {error && (

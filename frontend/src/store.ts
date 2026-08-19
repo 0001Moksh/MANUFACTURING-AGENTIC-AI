@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { API_BASE_URL } from './config/api';
 
 export type PersonaType = 'both' | 'mfg' | 'it';
 
@@ -122,7 +123,7 @@ export const useStore = create<PlatformState>((set) => {
 
   fetchGovernanceSettings: async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/admin/governance/settings');
+      const res = await fetch(`${API_BASE_URL}/admin/governance/settings`);
       if (!res.ok) return;
       const settings: { setting_key: string; is_enabled: boolean }[] = await res.json();
       const explainability = settings.find(s => s.setting_key === 'explainability_logging');
@@ -142,7 +143,7 @@ export const useStore = create<PlatformState>((set) => {
     if (setting_key === 'explainability_logging') set({ explainableLogs: enabled });
     if (setting_key === 'hitl_approval') set({ humanInLoop: enabled });
     try {
-      await fetch('http://localhost:8000/api/admin/governance/settings', {
+      await fetch(`${API_BASE_URL}/admin/governance/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ setting_key, enabled }),

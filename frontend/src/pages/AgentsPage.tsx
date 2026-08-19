@@ -5,6 +5,15 @@ import { AgentCard } from '../components/agents/AgentCard';
 import { agents, AGENT_INTEGRATION_DEPENDENCY } from '../data/mockData';
 import { useIntegrations } from '../services/IntegrationContext';
 
+const ACTIVE_AGENT_NAMES = new Set([
+  'Maintenance Agent',
+  'Reporting Agent',
+  'Safety & Quality Agent',
+  'Permit-to-Work Agent',
+  'PPE & Behavior Vision Agent',
+  'Incident & Investigation Agent',
+]);
+
 // ─── Simple toast helper ──────────────────────────────────────────────────────
 
 interface Toast {
@@ -37,9 +46,11 @@ const ToastList: React.FC<{ toasts: Toast[] }> = ({ toasts }) => (
 
 export const AgentsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [activeAgentName, setActiveAgentName] = useState('Operations Agent');
+  const [activeAgentName, setActiveAgentName] = useState('Maintenance Agent');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const { integrationStates } = useIntegrations();
+  const activeAgents = agents.filter(agent => ACTIVE_AGENT_NAMES.has(agent.n));
+  const upcomingAgents = agents.filter(agent => !ACTIVE_AGENT_NAMES.has(agent.n));
 
   /** Show a temporary toast that auto-dismisses after 3.5 s */
   const showToast = useCallback((message: string) => {
@@ -63,6 +74,7 @@ export const AgentsPage: React.FC = () => {
   );
 
   const handleAgentClick = (agentName: string) => {
+    if (!ACTIVE_AGENT_NAMES.has(agentName)) return;
     // Guard: check if the required integration is disabled
     const blockReason = getBlockReason(agentName);
     if (blockReason) {
@@ -102,7 +114,7 @@ export const AgentsPage: React.FC = () => {
           Always On, Always Acting
         </div>
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
-          13 Specialized AI Agents
+          AI Agent Portfolio
         </h2>
         <p className="m-0 text-muted text-[13.5px] max-w-[720px] leading-relaxed">
           Each agent can be toggled per site by a Plant Digital Head. Agents whose data source is
@@ -112,16 +124,35 @@ export const AgentsPage: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px] mb-8">
-        {agents.map((a, i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
+        {activeAgents.map((a, i) => (
           <AgentCard
             key={i}
             agent={a}
             isSelected={activeAgentName === a.n}
+            isComingSoon={!ACTIVE_AGENT_NAMES.has(a.n)}
             onClick={() => handleAgentClick(a.n)}
           />
         ))}
       </div>
+
+      <hr className="my-9 border-0 border-t border-border-color" />
+      <section aria-labelledby="future-agents-heading">
+        <h3 id="future-agents-heading" className="font-head text-[18px] font-extrabold text-ink m-[0_0_16px]">
+          Future Capabilities &amp; Coming Soon
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
+          {upcomingAgents.map(a => (
+            <AgentCard
+              key={a.n}
+              agent={a}
+              isSelected={activeAgentName === a.n}
+              isComingSoon
+              onClick={() => handleAgentClick(a.n)}
+            />
+          ))}
+        </div>
+      </section>
 
       {/* Toast layer */}
       <ToastList toasts={toasts} />

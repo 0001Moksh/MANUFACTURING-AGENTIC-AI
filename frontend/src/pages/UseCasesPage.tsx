@@ -5,6 +5,8 @@ import { UseCaseCard } from '../components/usecases/UseCaseCard';
 import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
 
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9]);
+
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
@@ -20,6 +22,8 @@ export const UseCasesPage: React.FC = () => {
     }
     return true;
   });
+  const activeUseCases = filtered.filter(useCase => ACTIVE_USE_CASE_IDS.has(useCase.id));
+  const upcomingUseCases = filtered.filter(useCase => !ACTIVE_USE_CASE_IDS.has(useCase.id));
 
   return (
     <motion.div
@@ -50,7 +54,7 @@ export const UseCasesPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
-        {filtered.map(u => (
+        {activeUseCases.map(u => (
           <UseCaseCard 
             key={u.id} 
             useCase={u} 
@@ -69,6 +73,19 @@ export const UseCasesPage: React.FC = () => {
         ))}
       </div>
 
+      {upcomingUseCases.length > 0 && (
+        <section aria-labelledby="future-use-cases-heading">
+          <hr className="my-9 border-0 border-t border-border-color" />
+          <h3 id="future-use-cases-heading" className="font-head text-[18px] font-extrabold text-ink m-[0_0_16px]">
+            Future Capabilities &amp; Coming Soon
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
+            {upcomingUseCases.map(u => (
+              <UseCaseCard key={u.id} useCase={u} isComingSoon onClick={() => navigate(`/use-cases/${u.id}`)} />
+            ))}
+          </div>
+        </section>
+      )}
 
     </motion.div>
   );

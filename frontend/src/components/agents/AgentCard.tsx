@@ -8,9 +8,10 @@ interface AgentCardProps {
   agent: Agent;
   onClick?: () => void;
   isSelected?: boolean;
+  isComingSoon?: boolean;
 }
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected, isComingSoon = false }) => {
   const navigate = useNavigate();
   const [isOn, setIsOn] = useState(true);
   const { integrationStates } = useIntegrations();
@@ -34,9 +35,11 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
 
   return (
     <div
-      onClick={integrationBlocked ? undefined : onClick}
+      onClick={integrationBlocked || isComingSoon ? undefined : onClick}
       className={`bg-panel border rounded-[13px] p-[16px_18px] flex flex-col transition-all duration-300 ${
-        integrationBlocked
+        isComingSoon
+          ? 'opacity-90 grayscale-0 cursor-not-allowed border-dashed border-border-color bg-[#F8F9FC]'
+          : integrationBlocked
           ? 'opacity-60 grayscale-[0.3] cursor-not-allowed border-border-color'
           : isSelected
           ? 'border-teal shadow-md ring-1 ring-teal/20 hover:border-teal/50 hover:shadow-sm cursor-pointer'
@@ -47,7 +50,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
         {/* Status dot — grey if integration blocked */}
         <div
           className={`w-[9px] h-[9px] rounded-full shrink-0 ${
-            integrationBlocked
+            integrationBlocked || isComingSoon
               ? 'bg-[#B0BAD4]'
               : agent.status === 'active'
               ? 'bg-green shadow-[0_0_0_3px_var(--color-green-tint)]'
@@ -55,14 +58,17 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
           }`}
         />
         <div className="font-head font-bold text-[13.5px] flex-1 truncate">{agent.n}</div>
+        {isComingSoon && <span className="text-[9px] font-extrabold tracking-[0.6px] py-[3px] px-[7px] rounded-[5px] bg-navy-900 text-white border border-navy-800 shadow-sm whitespace-nowrap">COMING SOON</span>}
 
         {/* Agent on/off toggle — still functional for admins */}
+        {!isComingSoon && (
         <button
+          disabled={isComingSoon}
           onClick={e => {
             e.stopPropagation();
             handleToggle();
           }}
-          className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
+          className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors ${isComingSoon ? 'cursor-not-allowed bg-[#D7DCE8]' : 'cursor-pointer'} ${
             isOn ? 'bg-green' : 'bg-[#D7DCE8]'
           }`}
         >
@@ -72,12 +78,13 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
             }`}
           />
         </button>
+        )}
       </div>
 
       <div className="text-[12px] text-muted leading-[1.5] mb-[10px] flex-1">{agent.desc}</div>
 
       {/* "Requires Connection" warning banner */}
-      {integrationBlocked && (
+      {integrationBlocked && !isComingSoon && (
         <div className="mb-[10px] flex items-start gap-[6px] bg-amber-tint border border-amber/20 rounded-[8px] px-[10px] py-[7px]">
           <span className="text-[13px] shrink-0 mt-[1px]">⚠️</span>
           <div className="text-[10.5px] text-[#9A6400] leading-[1.45] font-medium">
@@ -99,11 +106,12 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
             {poweredUseCases.map(uc => (
               <button
                 key={uc.id}
+                disabled={isComingSoon}
                 onClick={e => {
                   e.stopPropagation();
                   navigate(`/use-cases/${uc.id}`);
                 }}
-                className="bg-canvas hover:bg-teal-tint hover:text-teal-deep text-ink text-[10px] font-medium py-0.5 px-2 rounded border border-border-color/80 transition-colors truncate max-w-[190px] cursor-pointer"
+                className={`bg-canvas text-ink text-[10px] font-medium py-0.5 px-2 rounded border border-border-color/80 transition-colors truncate max-w-[190px] ${isComingSoon ? 'cursor-not-allowed' : 'hover:bg-teal-tint hover:text-teal-deep cursor-pointer'}`}
                 title={uc.title}
               >
                 UC{String(uc.id).padStart(2, '0')}: {uc.title}

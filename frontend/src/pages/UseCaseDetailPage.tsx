@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Settings2 } from 'lucide-react';
 import { useCases, pillarMeta, adminTemplates } from '../data/mockData';
 import { VoiceInteraction } from '../components/usecases/VoiceInteraction';
+import { API_BASE_URL } from '../config/api';
 
 const tagColors: Record<string, string> = {
   AGENTIC: 'bg-amber-tint text-[#9A6400]',
@@ -34,7 +35,7 @@ export const UseCaseDetailPage: React.FC = () => {
     }
 
     if (useCase && useCase.id === 1) {
-      fetch('http://localhost:8000/api/agent-reporting/settings')
+      fetch(`${API_BASE_URL}/agent-reporting/settings`)
         .then(res => res.json())
         .then(data => {
           if (!data.error) {
@@ -48,7 +49,7 @@ export const UseCaseDetailPage: React.FC = () => {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      await fetch('http://localhost:8000/api/agent-reporting/settings', {
+      await fetch(`${API_BASE_URL}/agent-reporting/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
@@ -74,6 +75,7 @@ export const UseCaseDetailPage: React.FC = () => {
     .concat(adminTemplates[useCase.tags[1]] ? adminTemplates[useCase.tags[1]].slice(0, 1) : []);
 
   const isDailyReporting = useCase.id === 1;
+  const isVoiceInteraction = useCase.id === 2;
 
   return (
     <motion.div
@@ -156,8 +158,9 @@ export const UseCaseDetailPage: React.FC = () => {
             </div>
           )}
           
-          <div className="grid lg:grid-cols-2 gap-[24px] flex-1">
-             <div className="flex flex-col h-full">
+          <div className={`${isVoiceInteraction || isDailyReporting ? 'flex-1' : 'grid lg:grid-cols-2 gap-[24px] flex-1'}`}>
+             {!isVoiceInteraction && (
+             <div className={`flex flex-col h-full ${isDailyReporting ? 'max-w-[840px]' : ''}`}>
                 {isDailyReporting ? (
                 <div className="border border-dashed border-[#C9D2E6] rounded-[12px] p-[20px_24px] bg-[#FAFBFE] h-full flex flex-col">
                     <div className="flex items-center gap-[8px] mb-[20px]">
@@ -252,8 +255,10 @@ export const UseCaseDetailPage: React.FC = () => {
                 </div>
                 )}
              </div>
+             )}
 
-             <div className="h-[500px] lg:h-auto min-h-[400px]">
+             {!isDailyReporting && (
+             <div className={isVoiceInteraction ? 'h-[620px] max-w-[960px] mx-auto' : 'h-[500px] lg:h-auto min-h-[400px]'}>
                 <VoiceInteraction 
                   useCaseName={useCase.title} 
                   defaultAgent={
@@ -263,6 +268,7 @@ export const UseCaseDetailPage: React.FC = () => {
                   }
                 />
              </div>
+             )}
           </div>
         </div>
       </div>

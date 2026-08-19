@@ -127,7 +127,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
       )}
 
       {/* ── Floor Map Canvas ── */}
-      <div className="relative bg-[#060D1A] rounded-2xl border border-white/15 overflow-hidden flex items-center justify-center min-h-[340px]">
+      <div className="relative bg-[#060D1A] rounded-2xl border border-white/15 overflow-hidden flex items-center justify-center aspect-[8/5] min-h-[260px]">
         {/* Subtle grid pattern */}
         <div
           className="absolute inset-0 opacity-15 pointer-events-none"
@@ -139,7 +139,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
 
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="w-full h-auto max-h-[460px] select-none"
+          className="w-full h-full select-none"
         >
           {/* Architectural perimeter and corridor guides */}
           <rect

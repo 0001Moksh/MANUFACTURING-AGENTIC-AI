@@ -7,7 +7,7 @@ import { telemetryService } from '../../services/api';
 import { ChatBot } from '../common/ChatBot';
 
 export const Layout: React.FC = () => {
-  const { persona, setPersona, setTelemetryStats } = useStore();
+  const { persona, setTelemetryStats } = useStore();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -36,12 +36,12 @@ export const Layout: React.FC = () => {
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
-        <Topbar persona={persona} setPersona={setPersona} />
+        <Topbar />
         <main className="flex-1 p-[26px_30px_60px] max-w-[1400px] w-full mx-auto">
           <Outlet context={{ persona }} />
         </main>
         <footer className="text-center py-[30px] pb-[10px] text-faint text-[11.5px]">
-          IIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.
+          IIIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.
         </footer>
       </div>
       <ChatBot />

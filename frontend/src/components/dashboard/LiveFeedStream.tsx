@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { feedPool } from '../../data/mockData';
+import { websocketUrl } from '../../config/api';
 
 interface FeedItem {
   id: string;
@@ -56,7 +57,7 @@ export const LiveFeedStream: React.FC = () => {
 
     const connectWS = () => {
       try {
-        ws = new WebSocket('ws://localhost:8000/api/ws/telemetry');
+        ws = new WebSocket(websocketUrl('/ws/telemetry'));
         
         ws.onmessage = (event) => {
           try {
