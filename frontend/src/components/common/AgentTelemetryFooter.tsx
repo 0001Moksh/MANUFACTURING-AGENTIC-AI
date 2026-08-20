@@ -3,11 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Clock,
   Wrench,
-  Coins,
   ChevronDown,
   ChevronUp,
-  Copy,
-  Check,
   Cpu,
   Sparkles,
 } from 'lucide-react';
@@ -25,12 +22,10 @@ interface AgentTelemetryFooterProps {
 export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
   telemetry,
   tools = [],
-  rawText,
   className = '',
 }) => {
   const { explainableLogs } = useStore();
   const [isOpen, setIsOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   if (!explainableLogs) {
     return null;
@@ -43,14 +38,6 @@ export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
     prompt_tokens: 420,
     completion_tokens: 180,
     total_tokens: 600,
-  };
-
-  const handleCopy = () => {
-    if (rawText) {
-      navigator.clipboard.writeText(rawText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
   };
 
   return (

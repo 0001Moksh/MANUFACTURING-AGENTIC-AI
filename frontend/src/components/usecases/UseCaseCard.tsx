@@ -20,17 +20,23 @@ const tagColors: Record<string, string> = {
 };
 
 /**
- * Returns the first blocked integration name for this use case,
+ * Returns the first blocked dependency (offline agent or missing integration) for this use case,
  * or null if all dependencies are satisfied.
  */
-function useBlockedIntegration(useCase: UseCase): string | null {
-  const { integrationStates } = useIntegrations();
+function useBlockedDependency(useCase: UseCase): { type: 'agent' | 'integration'; name: string } | null {
+  const { integrationStates, agentStates } = useIntegrations();
   if (!useCase.poweredBy || useCase.poweredBy.length === 0) return null;
 
   for (const agentName of useCase.poweredBy) {
+    // 1. Check if the AI Agent itself has been disabled by Admin
+    if (agentStates[agentName] === false) {
+      return { type: 'agent', name: agentName };
+    }
+
+    // 2. Check if the required integration for the AI Agent is disabled
     const required = AGENT_INTEGRATION_DEPENDENCY[agentName] ?? null;
     if (required !== null && integrationStates[required] === false) {
-      return required;
+      return { type: 'integration', name: required };
     }
   }
   return null;
@@ -38,9 +44,9 @@ function useBlockedIntegration(useCase: UseCase): string | null {
 
 export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isComingSoon: forcedComingSoon = false }) => {
   const navigate = useNavigate();
-  const blockedIntegration = useBlockedIntegration(useCase);
+  const blockedDep = useBlockedDependency(useCase);
   const isComingSoon = forcedComingSoon || useCase.status === 'pilot';
-  const isBlocked = blockedIntegration !== null || isComingSoon;
+  const isBlocked = blockedDep !== null || isComingSoon;
 
   return (
     <motion.div
@@ -62,13 +68,18 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
           UC{String(useCase.id).padStart(2, '0')}
         </span>
 
-        {/* Status chip — replaced with "Requires Connection" badge when blocked */}
+        {/* Status chip — replaced with "Unavailable - Agent Offline" or "Requires Integration" badge when blocked */}
         {isComingSoon ? (
           <span className="ml-auto text-[9.5px] font-extrabold tracking-[0.6px] py-[3px] px-[8px] rounded-[5px] bg-navy-900 text-white border border-navy-800 shadow-sm whitespace-nowrap">COMING SOON</span>
-        ) : blockedIntegration ? (
+        ) : blockedDep?.type === 'agent' ? (
+          <span className="ml-auto inline-flex items-center gap-[4px] text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[8px] rounded-[20px] bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+            Unavailable - Agent Offline
+          </span>
+        ) : blockedDep?.type === 'integration' ? (
           <span className="ml-auto inline-flex items-center gap-[4px] text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[8px] rounded-[20px] bg-amber-tint text-[#9A6400] whitespace-nowrap">
             <span>⚠</span>
-            Requires {blockedIntegration}
+            Requires {blockedDep.name}
           </span>
         ) : (
           <span
@@ -96,16 +107,23 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
 
       <div className="text-[12px] text-muted leading-[1.5] flex-1">{useCase.desc}</div>
 
-      {/* "Connect to activate" footer note when blocked */}
+      {/* Warning banner when blocked */}
       {isComingSoon ? (
         <div className="flex items-center gap-[6px] bg-canvas border border-border-color rounded-[7px] px-[9px] py-[6px]">
           <span className="text-[10.5px] text-faint font-medium">This roadmap use case is not available yet.</span>
         </div>
-      ) : blockedIntegration && (
+      ) : blockedDep?.type === 'agent' ? (
+        <div className="flex items-center gap-[6px] bg-red-50 border border-red-200/80 rounded-[7px] px-[9px] py-[6px]">
+          <span className="text-[12px]">🚫</span>
+          <span className="text-[10.5px] text-red-700 font-medium">
+            Powering agent <span className="font-bold">{blockedDep.name}</span> is disabled in AI Agents portfolio.
+          </span>
+        </div>
+      ) : blockedDep?.type === 'integration' && (
         <div className="flex items-center gap-[6px] bg-amber-tint/60 border border-amber/15 rounded-[7px] px-[9px] py-[6px]">
           <span className="text-[12px]">🔌</span>
           <span className="text-[10.5px] text-[#9A6400] font-medium">
-            Connect <span className="font-bold">{blockedIntegration}</span> in Admin Console to activate.
+            Connect <span className="font-bold">{blockedDep.name}</span> in Admin Console to activate.
           </span>
         </div>
       )}

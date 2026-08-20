@@ -3,13 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UsersTable } from '../components/admin/UsersTable';
 import { ConnectorsGrid } from '../components/admin/ConnectorsGrid';
 import { RulesBuilder } from '../components/admin/RulesBuilder';
-import { usePersona } from '../components/layout/Layout';
 import { useStore } from '../store';
-import { guardrails, channels } from '../data/mockData';
-import { ShieldCheck, Settings } from 'lucide-react';
+import { guardrails } from '../data/mockData';
 
 export const AdminConsolePage: React.FC = () => {
-  const { persona } = usePersona();
   const { explainableLogs, humanInLoop, toggleGovernanceSetting } = useStore();
   const [activePane, setActivePane] = useState('users');
 

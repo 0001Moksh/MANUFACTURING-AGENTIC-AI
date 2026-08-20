@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Shield, LogIn, RefreshCw, AlertCircle } from 'lucide-react';
+import { Shield, LogIn, RefreshCw, AlertCircle } from 'lucide-react';
 import { authService } from '../services/api';
 import { useStore } from '../store';
 
@@ -27,17 +27,18 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] text-[#FAFBFE] p-4 relative overflow-hidden font-sans">
-      {/* Background gradients */}
+      {/* Background logo watermark & gradients */}
+      <img src="/logo-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover opacity-10 pointer-events-none filter blur-xs" />
       <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-teal-tint/10 blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-purple-tint/5 blur-[120px]" />
 
       <div className="w-full max-w-[420px] bg-[#111625]/90 border border-border-color/30 rounded-[18px] p-8 shadow-2xl backdrop-blur-md relative z-10">
         <div className="flex flex-col items-center mb-8 text-center">
-          <div className="w-[54px] h-[54px] rounded-[14px] bg-teal-tint/20 text-teal flex items-center justify-center mb-4">
-            <Terminal className="w-[28px] h-[28px]" />
+          <div className="w-[64px] h-[64px] rounded-[16px] bg-white/10 p-2 flex items-center justify-center mb-4 border border-white/20 shadow-lg">
+            <img src="/logo.png" alt="IIIIoT Logo" className="w-full h-full object-contain" />
           </div>
           <h2 className="font-head text-[22px] font-extrabold m-0 tracking-tight">Manufacturing Agentic AI</h2>
-          <p className="text-[12.5px] text-muted mt-1.5 leading-relaxed">Enterprise IIIoT & MES Orchestration Console</p>
+          <p className="text-[12.5px] text-muted mt-1.5 leading-relaxed">Enterprise IIIIoT &amp; MES Orchestration Console</p>
         </div>
 
         {error && (

@@ -9,6 +9,7 @@ import {
   Activity,
   MapPin,
   ChevronRight,
+  X,
 } from 'lucide-react';
 import type { HeatmapZone, HeatmapSummary } from '../../services/safetySiteIntelligenceService';
 
@@ -365,9 +366,18 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-md"
+            className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-md relative"
           >
-            <div className="space-y-1 min-w-0">
+            {/* Close (X) control button */}
+            <button
+              onClick={() => onSelectZone(null)}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all cursor-pointer border-none flex items-center justify-center z-10"
+              title="Close inspection panel (or click zone again)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="space-y-1 min-w-0 pr-8 md:pr-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedZone.color }} />
                 <span className="text-[11px] uppercase tracking-wider text-white/70 font-semibold">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { type Agent, useCases, AGENT_INTEGRATION_DEPENDENCY } from '../../data/mockData';
 import { agentService } from '../../services/api';
 import { useIntegrations } from '../../services/IntegrationContext';
@@ -13,8 +13,8 @@ interface AgentCardProps {
 
 export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected, isComingSoon = false }) => {
   const navigate = useNavigate();
-  const [isOn, setIsOn] = useState(true);
-  const { integrationStates } = useIntegrations();
+  const { integrationStates, agentStates, toggleAgentState } = useIntegrations();
+  const isAgentEnabled = agentStates[agent.n] ?? true;
 
   const poweredUseCases = useCases.filter(u => u.poweredBy?.includes(agent.n));
 
@@ -24,8 +24,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
     requiredIntegration !== null && integrationStates[requiredIntegration] === false;
 
   const handleToggle = async () => {
-    const nextState = !isOn;
-    setIsOn(nextState);
+    const nextState = !isAgentEnabled;
+    await toggleAgentState(agent.n, nextState);
     try {
       await agentService.toggleAgent(agent.n, nextState);
     } catch (err) {
@@ -33,24 +33,26 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
     }
   };
 
+  const isBlocked = integrationBlocked || !isAgentEnabled;
+
   return (
     <div
-      onClick={integrationBlocked || isComingSoon ? undefined : onClick}
+      onClick={isBlocked || isComingSoon ? undefined : onClick}
       className={`bg-panel border rounded-[13px] p-[16px_18px] flex flex-col transition-all duration-300 ${
         isComingSoon
           ? 'opacity-90 grayscale-0 cursor-not-allowed border-dashed border-border-color bg-[#F8F9FC]'
-          : integrationBlocked
-          ? 'opacity-60 grayscale-[0.3] cursor-not-allowed border-border-color'
+          : isBlocked
+          ? 'opacity-60 grayscale-[0.3] cursor-not-allowed border-border-color bg-[#FAFBFD]'
           : isSelected
           ? 'border-teal shadow-md ring-1 ring-teal/20 hover:border-teal/50 hover:shadow-sm cursor-pointer'
           : 'border-border-color hover:border-teal/50 hover:shadow-sm cursor-pointer'
       }`}
     >
       <div className="flex items-center gap-[10px] mb-[10px]">
-        {/* Status dot — grey if integration blocked */}
+        {/* Status dot — grey if integration blocked or agent disabled */}
         <div
           className={`w-[9px] h-[9px] rounded-full shrink-0 ${
-            integrationBlocked || isComingSoon
+            isBlocked || isComingSoon
               ? 'bg-[#B0BAD4]'
               : agent.status === 'active'
               ? 'bg-green shadow-[0_0_0_3px_var(--color-green-tint)]'
@@ -60,7 +62,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
         <div className="font-head font-bold text-[13.5px] flex-1 truncate">{agent.n}</div>
         {isComingSoon && <span className="text-[9px] font-extrabold tracking-[0.6px] py-[3px] px-[7px] rounded-[5px] bg-navy-900 text-white border border-navy-800 shadow-sm whitespace-nowrap">COMING SOON</span>}
 
-        {/* Agent on/off toggle — still functional for admins */}
+        {/* Agent on/off toggle — functional for admins */}
         {!isComingSoon && (
         <button
           disabled={isComingSoon}
@@ -68,13 +70,14 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
             e.stopPropagation();
             handleToggle();
           }}
+          title={isAgentEnabled ? "Disable AI Agent" : "Enable AI Agent"}
           className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors ${isComingSoon ? 'cursor-not-allowed bg-[#D7DCE8]' : 'cursor-pointer'} ${
-            isOn ? 'bg-green' : 'bg-[#D7DCE8]'
+            isAgentEnabled ? 'bg-green' : 'bg-[#D7DCE8]'
           }`}
         >
           <div
             className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 ${
-              isOn ? 'right-[2px]' : 'left-[2px]'
+              isAgentEnabled ? 'right-[2px]' : 'left-[2px]'
             }`}
           />
         </button>

@@ -14,7 +14,7 @@ export type HeatmapZone = {
   coordinates: SpatialCoordinate[];
   incident_count: number;
   risk_score: number;
-  risk_level: 'high' | 'moderate' | 'safe';
+  risk_level: 'high' | 'critical' | 'medium' | 'low' | 'moderate' | 'safe';
   color: string;
   pulse: boolean;
   violations_breakdown: Record<string, number>;

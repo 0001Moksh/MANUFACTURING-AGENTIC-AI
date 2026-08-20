@@ -24,6 +24,8 @@ import type {
   HeatmapSummary,
 } from '../services/safetySiteIntelligenceService';
 import { SpatialFloorHeatmap } from '../components/safety/SpatialFloorHeatmap';
+import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import type { TurnTelemetry } from '../types/telemetry';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ interface ChatMessage {
   text: string;
   zoneContext?: string;
   timestamp?: string;
+  telemetry?: TurnTelemetry;
 }
 
 // ─── Lightweight Markdown & Table Renderer ───────────────────────────────────
@@ -237,7 +240,10 @@ function MessageBubble({
           {isUser ? (
             <p className="whitespace-pre-wrap m-0">{msg.text}</p>
           ) : (
-            <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
+            <>
+              <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
+              <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
+            </>
           )}
         </div>
         {isUser && (

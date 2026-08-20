@@ -8,7 +8,6 @@ import {
   Copy,
   Check,
   ChevronDown,
-  ChevronUp,
   ShieldAlert,
   ArrowDown,
 } from 'lucide-react';

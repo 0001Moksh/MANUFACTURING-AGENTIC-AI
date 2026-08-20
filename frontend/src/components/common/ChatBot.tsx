@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Maximize2, Minimize2, Send, Bot, Maximize, Mic, MicOff, VolumeX } from 'lucide-react';
+import { X, Maximize2, Minimize2, Send, Bot, Maximize, Mic, MicOff, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { agentService } from '../../services/api';
 import { parseMarkdown } from '../../utils/markdownParser';

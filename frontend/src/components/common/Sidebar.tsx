@@ -10,24 +10,32 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className={`${collapsed ? 'w-[72px]' : 'w-[248px]'} shrink-0 overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-navy-800 text-white flex flex-col sticky top-0 h-screen transition-[width] duration-300 ease-in-out`}>
-      <div className={`flex items-center gap-[10px] py-[18px] px-[20px] border-b border-white/10 ${collapsed ? 'justify-center px-0' : ''}`}>
-        <div className="w-[36px] h-[36px] rounded-[9px] bg-gradient-to-br from-teal to-[#00787c] flex items-center justify-center font-head font-extrabold text-[14px] text-white shrink-0">
-          III
+      <div className={`bg-canvas flex items-center gap-[10px] py-[16px] px-[16px] rounded-bl-2xl ${collapsed ? 'justify-center px-0' : ''}`}>
+        <div className="w-[38px] h-[38px] flex items-center justify-center shrink-0">
+          <img src="/logo-bg.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
-        {!collapsed && <div className="flex flex-col">
-          <div className="font-head font-extrabold text-[15px] tracking-[0.2px]">IIIIoT Infotech</div>
-          <div className="text-[10.5px] text-[#8FA0C4] tracking-[0.5px] mt-[1px] uppercase">Manufacturing Agentic AI</div>
+        {!collapsed && <div className="flex flex-col min-w-0">
+          <div className="font-head font-extrabold text-[20.5px] tracking-[0.2px] truncate text-black">IIIIoT Infotech</div>
+          <div className="text-[10px] text-[#8FA0C4] tracking-[0.5px] uppercase truncate">Manufacturing Agentic AI</div>
         </div>}
-        <button onClick={() => setCollapsed(value => !value)} title={collapsed ? 'Expand navigation' : 'Collapse navigation'} className={`${collapsed ? 'absolute top-[58px]' : 'ml-auto'} w-[28px] h-[28px] rounded-[7px] text-[#C7D2EA] hover:bg-white/10 hover:text-white flex items-center justify-center transition-colors`}>
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        <button
+          onClick={() => setCollapsed(value => !value)}
+          title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          className={`${collapsed ? 'absolute top-[65px] left-11' : 'ml-auto absolute top-[65px] left-55'} w-[28px] h-[28px] rounded-[7px] bg-white border-2 border-black text-black hover:bg-gray-100 flex items-center justify-center transition-colors`}
+        >
+          {collapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <ChevronLeft className="w-4 h-4" />
+          )}
         </button>
       </div>
-      
+
       <nav className={`flex-1 py-[16px] px-[12px] overflow-y-auto ${collapsed ? 'px-[8px] pt-[28px]' : ''}`}>
         {!collapsed && <div className="text-[10.5px] tracking-[1.2px] text-[#5E71A0] py-[14px] px-[10px] pb-[6px] font-semibold uppercase">
           Command Centre
         </div>}
-        
+
         <NavLink to="/" title={collapsed ? 'Overview' : undefined} className={({ isActive }) => `flex items-center gap-[11px] py-[9px] px-[11px] rounded-[8px] mb-[2px] text-[13.5px] font-medium cursor-pointer border border-transparent transition-colors relative ${collapsed ? 'justify-center px-0 gap-0' : ''} ${isActive ? 'bg-teal/15 text-white border-teal/30' : 'text-[#C7D2EA] hover:bg-white/5 hover:text-white'}`}>
           {({ isActive }) => (
             <>
@@ -37,7 +45,7 @@ export const Sidebar: React.FC = () => {
             </>
           )}
         </NavLink>
-        
+
         <NavLink to="/use-cases" title={collapsed ? 'Use-Case Library' : undefined} className={({ isActive }) => `flex items-center gap-[11px] py-[9px] px-[11px] rounded-[8px] mb-[2px] text-[13.5px] font-medium cursor-pointer border border-transparent transition-colors relative ${collapsed ? 'justify-center px-0 gap-0' : ''} ${isActive ? 'bg-teal/15 text-white border-teal/30' : 'text-[#C7D2EA] hover:bg-white/5 hover:text-white'}`}>
           {({ isActive }) => (
             <>

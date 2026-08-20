@@ -39,10 +39,7 @@ export const Layout: React.FC = () => {
         <Topbar />
         <main className="flex-1 p-0 w-full mx-auto">
           <Outlet context={{ persona }} />
-        </main>
-        <footer className="text-center p-0 text-faint text-[11.5px]">          IIIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.
-        </footer>
-      </div>
+        </main>      </div>
       <ChatBot />
     </div>
   );
