@@ -358,23 +358,11 @@ export const ExecutiveInsightsPage: React.FC = () => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-[calc(100vh-110px)] flex flex-col gap-4">
-      <ChatPageHeader backLabel="Back to Use-Case Library" title="Executive Insights" description="Ask for operational insight in natural language and receive a concise executive summary with chart-ready visuals." tags={['Operational analytics', 'Charts', 'Executive summaries']} onNewConversation={startNewConversation} />
+      <ChatPageHeader backLabel="Back to Use-Case Library" title="Chat with Data: Executive Insights" description="Ask for operational insight in natural language and receive a concise executive summary with chart-ready visuals." tags={['Operational analytics', 'Charts', 'Executive summaries']} onNewConversation={startNewConversation} />
 
       <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-0">
         <div className="overflow-y-auto p-5 space-y-4">
-          <div className="flex flex-wrap gap-2 text-[11px] text-muted">
-            <span className="font-semibold uppercase tracking-[0.14em] text-faint">Supported outputs:</span>
-            <span>Bar / Column</span>
-            <span>Line / Trend</span>
-            <span>Pie / Donut</span>
-            <span>Histogram</span>
-            <span>Stacked Bar</span>
-            <span>Gauge / KPI</span>
-            <span>Flowchart / Block Diagram</span>
-            <span>Node-Edge Graph</span>
-            <span>Sankey</span>
-            <span>Gantt</span>
-          </div>
+          
           {messages.map(msg => (
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[860px] rounded-[18px] p-4 ${msg.role === 'user' ? 'bg-navy-900 text-white rounded-br-[6px]' : 'bg-canvas text-ink border border-border-color rounded-bl-[6px]'}`}>

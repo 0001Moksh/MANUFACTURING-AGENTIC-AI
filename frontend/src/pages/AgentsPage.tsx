@@ -110,18 +110,12 @@ export const AgentsPage: React.FC = () => {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-[20px]">
-        <div className="text-[11px] font-bold tracking-[1.2px] text-teal-deep uppercase mb-[6px]">
-          Always On, Always Acting
-        </div>
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
           AI Agent Portfolio
         </h2>
         <p className="m-0 text-muted text-[13.5px] max-w-[720px] leading-relaxed">
-          Each agent can be toggled per site by a Plant Digital Head. Agents whose data source is
-          disabled in <span className="font-semibold">Admin Console → Integrations</span> are marked
-          as <span className="font-semibold text-[#9A6400]">Requires Connection</span> and cannot be
-          launched until the integration is re-enabled.
-        </p>
+          Each agent can be toggled per site. If its data source is disabled, it shows <span className="font-semibold">Requires Connection</span> and can’t be launched.
+  </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">

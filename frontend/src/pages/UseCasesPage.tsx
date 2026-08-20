@@ -32,14 +32,11 @@ export const UseCasesPage: React.FC = () => {
       transition={{ duration: 0.3 }}
     >
       <div className="mb-[20px]">
-        <div className="text-[11px] font-bold tracking-[1.2px] text-teal-deep uppercase mb-[6px]">
-          23 Use Cases · 5 Strategic Pillars
-        </div>
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
           Manufacturing Agentic AI Use-Case Library
         </h2>
         <p className="m-0 text-muted text-[13.5px] max-w-[720px] leading-relaxed">
-          Every card below is a deployable module — click one to see the description, business impact, and the admin controls your team gets to configure it, per site.
+Each card is a deployable module. Click one to view its impact and site-level admin controls.
         </p>
       </div>
 

@@ -28,32 +28,7 @@ export const AdminConsolePage: React.FC = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[22px]">
-        <div className={`rounded-[12px] p-[16px_18px] border border-border-color bg-panel flex gap-[12px] items-start transition-all duration-300 ${persona === 'mfg' ? 'opacity-40 grayscale-[50%]' : 'hover:border-purple/50 hover:shadow-sm'}`}>
-          <div className="w-[34px] h-[34px] rounded-[9px] shrink-0 flex items-center justify-center text-[16px] bg-purple-tint text-[#5b4fd6]">
-            <ShieldCheck className="w-[18px] h-[18px]" />
-          </div>
-          <div>
-            <h4 className="m-0 mb-[3px] font-head text-[13.5px] font-bold">Built for the Digital & IT Head</h4>
-            <p className="m-0 text-[12.5px] text-muted leading-[1.5]">This is the console your governance, security and integration teams actually live in — RBAC, SSO, audit trails, connector health and model guardrails, all in one place.</p>
-          </div>
-        </div>
-
-        <div className={`rounded-[12px] p-[16px_18px] border border-border-color bg-panel flex gap-[12px] items-start transition-all duration-300 ${persona === 'it' ? 'opacity-40 grayscale-[50%]' : 'hover:border-teal/50 hover:shadow-sm'}`}>
-          <div className="w-[34px] h-[34px] rounded-[9px] shrink-0 flex items-center justify-center text-[16px] bg-teal-tint text-teal-deep">
-            <Settings className="w-[18px] h-[18px]" />
-          </div>
-          <div>
-            <h4 className="m-0 mb-[3px] font-head text-[13.5px] font-bold">Still simple for Plant Ops</h4>
-            <p className="m-0 text-[12.5px] text-muted leading-[1.5]">Non-technical admins configure alert rules and escalation paths in plain language — no code, no tickets to IT for every threshold change.</p>
-          </div>
-        </div>
-      </div>
-
       <div className="mb-[20px]">
-        <div className="text-[11px] font-bold tracking-[1.2px] text-teal-deep uppercase mb-[6px]">
-          Admin Console
-        </div>
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
           Platform governance, integrations & usability controls
         </h2>
@@ -206,29 +181,6 @@ export const AdminConsolePage: React.FC = () => {
           
           {activePane === 'rules' && <RulesBuilder />}
           
-          {activePane === 'notifications' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[12px]">
-              {channels.map((c, i) => {
-                const [isOn, setIsOn] = useState(i !== channels.length - 1);
-                return (
-                  <div key={i} className="border border-border-color rounded-[11px] p-[13px_15px] flex items-center gap-[12px] bg-panel">
-                    <span className="text-[16px]">{c[0]}</span>
-                    <span className="flex-1 font-semibold text-[12.5px]">{c[1]}</span>
-                    <button 
-                      onClick={() => setIsOn(!isOn)}
-                      className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
-                        isOn ? 'bg-green' : 'bg-[#D7DCE8]'
-                      }`}
-                    >
-                      <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 ${
-                        isOn ? 'right-[2px]' : 'left-[2px]'
-                      }`} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </motion.div>
       </AnimatePresence>
     </motion.div>

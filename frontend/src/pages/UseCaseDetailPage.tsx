@@ -82,8 +82,7 @@ export const UseCaseDetailPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="max-w-[1200px] mx-auto h-[calc(100vh-80px)] flex flex-col"
-    >
+className="w-full max-w-[1440px] mx-auto h-[calc(100vh-80px)] px-1 py-1 flex flex-col overflow-hidden"    >
       <div className="mb-[20px] flex items-center gap-4">
         <button 
           onClick={() => navigate('/use-cases')}
