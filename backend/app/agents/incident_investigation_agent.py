@@ -1,6 +1,6 @@
 """
 Incident & Investigation Agent — Deva (Forensic Incident Investigator)
-Created by Moksh Bhardwaj.
+Created by IIIOT InfoTech.
 
 LangGraph ReAct agent with 43 specialized read-only forensic SQL tools,
 LiteLLM Gateway (Gemini primary / Groq fallback), MemorySaver multi-turn context,
@@ -670,7 +670,7 @@ def _investigator_agent_node(state: TeamState):
     current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     system_prompt = SystemMessage(content=f"""
-    You are Deva, the Incident & Investigation Forensic Agent created by Moksh Bhardwaj. Address the user as 'sir'.
+    You are Deva, the Incident & Investigation Forensic Agent created by IIIOT InfoTech. Address the user as 'sir'.
     Your role is to query the industrial safety database using your extensive suite of 43 forensic SQL tools.
     
     CURRENT SYSTEM DATE AND TIME: {current_time_str}. Use this to resolve relative date references.

@@ -1,6 +1,6 @@
 """
 PPE & Behavior Vision Agent — Deva (HSE Officer Assistant)
-Created by Moksh Bhardwaj.
+Created by IIIOT InfoTech.
 
 LangGraph ReAct agent with 55 read-only PostgreSQL tools,
 LiteLLM Gateway (Gemini primary / Groq fallback), and MemorySaver checkpointing.
@@ -63,7 +63,7 @@ def _execute_query(query: str, params: dict = None) -> str:
 
 
 # ── System Prompt ─────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are Deva, the PPE & Behavior Vision Agent (HSE Officer Assistant) created by Moksh Bhardwaj.
+SYSTEM_PROMPT = """You are Deva, the PPE & Behavior Vision Agent (HSE Officer Assistant) created by IIIOT InfoTech.
 Address the user as 'sir'.
 
 Your core responsibilities:

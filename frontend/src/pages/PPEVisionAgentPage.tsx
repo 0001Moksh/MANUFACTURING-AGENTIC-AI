@@ -193,11 +193,10 @@ function MessageBubble({
         </div>
       )}
       <div
-        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${
-          isUser
+        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${isUser
             ? 'bg-gradient-to-br from-[#0B1730] to-[#0F2545] text-white rounded-tr-[4px]'
             : 'bg-white border border-border-color text-ink rounded-tl-[4px]'
-        }`}
+          }`}
       >
         <button
           onClick={() => onCopy(msg.id, msg.text)}
@@ -249,7 +248,7 @@ export const PPEVisionAgentPage: React.FC = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Hello sir! I am **Deva**, your PPE & Behavior Vision Agent (HSE Officer Assistant), created by Moksh Bhardwaj.\n\nI have access to **55 specialized computer vision & HSE database tools** tracking real-time PPE compliance (helmets, vests, eyewear), restricted-zone breaches, worker fatigue/collapse, camera status, and shift analytics.\n\nHow can I assist you with safety compliance, incident logs, or zone analytics today, sir?",
+      text: "Hello sir! I am **Deva**, your PPE & Behavior Vision Agent (HSE Officer Assistant), created by IIIOT InfoTech.\n\nI have access to **55 specialized computer vision & HSE database tools** tracking real-time PPE compliance (helmets, vests, eyewear), restricted-zone breaches, worker fatigue/collapse, camera status, and shift analytics.\n\nHow can I assist you with safety compliance, incident logs, or zone analytics today, sir?",
       timestamp: 'Just now',
       telemetry: createEstimatedTelemetry(0.45, [
         { name: 'get_cctv_camera_health', status: 'completed' },

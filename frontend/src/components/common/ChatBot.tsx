@@ -18,7 +18,7 @@ const TypewriterText: React.FC<{ text: string; onComplete?: () => void }> = ({ t
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
-  
+
   useEffect(() => {
     let i = 0;
     setDisplayedText('');
@@ -43,13 +43,13 @@ const FormattedText: React.FC<{ text: string }> = ({ text }) => {
 
   return (
     <div className="relative">
-      <div 
-        dangerouslySetInnerHTML={{ __html: html }} 
-        className={`prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 ${hasTable && !isExpanded ? 'max-h-[300px] overflow-hidden' : ''}`} 
+      <div
+        dangerouslySetInnerHTML={{ __html: html }}
+        className={`prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 ${hasTable && !isExpanded ? 'max-h-[300px] overflow-hidden' : ''}`}
       />
       {hasTable && !isExpanded && (
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-canvas to-transparent flex items-end justify-center pb-2">
-          <button 
+          <button
             onClick={() => setIsExpanded(true)}
             className="flex items-center gap-1.5 text-xs font-bold text-teal bg-white/90 shadow-sm border border-border-color px-3 py-1.5 rounded-full hover:bg-teal hover:text-white transition-colors"
           >
@@ -59,7 +59,7 @@ const FormattedText: React.FC<{ text: string }> = ({ text }) => {
       )}
       {hasTable && isExpanded && (
         <div className="mt-2 text-center">
-          <button 
+          <button
             onClick={() => setIsExpanded(false)}
             className="text-xs font-bold text-muted hover:text-ink underline"
           >
@@ -79,11 +79,11 @@ export const ChatBot: React.FC = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
-  
+
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef<any>(null);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -121,7 +121,7 @@ export const ChatBot: React.FC = () => {
         setIsListening(false);
       };
     }
-    
+
     return () => {
       window.speechSynthesis.cancel();
     };
@@ -145,17 +145,17 @@ export const ChatBot: React.FC = () => {
 
   const speakText = (text: string) => {
     if (!('speechSynthesis' in window)) return;
-    
+
     window.speechSynthesis.cancel(); // Cancel any ongoing speech
-    
+
     // Strip markdown for speech
     const cleanText = text.replace(/[#_*`]/g, '').replace(/<[^>]*>?/gm, '');
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    
+
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
-    
+
     window.speechSynthesis.speak(utterance);
   };
 
@@ -170,9 +170,9 @@ export const ChatBot: React.FC = () => {
     try {
       const response = await agentService.query(query);
       const textResponse = response.insights || response.error_message || 'I processed your request but no insights were returned.';
-      const botResponse: Message = { 
-        id: (Date.now() + 1).toString(), 
-        text: textResponse, 
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: textResponse,
         sender: 'bot',
         isStreaming: true
       };
@@ -181,9 +181,9 @@ export const ChatBot: React.FC = () => {
     } catch (error: any) {
       console.error('ChatBot query error:', error, error.response?.data);
       const errorMsgText = 'Sorry, I encountered an error while processing your request.';
-      const errorMsg: Message = { 
-        id: (Date.now() + 1).toString(), 
-        text: errorMsgText, 
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        text: errorMsgText,
         sender: 'bot',
         isStreaming: true
       };
@@ -200,7 +200,7 @@ export const ChatBot: React.FC = () => {
 
   return (
     <>
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {!isOpen && (
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
@@ -212,26 +212,26 @@ export const ChatBot: React.FC = () => {
             <MessageSquare className="w-6 h-6" />
           </motion.button>
         )}
-      </AnimatePresence>
+      </AnimatePresence> */}
 
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ 
-              opacity: 1, 
-              y: 0, 
+            animate={{
+              opacity: 1,
+              y: 0,
               scale: 1,
-              ...(isFullScreen ? { 
-                bottom: 0, right: 0, width: '100vw', height: '100vh', borderRadius: 0 
-              } : { 
-                bottom: 24, right: 24, width: 380, height: 600, borderRadius: 16 
+              ...(isFullScreen ? {
+                bottom: 0, right: 0, width: '100vw', height: '100vh', borderRadius: 0
+              } : {
+                bottom: 24, right: 24, width: 380, height: 600, borderRadius: 16
               })
             }}
             exit={{ opacity: 0, y: 50, scale: 0.9, transition: { duration: 0.2 } }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className={`fixed bg-panel border border-border-color shadow-2xl flex flex-col z-50 overflow-hidden ${isFullScreen ? '' : 'rounded-2xl'}`}
-            style={{ 
+            style={{
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)'
             }}
           >
@@ -255,7 +255,7 @@ export const ChatBot: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 {isSpeaking && (
-                  <button 
+                  <button
                     onClick={stopSpeaking}
                     className="p-1.5 text-red hover:bg-red-tint rounded-md transition-colors cursor-pointer mr-2 flex items-center gap-1 text-[11px] font-bold"
                     title="Stop speaking"
@@ -263,13 +263,13 @@ export const ChatBot: React.FC = () => {
                     <VolumeX className="w-4 h-4" /> Stop
                   </button>
                 )}
-                <button 
+                <button
                   onClick={() => setIsFullScreen(!isFullScreen)}
                   className="p-1.5 text-muted hover:text-ink hover:bg-panel rounded-md transition-colors cursor-pointer"
                 >
                   {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
-                <button 
+                <button
                   onClick={() => setIsOpen(false)}
                   className="p-1.5 text-muted hover:text-ink hover:bg-panel rounded-md transition-colors cursor-pointer"
                 >
@@ -287,12 +287,11 @@ export const ChatBot: React.FC = () => {
                   transition={{ duration: 0.3 }}
                   className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div 
-                    className={`max-w-[90%] p-3 text-sm ${
-                      msg.sender === 'user' 
-                        ? 'bg-teal text-white rounded-2xl rounded-tr-sm whitespace-pre-wrap' 
-                        : 'bg-canvas text-ink border border-border-color rounded-2xl rounded-tl-sm'
-                    }`}
+                  <div
+                    className={`max-w-[90%] p-3 text-sm ${msg.sender === 'user'
+                      ? 'bg-teal text-white rounded-2xl rounded-tr-sm whitespace-pre-wrap'
+                      : 'bg-canvas text-ink border border-border-color rounded-2xl rounded-tl-sm'
+                      }`}
                   >
                     {msg.sender === 'bot' && msg.isStreaming ? (
                       <TypewriterText text={msg.text} onComplete={() => markStreamingComplete(msg.id)} />
@@ -311,11 +310,10 @@ export const ChatBot: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={toggleListening}
-                  className={`p-2.5 rounded-xl transition-colors flex items-center justify-center cursor-pointer ${
-                    isListening 
-                      ? 'bg-red text-white animate-pulse' 
-                      : 'bg-panel border border-border-color text-muted hover:text-ink hover:border-teal'
-                  }`}
+                  className={`p-2.5 rounded-xl transition-colors flex items-center justify-center cursor-pointer ${isListening
+                    ? 'bg-red text-white animate-pulse'
+                    : 'bg-panel border border-border-color text-muted hover:text-ink hover:border-teal'
+                    }`}
                   title={isListening ? "Stop listening" : "Start voice input"}
                 >
                   {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}

@@ -177,7 +177,7 @@ def answer_agent_meta(question: str) -> str:
     if any(k in q for k in ["who owns", "owner", "ownership"]):
         return (
             "I am owned by the HSE / Site Safety function. "
-            "Technical ownership sits with the Super Agent / AI platform team (Moksh Bhardwaj)."
+            "Technical ownership sits with the Super Agent / AI platform team (IIIOT InfoTech)."
         )
     return (
         "I am the Permit-to-Work Agent. Ask me about active high-risk work, violations, "

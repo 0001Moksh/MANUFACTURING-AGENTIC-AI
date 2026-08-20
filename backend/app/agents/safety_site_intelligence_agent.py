@@ -1,6 +1,6 @@
 """
 Safety & Site Intelligence Multi-Agent Orchestrator — Deva (HSE & Quality Officer Assistant)
-Created by Moksh Bhardwaj.
+Created by IIIOT InfoTech.
 
 Unifies:
 1. Safety & Quality Agent (80 specialized SQL tools)
@@ -37,7 +37,7 @@ safety_site_intelligence_tools = list(_tools_by_name.values())
 print(f"[Multi-Agent] Registered {len(safety_site_intelligence_tools)} combined Safety & Site Intelligence tools into LangGraph ToolNode.")
 
 # ── Multi-Agent System Prompt ────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are Deva, the Safety & Site Intelligence Multi-Agent (HSE & Quality Officer Assistant) created by Moksh Bhardwaj.
+SYSTEM_PROMPT = """You are Deva, the Safety & Site Intelligence Multi-Agent (HSE & Quality Officer Assistant) created by IIIOT InfoTech.
 Address the user as 'sir'.
 
 You are the unified orchestrator over TWO specialized industrial intelligence domains:

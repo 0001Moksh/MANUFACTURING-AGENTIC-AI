@@ -215,11 +215,10 @@ function MessageBubble({
       )}
 
       <div
-        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${
-          isUser
+        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${isUser
             ? 'bg-gradient-to-br from-[#0B1730] to-[#00808A] text-white rounded-tr-[4px]'
             : 'bg-white border border-border-color text-ink rounded-tl-[4px]'
-        }`}
+          }`}
       >
         <button
           onClick={() => onCopy(msg.id, msg.text)}
@@ -304,7 +303,7 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
       {
         id: 'welcome',
         role: 'assistant',
-        text: `### 🔍 Incident & Investigation Forensic Intelligence Engine\n\nGreetings sir, I am **Deva**, your dedicated Incident & Investigation Agent created by Moksh Bhardwaj.\n\nI am connected to the industrial site database with **43 specialized forensic SQL tools** to analyze:\n\n- **Safety KPI Rates:** Total Recordable Incident Rate (TRIR), LTIFR, Zero Harm Index.\n- **Spill & Defect Detection:** Chemical/oil spills, Basler camera leak detections, and pipeline integrity.\n- **Anomaly & Fatigue Forensics:** Restricted zone breaches, workforce fatigue, and baseline deviations.\n- **Vision Model Audits:** AI tracking low-confidence false positive rates and offline cameras.\n\nHow may I assist your forensic safety audit today, sir?`,
+        text: `### 🔍 Incident & Investigation Forensic Intelligence Engine\n\nGreetings sir, I am **Deva**, your dedicated Incident & Investigation Agent created by IIIOT InfoTech.\n\nI am connected to the industrial site database with **43 specialized forensic SQL tools** to analyze:\n\n- **Safety KPI Rates:** Total Recordable Incident Rate (TRIR), LTIFR, Zero Harm Index.\n- **Spill & Defect Detection:** Chemical/oil spills, Basler camera leak detections, and pipeline integrity.\n- **Anomaly & Fatigue Forensics:** Restricted zone breaches, workforce fatigue, and baseline deviations.\n- **Vision Model Audits:** AI tracking low-confidence false positive rates and offline cameras.\n\nHow may I assist your forensic safety audit today, sir?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);
@@ -405,10 +404,10 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
             prev.map((t) =>
               t.tool_name === tool.tool_name
                 ? {
-                    ...t,
-                    status: 'completed',
-                    durationSec: (now - t.startTime) / 1000,
-                  }
+                  ...t,
+                  status: 'completed',
+                  durationSec: (now - t.startTime) / 1000,
+                }
                 : t
             )
           );
@@ -428,10 +427,10 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
             prev.map((m) =>
               m.id === assistantMessageId
                 ? {
-                    ...m,
-                    telemetry: telemetry,
-                    activeTools: telemetry.tools_used || completedTools,
-                  }
+                  ...m,
+                  telemetry: telemetry,
+                  activeTools: telemetry.tools_used || completedTools,
+                }
                 : m
             )
           );
@@ -449,15 +448,15 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
                 prev.map((m) =>
                   m.id === assistantMessageId
                     ? {
-                        ...m,
-                        text: res.reply,
-                        telemetry: {
-                          execution_time_sec: res.execution_time_sec,
-                          tools_used: res.tools_used,
-                          tokens: res.tokens,
-                          cost_usd: res.cost_usd,
-                        },
-                      }
+                      ...m,
+                      text: res.reply,
+                      telemetry: {
+                        execution_time_sec: res.execution_time_sec,
+                        tools_used: res.tools_used,
+                        tokens: res.tokens,
+                        cost_usd: res.cost_usd,
+                      },
+                    }
                     : m
                 )
               );
@@ -467,9 +466,9 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
                 prev.map((m) =>
                   m.id === assistantMessageId
                     ? {
-                        ...m,
-                        text: `⚠️ Error executing forensic query: ${fallbackErr.message || 'Unknown network error'}.`,
-                      }
+                      ...m,
+                      text: `⚠️ Error executing forensic query: ${fallbackErr.message || 'Unknown network error'}.`,
+                    }
                     : m
                 )
               );
@@ -486,9 +485,9 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
         prev.map((m) =>
           m.id === assistantMessageId
             ? {
-                ...m,
-                text: `⚠️ Request failed: ${err.message || 'Unable to connect to agent backend.'}`,
-              }
+              ...m,
+              text: `⚠️ Request failed: ${err.message || 'Unable to connect to agent backend.'}`,
+            }
             : m
         )
       );

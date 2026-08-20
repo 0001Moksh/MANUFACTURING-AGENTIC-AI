@@ -192,11 +192,10 @@ function MessageBubble({
         </div>
       )}
       <div
-        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${
-          isUser
+        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${isUser
             ? 'bg-gradient-to-br from-[#0B1730] to-[#0F2545] text-white rounded-tr-[4px]'
             : 'bg-white border border-border-color text-ink rounded-tl-[4px]'
-        }`}
+          }`}
       >
         <button
           onClick={() => onCopy(msg.id, msg.text)}
@@ -248,7 +247,7 @@ export const SafetyQualityAgentPage: React.FC = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Hello sir! I am **Deva**, your Safety & Quality Agent (HSE Officer Assistant), created by Moksh Bhardwaj.\n\nI have access to **80 specialized tools** covering quality inspections, defect analytics, material holds, vendor performance, inspector records, and compliance standards.\n\nHow can I assist you with site intelligence today, sir?",
+      text: "Hello sir! I am **Deva**, your Safety & Quality Agent (HSE Officer Assistant), created by IIIOT InfoTech.\n\nI have access to **80 specialized tools** covering quality inspections, defect analytics, material holds, vendor performance, inspector records, and compliance standards.\n\nHow can I assist you with site intelligence today, sir?",
       timestamp: 'Just now',
       telemetry: createEstimatedTelemetry(0.42, [{ name: 'get_today_quality_inspection_reports', status: 'completed' }]),
     },
