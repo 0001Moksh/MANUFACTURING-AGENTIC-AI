@@ -370,7 +370,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       </div>
 
       {/* ── Messages Chat View ── */}
-      <div className="flex-1 relative min-h-[420px]">
+      <div className="flex-1 relative min-h-[390px]">
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
@@ -518,11 +518,6 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
             </div>
             <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Voice'}</span>
           </button>
-        </div>
-
-        <div className="flex items-center justify-between text-[8.5px] text-[#587184] px-0.5">
-          <span>Type or speak • Spoken answers powered by Edge TTS &amp; Live Agent Tools</span>
-          <span>Press Enter to send</span>
         </div>
       </div>
     </div>

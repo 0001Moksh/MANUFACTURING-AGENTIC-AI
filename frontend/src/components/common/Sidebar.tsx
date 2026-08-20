@@ -10,7 +10,7 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className={`${collapsed ? 'w-[72px]' : 'w-[248px]'} shrink-0 overflow-hidden bg-gradient-to-b from-navy-950 via-navy-900 to-navy-800 text-white flex flex-col sticky top-0 h-screen transition-[width] duration-300 ease-in-out`}>
-      <div className={`bg-canvas flex items-center gap-[10px] py-[16px] px-[16px] rounded-bl-2xl ${collapsed ? 'justify-center px-0' : ''}`}>
+      <div className={`bg-canvas flex items-center gap-[10px] py-[16px] px-[16px] rounded-bl-3xl ${collapsed ? 'justify-center px-0' : ''}`}>
         <div className="w-[38px] h-[38px] flex items-center justify-center shrink-0">
           <img src="/logo-bg.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
@@ -21,12 +21,11 @@ export const Sidebar: React.FC = () => {
         <button
           onClick={() => setCollapsed(value => !value)}
           title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-          className={`${collapsed ? 'absolute top-[65px] left-11' : 'ml-auto absolute top-[65px] left-55'} w-[28px] h-[28px] rounded-[7px] bg-white border-2 border-black text-black hover:bg-gray-100 flex items-center justify-center transition-colors`}
-        >
+className={`${collapsed ? 'absolute top-[58px] left-11' : 'ml-auto absolute top-[62px] left-55'} w-[28px] h-[28px] rounded-full bg-white border-2 border-black border-r-[6px] hover:border-l-2 hover:border-r-[6px] text-black hover:bg-gray-100 flex items-center justify-center transition-all`}        >
           {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5" />
           ) : (
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           )}
         </button>
       </div>
@@ -61,7 +60,7 @@ export const Sidebar: React.FC = () => {
             <>
               {isActive && <div className="absolute left-[-12px] top-[8px] bottom-[8px] w-[3px] rounded-[3px] bg-teal" />}
               <Bot className="w-[17px] h-[17px] shrink-0 opacity-85" />
-              {!collapsed && <><span>AI Agents</span><span className="ml-auto font-mono text-[10.5px] text-[#8FA0C4] bg-white/5 px-[6px] py-[1px] rounded-[20px]">12</span></>}
+              {!collapsed && <><span>AI Agents</span><span className="ml-auto font-mono text-[10.5px] text-[#8FA0C4] bg-white/5 px-[6px] py-[1px] rounded-[20px]">6 live</span></>}
             </>
           )}
         </NavLink>
