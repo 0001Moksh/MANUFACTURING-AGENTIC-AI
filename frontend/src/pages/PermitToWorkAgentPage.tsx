@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -8,7 +8,9 @@ import {
   Copy,
   Check,
   ChevronDown,
+  ChevronUp,
   ShieldAlert,
+  ArrowDown,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { permitToWorkService } from '../services/permitToWorkService';
@@ -52,7 +54,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Blank line
     if (line.trim() === '') {
       flushList();
       nodes.push(<div key={`br-${i}`} className="h-2" />);
@@ -60,7 +61,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Heading (### or ## or #)
     if (/^#{1,3}\s/.test(line)) {
       flushList();
       const text = line.replace(/^#{1,3}\s/, '');
@@ -74,7 +74,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Horizontal Rule (--- or ===)
     if (/^(---|===)\s*$/.test(line.trim())) {
       flushList();
       nodes.push(<hr key={`hr-${i}`} className="my-3 border-border-color" />);
@@ -82,7 +81,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Section Header (e.g. === ACTIVE HSE INCIDENTS ===)
     if (/^===\s*.+\s*===$/.test(line.trim())) {
       flushList();
       const title = line.replace(/^===\s*/, '').replace(/\s*===$/, '');
@@ -95,7 +93,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Markdown Table
     if (line.trim().startsWith('|')) {
       flushList();
       const tableLines: string[] = [];
@@ -107,21 +104,18 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Bullet list (- or *)
     if (/^[\*\-]\s/.test(line.trim())) {
       listBuffer.push(line.replace(/^[\*\-]\s/, '').trim());
       i++;
       continue;
     }
 
-    // Numbered list (1. 2.)
     if (/^\d+\.\s/.test(line.trim())) {
       listBuffer.push(line.replace(/^\d+\.\s/, '').trim());
       i++;
       continue;
     }
 
-    // Regular paragraph
     flushList();
     nodes.push(
       <p key={`p-${i}`} className="text-[13.5px] leading-relaxed my-1">
@@ -215,6 +209,68 @@ const SUGGESTED_QUERIES = [
   { icon: 'ℹ️', label: 'Agent Data & Ownership', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
 ];
 
+// ─── Message Bubble ────────────────────────────────────────────────────────────
+
+const MessageBubble: React.FC<{
+  msg: ChatMessage;
+  copiedId: string | null;
+  onCopy: (id: string, text: string) => void;
+}> = ({ msg, copiedId, onCopy }) => {
+  const isUser = msg.role === 'user';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+    >
+      {!isUser && (
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
+          <FileCheck2 className="w-3.5 h-3.5" />
+        </div>
+      )}
+
+      <div
+        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${isUser
+            ? 'bg-navy-900 text-white rounded-tr-[4px]'
+            : 'bg-white text-ink border border-border-color rounded-tl-[4px]'
+          }`}
+      >
+        {/* Copy button */}
+        <button
+          onClick={() => onCopy(msg.id, msg.text)}
+          title="Copy message"
+          className={`absolute -top-1.5 ${isUser ? '-left-12.5' : '-right-6.5'} opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-12 h-12 rounded-full bg-white border border-border-color shadow-sm flex items-center justify-center cursor-pointer hover:bg-canvas`}
+        >
+          {copiedId === msg.id ? (
+            <Check className="w-6 h-6 text-emerald-600" />
+          ) : (
+            <Copy className="w-6 h-6 text-muted" />
+          )}
+        </button>
+
+        <div className="prose prose-sm max-w-none">
+          {isUser ? (
+            <p className="whitespace-pre-wrap m-0">{msg.text}</p>
+          ) : (
+            <div>
+              {renderMarkdown(msg.text)}
+              <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
+            </div>
+          )}
+        </div>
+      </div>
+
+        
+      {isUser && (
+        <div className="w-7 h-7 rounded-full bg-navy-800 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
+          <span className="text-[11px] font-bold">U</span>
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
 // ─── Main Page Component ──────────────────────────────────────────────────────
 
 export const PermitToWorkAgentPage: React.FC = () => {
@@ -225,24 +281,41 @@ export const PermitToWorkAgentPage: React.FC = () => {
       id: 'welcome',
       role: 'assistant',
       text: "Hi sir, I'm the Permit-to-Work Agent. I track high-risk work, HSE incidents, restricted-zone breaches, and MES work orders to surface violations and support safe operations.",
-      timestamp: 'Just now',
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [heroExpanded, setHeroExpanded] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, loading]);
+  }, [messages, scrollToBottom]);
+
+  // Track scroll position to toggle "jump to latest" button
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distanceFromBottom > 250);
+  };
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+  }, [input]);
 
   const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
 
@@ -320,8 +393,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
       {
         id: `welcome-${Date.now()}`,
         role: 'assistant',
-        text: "Thread reset. I am ready for your next permit, safety, or work order query, sir.",
-        timestamp: 'Just now',
+        text: 'Thread reset. I am ready for your next permit, safety, or work order query, sir.',
       },
     ]);
   };
@@ -345,7 +417,6 @@ export const PermitToWorkAgentPage: React.FC = () => {
 
       {/* ── Collapsible Hero Banner ── */}
       <div className="bg-gradient-to-r from-[#0B1730] via-[#122347] to-[#0A4D68] text-white rounded-[16px] shadow-sm shrink-0 border border-navy-700/50 overflow-hidden mx-3">
-        {/* Always-visible header row */}
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0">
@@ -381,7 +452,6 @@ export const PermitToWorkAgentPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Expandable detail section */}
         <AnimatePresence initial={false}>
           {heroExpanded && (
             <motion.div
@@ -397,7 +467,6 @@ export const PermitToWorkAgentPage: React.FC = () => {
                   Correlates live HSE camera alerts with MES work orders to track high-risk work and auto-escalate compliance violations.
                 </p>
 
-                {/* KPI Summary Chips */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
                   <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
                     <div className="text-[18px] font-extrabold text-amber-400">4</div>
@@ -417,7 +486,6 @@ export const PermitToWorkAgentPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Scope tags */}
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
                   <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔥 Hot Work</span>
                   <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚧 Confined Space</span>
@@ -433,76 +501,21 @@ export const PermitToWorkAgentPage: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      {/* ── Main Chat Interface (uses full width, no side padding) ── */}
-      <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border-y border-border-color md:border md:rounded-[20px] overflow-hidden shadow-xs min-h-0 mx-0 md:mx-3">
+      {/* ── Main Chat Interface ── */}
+      <div className="flex-1 grid grid-rows-[1fr_auto] overflow-hidden min-h-0 md:mx-2 relative">
+        {/* Messages Stream */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-3 custom-scrollbar min-h-0"
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} msg={msg} copiedId={copiedId} onCopy={handleCopy} />
+            ))}
+          </AnimatePresence>
 
-        {/* Messages Stream — only scrollable area */}
-        <div className="overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-3 custom-scrollbar min-h-0">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {msg.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
-                  <FileCheck2 className="w-3.5 h-3.5" />
-                </div>
-              )}
-
-              <div
-                className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs ${msg.role === 'user'
-                  ? 'bg-navy-900 text-white rounded-br-[4px]'
-                  : 'bg-canvas text-ink border border-border-color rounded-bl-[4px]'
-                  }`}
-              >
-                {/* Message Header */}
-                <div className="flex items-center justify-between gap-4 mb-1 text-[11px] opacity-70">
-                  <span className="font-semibold">
-                    {msg.role === 'user' ? 'You' : 'Permit-to-Work Agent (HSE Officer)'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {msg.timestamp && <span>{msg.timestamp}</span>}
-                    {msg.role === 'assistant' && (
-                      <button
-                        onClick={() => handleCopy(msg.id, msg.text)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/5 rounded text-muted hover:text-ink cursor-pointer border-none bg-transparent"
-                        title="Copy response"
-                      >
-                        {copiedId === msg.id ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="prose prose-sm max-w-none">
-                  {msg.role === 'assistant' ? (
-                    <div>
-                      {renderMarkdown(msg.text)}
-                      <AgentTelemetryFooter
-                        telemetry={msg.telemetry}
-                        rawText={msg.text}
-                      />
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap m-0">{msg.text}</p>
-                  )}
-                </div>
-              </div>
-
-              {msg.role === 'user' && (
-                <div className="w-7 h-7 rounded-full bg-navy-800 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
-                  <span className="text-[11px] font-bold">U</span>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* ── Interactive Tool Execution Indicator ── */}
+          {/* Tool Execution Indicator */}
           <div className="pl-10">
             <AgentExecutionIndicator
               activeSteps={activeSteps}
@@ -514,21 +527,33 @@ export const PermitToWorkAgentPage: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Jump to latest button */}
+        <AnimatePresence>
+          {showScrollBtn && (
+            <motion.button
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.9 }}
+              onClick={() => scrollToBottom()}
+              className="absolute bottom-30 right-1/2 z-10 flex items-center gap-1.5 bg-gray-900 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-navy-800 transition-colors cursor-pointer border-none"
+            >
+              <ArrowDown className="w-3.5 h-3.5" /> Latest
+            </motion.button>
+          )}
+        </AnimatePresence>
+
         {/* Suggested Queries & Input Bar */}
         <div className="border-t border-border-color bg-white p-2.5 md:p-3 space-y-2 shrink-0">
-
           {/* Suggestion Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
-            <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider shrink-0 flex items-center gap-1">
-              Quick Ask:
-            </span>
             {SUGGESTED_QUERIES.map((sq, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(sq.query)}
                 disabled={loading}
-                className="shrink-0 bg-canvas hover:bg-amber-50 text-ink hover:text-amber-900 border border-border-color hover:border-amber-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="shrink-0 bg-canvas hover:bg-amber-50 text-ink hover:text-amber-900 border border-border-color hover:border-amber-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
               >
+                <span>{sq.icon}</span>
                 <span>{sq.label}</span>
               </button>
             ))}
@@ -548,18 +573,17 @@ export const PermitToWorkAgentPage: React.FC = () => {
               }}
               rows={1}
               placeholder="Ask about active high-risk permits, zone breaches, work orders, hot-work checklists, or escalations..."
-              className="flex-1 resize-none rounded-[12px] border border-border-color bg-canvas px-3.5 py-2 text-[13.5px] outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-muted"
+              className="flex-1 resize-none rounded-[12px] border border-border-color bg-canvas px-3.5 py-2 text-[13.5px] outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-muted max-h-[140px]"
             />
             <button
               onClick={() => void handleSend()}
               disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 px-4 py-2.5 text-white font-semibold text-[13.5px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border-none"
+              className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 px-4 py-2.5 text-white font-semibold text-[13.5px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border-none active:scale-95"
             >
               <Send className="w-4 h-4" /> Send
             </button>
           </div>
         </div>
-
       </div>
     </motion.div>
   );

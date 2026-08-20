@@ -37,7 +37,7 @@ export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
   }
 
   const activeTools = telemetry?.tools_used || tools;
-  const executionTime = telemetry?.execution_time_sec ?? 1.25;
+  const executionTime = telemetry?.execution_time_sec ?? 0.25;
   const costUsd = telemetry?.cost_usd ?? 0.0003;
   const tokens = telemetry?.tokens ?? {
     prompt_tokens: 420,
@@ -63,10 +63,6 @@ export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
             <span>{executionTime.toFixed(2)}s</span>
           </span>
 
-          <span className="flex items-center gap-1 font-semibold text-slate-700">
-            <Coins className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-            <span>${costUsd.toFixed(4)}</span>
-          </span>
 
           {activeTools && activeTools.length > 0 && (
             <span className="flex items-center gap-1 font-semibold text-teal-800 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-md">
@@ -79,19 +75,7 @@ export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {rawText && (
-            <button
-              onClick={handleCopy}
-              className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-              title="Copy response text"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-            </button>
-          )}
+
 
           <button
             onClick={() => setIsOpen(!isOpen)}
