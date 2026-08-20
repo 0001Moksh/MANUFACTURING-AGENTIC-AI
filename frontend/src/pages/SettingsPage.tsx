@@ -7,6 +7,8 @@ export const SettingsPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="p-6"
+
     >
       <div className="mb-[20px]">
         <div className="text-[11px] font-bold tracking-[1.2px] text-teal-deep uppercase mb-[6px]">

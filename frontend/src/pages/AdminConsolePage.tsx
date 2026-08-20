@@ -27,6 +27,7 @@ export const AdminConsolePage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="p-6"
     >
       <div className="mb-[20px]">
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">

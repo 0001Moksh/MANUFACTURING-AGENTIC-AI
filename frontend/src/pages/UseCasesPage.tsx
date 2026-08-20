@@ -29,18 +29,20 @@ export const UseCasesPage: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.3 }} 
+      className="p-6"
+
     >
       <div className="mb-[20px]">
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
           Manufacturing Agentic AI Use-Case Library
         </h2>
         <p className="m-0 text-muted text-[13.5px] max-w-[720px] leading-relaxed">
-Each card is a deployable module. Click one to view its impact and site-level admin controls.
+          Each card is a deployable module. Click one to view its impact and site-level admin controls.
         </p>
       </div>
 
-      <FilterBar 
+      <FilterBar
         activePillar={activePillar}
         setActivePillar={setActivePillar}
         activeType={activeType}
@@ -52,9 +54,9 @@ Each card is a deployable module. Click one to view its impact and site-level ad
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
         {activeUseCases.map(u => (
-          <UseCaseCard 
-            key={u.id} 
-            useCase={u} 
+          <UseCaseCard
+            key={u.id}
+            useCase={u}
             onClick={() => {
               if (u.id === 6) {
                 navigate('/use-cases/executive-insights');
@@ -65,7 +67,7 @@ Each card is a deployable module. Click one to view its impact and site-level ad
                 return;
               }
               navigate(`/use-cases/${u.id}`);
-            }} 
+            }}
           />
         ))}
       </div>

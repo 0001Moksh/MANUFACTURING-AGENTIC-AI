@@ -1,11 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Send,
   ShieldAlert,
   RotateCcw,
   Sparkles,
+  ChevronDown,
+  ArrowDown,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -31,7 +35,6 @@ interface ChatMessage {
   activeTools?: ToolInvocation[];
 }
 
-
 // ─── Lightweight Markdown & Table Renderer ────────────────────────────────────
 
 function renderMarkdown(raw: string): React.ReactNode[] {
@@ -55,7 +58,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Blank line
     if (line.trim() === '') {
       flushList();
       nodes.push(<div key={`br-${i}`} className="h-2" />);
@@ -63,7 +65,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Heading (### or ## or #)
     if (/^#{1,3}\s/.test(line)) {
       flushList();
       const text = line.replace(/^#{1,3}\s/, '');
@@ -77,7 +78,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Horizontal Rule (--- or ===)
     if (/^(---|===)\s*$/.test(line.trim())) {
       flushList();
       nodes.push(<hr key={`hr-${i}`} className="my-3 border-border-color/60" />);
@@ -85,7 +85,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Section Header (e.g. === FORENSIC INVESTIGATION SUMMARY ===)
     if (/^===\s*.+\s*===$/.test(line.trim())) {
       flushList();
       const title = line.replace(/^===\s*/, '').replace(/\s*===$/, '');
@@ -98,7 +97,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Markdown Table
     if (line.trim().startsWith('|')) {
       flushList();
       const tableLines: string[] = [];
@@ -110,21 +108,18 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Bullet list (- or *)
     if (/^[\*\-]\s/.test(line.trim())) {
       listBuffer.push(line.replace(/^[\*\-]\s/, '').trim());
       i++;
       continue;
     }
 
-    // Numbered list (1. 2.)
     if (/^\d+\.\s/.test(line.trim())) {
       listBuffer.push(line.replace(/^\d+\.\s/, '').trim());
       i++;
       continue;
     }
 
-    // Regular paragraph
     flushList();
     nodes.push(
       <p key={`p-${i}`} className="text-[13.5px] leading-relaxed my-1 text-ink">
@@ -194,17 +189,75 @@ function MarkdownTable({ lines }: { lines: string[] }) {
   );
 }
 
+// ─── Chat Message Bubble ──────────────────────────────────────────────────────
 
+function MessageBubble({
+  msg,
+  copiedId,
+  onCopy,
+}: {
+  msg: ChatMessage;
+  copiedId: string | null;
+  onCopy: (id: string, text: string) => void;
+}) {
+  const isUser = msg.role === 'user';
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+    >
+      {!isUser && (
+        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-700 to-teal-500 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
+          <ShieldAlert className="w-3.5 h-3.5" />
+        </div>
+      )}
+
+      <div
+        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${
+          isUser
+            ? 'bg-gradient-to-br from-[#0B1730] to-[#00808A] text-white rounded-tr-[4px]'
+            : 'bg-white border border-border-color text-ink rounded-tl-[4px]'
+        }`}
+      >
+        <button
+          onClick={() => onCopy(msg.id, msg.text)}
+          title="Copy message"
+          className={`absolute -top-2.5 ${isUser ? '-left-2.5' : '-right-2.5'} opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-border-color shadow-sm flex items-center justify-center cursor-pointer hover:bg-canvas`}
+        >
+          {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-muted" />}
+        </button>
+
+        <div className="prose prose-sm max-w-none">
+          {isUser ? <p className="m-0 leading-relaxed">{msg.text}</p> : renderMarkdown(msg.text)}
+        </div>
+
+        {!isUser && <AgentTelemetryFooter telemetry={msg.telemetry} tools={msg.activeTools} rawText={msg.text} />}
+
+        {msg.timestamp && (
+          <div className={`text-[10px] mt-1.5 ${isUser ? 'text-white/60 text-right' : 'text-slate-400'}`}>{msg.timestamp}</div>
+        )}
+      </div>
+
+      {isUser && (
+        <div className="w-7 h-7 rounded-full bg-navy-800 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
+          <span className="text-[11px] font-bold">U</span>
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 // ─── Suggested Forensic Prompts ───────────────────────────────────────────────
 
 const SUGGESTED_PROMPTS = [
-  '📊 Calculate our Total Recordable Incident Rate (TRIR)',
-  '🛡️ Show current Zero Harm Index & plant safety breakdown',
-  '🚨 List all high-risk plant zones and top anomalies',
-  '💧 Check for active chemical or oil spills on the factory floor',
-  '🔍 Analyze low-confidence AI tracking alerts for false positives',
-  '🔥 Find employees with high-heat exposure and fatigue alerts',
+  { icon: '📊', label: 'TRIR (YTD)', query: 'Calculate our Total Recordable Incident Rate (TRIR)' },
+  { icon: '🛡️', label: 'Zero Harm Index', query: 'Show current Zero Harm Index & plant safety breakdown' },
+  { icon: '🚨', label: 'High-Risk Zones', query: 'List all high-risk plant zones and top anomalies' },
+  { icon: '💧', label: 'Spill Check', query: 'Check for active chemical or oil spills on the factory floor' },
+  { icon: '🔍', label: 'False Positives', query: 'Analyze low-confidence AI tracking alerts for false positives' },
+  { icon: '🔥', label: 'Heat & Fatigue', query: 'Find employees with high-heat exposure and fatigue alerts' },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -215,10 +268,11 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeTools, setActiveTools] = useState<ActiveToolStep[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [heroExpanded, setHeroExpanded] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  const [threadId, setThreadId] = useState<string>(
-    () => `incident-session-${Date.now()}`
-  );
+  const [threadId, setThreadId] = useState<string>(() => `incident-session-${Date.now()}`);
   const [summaryKpi, setSummaryKpi] = useState<IncidentInvestigationSummary>({
     status: 'success',
     trir_ytd: '0.42',
@@ -231,8 +285,13 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
   });
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Fetch summary KPI metrics on load
+  const scrollToBottom = useCallback((smooth = true) => {
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
+
   useEffect(() => {
     incidentInvestigationService
       .getSummary()
@@ -241,7 +300,6 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
       })
       .catch((err) => console.warn('Could not fetch incident summary:', err));
 
-    // Welcome Message
     setMessages([
       {
         id: 'welcome',
@@ -252,11 +310,29 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
     ]);
   }, []);
 
-  // Auto scroll to bottom
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeTools, loading]);
+    scrollToBottom();
+  }, [messages, activeTools, loading, scrollToBottom]);
 
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distanceFromBottom > 250);
+  };
+
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+  }, [input]);
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const handleClearHistory = () => {
     const newThread = `incident-session-${Date.now()}`;
@@ -269,6 +345,8 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);
+    setInput('');
+    setActiveTools([]);
   };
 
   const handleSend = async (queryText?: string) => {
@@ -278,7 +356,6 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
     const userMessageId = `user-${Date.now()}`;
     const assistantMessageId = `asst-${Date.now()}`;
 
-    // Add user message
     setMessages((prev) => [
       ...prev,
       {
@@ -293,7 +370,6 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
     setLoading(true);
     setActiveTools([]);
 
-    // Temporary placeholder for assistant response
     let accumulatedText = '';
     const completedTools: ToolInvocation[] = [];
 
@@ -344,9 +420,7 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
         onToken: (chunk) => {
           accumulatedText += chunk;
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMessageId ? { ...m, text: accumulatedText } : m
-            )
+            prev.map((m) => (m.id === assistantMessageId ? { ...m, text: accumulatedText } : m))
           );
         },
         onTelemetry: (telemetry) => {
@@ -368,7 +442,6 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
         },
         onError: (err) => {
           console.error('Streaming error fallback to standard API:', err);
-          // Fallback to standard chat request if SSE encounters an issue
           incidentInvestigationService
             .chat(textToSend, threadId)
             .then((res) => {
@@ -426,182 +499,188 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="flex flex-col h-[calc(100vh-80px)] max-w-[1400px] mx-auto p-2 md:p-4 gap-4 font-sans text-ink"
+      transition={{ duration: 0.3 }}
+      className="h-[calc(100vh-22px)] flex flex-col gap-1 w-full px-0 overflow-hidden"
     >
-      {/* ── Top Header & KPI Banner ── */}
-      <div className="bg-gradient-to-r from-[#0B1730] via-[#102A43] to-[#0A3641] text-white p-5 rounded-[18px] shadow-lg border border-slate-700/50">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-colors cursor-pointer border border-white/10"
-              title="Back to Agents Dashboard"
-            >
-              <ArrowLeft className="w-5 h-5 text-white" />
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 rounded-md text-[11px] font-bold tracking-wider uppercase">
-                  Forensic Agent
-                </span>
-                <span className="text-[12px] text-emerald-400 font-semibold flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  43 Tools Live
-                </span>
-              </div>
-              <h1 className="text-[20px] md:text-[22px] font-extrabold text-white mt-1 flex items-center gap-2">
-                Deva — Incident & Investigation Agent
-              </h1>
-              <p className="text-[12.5px] text-slate-300">
-                Automated Root-Cause Forensics, TRIR/LTIFR Analysis, Spill Detection & Safety Anomaly Intelligence.
-              </p>
+      {/* ── Top Bar / Navigation ── */}
+      <div className="flex items-center justify-between pt-2 shrink-0 px-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center pt-2 gap-2 text-[13px] font-semibold text-muted hover:text-cyan-600 transition-colors bg-transparent border-none cursor-pointer p-0"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+      </div>
+
+      {/* ── Collapsible Hero Banner ── */}
+      <div className="bg-gradient-to-r from-[#0B1730] via-[#102A43] to-[#0A3641] text-white rounded-[16px] shadow-sm shrink-0 border border-slate-700/50 overflow-hidden mx-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-3.5 h-3.5 text-cyan-300" />
             </div>
+            <h1 className="font-head text-[16px] font-extrabold m-0 text-white truncate">
+              Deva — Incident &amp; Investigation Agent
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-300 bg-emerald-400/10 border border-emerald-400/30 px-2 py-0.5 rounded-full ml-1 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              43 Tools Live
+            </span>
           </div>
 
-          {/* Quick Metrics Chips */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <div className="text-[10px] text-slate-300 uppercase font-semibold">TRIR (YTD)</div>
-              <div className="text-[14px] font-extrabold text-cyan-300">{summaryKpi.trir_ytd}</div>
-            </div>
-            <div className="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <div className="text-[10px] text-slate-300 uppercase font-semibold">Zero Harm</div>
-              <div className="text-[14px] font-extrabold text-emerald-400">{summaryKpi.zero_harm_index}%</div>
-            </div>
-            <div className="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <div className="text-[10px] text-slate-300 uppercase font-semibold">Spill Alerts</div>
-              <div className="text-[14px] font-extrabold text-amber-300">{summaryKpi.open_spill_alerts}</div>
-            </div>
-            <div className="bg-white/10 border border-white/15 px-3 py-2 rounded-xl text-center min-w-[90px]">
-              <div className="text-[10px] text-slate-300 uppercase font-semibold">Anomalies</div>
-              <div className="text-[14px] font-extrabold text-rose-300">{summaryKpi.active_anomaly_flags}</div>
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleClearHistory}
-              className="p-2.5 bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-white rounded-xl border border-white/15 transition-all cursor-pointer flex items-center gap-1.5 text-[12px] font-medium"
-              title="Reset Chat Session"
+              className="flex items-center gap-1.5 text-[11.5px] font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer"
+              title="Reset conversation thread"
             >
-              <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">New Conversation</span>
+              <RotateCcw className="w-3.5 h-3.5" /> New Conversation
+            </button>
+            <button
+              onClick={() => setHeroExpanded((v) => !v)}
+              className="flex items-center gap-1 text-[11.5px] font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer"
+              title={heroExpanded ? 'Collapse' : 'Expand'}
+            >
+              <motion.span animate={{ rotate: heroExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex items-center">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </motion.span>
+              {heroExpanded ? 'Collapse' : 'Expand'}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* ── Chat Messages Container ── */}
-      <div className="flex-1 bg-panel border border-border-color rounded-[18px] overflow-hidden flex flex-col shadow-sm min-h-0">
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
-          {messages.map((msg) => {
-            const isUser = msg.role === 'user';
-            return (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                {!isUser && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-700 to-teal-500 flex items-center justify-center text-white shrink-0 shadow-sm mt-1">
-                    <ShieldAlert className="w-4 h-4" />
+        <AnimatePresence initial={false}>
+          {heroExpanded && (
+            <motion.div
+              key="hero-detail"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 pt-1 border-t border-white/10">
+                <p className="text-white/80 text-[13px] max-w-[840px] mt-2 mb-0 leading-relaxed">
+                  Automated root-cause forensics, TRIR/LTIFR analysis, spill detection & safety anomaly intelligence across all plant zones.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[10px] text-white/70 uppercase font-semibold">TRIR (YTD)</div>
+                    <div className="text-[16px] font-extrabold text-cyan-300">{summaryKpi.trir_ytd}</div>
                   </div>
-                )}
-
-                <div
-                  className={`relative max-w-[85%] md:max-w-[80%] rounded-[16px] p-4 shadow-sm text-[13.5px] ${
-                    isUser
-                      ? 'bg-gradient-to-br from-[#0B1730] to-[#00808A] text-white rounded-tr-none'
-                      : 'bg-white border border-border-color text-ink rounded-tl-none'
-                  }`}
-                >
-                  {/* Message Content */}
-                  <div className="prose prose-sm max-w-none">
-                    {isUser ? (
-                      <p className="m-0 leading-relaxed">{msg.text}</p>
-                    ) : (
-                      renderMarkdown(msg.text)
-                    )}
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[10px] text-white/70 uppercase font-semibold">Zero Harm</div>
+                    <div className="text-[16px] font-extrabold text-emerald-400">{summaryKpi.zero_harm_index}%</div>
                   </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[10px] text-white/70 uppercase font-semibold">Spill Alerts</div>
+                    <div className="text-[16px] font-extrabold text-amber-300">{summaryKpi.open_spill_alerts}</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[10px] text-white/70 uppercase font-semibold">Anomalies</div>
+                    <div className="text-[16px] font-extrabold text-rose-300">{summaryKpi.active_anomaly_flags}</div>
+                  </div>
+                </div>
 
-                  {/* ── Response Telemetry & Metadata Footer ── */}
-                  {!isUser && (
-                    <AgentTelemetryFooter
-                      telemetry={msg.telemetry}
-                      tools={msg.activeTools}
-                      rawText={msg.text}
-                    />
-                  )}
-
-                  {/* Timestamp */}
-                  {msg.timestamp && (
-                    <div
-                      className={`text-[10px] mt-1 text-right ${
-                        isUser ? 'text-white/60' : 'text-slate-400'
-                      }`}
-                    >
-                      {msg.timestamp}
-                    </div>
-                  )}
+                <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📊 TRIR / LTIFR</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">💧 Spill Detection</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔍 Anomaly Forensics</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🎥 Vision Model Audits</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔥 Fatigue Detection</span>
                 </div>
               </div>
-            );
-          })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-          {/* ── Interactive Tool Execution Animation Indicator ── */}
-          <div className="pl-11">
-            <AgentExecutionIndicator
-              activeSteps={activeTools}
-              agentName="Deva"
-              isStreaming={loading}
-            />
+      {/* ── Main Chat Interface ── */}
+      <div className="flex-1 grid grid-rows-[1fr_auto] overflow-hidden min-h-0 md:mx-2 relative">
+        {/* Messages Stream */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-3 custom-scrollbar min-h-0"
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} msg={msg} copiedId={copiedId} onCopy={handleCopy} />
+            ))}
+          </AnimatePresence>
+
+          <div className="pl-10">
+            <AgentExecutionIndicator activeSteps={activeTools} agentName="Deva" isStreaming={loading} />
           </div>
 
           <div ref={bottomRef} />
         </div>
 
-        {/* ── Suggested Prompts & Input Box ── */}
-        <div className="p-4 bg-[#F8FAFC] border-t border-border-color space-y-3">
-          {/* Quick Prompts */}
-          {messages.length <= 2 && !loading && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-cyan-600" /> Suggestions:
-              </span>
-              {SUGGESTED_PROMPTS.map((prompt, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSend(prompt)}
-                  className="text-[12px] bg-white hover:bg-cyan-50 border border-slate-200 hover:border-cyan-400 text-slate-700 hover:text-cyan-900 px-3 py-1.5 rounded-full transition-all whitespace-nowrap shadow-xs cursor-pointer font-medium"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+        {/* Jump to latest button */}
+        <AnimatePresence>
+          {showScrollBtn && (
+            <motion.button
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.9 }}
+              onClick={() => scrollToBottom()}
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-navy-900 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-navy-800 transition-colors cursor-pointer border-none"
+            >
+              <ArrowDown className="w-3.5 h-3.5" /> Latest
+            </motion.button>
           )}
+        </AnimatePresence>
 
-          {/* Input Box */}
+        {/* Suggested Queries & Input Bar */}
+        <div className="border-t border-border-color bg-white p-2.5 md:p-3 space-y-2 shrink-0">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
+            <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-cyan-600" /> Suggestions:
+            </span>
+            {SUGGESTED_PROMPTS.map((sq, i) => (
+              <button
+                key={i}
+                onClick={() => handleSend(sq.query)}
+                disabled={loading}
+                className="shrink-0 bg-canvas hover:bg-cyan-50 text-ink hover:text-cyan-900 border border-border-color hover:border-cyan-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                <span>{sq.icon}</span>
+                <span>{sq.label}</span>
+              </button>
+            ))}
+          </div>
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
             }}
-            className="flex items-center gap-2"
+            className="flex gap-2 items-end"
           >
-            <input
-              type="text"
+            <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              rows={1}
               placeholder="Ask Deva: e.g. 'Calculate our current TRIR and Zero Harm Index across plants'..."
               disabled={loading}
-              className="flex-1 bg-white border border-slate-300 focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 rounded-[14px] px-4 py-3 text-[13.5px] outline-none transition-all shadow-xs disabled:bg-slate-100"
+              className="flex-1 resize-none rounded-[12px] border border-border-color bg-canvas px-3.5 py-2 text-[13.5px] outline-none focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 transition-all placeholder:text-muted max-h-[140px] disabled:bg-slate-100"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="bg-gradient-to-r from-[#0B1730] to-[#00808A] hover:opacity-95 text-white font-semibold px-5 py-3 rounded-[14px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm cursor-pointer shrink-0"
+              className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-r from-[#0B1730] to-[#00808A] px-4 py-2.5 text-white font-semibold text-[13.5px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border-none active:scale-95"
             >
-              <Send className="w-4 h-4" />
-              <span className="hidden sm:inline">Investigate</span>
+              <Send className="w-4 h-4" /> Investigate
             </button>
           </form>
         </div>

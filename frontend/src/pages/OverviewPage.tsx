@@ -10,7 +10,7 @@ export const OverviewPage: React.FC = () => (
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.3 }}
-    className="flex flex-col h-full"
+    className="flex p-6 flex-col h-full"
   >
     <div className="mb-[20px]">
       <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">Every decision-critical signal, one screen</h2>

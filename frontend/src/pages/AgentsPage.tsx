@@ -108,6 +108,8 @@ export const AgentsPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="p-6"
+
     >
       <div className="mb-[20px]">
         <h2 className="font-head text-[24px] m-[0_0_6px] font-extrabold text-ink">
@@ -115,7 +117,7 @@ export const AgentsPage: React.FC = () => {
         </h2>
         <p className="m-0 text-muted text-[13.5px] max-w-[720px] leading-relaxed">
           Each agent can be toggled per site. If its data source is disabled, it shows <span className="font-semibold">Requires Connection</span> and can’t be launched.
-  </p>
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">

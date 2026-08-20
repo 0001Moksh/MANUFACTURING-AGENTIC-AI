@@ -1,5 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Mic, AudioLines, ShieldCheck, Eye, Wrench, Sparkles, Send, Volume2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  Mic,
+  AudioLines,
+  ShieldCheck,
+  Eye,
+  Wrench,
+  Sparkles,
+  Send,
+  Volume2,
+  RefreshCw,
+  Copy,
+  Check,
+  ArrowDown,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { websocketUrl } from '../../config/api';
 import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
 import type { TurnTelemetry } from '../../types/telemetry';
@@ -27,42 +41,46 @@ const AGENT_OPTIONS = [
 
 const SAMPLE_QUERIES: Record<string, string[]> = {
   auto: [
-    "Are there any hard hat violations today?",
-    "Show quality inspection reports for this week",
-    "Predict equipment failure risk for machines"
+    'Are there any hard hat violations today?',
+    'Show quality inspection reports for this week',
+    'Predict equipment failure risk for machines',
   ],
   safety_quality: [
-    "Which site has the highest material defects this month?",
-    "Show active quality holds",
-    "List top common quality failure reasons"
+    'Which site has the highest material defects this month?',
+    'Show active quality holds',
+    'List top common quality failure reasons',
   ],
   ppe_vision: [
-    "Any active PPE violations or zone breaches?",
-    "Show top broken HSE rules this month",
-    "List night shift safety incidents"
+    'Any active PPE violations or zone breaches?',
+    'Show top broken HSE rules this month',
+    'List night shift safety incidents',
   ],
   maintenance: [
-    "Predict machine failure probability",
-    "Check vibration anomalies across lines",
-    "Show active work orders"
-  ]
+    'Predict machine failure probability',
+    'Check vibration anomalies across lines',
+    'Show active work orders',
+  ],
 };
 
 export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
-  useCaseName = "Industrial AI Operations",
-  defaultAgent = 'auto'
+  useCaseName = 'Industrial AI Operations',
+  defaultAgent = 'auto',
 }) => {
   const [selectedAgent, setSelectedAgent] = useState<string>(defaultAgent);
   const [activeAgentBadge, setActiveAgentBadge] = useState<string>('');
   const [inputText, setInputText] = useState<string>('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([{
-    id: 'msg-0',
-    sender: 'agent',
-    text: `Hello sir! I am Deva, your Voice Interaction Layer. You can speak or type your query in English or Hindi. I will query the live agent database tools, display the results, and speak the response back to you.`,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    agentName: 'Voice Assistant (Deva)'
-  }]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'msg-0',
+      sender: 'agent',
+      text: `Hello sir! I am Deva, your Voice Interaction Layer. You can speak or type your query in English or Hindi. I will query the live agent database tools, display the results, and speak the response back to you.`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      agentName: 'Voice Assistant (Deva)',
+    },
+  ]);
 
   const [isListening, setIsListening] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
@@ -73,18 +91,28 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Playback state
   const nextPlayTimeRef = useRef<number>(0);
   const activeSourceNodes = useRef<AudioBufferSourceNode[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking]);
+    scrollToBottom();
+  }, [messages, isThinking, scrollToBottom]);
+
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distanceFromBottom > 250);
+  };
 
   useEffect(() => {
-    // Connect WebSocket with active agent parameter
     const wsUrl = `${websocketUrl('/ws/voice')}?agent=${selectedAgent}`;
     const ws = new WebSocket(wsUrl);
 
@@ -93,19 +121,20 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
 
       if (data.type === 'agent_routed') {
         setActiveAgentBadge(data.agent_name || '');
-      }
-      else if (data.type === 'transcript') {
-        setMessages(prev => [...prev, {
-          id: `msg-${Date.now()}`,
-          sender: data.role,
-          text: data.text,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
+      } else if (data.type === 'transcript') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            sender: data.role,
+            text: data.text,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
         setIsThinking(true);
-      }
-      else if (data.type === 'agent_text_chunk') {
+      } else if (data.type === 'agent_text_chunk') {
         setIsThinking(false);
-        setMessages(prev => {
+        setMessages((prev) => {
           const newMsgs = [...prev];
           const lastMsg = newMsgs[newMsgs.length - 1];
           if (lastMsg && lastMsg.sender === 'agent' && lastMsg.id === `gen-${data.generation_id}`) {
@@ -116,16 +145,15 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
               sender: 'agent',
               text: data.text,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              agentName: activeAgentBadge || 'Deva'
+              agentName: activeAgentBadge || 'Deva',
             });
           }
           return newMsgs;
         });
-      }
-      else if (data.type === 'telemetry') {
-        setMessages(prev => {
+      } else if (data.type === 'telemetry') {
+        setMessages((prev) => {
           const messagesWithTelemetry = [...prev];
-          const lastAgentIndex = messagesWithTelemetry.map(message => message.sender).lastIndexOf('agent');
+          const lastAgentIndex = messagesWithTelemetry.map((message) => message.sender).lastIndexOf('agent');
           if (lastAgentIndex >= 0) {
             messagesWithTelemetry[lastAgentIndex] = {
               ...messagesWithTelemetry[lastAgentIndex],
@@ -134,8 +162,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
           }
           return messagesWithTelemetry;
         });
-      }
-      else if (data.type === 'audio_chunk') {
+      } else if (data.type === 'audio_chunk') {
         if (!audioContextRef.current) return;
         try {
           const binaryString = window.atob(data.audio);
@@ -148,10 +175,9 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
           const audioBuffer = await audioContextRef.current.decodeAudioData(bytes.buffer);
           playAudioBuffer(audioBuffer);
         } catch (e) {
-          console.error("Failed to decode/play audio chunk", e);
+          console.error('Failed to decode/play audio chunk', e);
         }
-      }
-      else if (data.type === 'stop_audio') {
+      } else if (data.type === 'stop_audio') {
         stopAllAudioPlayback();
       }
     };
@@ -175,7 +201,6 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
     const query = (textToSend ?? inputText).trim();
     if (!query || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-    // Ensure AudioContext is active so speech plays upon arrival
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     }
@@ -183,10 +208,12 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       audioContextRef.current.resume();
     }
 
-    wsRef.current.send(JSON.stringify({
-      type: 'query_text',
-      text: query
-    }));
+    wsRef.current.send(
+      JSON.stringify({
+        type: 'query_text',
+        text: query,
+      })
+    );
 
     setInputText('');
   };
@@ -207,7 +234,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
 
     activeSourceNodes.current.push(source);
     source.onended = () => {
-      activeSourceNodes.current = activeSourceNodes.current.filter(n => n !== source);
+      activeSourceNodes.current = activeSourceNodes.current.filter((n) => n !== source);
       if (activeSourceNodes.current.length === 0) {
         setIsPlayingAudio(false);
       }
@@ -215,8 +242,10 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   };
 
   const stopAllAudioPlayback = () => {
-    activeSourceNodes.current.forEach(source => {
-      try { source.stop(); } catch (e) { }
+    activeSourceNodes.current.forEach((source) => {
+      try {
+        source.stop();
+      } catch (e) {}
     });
     activeSourceNodes.current = [];
     nextPlayTimeRef.current = audioContextRef.current?.currentTime || 0;
@@ -245,7 +274,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-        }
+        },
       });
       streamRef.current = stream;
 
@@ -266,7 +295,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
 
       setIsListening(true);
     } catch (err) {
-      console.error("Failed to start listening", err);
+      console.error('Failed to start listening', err);
     }
   };
 
@@ -276,23 +305,32 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       workletNodeRef.current = null;
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
     setIsListening(false);
   };
 
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const currentSampleQueries = SAMPLE_QUERIES[selectedAgent] || SAMPLE_QUERIES.auto;
+
   const startNewConversation = () => {
     stopAllAudioPlayback();
     setInputText('');
-    setMessages([{
-      id: `welcome-${Date.now()}`,
-      sender: 'agent',
-      text: 'New conversation started. You can speak or type your query in English or Hindi.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      agentName: 'Voice Assistant (Deva)',
-    }]);
+    setMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        sender: 'agent',
+        text: 'New conversation started. You can speak or type your query in English or Hindi.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        agentName: 'Voice Assistant (Deva)',
+      },
+    ]);
   };
 
   return (
@@ -311,86 +349,132 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
 
         {/* Agent Selector Pills */}
         <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
-          <button onClick={startNewConversation} className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-2.5 py-1.5 text-[11.5px] font-bold text-white hover:bg-navy-800 transition-colors cursor-pointer">
+          <button
+            onClick={startNewConversation}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-2.5 py-1.5 text-[11.5px] font-bold text-white hover:bg-navy-800 transition-colors cursor-pointer active:scale-95"
+          >
             <RefreshCw className="w-3.5 h-3.5" /> New Conversation
           </button>
           <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-border-color flex-wrap">
-          {AGENT_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => handleAgentChange(opt.id)}
-              className={`flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg transition-all font-medium border-none cursor-pointer ${
-                selectedAgent === opt.id
-                  ? 'bg-navy-900 text-white shadow-xs font-semibold'
-                  : 'bg-transparent text-muted hover:text-ink hover:bg-canvas'
-              }`}
-            >
-              {opt.icon}
-              {opt.label}
-            </button>
-          ))}
+            {AGENT_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                onClick={() => handleAgentChange(opt.id)}
+                className={`flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg transition-all font-medium border-none cursor-pointer ${
+                  selectedAgent === opt.id
+                    ? 'bg-navy-900 text-white shadow-xs font-semibold'
+                    : 'bg-transparent text-muted hover:text-ink hover:bg-canvas'
+                }`}
+              >
+                {opt.icon}
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* ── Messages Chat View ── */}
-      <div className="flex-1 overflow-y-auto p-[20px] flex flex-col gap-[16px] bg-[#FAFBFE] min-h-[300px]">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[85%] rounded-[14px] p-[12px_18px] text-[13.5px] leading-relaxed shadow-xs
-                ${msg.sender === 'user'
-                  ? 'bg-gradient-to-br from-[#0B1730] to-[#162B50] text-white rounded-br-[4px]'
-                  : 'bg-white border border-border-color text-ink rounded-bl-[4px]'
-                }`}
-            >
-              {msg.agentName && msg.sender === 'agent' && (
-                <div className="text-[10.5px] font-bold text-teal-deep uppercase tracking-wider mb-1 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  {msg.agentName}
-                </div>
-              )}
-              {msg.text}
-              {msg.sender === 'agent' && msg.telemetry && (
-                <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
-              )}
-              <div className={`text-[9.5px] mt-[6px] ${msg.sender === 'user' ? 'text-white/70' : 'text-muted'} text-right`}>
-                {msg.timestamp}
+      <div className="flex-1 relative min-h-[300px]">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto p-[20px] flex flex-col gap-[14px] bg-[#FAFBFE] custom-scrollbar"
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'user';
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`group relative max-w-[85%] rounded-[14px] p-[12px_18px] text-[13.5px] leading-relaxed shadow-xs transition-shadow hover:shadow-sm
+                      ${
+                        isUser
+                          ? 'bg-gradient-to-br from-[#0B1730] to-[#162B50] text-white rounded-br-[4px]'
+                          : 'bg-white border border-border-color text-ink rounded-bl-[4px]'
+                      }`}
+                  >
+                    <button
+                      onClick={() => handleCopy(msg.id, msg.text)}
+                      title="Copy message"
+                      className={`absolute -top-2.5 ${isUser ? '-left-2.5' : '-right-2.5'} opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-border-color shadow-sm flex items-center justify-center cursor-pointer hover:bg-canvas`}
+                    >
+                      {copiedId === msg.id ? (
+                        <Check className="w-3 h-3 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-3 h-3 text-muted" />
+                      )}
+                    </button>
+
+                    {msg.agentName && !isUser && (
+                      <div className="text-[10.5px] font-bold text-teal-deep uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        {msg.agentName}
+                      </div>
+                    )}
+                    <span className="whitespace-pre-wrap">{msg.text}</span>
+                    {!isUser && msg.telemetry && <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />}
+                    <div className={`text-[9.5px] mt-[6px] ${isUser ? 'text-white/70' : 'text-muted'} text-right`}>
+                      {msg.timestamp}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+
+          {isThinking && (
+            <div className="flex justify-start">
+              <div className="bg-white border border-border-color rounded-[14px] rounded-bl-[4px] p-[12px_18px] flex gap-[6px] items-center text-[12px] text-muted">
+                <span className="w-[6px] h-[6px] bg-teal-500 rounded-full animate-bounce"></span>
+                <span className="w-[6px] h-[6px] bg-teal-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-[6px] h-[6px] bg-teal-700 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                <span className="ml-2 font-medium italic">Deva is querying live agent tools...</span>
               </div>
             </div>
-          </div>
-        ))}
+          )}
 
-        {isThinking && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-border-color rounded-[14px] rounded-bl-[4px] p-[12px_18px] flex gap-[6px] items-center text-[12px] text-muted">
-              <span className="w-[6px] h-[6px] bg-teal-500 rounded-full animate-bounce"></span>
-              <span className="w-[6px] h-[6px] bg-teal-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-              <span className="w-[6px] h-[6px] bg-teal-700 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-              <span className="ml-2 font-medium italic">Deva is querying live agent tools...</span>
+          {isPlayingAudio && (
+            <div className="flex justify-end">
+              <div className="bg-teal-50 border border-teal-200 text-teal-800 text-[11.5px] font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-xs">
+                <Volume2 className="w-3.5 h-3.5 animate-pulse text-teal-600" />
+                <span>Speaking audio response...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-        {isPlayingAudio && (
-          <div className="flex justify-end">
-            <div className="bg-teal-50 border border-teal-200 text-teal-800 text-[11.5px] font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-xs">
-              <Volume2 className="w-3.5 h-3.5 animate-pulse text-teal-600" />
-              <span>Speaking audio response...</span>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
+        {/* Jump to latest button */}
+        <AnimatePresence>
+          {showScrollBtn && (
+            <motion.button
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.9 }}
+              onClick={() => scrollToBottom()}
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-navy-900 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-navy-800 transition-colors cursor-pointer border-none"
+            >
+              <ArrowDown className="w-3.5 h-3.5" /> Latest
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Suggested Prompts ── */}
-      <div className="px-5 pt-2 pb-1 bg-white border-t border-border-color/60 flex items-center gap-1.5 overflow-x-auto">
+      <div className="px-5 pt-2 pb-1 bg-white border-t border-border-color/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
         <span className="text-[11px] text-muted font-medium shrink-0">Try asking:</span>
         {currentSampleQueries.map((q, idx) => (
           <button
             key={idx}
             onClick={() => handleSendText(q)}
-            className="text-[11.5px] px-2.5 py-1 rounded-full border border-teal/40 text-teal-700 hover:bg-teal/5 bg-transparent cursor-pointer shrink-0 font-medium transition-colors"
+            className="text-[11.5px] px-2.5 py-1 rounded-full border border-teal/40 text-teal-700 hover:bg-teal/5 bg-transparent cursor-pointer shrink-0 font-medium transition-colors active:scale-95"
           >
             {q}
           </button>
@@ -401,7 +485,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       <div className="p-[14px_20px] bg-white border-t border-border-color shrink-0 flex flex-col gap-2">
         <div className="flex items-center gap-2">
           {/* Query Text Box */}
-          <div className="flex-1 flex items-center relative rounded-[14px] border border-border-color bg-canvas focus-within:border-teal-deep transition-all">
+          <div className="flex-1 flex items-center relative rounded-[14px] border border-border-color bg-canvas focus-within:border-teal-deep focus-within:ring-2 focus-within:ring-teal-500/20 transition-all">
             <input
               type="text"
               value={inputText}
@@ -418,7 +502,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
             {inputText.trim() && (
               <button
                 onClick={() => handleSendText()}
-                className="mr-2 p-2 rounded-xl bg-teal-deep text-white hover:bg-teal-600 transition-colors border-none cursor-pointer flex items-center justify-center"
+                className="mr-2 p-2 rounded-xl bg-teal-deep text-white hover:bg-teal-600 transition-colors border-none cursor-pointer flex items-center justify-center active:scale-95"
                 title="Send query"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -429,25 +513,17 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
           {/* Voice Microphone Toggle Pill */}
           <button
             onClick={toggleListening}
-            className={`flex items-center gap-2 p-[10px_16px] rounded-[14px] transition-all border cursor-pointer shrink-0 font-semibold text-[13px] ${
+            className={`flex items-center gap-2 p-[10px_16px] rounded-[14px] transition-all border cursor-pointer shrink-0 font-semibold text-[13px] active:scale-95 ${
               isListening
                 ? 'bg-navy-900 border-navy-900 text-white ring-2 ring-blue-400/40 shadow-sm'
                 : 'bg-canvas border-border-color text-ink hover:border-teal-deep'
             }`}
             title={isListening ? 'Stop listening' : 'Tap to speak'}
           >
-            <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${
-              isListening ? 'bg-blue-600' : 'bg-teal-deep'
-            }`}>
-              {isListening ? (
-                <AudioLines className="w-3.5 h-3.5 text-white animate-pulse" />
-              ) : (
-                <Mic className="w-3.5 h-3.5 text-white" />
-              )}
+            <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${isListening ? 'bg-blue-600' : 'bg-teal-deep'}`}>
+              {isListening ? <AudioLines className="w-3.5 h-3.5 text-white animate-pulse" /> : <Mic className="w-3.5 h-3.5 text-white" />}
             </div>
-            <span className="hidden sm:inline">
-              {isListening ? 'Listening...' : 'Voice'}
-            </span>
+            <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Voice'}</span>
           </button>
         </div>
 
@@ -459,3 +535,5 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
     </div>
   );
 };
+
+export default VoiceInteraction;

@@ -15,6 +15,8 @@ export const AnalyticsPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="p-6"
+
     >
       <div className="mb-[20px]">
         <div className="text-[11px] font-bold tracking-[1.2px] text-teal-deep uppercase mb-[6px]">
@@ -33,13 +35,13 @@ export const AnalyticsPage: React.FC = () => {
         <p className="text-[12px] text-muted m-[0_0_16px]">
           % of catalogued use cases activated and live
         </p>
-        
+
         <div className="h-[220px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={adoptionData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#98A2BE' }} tickLine={false} axisLine={false} dy={10} />
               <YAxis tick={{ fontSize: 11, fill: '#98A2BE' }} tickLine={false} axisLine={false} />
-              <Tooltip 
+              <Tooltip
                 cursor={{ fill: 'rgba(0,169,174,0.05)' }}
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
                 itemStyle={{ fontWeight: 600, color: '#017377' }}

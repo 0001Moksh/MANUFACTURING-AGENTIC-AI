@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Send,
@@ -10,6 +10,10 @@ import {
   PackageCheck,
   Users,
   RefreshCw,
+  ChevronDown,
+  ArrowDown,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { safetyQualityService } from '../services/safetyQualityService';
@@ -25,6 +29,7 @@ interface ChatMessage {
   id: string;
   role: ChatRole;
   text: string;
+  timestamp?: string;
   telemetry?: TurnTelemetry;
 }
 
@@ -51,7 +56,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    // Blank line
     if (line.trim() === '') {
       flushList();
       nodes.push(<div key={`br-${i}`} className="h-2" />);
@@ -59,7 +63,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Heading (### or ##)
     if (/^#{2,3}\s/.test(line)) {
       flushList();
       const text = line.replace(/^#{2,3}\s/, '');
@@ -72,7 +75,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Table
     if (line.trim().startsWith('|')) {
       flushList();
       const tableLines: string[] = [];
@@ -84,21 +86,18 @@ function renderMarkdown(raw: string): React.ReactNode[] {
       continue;
     }
 
-    // Bullet list
     if (/^[\*\-]\s/.test(line.trim())) {
       listBuffer.push(line.replace(/^[\*\-]\s/, '').trim());
       i++;
       continue;
     }
 
-    // Numbered list
     if (/^\d+\.\s/.test(line.trim())) {
       listBuffer.push(line.replace(/^\d+\.\s/, '').trim());
       i++;
       continue;
     }
 
-    // Regular paragraph
     flushList();
     nodes.push(
       <p key={`p-${i}`} className="text-[13.5px] leading-relaxed text-ink">
@@ -113,7 +112,6 @@ function renderMarkdown(raw: string): React.ReactNode[] {
 }
 
 function inlineMarkdown(text: string): React.ReactNode {
-  // Bold (**text**)
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, i) => {
     if (/^\*\*[^*]+\*\*$/.test(part)) {
@@ -147,10 +145,7 @@ function MarkdownTable({ lines }: { lines: string[] }) {
         <thead className="bg-[#F8FAFC]">
           <tr>
             {headers.map((h, i) => (
-              <th
-                key={i}
-                className="px-3 py-2 text-left font-bold text-ink uppercase tracking-wider text-[11px]"
-              >
+              <th key={i} className="px-3 py-2 text-left font-bold text-ink uppercase tracking-wider text-[11px]">
                 {inlineMarkdown(h)}
               </th>
             ))}
@@ -174,86 +169,145 @@ function MarkdownTable({ lines }: { lines: string[] }) {
 
 // ─── Chat Message Bubble ──────────────────────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({
+  msg,
+  copiedId,
+  onCopy,
+}: {
+  msg: ChatMessage;
+  copiedId: string | null;
+  onCopy: (id: string, text: string) => void;
+}) {
   const isUser = msg.role === 'user';
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
+      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0 mr-2 mt-1 shadow-sm">
-          <ShieldCheck className="w-4 h-4 text-white" />
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0 mr-2 mt-1 shadow-xs">
+          <ShieldCheck className="w-3.5 h-3.5 text-white" />
         </div>
       )}
       <div
-        className={`max-w-[860px] rounded-[18px] px-5 py-4 shadow-sm ${
+        className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs transition-shadow hover:shadow-sm ${
           isUser
-            ? 'bg-gradient-to-br from-[#0B1730] to-[#0F2545] text-white rounded-br-[5px]'
-            : 'bg-white border border-border-color text-ink rounded-bl-[5px]'
+            ? 'bg-gradient-to-br from-[#0B1730] to-[#0F2545] text-white rounded-tr-[4px]'
+            : 'bg-white border border-border-color text-ink rounded-tl-[4px]'
         }`}
       >
+        <button
+          onClick={() => onCopy(msg.id, msg.text)}
+          title="Copy message"
+          className={`absolute -top-2.5 ${isUser ? '-left-2.5' : '-right-2.5'} opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity w-6 h-6 rounded-full bg-white border border-border-color shadow-sm flex items-center justify-center cursor-pointer hover:bg-canvas`}
+        >
+          {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-muted" />}
+        </button>
+
         {isUser ? (
-          <p className="text-[14px] leading-relaxed">{msg.text}</p>
+          <p className="text-[13.5px] leading-relaxed m-0 whitespace-pre-wrap">{msg.text}</p>
         ) : (
           <div>
             <div className="prose-sm max-w-none">{renderMarkdown(msg.text)}</div>
             <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />
           </div>
         )}
+
+        {msg.timestamp && (
+          <div className={`text-[10px] mt-1.5 ${isUser ? 'text-white/50 text-right' : 'text-muted'}`}>{msg.timestamp}</div>
+        )}
       </div>
+      {isUser && (
+        <div className="w-7 h-7 rounded-full bg-navy-800 flex items-center justify-center text-white shrink-0 ml-2 mt-1 shadow-xs">
+          <span className="text-[11px] font-bold">U</span>
+        </div>
+      )}
     </motion.div>
   );
 }
 
-
-
 // ─── Suggested Prompts ────────────────────────────────────────────────────────
 
 const SUGGESTED_PROMPTS = [
-  'List all quality inspection rules in the database',
-  'Which site has the most material defects this month?',
-  'Show me all open quality holds',
-  'What is the weekly pass/fail trend for inspections?',
+  { icon: '📋', label: 'Inspection Rules', query: 'List all quality inspection rules in the database' },
+  { icon: '🏭', label: 'Top Defect Site', query: 'Which site has the most material defects this month?' },
+  { icon: '🚧', label: 'Open Holds', query: 'Show me all open quality holds' },
+  { icon: '📈', label: 'Pass/Fail Trend', query: 'What is the weekly pass/fail trend for inspections?' },
+  { icon: '🧑‍🔧', label: 'Vendor Performance', query: 'Show vendor performance ranking for this quarter' },
+  { icon: 'ℹ️', label: 'Agent Info', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export const SafetyQualityAgentPage: React.FC = () => {
   const navigate = useNavigate();
-  const threadId = useMemo(() => `sq-${Date.now()}`, []);
-  const bottomRef = useRef<HTMLDivElement>(null);
-
+  const [threadId, setThreadId] = useState<string>(() => `sq-${Date.now()}`);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
       text: "Hello sir! I am **Deva**, your Safety & Quality Agent (HSE Officer Assistant), created by Moksh Bhardwaj.\n\nI have access to **80 specialized tools** covering quality inspections, defect analytics, material holds, vendor performance, inspector records, and compliance standards.\n\nHow can I assist you with site intelligence today, sir?",
-      telemetry: createEstimatedTelemetry(0.42, [
-        { name: 'get_today_quality_inspection_reports', status: 'completed' },
-      ]),
+      timestamp: 'Just now',
+      telemetry: createEstimatedTelemetry(0.42, [{ name: 'get_today_quality_inspection_reports', status: 'completed' }]),
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [heroExpanded, setHeroExpanded] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [activeSteps, setActiveSteps] = useState<ActiveToolStep[]>([]);
-  const startNewConversation = () => {
-    setMessages([{ id: `welcome-${Date.now()}`, role: 'assistant', text: 'New conversation started. Ask about quality inspections, defects, material holds, or compliance.' }]);
-    setInput('');
-    setActiveSteps([]);
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading, activeSteps, scrollToBottom]);
+
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distanceFromBottom > 250);
   };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading, activeSteps]);
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+  }, [input]);
+
+  const startNewConversation = () => {
+    setThreadId(`sq-${Date.now()}`);
+    setMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        role: 'assistant',
+        text: 'New conversation started. Ask about quality inspections, defects, material holds, or compliance.',
+        timestamp: 'Just now',
+      },
+    ]);
+    setInput('');
+    setActiveSteps([]);
+  };
 
   const send = async (text?: string) => {
     const prompt = (text ?? input).trim();
     if (!prompt || loading) return;
     setInput('');
-    setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', text: prompt }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: `u-${Date.now()}`, role: 'user', text: prompt, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+    ]);
     setLoading(true);
 
     const startTime = performance.now();
@@ -269,9 +323,7 @@ export const SafetyQualityAgentPage: React.FC = () => {
     try {
       const res = await safetyQualityService.chat(prompt, threadId);
       const elapsedSec = (performance.now() - startTime) / 1000;
-      setActiveSteps((prev) =>
-        prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec }))
-      );
+      setActiveSteps((prev) => prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec })));
 
       setMessages((prev) => [
         ...prev,
@@ -279,6 +331,7 @@ export const SafetyQualityAgentPage: React.FC = () => {
           id: `a-${Date.now()}`,
           role: 'assistant',
           text: res.reply,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           telemetry: createEstimatedTelemetry(
             elapsedSec,
             [
@@ -296,12 +349,20 @@ export const SafetyQualityAgentPage: React.FC = () => {
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: 'I am unable to reach the Safety & Quality Agent at this time, sir. Please try again shortly.',
+          text: '⚠️ I am unable to reach the Safety & Quality Agent at this time, sir. Please try again shortly.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
     } finally {
       setLoading(false);
+      setActiveSteps([]);
     }
+  };
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
@@ -309,104 +370,165 @@ export const SafetyQualityAgentPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="h-[calc(100vh-110px)] flex flex-col gap-4"
+      className="h-[calc(100vh-22px)] flex flex-col gap-1 w-full px-0 overflow-hidden"
     >
-      {/* ── Back button ── */}
-      <div className="flex items-center justify-between"><button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0 w-fit"><ArrowLeft className="w-4 h-4" /> Back to AI Agents</button><button onClick={startNewConversation} className="inline-flex items-center gap-2 rounded-[10px] bg-navy-900 px-3 py-2 text-[12px] font-bold text-white hover:bg-navy-800 cursor-pointer"><RefreshCw className="w-3.5 h-3.5" /> New Conversation</button></div>
-
-      {/* ── Hero Banner ── */}
-      <div className="bg-gradient-to-r from-[#0B1730] via-[#0D2040] to-[#00808A] text-white rounded-[20px] p-6 relative overflow-hidden shrink-0">
-        {/* Decorative blobs */}
-        <div className="absolute -top-10 -right-10 w-56 h-56 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-40 h-40 bg-teal-400/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/70 font-bold mb-2">
-              <ShieldCheck className="w-4 h-4" />
-              Safety &amp; Quality Agent
-            </div>
-            <h1 className="font-head text-[26px] font-extrabold mb-2 leading-tight">
-              Deva — HSE Officer Assistant
-            </h1>
-            <p className="text-white/80 max-w-[780px] leading-relaxed text-[13.5px]">
-              80 specialized tools covering PPE compliance, quality inspections, defect analytics, material holds, vendor performance, and compliance standards — all backed by live PostgreSQL data.
-            </p>
-            <div className="flex gap-2 mt-4 flex-wrap text-[11px] text-white/80">
-              {[
-                'PPE Compliance',
-                'Defect Analytics',
-                'Quality Holds',
-                'Vendor Performance',
-                'Inspector Records',
-                'Compliance Standards',
-              ].map((tag) => (
-                <span key={tag} className="px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-sm">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Stat chips */}
-          <div className="flex gap-3 shrink-0 flex-wrap">
-            {[
-              { icon: <ClipboardList className="w-4 h-4 text-teal-300" />, label: 'Tools', value: '80 Specialized' },
-              { icon: <Microscope className="w-4 h-4 text-teal-300" />, label: 'Database', value: 'PostgreSQL (RO)' },
-              { icon: <PackageCheck className="w-4 h-4 text-teal-300" />, label: 'LLM Gateway', value: 'Gemini / Groq' },
-              { icon: <Users className="w-4 h-4 text-teal-300" />, label: 'Persona', value: 'Deva by Moksh' },
-            ].map((chip) => (
-              <div
-                key={chip.label}
-                className="bg-white/10 border border-white/20 backdrop-blur-sm rounded-xl p-3 text-center min-w-[110px]"
-              >
-                <div className="flex justify-center mb-1">{chip.icon}</div>
-                <div className="text-[10px] text-white/60 uppercase tracking-wider font-medium">
-                  {chip.label}
-                </div>
-                <div className="text-[12px] font-bold text-white">{chip.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ── Top Bar / Navigation ── */}
+      <div className="flex items-center justify-between pt-2 shrink-0 px-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center pt-2 gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
       </div>
 
-      {/* ── Chat Window ── */}
-      <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-sm min-h-0">
-        {/* Messages */}
-        <div className="overflow-y-auto p-5 space-y-4">
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} />
-          ))}
-          <div className="pl-10">
-            <AgentExecutionIndicator
-              activeSteps={activeSteps}
-              isStreaming={loading}
-              agentName="Deva"
-            />
+      {/* ── Collapsible Hero Banner ── */}
+      <div className="bg-gradient-to-r from-[#0B1730] via-[#0D2040] to-[#00808A] text-white rounded-[16px] shadow-sm shrink-0 border border-navy-700/50 overflow-hidden mx-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-teal-500/20 border border-teal-400/40 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
+            </div>
+            <h1 className="font-head text-[16px] font-extrabold m-0 text-white truncate">
+              Deva — Safety &amp; Quality Agent
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-300 bg-emerald-400/10 border border-emerald-400/30 px-2 py-0.5 rounded-full ml-1 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live
+            </span>
           </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={startNewConversation}
+              className="flex items-center gap-1.5 text-[11.5px] font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer"
+              title="Reset conversation thread"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> New Conversation
+            </button>
+            <button
+              onClick={() => setHeroExpanded((v) => !v)}
+              className="flex items-center gap-1 text-[11.5px] font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer"
+              title={heroExpanded ? 'Collapse' : 'Expand'}
+            >
+              <motion.span animate={{ rotate: heroExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex items-center">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </motion.span>
+              {heroExpanded ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+        </div>
+
+        <AnimatePresence initial={false}>
+          {heroExpanded && (
+            <motion.div
+              key="hero-detail"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 pt-1 border-t border-white/10">
+                <p className="text-white/80 text-[13px] max-w-[840px] mt-2 mb-0 leading-relaxed">
+                  80 specialized tools covering PPE compliance, quality inspections, defect analytics, material holds, vendor performance, and compliance standards — all backed by live PostgreSQL data.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="flex justify-center mb-1"><ClipboardList className="w-3.5 h-3.5 text-teal-300" /></div>
+                    <div className="text-[13px] font-extrabold text-white">80 Tools</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Specialized</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="flex justify-center mb-1"><Microscope className="w-3.5 h-3.5 text-teal-300" /></div>
+                    <div className="text-[13px] font-extrabold text-white">PostgreSQL</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Database (RO)</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="flex justify-center mb-1"><PackageCheck className="w-3.5 h-3.5 text-teal-300" /></div>
+                    <div className="text-[13px] font-extrabold text-white">Gemini/Groq</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">LLM Gateway</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="flex justify-center mb-1"><Users className="w-3.5 h-3.5 text-teal-300" /></div>
+                    <div className="text-[13px] font-extrabold text-white">Deva</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">by Moksh</div>
+                  </div>
+                </div>
+
+                <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🦺 PPE Compliance</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔬 Defect Analytics</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚧 Quality Holds</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🧑‍🔧 Vendor Performance</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📋 Inspector Records</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">✅ Compliance Standards</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Main Chat Interface ── */}
+      <div className="flex-1 grid grid-rows-[1fr_auto] overflow-hidden min-h-0 md:mx-2 relative">
+        {/* Messages Stream */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-3 custom-scrollbar min-h-0"
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} msg={msg} copiedId={copiedId} onCopy={handleCopy} />
+            ))}
+          </AnimatePresence>
+
+          <div className="pl-10">
+            <AgentExecutionIndicator activeSteps={activeSteps} isStreaming={loading} agentName="Deva" />
+          </div>
+
           <div ref={bottomRef} />
         </div>
 
-        {/* Input area */}
-        <div className="border-t border-border-color bg-white">
-          {/* Suggested prompts (shown only when only welcome message exists) */}
-          {messages.length === 1 && !loading && (
-            <div className="px-5 pt-3 pb-1 flex flex-wrap gap-2">
-              {SUGGESTED_PROMPTS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => void send(p)}
-                  className="text-[11.5px] px-3 py-1.5 rounded-full border border-teal/40 text-teal-700 hover:bg-teal/5 transition-colors bg-transparent cursor-pointer font-medium"
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+        {/* Jump to latest button */}
+        <AnimatePresence>
+          {showScrollBtn && (
+            <motion.button
+              initial={{ opacity: 0, y: 8, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.9 }}
+              onClick={() => scrollToBottom()}
+              className="absolute bottom-4 right-4 z-10 flex items-center gap-1.5 bg-navy-900 text-white text-[11.5px] font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-navy-800 transition-colors cursor-pointer border-none"
+            >
+              <ArrowDown className="w-3.5 h-3.5" /> Latest
+            </motion.button>
           )}
+        </AnimatePresence>
 
-          <div className="flex gap-3 items-end p-4">
+        {/* Suggested Queries & Input Bar */}
+        <div className="border-t border-border-color bg-white p-2.5 md:p-3 space-y-2 shrink-0">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
+            <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider shrink-0 flex items-center gap-1">
+              Quick Ask:
+            </span>
+            {SUGGESTED_PROMPTS.map((sq, i) => (
+              <button
+                key={i}
+                onClick={() => void send(sq.query)}
+                disabled={loading}
+                className="shrink-0 bg-canvas hover:bg-teal-50 text-ink hover:text-teal-900 border border-border-color hover:border-teal-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+              >
+                <span>{sq.icon}</span>
+                <span>{sq.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 items-end">
             <textarea
+              ref={textareaRef}
               id="safety-agent-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -416,22 +538,18 @@ export const SafetyQualityAgentPage: React.FC = () => {
                   void send();
                 }
               }}
-              rows={2}
+              rows={1}
               placeholder="Ask Deva about quality inspections, defects, holds, vendor performance..."
-              className="flex-1 resize-none rounded-[14px] border border-border-color bg-canvas px-4 py-3 text-[14px] outline-none focus:border-teal-deep transition-colors"
+              className="flex-1 resize-none rounded-[12px] border border-border-color bg-canvas px-3.5 py-2 text-[13.5px] outline-none focus:border-teal-deep focus:ring-2 focus:ring-teal-500/20 transition-all placeholder:text-muted max-h-[140px]"
               disabled={loading}
             />
             <button
               id="safety-agent-send"
               onClick={() => void send()}
               disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[#0B1730] to-[#00808A] px-4 py-3 text-white font-semibold disabled:opacity-50 transition-opacity hover:opacity-90 shrink-0"
+              className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-br from-[#0B1730] to-[#00808A] px-4 py-2.5 text-white font-semibold text-[13.5px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border-none active:scale-95"
             >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Send
             </button>
           </div>
