@@ -245,7 +245,7 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
     activeSourceNodes.current.forEach((source) => {
       try {
         source.stop();
-      } catch (e) {}
+      } catch (e) { }
     });
     activeSourceNodes.current = [];
     nextPlayTimeRef.current = audioContextRef.current?.currentTime || 0;
@@ -334,37 +334,32 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white rounded-[16px] border border-border-color shadow-sm overflow-hidden">
+    <div className="flex flex-col h-full w-full rounded-[12px] shadow-lg overflow-hidden">
       {/* ── Top Header with Agent Selection ── */}
-      <div className="bg-canvas border-b border-border-color p-[14px_18px] flex flex-col xl:flex-row xl:items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-[10px]">
-          <div className="w-[9px] h-[9px] bg-green rounded-full relative">
-            <span className="absolute inset-0 bg-green rounded-full animate-ping opacity-75"></span>
-          </div>
-          <div>
-            <b className="text-[13px] font-head font-bold text-ink block">Voice &amp; Speech Layer (Deva)</b>
-            <span className="text-[11px] text-muted">{useCaseName}</span>
+      <div className="px-5 py-3 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-[6px] h-[6px] bg-green rounded-full" />
+          <div className="min-w-0">{useCaseName}
           </div>
         </div>
 
         {/* Agent Selector Pills */}
-        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={startNewConversation}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-navy-900 px-2.5 py-1.5 text-[11.5px] font-bold text-white hover:bg-navy-800 transition-colors cursor-pointer active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-[6px] bg-[#125A78] px-3 py-2 text-[11px] font-bold text-white hover:bg-[#0D4861] transition-colors cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> New Conversation
+            <RefreshCw className="w-3 h-3" /> New Conversation
           </button>
-          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-border-color flex-wrap">
+          <div className="hidden">
             {AGENT_OPTIONS.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => handleAgentChange(opt.id)}
-                className={`flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg transition-all font-medium border-none cursor-pointer ${
-                  selectedAgent === opt.id
-                    ? 'bg-navy-900 text-white shadow-xs font-semibold'
-                    : 'bg-transparent text-muted hover:text-ink hover:bg-canvas'
-                }`}
+                className={`flex items-center gap-1.5 text-[11.5px] px-2.5 py-1 rounded-lg transition-all font-medium border-none cursor-pointer ${selectedAgent === opt.id
+                  ? 'bg-white text-[#153247] shadow-xs font-semibold'
+                  : 'bg-transparent text-muted hover:text-ink hover:bg-canvas'
+                  }`}
               >
                 {opt.icon}
                 {opt.label}
@@ -375,11 +370,11 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       </div>
 
       {/* ── Messages Chat View ── */}
-      <div className="flex-1 relative min-h-[300px]">
+      <div className="flex-1 relative min-h-[420px]">
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="h-full overflow-y-auto p-[20px] flex flex-col gap-[14px] bg-[#FAFBFE] custom-scrollbar"
+          className="h-full overflow-y-auto p-4 md:p-5 flex flex-col gap-3 custom-scrollbar"
         >
           <AnimatePresence initial={false}>
             {messages.map((msg) => {
@@ -393,11 +388,10 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
                   className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`group relative max-w-[85%] rounded-[14px] p-[12px_18px] text-[13.5px] leading-relaxed shadow-xs transition-shadow hover:shadow-sm
-                      ${
-                        isUser
-                          ? 'bg-gradient-to-br from-[#0B1730] to-[#162B50] text-white rounded-br-[4px]'
-                          : 'bg-white border border-border-color text-ink rounded-bl-[4px]'
+                    className={`group relative max-w-[78%] rounded-[10px] p-3 md:p-3.5 text-[13px] leading-relaxed shadow-xs transition-shadow hover:shadow-sm
+                      ${isUser
+                        ? 'bg-[#155E7A] text-white rounded-br-[3px]'
+                        : 'bg-[#F8FCFF] border border-[#C9DCEB] text-[#153247] rounded-bl-[3px]'
                       }`}
                   >
                     <button
@@ -413,14 +407,14 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
                     </button>
 
                     {msg.agentName && !isUser && (
-                      <div className="text-[10.5px] font-bold text-teal-deep uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <div className="text-[11px] font-bold text-teal-deep uppercase tracking-wider mb-1 flex items-center gap-1">
                         <Sparkles className="w-3 h-3" />
                         {msg.agentName}
                       </div>
                     )}
                     <span className="whitespace-pre-wrap">{msg.text}</span>
                     {!isUser && msg.telemetry && <AgentTelemetryFooter telemetry={msg.telemetry} rawText={msg.text} />}
-                    <div className={`text-[9.5px] mt-[6px] ${isUser ? 'text-white/70' : 'text-muted'} text-right`}>
+                    <div className={`text-[10px] mt-[6px] ${isUser ? 'text-white/70' : 'text-muted'} text-right`}>
                       {msg.timestamp}
                     </div>
                   </div>
@@ -468,13 +462,13 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       </div>
 
       {/* ── Suggested Prompts ── */}
-      <div className="px-5 pt-2 pb-1 bg-white border-t border-border-color/60 flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
-        <span className="text-[11px] text-muted font-medium shrink-0">Try asking:</span>
+      <div className="px-5 py-2.5 bg-[#EAF5FC] border-t border-[#C9DCEB] flex items-center gap-2 overflow-x-auto custom-scrollbar">
+        <span className="text-[11px] text-[#47677A] font-semibold shrink-0">Try asking:</span>
         {currentSampleQueries.map((q, idx) => (
           <button
             key={idx}
             onClick={() => handleSendText(q)}
-            className="text-[11.5px] px-2.5 py-1 rounded-full border border-teal/40 text-teal-700 hover:bg-teal/5 bg-transparent cursor-pointer shrink-0 font-medium transition-colors active:scale-95"
+            className="text-[11px] px-2.5 py-1 rounded-full border border-[#A9CDDF] text-[#28647C] hover:bg-white bg-[#F7FCFF] cursor-pointer shrink-0 font-medium transition-colors"
           >
             {q}
           </button>
@@ -482,10 +476,10 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       </div>
 
       {/* ── Text Input Box & Voice Button Bottom Bar ── */}
-      <div className="p-[14px_20px] bg-white border-t border-border-color shrink-0 flex flex-col gap-2">
+      <div className="px-5 py-3 bg-[#F7FCFF] border-t border-[#C9DCEB] shrink-0 flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           {/* Query Text Box */}
-          <div className="flex-1 flex items-center relative rounded-[14px] border border-border-color bg-canvas focus-within:border-teal-deep focus-within:ring-2 focus-within:ring-teal-500/20 transition-all">
+          <div className="flex-1 flex items-center relative rounded-[6px] border border-[#B8D1E0] bg-white focus-within:border-[#2A7898] transition-all">
             <input
               type="text"
               value={inputText}
@@ -497,12 +491,12 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
                 }
               }}
               placeholder="Type your query (English / Hindi) or tap mic to speak..."
-              className="w-full bg-transparent px-4 py-3 text-[13.5px] outline-none text-ink placeholder:text-muted/70"
+              className="w-full bg-transparent px-3 py-2.5 text-[13px] outline-none text-[#153247] placeholder:text-[#7590A1]"
             />
             {inputText.trim() && (
               <button
                 onClick={() => handleSendText()}
-                className="mr-2 p-2 rounded-xl bg-teal-deep text-white hover:bg-teal-600 transition-colors border-none cursor-pointer flex items-center justify-center active:scale-95"
+                className="mr-1.5 p-1.5 rounded-[5px] bg-[#125A78] text-white hover:bg-[#0D4861] transition-colors border-none cursor-pointer flex items-center justify-center"
                 title="Send query"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -513,21 +507,20 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
           {/* Voice Microphone Toggle Pill */}
           <button
             onClick={toggleListening}
-            className={`flex items-center gap-2 p-[10px_16px] rounded-[14px] transition-all border cursor-pointer shrink-0 font-semibold text-[13px] active:scale-95 ${
-              isListening
-                ? 'bg-navy-900 border-navy-900 text-white ring-2 ring-blue-400/40 shadow-sm'
-                : 'bg-canvas border-border-color text-ink hover:border-teal-deep'
-            }`}
+            className={`flex items-center gap-1.5 p-2 rounded-[6px] transition-all border cursor-pointer shrink-0 font-semibold text-[11px] ${isListening
+              ? 'bg-[#155E7A] border-[#155E7A] text-white shadow-sm'
+              : 'bg-[#155E7A] border-[#155E7A] text-white hover:bg-[#0D4861]'
+              }`}
             title={isListening ? 'Stop listening' : 'Tap to speak'}
           >
-            <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center ${isListening ? 'bg-blue-600' : 'bg-teal-deep'}`}>
+            <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center bg-[#0D4861]">
               {isListening ? <AudioLines className="w-3.5 h-3.5 text-white animate-pulse" /> : <Mic className="w-3.5 h-3.5 text-white" />}
             </div>
             <span className="hidden sm:inline">{isListening ? 'Listening...' : 'Voice'}</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-between text-[10.5px] text-muted px-1">
+        <div className="flex items-center justify-between text-[8.5px] text-[#587184] px-0.5">
           <span>Type or speak • Spoken answers powered by Edge TTS &amp; Live Agent Tools</span>
           <span>Press Enter to send</span>
         </div>

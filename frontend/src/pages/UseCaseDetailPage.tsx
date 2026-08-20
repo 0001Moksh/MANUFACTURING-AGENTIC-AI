@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Settings2, Sparkles, CheckCircle2, AudioLines, ChevronDown, Workflow, ShieldCheck } from 'lucide-react';
 import { useCases, pillarMeta, adminTemplates } from '../data/mockData';
 import { VoiceInteraction } from '../components/usecases/VoiceInteraction';
 import { API_BASE_URL } from '../config/api';
@@ -28,6 +28,7 @@ export const UseCaseDetailPage: React.FC = () => {
   });
   const [isSaving, setIsSaving] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
+  const [voiceBannerExpanded, setVoiceBannerExpanded] = useState(false);
 
   useEffect(() => {
     if (useCase && useCase.id === 9) {
@@ -92,16 +93,95 @@ export const UseCaseDetailPage: React.FC = () => {
       <div className="mb-[16px] flex items-center gap-4 shrink-0">
         <button
           onClick={() => navigate('/use-cases')}
-          className="flex items-center gap-[6px] text-muted hover:text-navy-800 transition-colors text-[13px] font-semibold bg-transparent border-none cursor-pointer p-0"
+          className="flex mt-3 items-center gap-[6px] text-muted hover:text-navy-800 transition-colors text-[13px] font-semibold bg-transparent border-none cursor-pointer p-0"
         >
           <ArrowLeft className="w-[14px] h-[14px]" /> Back to Use-Case Library
         </button>
       </div>
 
       {/* ── Main Panel ── */}
-      <div className="bg-panel rounded-[16px] shadow-sm border border-border-color flex flex-col flex-1 overflow-hidden min-h-0">
+      {isVoiceInteraction && (
+        <div className="bg-gradient-to-r from-[#0B1730] via-[#12365A] to-[#0A627B] text-white rounded-[16px] shadow-sm shrink-0 border border-[#185F78] overflow-hidden mb-3">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-[11px] bg-cyan-300/15 border border-cyan-200/30 flex items-center justify-center shrink-0">
+                <AudioLines className="w-[18px] h-[18px] text-cyan-200" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="font-head text-[17px] font-extrabold m-0 text-white truncate">Voice Interaction Layer</h1>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-200 bg-emerald-400/10 border border-emerald-300/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" /> Live
+                  </span>
+                </div>
+                <p className="m-0 mt-0.5 text-[11.5px] text-white/70 truncate">Hands-free access to connected manufacturing intelligence.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="hidden md:flex items-center gap-1.5">
+                {useCase.poweredBy?.map((agentName) => (
+                  <span key={agentName} className="inline-flex items-center gap-1.5 rounded-[8px] bg-white/10 border border-white/15 px-2 py-1 text-[10.5px] font-semibold text-white/90">
+                    {agentName.includes('Safety') ? <ShieldCheck className="w-3 h-3 text-emerald-200" /> : <Workflow className="w-3 h-3 text-cyan-200" />}
+                    {agentName}
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => setVoiceBannerExpanded((expanded) => !expanded)}
+                className="flex items-center gap-1.5 text-[11.5px] font-semibold text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/15 px-2.5 py-1.5 rounded-[9px] transition-colors cursor-pointer"
+                title={voiceBannerExpanded ? 'Collapse use case details' : 'Expand use case details'}
+              >
+                <motion.span animate={{ rotate: voiceBannerExpanded ? 180 : 0 }} transition={{ duration: 0.2 }} className="flex items-center">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </motion.span>
+                {voiceBannerExpanded ? 'Collapse' : 'Expand'}
+              </button>
+            </div>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {voiceBannerExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-white/10 px-4 py-3.5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                  <div>
+                    <p className="m-0 max-w-3xl text-[13px] leading-relaxed text-white/80">{useCase.desc}</p>
+                    <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                      {useCase.tags.map((tag) => (
+                        <span key={tag} className="rounded-md bg-cyan-100/10 border border-cyan-100/15 px-2 py-1 text-[10px] font-bold tracking-wide text-cyan-100">{tag}</span>
+                      ))}
+                      <span className="rounded-md bg-white/10 border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/75">Voice input</span>
+                      <span className="rounded-md bg-white/10 border border-white/10 px-2 py-1 text-[10px] font-semibold text-white/75">English & Hindi</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[12px] bg-white/10 border border-white/15 px-3 py-2.5 min-w-[270px]">
+                    <div className="text-[10px] uppercase tracking-[0.08em] font-bold text-cyan-100/70 mb-2">Integrated AI workforce</div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {useCase.poweredBy?.map((agentName) => (
+                        <span key={agentName} className="inline-flex items-center gap-1.5 rounded-md bg-[#071B34]/45 border border-white/10 px-2 py-1.5 text-[11px] font-semibold text-white">
+                          {agentName.includes('Safety') ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-200" /> : <Workflow className="w-3.5 h-3.5 text-cyan-200" />}
+                          {agentName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      <div className={`bg-panel rounded-[16px] shadow-sm border border-border-color flex flex-col flex-1 overflow-hidden min-h-0 ${isVoiceInteraction ? 'p-0' : ''}`}>
         {/* Header */}
-        <div className="p-[20px_28px] border-b border-border-color flex gap-[14px] items-start shrink-0 bg-gradient-to-r from-[#0B1730] via-[#0F2545] to-[#0A4D68]">
+        {!isVoiceInteraction && <div className="p-[20px_28px] border-b border-border-color flex gap-[14px] items-start shrink-0 bg-gradient-to-r from-[#0B1730] via-[#0F2545] to-[#0A4D68]">
           <div className="flex-1">
             <div className="flex items-center gap-[10px] mb-[8px] flex-wrap">
               <span className="font-mono text-[11px] text-white/70 bg-white/10 border border-white/10 rounded-[6px] py-[2px] px-[8px]">
@@ -128,10 +208,11 @@ export const UseCaseDetailPage: React.FC = () => {
               ))}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Body */}
-        <div className="p-[24px_32px] flex flex-col flex-1 overflow-y-auto custom-scrollbar">
+        <div className={`${isVoiceInteraction ? 'p-0 overflow-hidden' : 'p-[24px_32px] overflow-y-auto custom-scrollbar'} flex flex-col flex-1 min-h-0`}>
+          {!isVoiceInteraction && <>
           <div className="text-[14.5px] text-ink leading-[1.6] mb-[18px] max-w-[800px]">{useCase.desc}</div>
 
           <div className="bg-teal-tint border border-[#BFE7E7] rounded-[10px] p-[16px_20px] text-[13.5px] text-teal-deep mb-[24px] max-w-[800px] flex items-start gap-2">
@@ -172,6 +253,7 @@ export const UseCaseDetailPage: React.FC = () => {
               </div>
             </div>
           )}
+          </>}
 
           <div className={`${isVoiceInteraction || isDailyReporting ? 'flex-1' : 'grid lg:grid-cols-2 gap-[24px] flex-1'}`}>
             {!isVoiceInteraction && (
@@ -301,7 +383,7 @@ export const UseCaseDetailPage: React.FC = () => {
             )}
 
             {!isDailyReporting && (
-              <div className={isVoiceInteraction ? 'h-[620px] max-w-[960px] mx-auto w-full' : 'h-[500px] lg:h-auto min-h-[400px]'}>
+              <div className={isVoiceInteraction ? 'flex-1 min-h-0 w-full' : 'h-[500px] lg:h-auto min-h-[400px]'}>
                 <VoiceInteraction
                   useCaseName={useCase.title}
                   defaultAgent={
