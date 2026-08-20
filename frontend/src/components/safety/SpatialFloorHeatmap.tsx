@@ -69,11 +69,10 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
             <button
               key={tf.id}
               onClick={() => onChangeTimeFilter(tf.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-[11.5px] font-semibold transition-all cursor-pointer border-none ${
-                timeFilter === tf.id
-                  ? 'bg-emerald-500 text-slate-950 shadow-md'
-                  : 'bg-transparent text-white/70 hover:text-white hover:bg-white/5'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-[11.5px] font-semibold transition-all cursor-pointer border-none ${timeFilter === tf.id
+                ? 'bg-emerald-500 text-slate-950 shadow-md'
+                : 'bg-transparent text-white/70 hover:text-white hover:bg-white/5'
+                }`}
             >
               {tf.label}
             </button>

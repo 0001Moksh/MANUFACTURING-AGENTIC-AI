@@ -19,7 +19,7 @@ export const Layout: React.FC = () => {
       }
     };
     fetchStats();
-    
+
     // Refresh stats every 15 seconds
     const interval = setInterval(fetchStats, 15000);
     return () => clearInterval(interval);
@@ -37,11 +37,10 @@ export const Layout: React.FC = () => {
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <Topbar />
-        <main className="flex-1 p-[26px_30px_60px] max-w-[1400px] w-full mx-auto">
+        <main className="flex-1 p-0 max-w-[1400px] w-full mx-auto">
           <Outlet context={{ persona }} />
         </main>
-        <footer className="text-center py-[30px] pb-[10px] text-faint text-[11.5px]">
-          IIIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.
+        <footer className="text-center p-0 text-faint text-[11.5px]">          IIIIoT Infotech · Manufacturing Agentic AI Platform — Simulated walkthrough for internal sales enablement, not a live environment.
         </footer>
       </div>
       <ChatBot />

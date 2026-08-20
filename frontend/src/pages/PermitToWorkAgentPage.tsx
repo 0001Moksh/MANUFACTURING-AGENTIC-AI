@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Send,
@@ -7,6 +7,8 @@ import {
   RefreshCw,
   Copy,
   Check,
+  ChevronDown,
+  ShieldAlert,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { permitToWorkService } from '../services/permitToWorkService';
@@ -222,13 +224,14 @@ export const PermitToWorkAgentPage: React.FC = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Hi sir, I'm the **Permit-to-Work Agent** (HSE Officer Assistant).\n\nI track high-risk work contexts (*Hot Work*, *Confined Space*, *Work-at-Height*), correlate live camera HSE incidents and restricted-zone breaches with MES work orders and maintenance windows, and surface violations for immediate auto-escalation.\n\nAsk me about active violations, maintenance schedules, work order safety posture, procedure checklists, or shift handover packs, sir.",
+      text: "Hi sir, I'm the Permit-to-Work Agent. I track high-risk work, HSE incidents, restricted-zone breaches, and MES work orders to surface violations and support safe operations.",
       timestamp: 'Just now',
     },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [heroExpanded, setHeroExpanded] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -328,105 +331,132 @@ export const PermitToWorkAgentPage: React.FC = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="h-[calc(100vh-100px)] flex flex-col gap-3 max-w-[1440px] mx-auto"
+      className="h-[calc(100vh-22px)] flex flex-col gap-1 w-full px-0 overflow-hidden"
     >
       {/* ── Top Bar / Navigation ── */}
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex items-center justify-between pt-2 shrink-0 px-3">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0"
+          className="flex items-center pt-2 gap-2 text-[13px] font-semibold text-muted hover:text-teal transition-colors bg-transparent border-none cursor-pointer p-0"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to AI Agents
+          <ArrowLeft className="w-4 h-4" /> Back
         </button>
-
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            Watch Active · 4 Expired Permits
-          </span>
-          <button
-            onClick={handleResetThread}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink bg-white border border-border-color px-3 py-1 rounded-[10px] transition-colors cursor-pointer shadow-2xs"
-            title="Reset conversation thread"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> New Conversation
-          </button>
-        </div>
       </div>
 
-      {/* ── Hero Banner ── */}
-      <div className="bg-gradient-to-r from-[#0B1730] via-[#122347] to-[#0A4D68] text-white rounded-[20px] p-5 shadow-sm shrink-0 border border-navy-700/50">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-amber-400 font-bold mb-1">
-              <FileCheck2 className="w-4 h-4" />
-              <span>HSE Officer Assistant · 54 Live Tools</span>
+      {/* ── Collapsible Hero Banner ── */}
+      <div className="bg-gradient-to-r from-[#0B1730] via-[#122347] to-[#0A4D68] text-white rounded-[16px] shadow-sm shrink-0 border border-navy-700/50 overflow-hidden mx-3">
+        {/* Always-visible header row */}
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center shrink-0">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
             </div>
-            <h1 className="font-head text-[24px] md:text-[26px] font-extrabold m-0 text-white flex items-center gap-2.5">
+            <h1 className="font-head text-[16px] font-extrabold m-0 text-white truncate">
               Permit-to-Work Agent
             </h1>
-            <p className="text-white/80 text-[13px] max-w-[840px] mt-1 mb-0 leading-relaxed">
-              Correlates live HSE camera detections and restricted-zone breaches with MES work orders and maintenance windows to track high-risk work context (Hot Work, Confined Space, Work at Height) and auto-escalate compliance violations.
-            </p>
           </div>
 
-          {/* KPI Summary Chips */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
-            <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
-              <div className="text-[18px] font-extrabold text-amber-400">4</div>
-              <div className="text-[10px] text-white/70 font-semibold uppercase">High-Risk Contexts</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
-              <div className="text-[18px] font-extrabold text-red-400">6</div>
-              <div className="text-[10px] text-white/70 font-semibold uppercase">Zone Breaches</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
-              <div className="text-[18px] font-extrabold text-cyan-300">2</div>
-              <div className="text-[10px] text-white/70 font-semibold uppercase">Open Windows</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
-              <div className="text-[18px] font-extrabold text-emerald-400">98.2%</div>
-              <div className="text-[10px] text-white/70 font-semibold uppercase">Compliance</div>
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleResetThread}
+              className="flex items-center gap-1.5 text-[11.5px] font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer"
+              title="Reset conversation thread"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> New Conversation
+            </button>
+            <button
+              onClick={() => setHeroExpanded((v) => !v)}
+              className="flex items-center gap-1 text-[11.5px] font-semibold text-white/85 hover:text-white bg-white/10 hover:bg-white/15 border border-white/10 px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer"
+              title={heroExpanded ? 'Collapse' : 'Expand'}
+            >
+              <motion.span
+                animate={{ rotate: heroExpanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </motion.span>
+              {heroExpanded ? 'Collapse' : 'Expand'}
+            </button>
           </div>
         </div>
 
-        {/* Scope tags */}
-        <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔥 Hot Work</span>
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚧 Confined Space</span>
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🏗️ Work at Height</span>
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📍 Restricted Zones</span>
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">⚙️ MES Work Orders</span>
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚨 Auto-Escalation</span>
-          <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📋 Shift Handover</span>
-        </div>
+        {/* Expandable detail section */}
+        <AnimatePresence initial={false}>
+          {heroExpanded && (
+            <motion.div
+              key="hero-detail"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 pt-1 border-t border-white/10">
+                <p className="text-white/80 text-[13px] max-w-[840px] mt-2 mb-0 leading-relaxed">
+                  Correlates live HSE camera alerts with MES work orders to track high-risk work and auto-escalate compliance violations.
+                </p>
+
+                {/* KPI Summary Chips */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[18px] font-extrabold text-amber-400">4</div>
+                    <div className="text-[10px] text-white/70 font-semibold uppercase">High-Risk Contexts</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[18px] font-extrabold text-red-400">6</div>
+                    <div className="text-[10px] text-white/70 font-semibold uppercase">Zone Breaches</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[18px] font-extrabold text-cyan-300">2</div>
+                    <div className="text-[10px] text-white/70 font-semibold uppercase">Open Windows</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="text-[18px] font-extrabold text-emerald-400">98.2%</div>
+                    <div className="text-[10px] text-white/70 font-semibold uppercase">Compliance</div>
+                  </div>
+                </div>
+
+                {/* Scope tags */}
+                <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔥 Hot Work</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚧 Confined Space</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🏗️ Work at Height</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📍 Restricted Zones</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">⚙️ MES Work Orders</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚨 Auto-Escalation</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📋 Shift Handover</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* ── Main Chat Interface ── */}
-      <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border border-border-color rounded-[20px] overflow-hidden shadow-xs min-h-0">
+      {/* ── Main Chat Interface (uses full width, no side padding) ── */}
+      <div className="flex-1 grid grid-rows-[1fr_auto] bg-panel border-y border-border-color md:border md:rounded-[20px] overflow-hidden shadow-xs min-h-0 mx-0 md:mx-3">
 
-        {/* Messages Stream */}
-        <div className="overflow-y-auto p-4 md:p-6 space-y-4 custom-scrollbar">
+        {/* Messages Stream — only scrollable area */}
+        <div className="overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-3 custom-scrollbar min-h-0">
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-2.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
-                  <FileCheck2 className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
+                  <FileCheck2 className="w-3.5 h-3.5" />
                 </div>
               )}
 
               <div
-                className={`group relative max-w-[880px] rounded-[18px] p-4 text-[13.5px] leading-relaxed shadow-2xs ${msg.role === 'user'
+                className={`group relative max-w-[900px] rounded-[16px] p-3 text-[13.5px] leading-relaxed shadow-2xs ${msg.role === 'user'
                   ? 'bg-navy-900 text-white rounded-br-[4px]'
                   : 'bg-canvas text-ink border border-border-color rounded-bl-[4px]'
                   }`}
               >
                 {/* Message Header */}
-                <div className="flex items-center justify-between gap-4 mb-1.5 text-[11px] opacity-70">
+                <div className="flex items-center justify-between gap-4 mb-1 text-[11px] opacity-70">
                   <span className="font-semibold">
                     {msg.role === 'user' ? 'You' : 'Permit-to-Work Agent (HSE Officer)'}
                   </span>
@@ -465,15 +495,15 @@ export const PermitToWorkAgentPage: React.FC = () => {
               </div>
 
               {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-navy-800 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
-                  <span className="text-[12px] font-bold">U</span>
+                <div className="w-7 h-7 rounded-full bg-navy-800 flex items-center justify-center text-white shrink-0 shadow-xs mt-1">
+                  <span className="text-[11px] font-bold">U</span>
                 </div>
               )}
             </div>
           ))}
 
           {/* ── Interactive Tool Execution Indicator ── */}
-          <div className="pl-11">
+          <div className="pl-10">
             <AgentExecutionIndicator
               activeSteps={activeSteps}
               isStreaming={loading}
@@ -485,7 +515,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
         </div>
 
         {/* Suggested Queries & Input Bar */}
-        <div className="border-t border-border-color bg-white p-3.5 md:p-4 space-y-3 shrink-0">
+        <div className="border-t border-border-color bg-white p-2.5 md:p-3 space-y-2 shrink-0">
 
           {/* Suggestion Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
@@ -505,7 +535,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
           </div>
 
           {/* Text Input & Controls */}
-          <div className="flex gap-2.5 items-end">
+          <div className="flex gap-2 items-end">
             <textarea
               ref={textareaRef}
               value={input}
@@ -516,14 +546,14 @@ export const PermitToWorkAgentPage: React.FC = () => {
                   void handleSend();
                 }
               }}
-              rows={2}
+              rows={1}
               placeholder="Ask about active high-risk permits, zone breaches, work orders, hot-work checklists, or escalations..."
-              className="flex-1 resize-none rounded-[14px] border border-border-color bg-canvas px-4 py-2.5 text-[13.5px] outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-muted"
+              className="flex-1 resize-none rounded-[12px] border border-border-color bg-canvas px-3.5 py-2 text-[13.5px] outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-muted"
             />
             <button
               onClick={() => void handleSend()}
               disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 px-5 py-3 text-white font-semibold text-[13.5px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border-none"
+              className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 px-4 py-2.5 text-white font-semibold text-[13.5px] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer border-none"
             >
               <Send className="w-4 h-4" /> Send
             </button>
