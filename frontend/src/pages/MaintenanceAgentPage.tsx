@@ -517,14 +517,6 @@ export const MaintenanceAgentPage: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Bottom info strip */}
-      <div className="flex items-center gap-2 text-[11px] text-muted shrink-0 px-3 pb-1">
-        <Activity className="w-3.5 h-3.5" />
-        <CalendarDays className="w-3.5 h-3.5" />
-        <BellRing className="w-3.5 h-3.5" />
-        <span>Machine health, schedules, and work orders are all in one place.</span>
-      </div>
     </motion.div>
   );
 };
