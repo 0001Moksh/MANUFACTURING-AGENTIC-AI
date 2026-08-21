@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { UsersTable } from '../components/admin/UsersTable';
 import { ConnectorsGrid } from '../components/admin/ConnectorsGrid';
 import { RulesBuilder } from '../components/admin/RulesBuilder';
@@ -8,11 +9,16 @@ import { guardrails } from '../data/mockData';
 import { api } from '../services/api';
 
 export const AdminConsolePage: React.FC = () => {
+  const location = useLocation();
   const { explainableLogs, humanInLoop, toggleGovernanceSetting } = useStore();
-  const [activePane, setActivePane] = useState('users');
+  const [activePane, setActivePane] = useState(() => new URLSearchParams(location.search).get('pane') === 'notifications' ? 'notifications' : 'users');
   const [notifications, setNotifications] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
   const [notificationFilter, setNotificationFilter] = useState('all');
+
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('pane') === 'notifications') setActivePane('notifications');
+  }, [location.search]);
 
   useEffect(() => {
     if (activePane !== 'notifications') return;

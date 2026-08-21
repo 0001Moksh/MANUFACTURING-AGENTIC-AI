@@ -5,7 +5,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request
-from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
@@ -41,6 +41,7 @@ SECRET_KEY = "IIOT_MANUFACTURING_SECRET_KEY_JWT"
 ALGORITHM = "HS256"
 REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_KEY)
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 # Models for Request/Response
 class LoginRequest(BaseModel):
@@ -669,7 +670,7 @@ async def decide_report_from_email(token: str, request: Request, db: AsyncSessio
         approval.status = "REJECTED"
         await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="human_intervention", title="Daily report rejected", message="A report requires revision before it can be dispatched.", source_type="report_approval", source_id=approval.approval_key)
         await db.commit()
-        return HTMLResponse("<h2>Report rejected</h2><p>The report has not been emailed and is marked for revision.</p>")
+        return RedirectResponse(url=f"{FRONTEND_URL}/admin?pane=notifications&approval={approval_key}", status_code=303)
 
     if not approval.recipient_email:
         return HTMLResponse("<h2>Cannot send report</h2><p>No recipient email was configured for this report.</p>", status_code=409)
@@ -679,7 +680,7 @@ async def decide_report_from_email(token: str, request: Request, db: AsyncSessio
     await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered else "Daily report approved; delivery failed", message="The approved PDF was sent to the configured recipient." if delivered else "The PDF remains approved but SMTP delivery failed. Check mail configuration.", source_type="report_approval", source_id=approval.approval_key)
     await db.commit()
     if delivered:
-        return HTMLResponse("<h2>Report approved and sent</h2><p>The exact PDF you approved has been emailed to the configured recipient.</p>")
+        return RedirectResponse(url=f"{FRONTEND_URL}/admin?pane=notifications&approval={approval_key}", status_code=303)
     return HTMLResponse("<h2>Report approved, but delivery failed</h2><p>The report remains approved. Check SMTP configuration before retrying delivery.</p>", status_code=502)
 
 
