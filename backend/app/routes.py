@@ -1,10 +1,11 @@
 import asyncio
 import hashlib
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
@@ -31,13 +32,15 @@ from app.agents.incident_investigation_agent import (
     run_incident_investigation_conversation,
     stream_incident_investigation_events,
 )
-from app.email_service import send_pdf_report_email, send_text_email
+from app.email_service import send_pdf_report_email, send_text_email, send_html_email
 from app.voice.manager import VoiceConversationManager
 
 router = APIRouter()
 
 SECRET_KEY = "IIOT_MANUFACTURING_SECRET_KEY_JWT"
 ALGORITHM = "HS256"
+REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_KEY)
+PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 # Models for Request/Response
 class LoginRequest(BaseModel):
@@ -260,6 +263,27 @@ async def _create_notification(
     db.add(notification)
     await db.flush()
     return notification
+
+
+async def _email_verified_super_admins(db: AsyncSession, approval_key: str, report_url: str) -> int:
+    """Send the approval request only to verified Super Admin profile emails."""
+    profiles = (await db.execute(
+        select(UserProfile).join(User, User.id == UserProfile.user_id).where(
+            User.role == "Super Admin", UserProfile.email_verified.is_(True)
+        )
+    )).scalars().all()
+    delivered = 0
+    for profile in profiles:
+        expires = datetime.utcnow() + timedelta(hours=24)
+        approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
+        reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
+        approve_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={approve_token}"
+        reject_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={reject_token}"
+        body = f"A Daily Operations report PDF is awaiting Human-in-the-Loop approval.\n\nReport reference: {approval_key}\nReview PDF: {report_url or 'Available in the MAI Admin Console'}\n\nApprove: {approve_url}\nReject: {reject_url}\n\nThe links expire in 24 hours and can be used only once."
+        html = f"""<div style='font-family:Arial,sans-serif;color:#17324d;max-width:600px'><h2>Daily Operations report approval required</h2><p>A PDF has been generated and is waiting for your Human-in-the-Loop decision.</p><p><b>Report reference:</b> {approval_key}<br><a href='{report_url}'>Review PDF</a></p><p><a href='{approve_url}' style='display:inline-block;background:#0e6b52;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:bold'>Approve &amp; Send Report</a>&nbsp;<a href='{reject_url}' style='display:inline-block;background:#fff;color:#a12b2b;padding:12px 18px;border:1px solid #d39a9a;border-radius:6px;text-decoration:none;font-weight:bold'>Reject Report</a></p><p style='font-size:12px;color:#667'>These signed links expire in 24 hours and the decision can be applied only once.</p></div>"""
+        if send_html_email(profile.email, "Approval required: Daily Operations report", body, html):
+            delivered += 1
+    return delivered
 
 
 def _is_admin(user: User) -> bool:
@@ -607,6 +631,58 @@ async def decide_report_approval(approval_key: str, decision: str, req: Approval
     return {"status": approval.status, "email_status": "sent" if delivered else "failed"}
 
 
+@router.api_route("/api/report-approvals/email-action", methods=["GET", "POST"], response_class=HTMLResponse)
+async def decide_report_from_email(token: str, request: Request, db: AsyncSession = Depends(get_db)):
+    """Apply a signed email decision once; no browser session or hardcoded email is trusted."""
+    try:
+        payload = jwt.decode(token, REPORT_APPROVAL_EMAIL_SECRET, algorithms=[ALGORITHM])
+        if payload.get("scope") != "report_approval_email" or payload.get("decision") not in {"approve", "reject"}:
+            raise jwt.InvalidTokenError("Invalid approval token scope")
+        approval_key, decision, user_id = payload["approval_key"], payload["decision"], int(payload["user_id"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        return HTMLResponse("<h2>Invalid or expired approval link</h2><p>This action link is no longer valid. Open MAI Admin Console to review the report.</p>", status_code=400)
+
+    profile = (await db.execute(
+        select(UserProfile).join(User, User.id == UserProfile.user_id).where(
+            UserProfile.user_id == user_id, User.role == "Super Admin", UserProfile.email_verified.is_(True)
+        )
+    )).scalars().first()
+    if not profile:
+        return HTMLResponse("<h2>Approval not authorized</h2><p>The intended Super Admin profile is no longer verified.</p>", status_code=403)
+
+    # Email security scanners commonly prefetch GET links. Render a confirmation page
+    # first so the signed action runs only after an intentional browser POST.
+    if request.method == "GET":
+        action_label = "Approve &amp; Send Report" if decision == "approve" else "Reject Report"
+        color = "#0e6b52" if decision == "approve" else "#a12b2b"
+        return HTMLResponse(f"""<div style='font-family:Arial,sans-serif;max-width:560px;margin:48px auto;color:#17324d'><h2>Confirm report decision</h2><p>You are about to <b>{decision}</b> Daily Operations report <code>{approval_key}</code>.</p><p>This action is irreversible and can be completed only once.</p><form method='post' action='?token={token}'><button type='submit' style='background:{color};color:white;border:0;border-radius:6px;padding:12px 18px;font-weight:bold;cursor:pointer'>{action_label}</button></form></div>""")
+
+    approval = (await db.execute(select(ReportApproval).where(ReportApproval.approval_key == approval_key).with_for_update())).scalars().first()
+    if not approval:
+        return HTMLResponse("<h2>Report approval not found</h2>", status_code=404)
+    if approval.status != "PENDING_APPROVAL":
+        return HTMLResponse(f"<h2>No action needed</h2><p>This report has already been decided: <b>{approval.status}</b>.</p>")
+
+    approval.approver_user_id = user_id
+    approval.decided_at = datetime.utcnow()
+    if decision == "reject":
+        approval.status = "REJECTED"
+        await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="human_intervention", title="Daily report rejected", message="A report requires revision before it can be dispatched.", source_type="report_approval", source_id=approval.approval_key)
+        await db.commit()
+        return HTMLResponse("<h2>Report rejected</h2><p>The report has not been emailed and is marked for revision.</p>")
+
+    if not approval.recipient_email:
+        return HTMLResponse("<h2>Cannot send report</h2><p>No recipient email was configured for this report.</p>", status_code=409)
+    approval.status = "APPROVED"
+    delivered = send_pdf_report_email(approval.recipient_email, "Approved Agentic Daily Operations Report", "Please find the approved report attached.", approval.report_path)
+    approval.status = "SENT" if delivered else "APPROVED"
+    await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered else "Daily report approved; delivery failed", message="The approved PDF was sent to the configured recipient." if delivered else "The PDF remains approved but SMTP delivery failed. Check mail configuration.", source_type="report_approval", source_id=approval.approval_key)
+    await db.commit()
+    if delivered:
+        return HTMLResponse("<h2>Report approved and sent</h2><p>The exact PDF you approved has been emailed to the configured recipient.</p>")
+    return HTMLResponse("<h2>Report approved, but delivery failed</h2><p>The report remains approved. Check SMTP configuration before retrying delivery.</p>", status_code=502)
+
+
 # --- INTEGRATION ACCESS GUARD ---
 # Call _require_integration(name) at the top of any agent endpoint that depends on
 # a specific integration.  Raises HTTP 503 with a descriptive message if disabled.
@@ -825,6 +901,16 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
                     source_type="report_approval", source_id=approval_key,
                 )
                 await db.commit()
+                emailed_admins = await _email_verified_super_admins(db, approval_key, state.get("pdf_url", ""))
+                if not emailed_admins:
+                    # The notification is already persisted; surface the missing verified recipient explicitly.
+                    await _create_notification(
+                        db, recipient_user_id=current_user.id, category="alert",
+                        title="Approval email was not delivered",
+                        message="No verified Super Admin profile email is available. Approve the report from Admin Console.",
+                        source_type="report_approval", source_id=approval_key,
+                    )
+                    await db.commit()
                 return {
                     "status": "requires_approval", "approval_key": approval_key,
                     "pdf_url": state.get("pdf_url", ""), "sql_query": state.get("sql_query", ""),

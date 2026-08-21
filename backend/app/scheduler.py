@@ -3,18 +3,52 @@ import logging
 from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
+import jwt
 
 from app.db import (
     AsyncSessionLocal, AgentReportingSettings, GlobalGovernanceSettings,
-    UseCaseGovernanceSettings, ReportApproval, PlatformNotification,
+    UseCaseGovernanceSettings, ReportApproval, PlatformNotification, User, UserProfile,
 )
 from app.agents.agent_workflow import run_agent_workflow
-from app.email_service import send_pdf_report_email
+from app.email_service import send_pdf_report_email, send_html_email
 import secrets
 
 logger = logging.getLogger("scheduler")
 
 scheduler = AsyncIOScheduler()
+REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", "IIOT_MANUFACTURING_SECRET_KEY_JWT")
+PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
+
+
+async def _notify_verified_super_admins(approval_key: str, report_url: str, delivery_time: str) -> int:
+    """Email all verified Super Admin profiles; addresses are never hardcoded."""
+    async with AsyncSessionLocal() as session:
+        profiles = (await session.execute(
+            select(UserProfile).join(User, User.id == UserProfile.user_id).where(
+                User.role == "Super Admin", UserProfile.email_verified.is_(True)
+            )
+        )).scalars().all()
+    subject = "Approval required: Daily Operations report"
+    body = (
+        "A Daily Operations PDF has been generated and is waiting for Human-in-the-Loop approval.\n\n"
+        f"Scheduled delivery time: {delivery_time}\n"
+        f"Report reference: {approval_key}\n"
+        f"Review PDF: {report_url or 'Available in the MAI Admin Console'}\n\n"
+        "Open MAI Platform > Admin Console > Notifications to approve and send, or reject the report. "
+        "The PDF will not be emailed to the recipient until a Super Admin approves it."
+    )
+    delivered = 0
+    for profile in profiles:
+        expires = datetime.utcnow() + timedelta(hours=24)
+        approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
+        reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
+        approve_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={approve_token}"
+        reject_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={reject_token}"
+        text_body = f"{body}\n\nApprove: {approve_url}\nReject: {reject_url}\n\nThese signed links expire in 24 hours and can be used only once."
+        html_body = f"""<div style='font-family:Arial,sans-serif;color:#17324d;max-width:600px'><h2>Daily Operations report approval required</h2><p>A PDF has been generated and is waiting for your Human-in-the-Loop decision.</p><p><b>Scheduled delivery:</b> {delivery_time}<br><b>Report reference:</b> {approval_key}<br><a href='{report_url}'>Review PDF</a></p><p><a href='{approve_url}' style='display:inline-block;background:#0e6b52;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:bold'>Approve &amp; Send Report</a>&nbsp;<a href='{reject_url}' style='display:inline-block;background:#fff;color:#a12b2b;padding:12px 18px;border:1px solid #d39a9a;border-radius:6px;text-decoration:none;font-weight:bold'>Reject Report</a></p><p style='font-size:12px;color:#667'>These signed links expire in 24 hours and the decision can be applied only once.</p></div>"""
+        if send_html_email(profile.email, subject, text_body, html_body):
+            delivered += 1
+    return delivered
 
 async def check_and_run_daily_report():
     """Scheduled job to check if it's time to run the daily report"""
@@ -99,6 +133,11 @@ async def check_and_run_daily_report():
                         source_type="report_approval", source_id=approval_key,
                     ))
                     await approval_session.commit()
+                    emailed_admins = await _notify_verified_super_admins(
+                        approval_key, workflow_result.get("pdf_url", ""), settings.schedule_time
+                    )
+                    if not emailed_admins:
+                        logger.warning("Scheduled report %s is pending, but no verified Super Admin email received the approval request.", approval_key)
                     logger.info("Scheduled report generated and held for HITL approval; approval_key=%s", approval_key)
                     return
 

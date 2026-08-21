@@ -83,3 +83,26 @@ def send_text_email(to_email: str, subject: str, body: str) -> bool:
     except Exception as exc:
         logger.error("Transactional email delivery failed: %s", exc)
         return False
+
+
+def send_html_email(to_email: str, subject: str, text_body: str, html_body: str) -> bool:
+    """Send a transactional email with an accessible text fallback and HTML action controls."""
+    if not MAIL_USERNAME or not MAIL_PASSWORD:
+        logger.error("Mail credentials missing. Cannot send HTML transactional email.")
+        return False
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = MAIL_FROM
+    msg['To'] = to_email
+    msg.set_content(text_body)
+    msg.add_alternative(html_body, subtype="html")
+    try:
+        with smtplib.SMTP(MAIL_HOST, MAIL_PORT) as server:
+            server.starttls()
+            server.login(MAIL_USERNAME, MAIL_PASSWORD)
+            server.send_message(msg)
+        logger.info("HTML transactional email sent to %s", to_email)
+        return True
+    except Exception as exc:
+        logger.error("HTML transactional email delivery failed: %s", exc)
+        return False
