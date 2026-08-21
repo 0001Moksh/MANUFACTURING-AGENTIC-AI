@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UsersTable } from '../components/admin/UsersTable';
 import { ConnectorsGrid } from '../components/admin/ConnectorsGrid';
 import { RulesBuilder } from '../components/admin/RulesBuilder';
 import { useStore } from '../store';
 import { guardrails } from '../data/mockData';
+import { api } from '../services/api';
 
 export const AdminConsolePage: React.FC = () => {
   const { explainableLogs, humanInLoop, toggleGovernanceSetting } = useStore();
   const [activePane, setActivePane] = useState('users');
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [notificationFilter, setNotificationFilter] = useState('all');
+
+  useEffect(() => {
+    if (activePane !== 'notifications') return;
+    void api.get('/notifications', { params: notificationFilter === 'all' ? {} : { category: notificationFilter } })
+      .then((response) => setNotifications(response.data))
+      .catch(() => setNotifications([]));
+    void api.get('/report-approvals').then((response) => setApprovals(response.data)).catch(() => setApprovals([]));
+  }, [activePane, notificationFilter]);
+
+  const decideApproval = async (approvalKey: string, decision: 'approve' | 'reject') => {
+    await api.post(`/report-approvals/${approvalKey}/${decision}`, { note: '' });
+    setApprovals((items) => items.map((item) => item.approval_key === approvalKey ? { ...item, status: decision === 'approve' ? 'SENT' : 'REJECTED' } : item));
+  };
 
   const panes = [
     { id: 'users', label: 'Users & Roles' },
@@ -178,6 +195,14 @@ export const AdminConsolePage: React.FC = () => {
           )}
           
           {activePane === 'rules' && <RulesBuilder />}
+
+          {activePane === 'notifications' && (
+            <div className="bg-panel border border-border-color rounded-[14px] overflow-hidden">
+              <div className="p-4 border-b border-border-color flex items-center justify-between gap-3 flex-wrap"><div><div className="font-head text-[15px] font-bold text-ink">Notification History</div><div className="text-[11.5px] text-muted">Same persisted feed shown in the platform notification bell.</div></div><div className="flex gap-1.5">{[['all', 'All'], ['human_intervention', 'Human Intervention'], ['system', 'System'], ['alert', 'Alerts']].map(([value, label]) => <button key={value} onClick={() => setNotificationFilter(value)} className={`rounded-full px-2.5 py-1 text-[10.5px] font-bold border cursor-pointer ${notificationFilter === value ? 'bg-navy-900 text-white border-navy-900' : 'bg-panel text-muted border-border-color'}`}>{label}</button>)}</div></div>
+              {approvals.filter((approval) => approval.status === 'PENDING_APPROVAL').map((approval) => <div key={approval.approval_key} className="mx-4 mt-4 rounded-[12px] border border-amber/40 bg-amber-tint/50 p-3.5 flex items-center gap-3 flex-wrap"><div className="flex-1 min-w-[240px]"><div className="text-[12.5px] font-bold text-[#7C5200]">Daily Operations report requires approval</div><div className="mt-1 text-[11px] text-[#9A6400] line-clamp-2">{approval.query}</div></div>{approval.report_url && <a href={approval.report_url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-[#805300]">Review PDF</a>}<button onClick={() => void decideApproval(approval.approval_key, 'reject')} className="rounded-[8px] border border-amber/50 bg-panel px-2.5 py-1.5 text-[11px] font-bold text-[#805300] cursor-pointer">Reject</button><button onClick={() => void decideApproval(approval.approval_key, 'approve')} className="rounded-[8px] border-none bg-amber px-2.5 py-1.5 text-[11px] font-bold text-white cursor-pointer">Approve & Send</button></div>)}
+              <div className="divide-y divide-border-color">{notifications.length === 0 ? <div className="p-8 text-center text-[12px] text-muted">No notifications for this filter.</div> : notifications.map((notification) => <div key={notification.id} className={`p-4 flex gap-3 ${notification.is_read ? 'bg-panel' : 'bg-teal-tint/25'}`}><span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${notification.is_read ? 'bg-[#C7CEDB]' : notification.category === 'human_intervention' ? 'bg-amber' : 'bg-teal'}`} /><div className="flex-1"><div className={`text-[13px] text-ink ${notification.is_read ? 'font-medium' : 'font-bold'}`}>{notification.title}</div><div className="mt-1 text-[11.5px] text-muted">{notification.message}</div><div className="mt-1.5 text-[10px] text-faint">{new Date(notification.created_at).toLocaleString()}</div></div><span className="text-[10px] font-bold uppercase tracking-wide text-muted">{notification.category.replace('_', ' ')}</span></div>)}</div>
+            </div>
+          )}
           
         </motion.div>
       </AnimatePresence>

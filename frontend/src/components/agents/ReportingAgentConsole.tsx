@@ -118,10 +118,10 @@ export const AgentChatConsole: React.FC = () => {
             <ShieldCheck className="w-[22px] h-[22px] text-amber shrink-0 mt-0.5" />
             <div>
               <div className="font-bold text-[13.5px]">Human-In-The-Loop Approval Pending</div>
-              <div className="text-[12px] mt-0.5 leading-relaxed">The agent identified this instruction as a database write action. Confirming this action will execute the query: <code>{result?.sql_query}</code>.</div>
+              <div className="text-[12px] mt-0.5 leading-relaxed">{result?.approval_key ? 'The generated PDF is held for Super Admin approval. Review it from the notification bell or Admin Console; the approved file will be dispatched without regeneration.' : <>The agent identified this instruction as a database write action. Confirming this action will execute the query: <code>{result?.sql_query}</code>.</>}</div>
             </div>
           </div>
-          <button onClick={handleApprove} disabled={loading} className="bg-amber text-white border-none rounded-[8px] p-[8px_16px] text-[11.5px] font-bold cursor-pointer hover:bg-[#805300] transition-colors shrink-0">Approve & Execute Action</button>
+          {!result?.approval_key && <button onClick={handleApprove} disabled={loading} className="bg-amber text-white border-none rounded-[8px] p-[8px_16px] text-[11.5px] font-bold cursor-pointer hover:bg-[#805300] transition-colors shrink-0">Approve & Execute Action</button>}
         </div>
       )}
 

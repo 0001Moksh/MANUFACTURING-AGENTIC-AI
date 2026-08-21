@@ -59,3 +59,27 @@ def send_pdf_report_email(to_email: str, subject: str, body: str, pdf_path: str)
     except Exception as e:
         logger.error(f"Error sending email via SMTP: {e}")
         return False
+
+
+def send_text_email(to_email: str, subject: str, body: str) -> bool:
+    """Send a plain-text transactional email using the configured SMTP transport."""
+    if not MAIL_USERNAME or not MAIL_PASSWORD:
+        logger.error("Mail credentials missing. Cannot send transactional email.")
+        return False
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = MAIL_FROM
+    msg['To'] = to_email
+    msg.set_content(body)
+
+    try:
+        with smtplib.SMTP(MAIL_HOST, MAIL_PORT) as server:
+            server.starttls()
+            server.login(MAIL_USERNAME, MAIL_PASSWORD)
+            server.send_message(msg)
+        logger.info("Transactional email sent to %s", to_email)
+        return True
+    except Exception as exc:
+        logger.error("Transactional email delivery failed: %s", exc)
+        return False

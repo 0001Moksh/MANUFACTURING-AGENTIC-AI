@@ -5,6 +5,7 @@ import { ArrowLeft, Settings2, Sparkles, CheckCircle2, AudioLines, ChevronDown, 
 import { useCases, pillarMeta, adminTemplates } from '../data/mockData';
 import { VoiceInteraction } from '../components/usecases/VoiceInteraction';
 import { API_BASE_URL } from '../config/api';
+import { api } from '../services/api';
 
 const tagColors: Record<string, string> = {
   AGENTIC: 'bg-amber-tint text-[#9A6400]',
@@ -29,6 +30,9 @@ export const UseCaseDetailPage: React.FC = () => {
   const [isSaving, setIsSaving] = React.useState(false);
   const [justSaved, setJustSaved] = React.useState(false);
   const [voiceBannerExpanded, setVoiceBannerExpanded] = useState(false);
+  const [reportingHitlEnabled, setReportingHitlEnabled] = useState(false);
+  const [globalHitlEnabled, setGlobalHitlEnabled] = useState(false);
+  const [isUpdatingHitl, setIsUpdatingHitl] = useState(false);
 
   useEffect(() => {
     if (useCase && useCase.id === 9) {
@@ -45,6 +49,13 @@ export const UseCaseDetailPage: React.FC = () => {
           }
         })
         .catch((err) => console.error('Failed to load settings', err));
+      fetch(`${API_BASE_URL}/use-cases/daily-operations-reporting/governance`)
+        .then((res) => res.json())
+        .then((data) => {
+          setReportingHitlEnabled(Boolean(data.hitl_enabled));
+          setGlobalHitlEnabled(Boolean(data.global_hitl_enabled));
+        })
+        .catch((err) => console.error('Failed to load reporting governance', err));
     }
   }, [useCase, navigate]);
 
@@ -62,6 +73,20 @@ export const UseCaseDetailPage: React.FC = () => {
       console.error('Failed to save settings', err);
     }
     setIsSaving(false);
+  };
+
+  const updateReportingHitl = async () => {
+    if (isUpdatingHitl) return;
+    const next = !reportingHitlEnabled;
+    setIsUpdatingHitl(true);
+    try {
+      await api.put('/use-cases/daily-operations-reporting/governance', { enabled: next });
+      setReportingHitlEnabled(next);
+    } catch (err) {
+      console.error('Failed to update reporting HITL setting', err);
+    } finally {
+      setIsUpdatingHitl(false);
+    }
   };
 
   if (!useCase) {
@@ -266,6 +291,21 @@ export const UseCaseDetailPage: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col gap-[20px] flex-1">
+                      <div className="rounded-[12px] border border-[#C9DCEB] bg-[#F3FAFE] p-3.5 flex items-center gap-3">
+                        <button
+                          onClick={() => void updateReportingHitl()}
+                          disabled={isUpdatingHitl}
+                          className={`w-[40px] h-[24px] rounded-full relative transition-colors cursor-pointer border-none disabled:opacity-50 ${reportingHitlEnabled ? 'bg-teal' : 'bg-gray-300'}`}
+                          title="Require an approval after PDF generation and before dispatch"
+                        >
+                          <span className={`absolute top-[2px] w-[20px] h-[20px] bg-white rounded-full transition-all shadow-sm ${reportingHitlEnabled ? 'left-[18px]' : 'left-[2px]'}`} />
+                        </button>
+                        <div className="flex-1">
+                          <div className="text-[13px] font-bold text-ink">Human-in-the-Loop Approval</div>
+                          <div className="mt-0.5 text-[11.5px] text-muted">When enabled with the global governance switch, generated PDFs wait for approval before dispatch.</div>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${globalHitlEnabled && reportingHitlEnabled ? 'bg-green-tint text-green' : 'bg-amber-tint text-[#9A6400]'}`}>{globalHitlEnabled && reportingHitlEnabled ? 'Effective' : globalHitlEnabled ? 'Enable locally' : 'Global OFF'}</span>
+                      </div>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => setSettings((s) => ({ ...s, is_enabled: !s.is_enabled }))}

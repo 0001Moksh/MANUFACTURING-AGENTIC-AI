@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request
@@ -14,7 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import (
     get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot,
     mes_db_status, video_analytics_db_status, test_mes_connection, test_video_analytics_connection,
-    AgentReportingSettings
+    AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
+    UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken
 )
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.guardrails_firewall import validate_query_safety
@@ -28,7 +31,7 @@ from app.agents.incident_investigation_agent import (
     run_incident_investigation_conversation,
     stream_incident_investigation_events,
 )
-from app.email_service import send_pdf_report_email
+from app.email_service import send_pdf_report_email, send_text_email
 from app.voice.manager import VoiceConversationManager
 
 router = APIRouter()
@@ -71,6 +74,35 @@ class IntegrationToggleRequest(BaseModel):
 class GovernanceSettingToggleRequest(BaseModel):
     setting_key: str  # e.g. 'explainability_logging', 'hitl_approval'
     enabled: bool
+
+
+class UseCaseHITLRequest(BaseModel):
+    enabled: bool
+
+
+class ProfileUpdateRequest(BaseModel):
+    name: str
+
+
+class EmailVerificationRequest(BaseModel):
+    email: str
+
+
+class OTPVerificationRequest(BaseModel):
+    code: str
+
+
+class PasswordResetRequest(BaseModel):
+    password: str
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    code: str
+    password: str
+
+
+class ApprovalDecisionRequest(BaseModel):
+    note: str = ""
 
 class MaintenanceChatRequest(BaseModel):
     message: str
@@ -193,6 +225,46 @@ async def stream_agent_events():
 
 # --- AUTHENTICATION ROUTES ---
 
+MAX_OTP_ATTEMPTS = 5
+OTP_EXPIRY_MINUTES = 10
+
+
+async def get_current_user(request: Request, db: AsyncSession) -> User:
+    """Resolve the authenticated user from the bearer token; never trust client-supplied identity."""
+    authorization = request.headers.get("Authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+    try:
+        payload = jwt.decode(authorization.removeprefix("Bearer "), SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired access token") from exc
+    user = (await db.execute(select(User).where(User.username == username))).scalars().first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authenticated user no longer exists")
+    return user
+
+
+def _hash_one_time_code(code: str) -> str:
+    return hashlib.sha256(code.encode("utf-8")).hexdigest()
+
+
+async def _create_notification(
+    db: AsyncSession, *, recipient_user_id: Optional[int], category: str, title: str,
+    message: str, source_type: Optional[str] = None, source_id: Optional[str] = None,
+) -> PlatformNotification:
+    notification = PlatformNotification(
+        recipient_user_id=recipient_user_id, category=category, title=title, message=message,
+        source_type=source_type, source_id=source_id,
+    )
+    db.add(notification)
+    await db.flush()
+    return notification
+
+
+def _is_admin(user: User) -> bool:
+    return user.role == "Super Admin"
+
 @router.post("/api/auth/login", response_model=TokenResponse)
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.username == req.username))
@@ -228,6 +300,116 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         "role": user.role,
         "site": user.site
     }
+
+
+@router.get("/api/profile")
+async def get_profile(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile is not initialized")
+    return {
+        "name": profile.name, "email": profile.email, "email_verified": profile.email_verified,
+        "role": user.role, "site": user.site, "username": user.username,
+    }
+
+
+@router.patch("/api/profile")
+async def update_profile(req: ProfileUpdateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    name = req.name.strip()
+    if not 2 <= len(name) <= 120:
+        raise HTTPException(status_code=422, detail="Name must contain between 2 and 120 characters")
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile is not initialized")
+    profile.name = name
+    await db.commit()
+    return {"status": "success", "name": profile.name}
+
+
+async def _issue_otp(db: AsyncSession, user: User, purpose: str, pending_value: Optional[str] = None) -> str:
+    await db.execute(
+        update(OneTimeToken)
+        .where(OneTimeToken.user_id == user.id, OneTimeToken.purpose == purpose, OneTimeToken.consumed_at.is_(None))
+        .values(consumed_at=datetime.utcnow())
+    )
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    db.add(OneTimeToken(
+        user_id=user.id, purpose=purpose, token_hash=_hash_one_time_code(code), pending_value=pending_value,
+        expires_at=datetime.utcnow() + timedelta(minutes=OTP_EXPIRY_MINUTES),
+    ))
+    await db.flush()
+    return code
+
+
+@router.post("/api/profile/email/request-verification")
+async def request_email_verification(req: EmailVerificationRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    email = req.email.strip().lower()
+    if "@" not in email or len(email) > 254:
+        raise HTTPException(status_code=422, detail="Enter a valid email address")
+    existing = (await db.execute(select(UserProfile).where(UserProfile.email == email, UserProfile.user_id != user.id))).scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail="This email is already in use")
+    code = await _issue_otp(db, user, "verify_email", email)
+    await db.commit()
+    if not send_text_email(email, "Verify your MAI Platform email", f"Your verification code is {code}. It expires in {OTP_EXPIRY_MINUTES} minutes."):
+        raise HTTPException(status_code=503, detail="Verification email could not be delivered. Check SMTP configuration before retrying.")
+    return {"status": "sent", "expires_in_minutes": OTP_EXPIRY_MINUTES}
+
+
+@router.post("/api/profile/email/verify")
+async def verify_email(req: OTPVerificationRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    token = (await db.execute(
+        select(OneTimeToken).where(OneTimeToken.user_id == user.id, OneTimeToken.purpose == "verify_email", OneTimeToken.consumed_at.is_(None)).order_by(OneTimeToken.created_at.desc())
+    )).scalars().first()
+    if not token or token.expires_at < datetime.utcnow() or token.attempts >= MAX_OTP_ATTEMPTS:
+        raise HTTPException(status_code=400, detail="Verification code is expired or unavailable")
+    token.attempts += 1
+    if not secrets.compare_digest(token.token_hash, _hash_one_time_code(req.code.strip())):
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile is not initialized")
+    profile.email, profile.email_verified, token.consumed_at = token.pending_value, True, datetime.utcnow()
+    await db.commit()
+    return {"status": "verified", "email": profile.email}
+
+
+@router.post("/api/profile/password/request-reset")
+async def request_password_reset(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+    if not profile or not profile.email_verified:
+        raise HTTPException(status_code=409, detail="Verify an email address before requesting a password reset")
+    code = await _issue_otp(db, user, "reset_password")
+    await db.commit()
+    if not send_text_email(profile.email, "Reset your MAI Platform password", f"Your password reset code is {code}. It expires in {OTP_EXPIRY_MINUTES} minutes."):
+        raise HTTPException(status_code=503, detail="Password reset email could not be delivered. Check SMTP configuration before retrying.")
+    return {"status": "sent", "expires_in_minutes": OTP_EXPIRY_MINUTES}
+
+
+@router.post("/api/profile/password/confirm-reset")
+async def confirm_password_reset(req: PasswordResetConfirmRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if len(req.password) < 12:
+        raise HTTPException(status_code=422, detail="Password must be at least 12 characters")
+    token = (await db.execute(
+        select(OneTimeToken).where(OneTimeToken.user_id == user.id, OneTimeToken.purpose == "reset_password", OneTimeToken.consumed_at.is_(None)).order_by(OneTimeToken.created_at.desc())
+    )).scalars().first()
+    if not token or token.expires_at < datetime.utcnow() or token.attempts >= MAX_OTP_ATTEMPTS:
+        raise HTTPException(status_code=400, detail="Password reset code is expired or unavailable")
+    token.attempts += 1
+    if not secrets.compare_digest(token.token_hash, _hash_one_time_code(req.code.strip())):
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Invalid password reset code")
+    user.password_hash = bcrypt.hashpw(req.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    token.consumed_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "success"}
 
 # --- TELEMETRY & STATS ---
 
@@ -319,6 +501,110 @@ async def toggle_governance_setting(req: GovernanceSettingToggleRequest, db: Asy
     setting.is_enabled = req.enabled
     await db.commit()
     return {"status": "success", "setting_key": req.setting_key, "is_enabled": req.enabled}
+
+
+@router.get("/api/use-cases/daily-operations-reporting/governance")
+async def get_daily_reporting_governance(db: AsyncSession = Depends(get_db)):
+    setting = (await db.execute(
+        select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == "daily_operations_reporting")
+    )).scalars().first()
+    global_setting = (await db.execute(
+        select(GlobalGovernanceSettings).where(GlobalGovernanceSettings.setting_key == "hitl_approval")
+    )).scalars().first()
+    return {
+        "hitl_enabled": bool(setting and setting.hitl_enabled),
+        "global_hitl_enabled": bool(global_setting and global_setting.is_enabled),
+        "effective_hitl_enabled": bool(setting and setting.hitl_enabled and global_setting and global_setting.is_enabled),
+    }
+
+
+@router.put("/api/use-cases/daily-operations-reporting/governance")
+async def update_daily_reporting_governance(req: UseCaseHITLRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only a Super Admin can change HITL configuration")
+    setting = (await db.execute(
+        select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == "daily_operations_reporting")
+    )).scalars().first()
+    if not setting:
+        setting = UseCaseGovernanceSettings(use_case_key="daily_operations_reporting")
+        db.add(setting)
+    setting.hitl_enabled = req.enabled
+    await db.commit()
+    return {"status": "success", "hitl_enabled": setting.hitl_enabled}
+
+
+@router.get("/api/notifications")
+async def get_notifications(request: Request, category: Optional[str] = None, unread_only: bool = False, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    query = select(PlatformNotification)
+    if not _is_admin(user):
+        query = query.where((PlatformNotification.recipient_user_id == user.id) | (PlatformNotification.recipient_user_id.is_(None)))
+    if category and category != "all":
+        query = query.where(PlatformNotification.category == category)
+    if unread_only:
+        query = query.where(PlatformNotification.is_read.is_(False))
+    notifications = (await db.execute(query.order_by(PlatformNotification.created_at.desc()).limit(100))).scalars().all()
+    return [{
+        "id": n.id, "category": n.category, "title": n.title, "message": n.message,
+        "source_type": n.source_type, "source_id": n.source_id, "is_read": n.is_read,
+        "created_at": n.created_at.isoformat(),
+    } for n in notifications]
+
+
+@router.post("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    notification = (await db.execute(select(PlatformNotification).where(PlatformNotification.id == notification_id))).scalars().first()
+    if not notification or (not _is_admin(user) and notification.recipient_user_id not in (None, user.id)):
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification.is_read = True
+    await db.commit()
+    return {"status": "success"}
+
+
+@router.get("/api/report-approvals")
+async def list_report_approvals(request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    query = select(ReportApproval).order_by(ReportApproval.created_at.desc())
+    if not _is_admin(user):
+        query = query.where(ReportApproval.requested_by_user_id == user.id)
+    approvals = (await db.execute(query.limit(100))).scalars().all()
+    return [{
+        "approval_key": approval.approval_key, "status": approval.status, "query": approval.query,
+        "report_url": approval.report_url, "created_at": approval.created_at.isoformat(),
+        "decision_note": approval.decision_note,
+    } for approval in approvals]
+
+
+@router.post("/api/report-approvals/{approval_key}/{decision}")
+async def decide_report_approval(approval_key: str, decision: str, req: ApprovalDecisionRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only a Super Admin can approve or reject reports")
+    if decision not in {"approve", "reject"}:
+        raise HTTPException(status_code=422, detail="Decision must be approve or reject")
+    approval = (await db.execute(select(ReportApproval).where(ReportApproval.approval_key == approval_key).with_for_update())).scalars().first()
+    if not approval:
+        raise HTTPException(status_code=404, detail="Approval request not found")
+    if approval.status != "PENDING_APPROVAL":
+        return {"status": approval.status, "message": "This report has already been decided."}
+    approval.approver_user_id = user.id
+    approval.decision_note = req.note.strip() or None
+    approval.decided_at = datetime.utcnow()
+    if decision == "reject":
+        approval.status = "REJECTED"
+        await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="human_intervention", title="Daily report rejected", message="A report requires revision before it can be dispatched.", source_type="report_approval", source_id=approval.approval_key)
+        await db.commit()
+        return {"status": approval.status}
+    if not approval.recipient_email:
+        raise HTTPException(status_code=409, detail="No recipient email was supplied when this report was generated")
+    approval.status = "APPROVED"
+    delivered = send_pdf_report_email(approval.recipient_email, "Approved Agentic Daily Operations Report", "Please find the approved report attached.", approval.report_path)
+    approval.status = "SENT" if delivered else "APPROVED"
+    await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered else "Daily report approved; delivery failed", message="The approved PDF was sent to the configured recipient." if delivered else "The PDF remains approved but SMTP delivery failed. Check mail configuration.", source_type="report_approval", source_id=approval.approval_key)
+    await db.commit()
+    return {"status": approval.status, "email_status": "sent" if delivered else "failed"}
 
 
 # --- INTEGRATION ACCESS GUARD ---
@@ -426,7 +712,8 @@ async def websocket_voice_endpoint(websocket: WebSocket, agent: Optional[str] = 
 # --- AGENTIC QUERY ENDPOINTS ---
 
 @router.post("/api/agent/query")
-async def query_agent(req: QueryRequest):
+async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    current_user = await get_current_user(request, db)
     # 1. Run Cybersecurity Firewall Checks
     is_blocked, status_str, reason = await validate_query_safety(req.query)
     if is_blocked:
@@ -506,7 +793,45 @@ async def query_agent(req: QueryRequest):
                 "execution_steps": state.get("execution_steps", []),
                 "insights": "Pending administrator approval: This query requires executing modifications on the live database."
             }
-            
+
+        # Report dispatch uses a two-level permission: the global master switch AND the UC01 switch.
+        # The exact generated PDF is retained; it is never regenerated after approval.
+        if state.get("pdf_path"):
+            global_hitl = (await db.execute(
+                select(GlobalGovernanceSettings).where(GlobalGovernanceSettings.setting_key == "hitl_approval")
+            )).scalars().first()
+            local_hitl = (await db.execute(
+                select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == "daily_operations_reporting")
+            )).scalars().first()
+            if bool(global_hitl and global_hitl.is_enabled and local_hitl and local_hitl.hitl_enabled):
+                reporting_settings = (await db.execute(select(AgentReportingSettings))).scalars().first()
+                recipient_email = req.email_to or (reporting_settings.email if reporting_settings else None)
+                approval_key = secrets.token_urlsafe(24)
+                approval = ReportApproval(
+                    approval_key=approval_key,
+                    use_case_key="daily_operations_reporting",
+                    requested_by_user_id=current_user.id,
+                    recipient_email=recipient_email,
+                    report_path=state["pdf_path"],
+                    report_url=state.get("pdf_url", ""),
+                    query=req.query,
+                )
+                db.add(approval)
+                await db.flush()
+                await _create_notification(
+                    db, recipient_user_id=None, category="human_intervention",
+                    title="Daily Operations report requires approval",
+                    message="A generated PDF is awaiting a Super Admin decision before it is dispatched.",
+                    source_type="report_approval", source_id=approval_key,
+                )
+                await db.commit()
+                return {
+                    "status": "requires_approval", "approval_key": approval_key,
+                    "pdf_url": state.get("pdf_url", ""), "sql_query": state.get("sql_query", ""),
+                    "execution_steps": state.get("execution_steps", []),
+                    "insights": "The PDF has been generated and is pending Human-in-the-Loop approval before dispatch.",
+                }
+             
         # Handle optional email sending
         email_status = None
         if req.email_to and state.get("pdf_path"):
@@ -1037,11 +1362,16 @@ async def update_reporting_settings(req: ReportingSettingsRequest):
         if not settings:
             settings = AgentReportingSettings()
             session.add(settings)
-            
+        schedule_changed = settings.schedule_time != req.schedule_time
+        was_disabled = not settings.is_enabled
         settings.is_enabled = req.is_enabled
         settings.email = req.email
         settings.schedule_time = req.schedule_time
         settings.prompt = req.prompt
+        # A newly enabled schedule or an edited delivery time should be eligible to run.
+        # Keeping an old completion date here would incorrectly suppress today's new schedule.
+        if schedule_changed or (req.is_enabled and was_disabled):
+            settings.last_run_date = None
         
         await session.commit()
         return {"status": "success", "message": "Reporting settings saved."}

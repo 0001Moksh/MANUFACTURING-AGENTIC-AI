@@ -172,6 +172,77 @@ class GlobalGovernanceSettings(Base):
     label: Mapped[str] = mapped_column(String(200), nullable=True)       # Display label
     description: Mapped[str] = mapped_column(String(500), nullable=True) # Display description
 
+
+class UserProfile(Base):
+    """User-owned contact details kept separate from authentication credentials."""
+    __tablename__ = "user_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UseCaseGovernanceSettings(Base):
+    """Local governance controls. A local switch only has effect when its global switch is enabled."""
+    __tablename__ = "use_case_governance_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    use_case_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    hitl_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ReportApproval(Base):
+    """Durable state machine for a generated report and its one-time approval decision."""
+    __tablename__ = "report_approvals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    approval_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), default="PENDING_APPROVAL", nullable=False, index=True)
+    use_case_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    requested_by_user_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    approver_user_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    recipient_email: Mapped[str] = mapped_column(String(254), nullable=True)
+    report_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    report_url: Mapped[str] = mapped_column(String(1000), nullable=True)
+    query: Mapped[str] = mapped_column(String(4000), nullable=False)
+    decision_note: Mapped[str] = mapped_column(String(1000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    decided_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+
+class PlatformNotification(Base):
+    """Centralized, persisted notifications used by both the bell and Admin Console."""
+    __tablename__ = "platform_notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recipient_user_id: Mapped[int] = mapped_column(Integer, nullable=True, index=True)
+    category: Mapped[str] = mapped_column(String(40), nullable=False, default="system")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(String(1000), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(50), nullable=True)
+    source_id: Mapped[str] = mapped_column(String(100), nullable=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class OneTimeToken(Base):
+    """Hashed, expiring one-time tokens for password reset and email verification."""
+    __tablename__ = "one_time_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    purpose: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    pending_value: Mapped[str] = mapped_column(String(254), nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    consumed_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
 class AlertMaster(Base):
     __tablename__ = "AlertMaster"
     
@@ -346,6 +417,27 @@ async def init_db():
             ]
             session.add_all(gov_settings)
             await session.commit()
+
+        # Bootstrap durable profile records for existing authenticated users.
+        users = (await session.execute(select(User))).scalars().all()
+        for user in users:
+            profile = (await session.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+            if not profile:
+                session.add(UserProfile(
+                    user_id=user.id,
+                    name=user.username.replace("_", " ").title(),
+                    # Existing seed users do not contain email addresses. This placeholder is deliberately
+                    # unverified and must be verified before it can be used for approval mail.
+                    email=f"{user.username}@example.invalid",
+                    email_verified=False,
+                ))
+
+        reporting_hitl = (await session.execute(
+            select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == "daily_operations_reporting")
+        )).scalars().first()
+        if not reporting_hitl:
+            session.add(UseCaseGovernanceSettings(use_case_key="daily_operations_reporting", hitl_enabled=False))
+        await session.commit()
 
 # Dependency to get session
 async def get_db():
