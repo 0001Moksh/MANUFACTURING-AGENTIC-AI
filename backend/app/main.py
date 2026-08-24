@@ -76,33 +76,22 @@ app.include_router(router)
 
 @app.get("/health", tags=["health"])
 async def health():
-    """Container health endpoint; verifies PostgreSQL databases (required) and SQL Server (optional with fallback)."""
+    """Container health endpoint; verifies PostgreSQL construction_ai database only (platform is initialized on startup)."""
     try:
-        # Manufacturing DB (required)
-        async with engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-        # Construction DB (required)
+        # Verify construction_ai is reachable (required)
         construction = test_video_analytics_connection(force=True)
-        # MES DB (optional - has SQLite fallback)
-        mes = test_mes_connection(force=True)
+        if not construction["connected"]:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail={"construction_ai": construction})
+        
+        return {
+            "status": "ok",
+            "message": "Backend service operational"
+        }
     except Exception as exc:
         logger.exception("Health check failed")
         from fastapi import HTTPException
-        raise HTTPException(status_code=503, detail="Database health check failed") from exc
-    
-    # Only require PostgreSQL databases; SQL Server is optional with fallback
-    if not construction["connected"]:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=503, detail={"construction": construction})
-    
-    return {
-        "status": "ok",
-        "databases": {
-            "manufacturing_ai": True,
-            "construction_ai": True,
-            "mes_new": mes["connected"]
-        }
-    }
+        raise HTTPException(status_code=503, detail="Service unhealthy") from exc
 
 if __name__ == "__main__":
     import uvicorn
