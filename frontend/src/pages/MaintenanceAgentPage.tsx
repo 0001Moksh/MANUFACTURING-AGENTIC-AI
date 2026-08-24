@@ -9,9 +9,6 @@ import {
   ChevronDown,
   ArrowDown,
   Wrench,
-  Activity,
-  CalendarDays,
-  BellRing,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts';

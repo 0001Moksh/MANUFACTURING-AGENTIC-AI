@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Settings2,
-  Sparkles,
   CheckCircle2,
   AudioLines,
   ChevronDown,

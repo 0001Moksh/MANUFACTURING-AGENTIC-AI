@@ -1,6 +1,5 @@
 import React from 'react';
 import { Search } from 'lucide-react';
-import { pillarMeta } from '../../data/mockData';
 
 interface FilterBarProps {
   activePillar: string;
@@ -13,14 +12,8 @@ interface FilterBarProps {
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
-  activePillar, setActivePillar,
-  activeType, setActiveType,
   searchQuery, setSearchQuery,
-  resultCount
 }) => {
-  const types = ["all", "GENAI", "ML", "VISION", "IOT", "VOICE"];
-  const pillars = ["all", ...Object.keys(pillarMeta)];
-
   return (
     <div className="mb-[18px] flex flex-col gap-3">
       {/* Search & Result Count Bar */}

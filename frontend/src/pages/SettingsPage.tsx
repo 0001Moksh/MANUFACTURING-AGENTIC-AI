@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import {
   LockKeyhole,
   MailCheck,
-  ShieldCheck,
   CheckCircle2,
   AlertCircle,
   KeyRound,
@@ -26,7 +25,6 @@ export const SettingsPage: React.FC = () => {
   const [verificationCode, setVerificationCode] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [notice, setNotice] = useState('');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [passwordResetNotice, setPasswordResetNotice] = useState('');
 
@@ -34,17 +32,17 @@ export const SettingsPage: React.FC = () => {
     void api
       .get('/profile')
       .then((response) => setProfile(response.data))
-      .catch(() => setNotice('Profile could not be loaded.'));
+      .catch(() => console.error('Profile could not be loaded.'));
   }, []);
 
   const saveName = async () => {
     await api.patch('/profile', { name: profile.name });
-    setNotice('Name saved successfully.');
+    console.log('Name saved successfully.');
   };
 
   const requestEmailVerification = async () => {
     await api.post('/profile/email/request-verification', { email: profile.email });
-    setNotice('Verification code sent to the new email address.');
+    console.log('Verification code sent to the new email address.');
   };
 
   const verifyEmail = async () => {
@@ -55,14 +53,13 @@ export const SettingsPage: React.FC = () => {
       email_verified: true,
     }));
     setVerificationCode('');
-    setNotice('Email verified successfully.');
+    console.log('Email verified successfully.');
   };
 
   const requestPasswordReset = async () => {
     await api.post('/profile/password/request-reset');
     setShowPasswordReset(true);
     setPasswordResetNotice('Password reset code sent to your verified email.');
-    setNotice('Password reset code sent to your verified email.');
   };
 
   const confirmPasswordReset = async () => {
@@ -74,7 +71,7 @@ export const SettingsPage: React.FC = () => {
     setNewPassword('');
     setShowPasswordReset(false);
     setPasswordResetNotice('');
-    setNotice('Password updated successfully.');
+    console.log('Password updated successfully.');
   };
 
   return (
