@@ -2718,7 +2718,8 @@ async def run_agent_workflow(query: str, is_approved: bool = False) -> dict:
                 })
 
     pdf_filename = os.path.basename(final_state.get("pdf_path", ""))
-    pdf_url = f"http://localhost:8000/reports/{pdf_filename}" if pdf_filename else ""
+    public_api_url = os.getenv("PUBLIC_API_URL", "http://localhost:8000").rstrip("/")
+    pdf_url = f"{public_api_url}/reports/{pdf_filename}" if pdf_filename else ""
 
     return {
         "sql_query": final_state.get("sql_query", ""),

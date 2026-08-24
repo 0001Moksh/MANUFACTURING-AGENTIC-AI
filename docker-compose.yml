@@ -1,52 +1,162 @@
+name: manufacturing-agentic-ai
+
 services:
-  db:
-    image: pgvector/pgvector:16-pg16
-    container_name: mai_db
-    restart: always
+  postgres-manufacturing:
+    image: postgres:17
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mai_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      POSTGRES_USER: ${POSTGRES_MANUFACTURING_USER:-mai_app}
+      POSTGRES_PASSWORD: ${POSTGRES_MANUFACTURING_PASSWORD:?Set POSTGRES_MANUFACTURING_PASSWORD in .env}
+      POSTGRES_DB: postgres
+    volumes: [postgres_manufacturing_data:/var/lib/postgresql/data]
+    networks: [mai_internal]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 10s
 
-  redis:
-    image: redis:7-alpine
-    container_name: mai_redis
-    ports:
-      - "6379:6379"
+  postgres-video:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_VIDEO_USER:-mai_video}
+      POSTGRES_PASSWORD: ${POSTGRES_VIDEO_PASSWORD:?Set POSTGRES_VIDEO_PASSWORD in .env}
+      POSTGRES_DB: postgres
+    volumes: [postgres_video_data:/var/lib/postgresql/data]
+    networks: [mai_internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  init-postgres-manufacturing:
+    image: manufacturing-agentic-ai-postgres-init:latest
+    build: {context: ., dockerfile: docker/postgres-init/Dockerfile}
+    restart: "no"
+    environment:
+      PGHOST: postgres-manufacturing
+      PGUSER: ${POSTGRES_MANUFACTURING_USER:-mai_app}
+      PGPASSWORD: ${POSTGRES_MANUFACTURING_PASSWORD:?Set POSTGRES_MANUFACTURING_PASSWORD in .env}
+      TARGET_DATABASE: ${POSTGRES_MANUFACTURING_DB:-manufacturing_ai}
+      BACKUP_FILE: /backups/manufacturing_ai.sql
+    depends_on:
+      postgres-manufacturing: {condition: service_healthy}
+    networks: [mai_internal]
+    command: ["/bin/bash", "/usr/local/bin/init-postgres.sh"]
+
+  init-postgres-video:
+    image: manufacturing-agentic-ai-postgres-init:latest
+    build: {context: ., dockerfile: docker/postgres-init/Dockerfile}
+    restart: "no"
+    environment:
+      PGHOST: postgres-video
+      PGUSER: ${POSTGRES_VIDEO_USER:-mai_video}
+      PGPASSWORD: ${POSTGRES_VIDEO_PASSWORD:?Set POSTGRES_VIDEO_PASSWORD in .env}
+      TARGET_DATABASE: ${POSTGRES_VIDEO_DB:-construction_ai}
+      BACKUP_FILE: /backups/construction_ai_backup.sql
+    depends_on:
+      postgres-video: {condition: service_healthy}
+    networks: [mai_internal]
+    command: ["/bin/bash", "/usr/local/bin/init-postgres.sh"]
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env}
+    volumes: [sqlserver_data:/var/opt/mssql]
+    networks: [mai_internal]
+    healthcheck:
+      # The initializer performs the authenticated sqlcmd check and restore. This keeps the
+      # server image unmodified while ensuring Compose waits for its listening endpoint first.
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/1433'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  init-sqlserver:
+    image: manufacturing-agentic-ai-sqlserver-init:latest
+    build: {context: ., dockerfile: docker/sqlserver-init/Dockerfile}
+    restart: "no"
+    environment:
+      SQLSERVER_HOST: sqlserver
+      SQLSERVER_DATABASE: ${SQLSERVER_DATABASE:-mes_new}
+      SQLSERVER_USER: sa
+      SQLSERVER_PASSWORD: ${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env}
+    depends_on:
+      sqlserver: {condition: service_healthy}
+    networks: [mai_internal]
+    command: ["/bin/bash", "/usr/local/bin/init-sqlserver.sh"]
 
   backend:
-    build: ./backend
-    container_name: mai_backend
-    restart: always
-    ports:
-      - "8000:8000"
+    build: {context: ./backend, dockerfile: Dockerfile}
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/mai_db
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_MANUFACTURING_USER:-mai_app}:${POSTGRES_MANUFACTURING_PASSWORD}@postgres-manufacturing:5432/${POSTGRES_MANUFACTURING_DB:-manufacturing_ai}
+      CONSTRUCTION_DB_URL: postgresql+psycopg2://${POSTGRES_VIDEO_USER:-mai_video}:${POSTGRES_VIDEO_PASSWORD}@postgres-video:5432/${POSTGRES_VIDEO_DB:-construction_ai}
+      DB_DRIVER: ODBC Driver 18 for SQL Server
+      DB_SERVER: sqlserver,1433
+      DB_NAME: ${SQLSERVER_DATABASE:-mes_new}
+      DB_TRUSTED_CONNECTION: "no"
+      DB_ENCRYPT: "no"
+      DB_TRUST_SERVER_CERTIFICATE: "yes"
+      SQLSERVER_USER: ${SQLSERVER_USER:-sa}
+      SQLSERVER_PASSWORD: ${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8080}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      REPORT_APPROVAL_EMAIL_SECRET: ${REPORT_APPROVAL_EMAIL_SECRET:?Set REPORT_APPROVAL_EMAIL_SECRET in .env}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      APP_RELOAD: "false"
+      DATABASE_STARTUP_TIMEOUT_SECONDS: "60"
+    volumes:
+      - backend_reports:/app/reports
+      - backend_logs:/app/logs
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
+      init-postgres-manufacturing: {condition: service_completed_successfully}
+      init-postgres-video: {condition: service_completed_successfully}
+      init-sqlserver: {condition: service_completed_successfully}
+    networks: [mai_internal]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   frontend:
-    build: ./frontend
-    container_name: mai_frontend
-    restart: always
-    ports:
-      - "5173:5173"
+    build: {context: ./frontend, dockerfile: Dockerfile}
+    restart: unless-stopped
+    ports: ["${APP_PORT:-8080}:80"]
     depends_on:
-      - backend
+      backend: {condition: service_healthy}
+    networks: [mai_internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+networks:
+  mai_internal: {driver: bridge}
 
 volumes:
-  pgdata:
+  postgres_manufacturing_data:
+  postgres_video_data:
+  sqlserver_data:
+  backend_reports:
+  backend_logs:

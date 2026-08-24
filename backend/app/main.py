@@ -5,11 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
 
-from app.db import init_db
+from app.db import init_db, engine, test_mes_connection, test_video_analytics_connection
 from app.routes import router, stream_agent_events
 from app.scheduler import start_scheduler, stop_scheduler
 
@@ -72,6 +73,23 @@ os.makedirs("reports", exist_ok=True)
 app.mount("/reports", StaticFiles(directory="reports"), name="reports")
 
 app.include_router(router)
+
+@app.get("/health", tags=["health"])
+async def health():
+    """Container health endpoint; verifies all three production databases."""
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        mes = test_mes_connection(force=True)
+        construction = test_video_analytics_connection(force=True)
+    except Exception as exc:
+        logger.exception("Health check failed")
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database health check failed") from exc
+    if not mes["connected"] or not construction["connected"]:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail={"mes": mes, "construction": construction})
+    return {"status": "ok", "databases": {"manufacturing": True, "mes": True, "construction": True}}
 
 if __name__ == "__main__":
     import uvicorn

@@ -13,6 +13,11 @@ load_dotenv()
 DB_DRIVER = os.getenv("DB_DRIVER")
 DB_SERVER = os.getenv("DB_SERVER")
 DB_NAME = os.getenv("DB_NAME")
+SQLSERVER_USER = os.getenv("SQLSERVER_USER", "sa")
+SQLSERVER_PASSWORD = os.getenv("SQLSERVER_PASSWORD", "")
+DB_TRUSTED_CONNECTION = os.getenv("DB_TRUSTED_CONNECTION", "no")
+DB_ENCRYPT = os.getenv("DB_ENCRYPT", "no")
+DB_TRUST_SERVER_CERTIFICATE = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes")
 DATABASE_URL = os.getenv("DATABASE_URL")
 DATABASE_CONNECT_TIMEOUT_SECONDS = float(os.getenv("DATABASE_CONNECT_TIMEOUT_SECONDS", "10"))
 
@@ -49,13 +54,18 @@ def test_mes_connection(force: bool = False) -> dict:
     _last_mes_check_time = now
     try:
         import pyodbc
+        authentication = (
+            "Trusted_Connection=yes;"
+            if DB_TRUSTED_CONNECTION.lower() in {"yes", "true", "1"}
+            else f"UID={SQLSERVER_USER};PWD={SQLSERVER_PASSWORD};"
+        )
         connection_string = (
             f"DRIVER={{{DB_DRIVER}}};"
             f"SERVER={DB_SERVER};"
             f"DATABASE={DB_NAME};"
-            "Trusted_Connection=yes;"
-            "TrustServerCertificate=yes;"
-            "Encrypt=no;"
+            f"{authentication}"
+            f"TrustServerCertificate={DB_TRUST_SERVER_CERTIFICATE};"
+            f"Encrypt={DB_ENCRYPT};"
             "MARS_Connection=yes;"
         )
         conn = pyodbc.connect(connection_string, timeout=5)

@@ -54,10 +54,18 @@ DB_NAME = os.getenv("DB_NAME", "mes_new")
 DB_TRUSTED = os.getenv("DB_TRUSTED_CONNECTION", "yes")
 DB_ENCRYPT = os.getenv("DB_ENCRYPT", "no")
 DB_TRUST_CERT = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes")
+SQLSERVER_USER = os.getenv("SQLSERVER_USER", "sa")
+SQLSERVER_PASSWORD = os.getenv("SQLSERVER_PASSWORD", "")
+
+_sql_auth = (
+    "Trusted_Connection=yes;"
+    if DB_TRUSTED.lower() in {"yes", "true", "1"}
+    else f"UID={SQLSERVER_USER};PWD={SQLSERVER_PASSWORD};"
+)
 
 conn_str = (
     f"DRIVER={{{DB_DRIVER}}};SERVER={DB_SERVER};DATABASE={DB_NAME};"
-    f"Trusted_Connection={DB_TRUSTED};Encrypt={DB_ENCRYPT};"
+    f"{_sql_auth}Encrypt={DB_ENCRYPT};"
     f"TrustServerCertificate={DB_TRUST_CERT};"
 )
 connection_url = f"mssql+pyodbc:///?odbc_connect={quote_plus(conn_str)}"
