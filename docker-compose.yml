@@ -70,7 +70,9 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Express
       MSSQL_SA_PASSWORD: ${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env}
-    volumes: [sqlserver_data:/var/opt/mssql]
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./docs/mes_db_info/mes_new.bak:/backups/mes_new.bak:ro
     networks: [mai_internal]
     healthcheck:
       # The initializer performs the authenticated sqlcmd check and restore. This keeps the

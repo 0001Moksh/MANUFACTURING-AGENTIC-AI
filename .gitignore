@@ -90,3 +90,4 @@ cover/
 *.temp
 
 /backend/reports
+.env
