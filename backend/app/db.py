@@ -101,9 +101,13 @@ def test_video_analytics_connection(force: bool = False) -> dict:
     _last_va_check_time = now
     try:
         import psycopg2
-        pg_url = os.getenv(
-            "CONSTRUCTION_DB_URL")
-        conn = psycopg2.connect(pg_url, connect_timeout=5)
+        from urllib.parse import urlparse
+        
+        pg_url = os.getenv("CONSTRUCTION_DB_URL")
+        # Convert SQLAlchemy DSN format (postgresql+psycopg2://...) to psycopg2 format (postgresql://...)
+        pg_url_psycopg2 = pg_url.replace("postgresql+psycopg2://", "postgresql://")
+        
+        conn = psycopg2.connect(pg_url_psycopg2, connect_timeout=5)
         conn.close()
         video_analytics_db_status = {
             "connected": True,
