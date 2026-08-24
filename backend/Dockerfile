@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# System dependencies + Microsoft ODBC Driver 18
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -11,7 +12,6 @@ RUN apt-get update \
         curl \
         gnupg \
         ca-certificates \
-        apt-transport-https \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
         | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
