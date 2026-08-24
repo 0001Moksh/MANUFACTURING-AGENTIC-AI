@@ -2,8 +2,10 @@ FROM python:3.11-slim
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl gnupg2 ca-certificates build-essential libpq-dev unixodbc-dev \
-    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
-    && curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list | sed 's#^deb #deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] #' > /etc/apt/sources.list.d/microsoft-prod.list \
+    && mkdir -p /usr/share/keyrings \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/microsoft-prod.gpg \
+    && curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/microsoft-prod.list \
+    && sed -i "s/^deb /deb [signed-by=\/usr\/share\/keyrings\/microsoft-prod.gpg] /g" /etc/apt/sources.list.d/microsoft-prod.list \
     && apt-get update && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
