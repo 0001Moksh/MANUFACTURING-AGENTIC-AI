@@ -80,18 +80,26 @@ async def health():
     try:
         # Verify construction_ai is reachable (required)
         construction = test_video_analytics_connection(force=True)
-        if not construction["connected"]:
+        print(f"[HEALTH] construction connection status: {construction}")
+        
+        if construction["connected"]:
+            print("[HEALTH] ✓ Returning 200 OK")
+            return {
+                "status": "ok",
+                "message": "Backend service operational"
+            }
+        else:
+            print(f"[HEALTH] ✗ Construction not connected: {construction}")
             from fastapi import HTTPException
             raise HTTPException(status_code=503, detail={"construction_ai": construction})
         
-        return {
-            "status": "ok",
-            "message": "Backend service operational"
-        }
+    except HTTPException:
+        raise
     except Exception as exc:
+        print(f"[HEALTH] Exception occurred: {exc}")
         logger.exception("Health check failed")
         from fastapi import HTTPException
-        raise HTTPException(status_code=503, detail="Service unhealthy") from exc
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(exc)}") from exc
 
 if __name__ == "__main__":
     import uvicorn
