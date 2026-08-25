@@ -15,7 +15,19 @@ This repository implements the complete full-stack **Manufacturing Agentic AI (M
 
 ---
 
-## Quick Start via Docker Compose (Recommended)
+## Production Docker Deployment
+
+See [CLIENT_DEPLOYMENT_GUIDE.md](CLIENT_DEPLOYMENT_GUIDE.md) for the client-facing Docker installation, configuration, database initialization, persistence, troubleshooting, and backup procedures.
+
+The repository currently builds application images locally because no Docker Hub namespace is configured:
+
+```bash
+docker compose up -d --build
+```
+
+The production frontend is available at [http://localhost:8080](http://localhost:8080). Database services remain internal to the Compose network by default.
+
+## Quick Start via Docker Compose (Development)
 
 To launch the database, caching layer, backend API, and React client concurrently:
 
@@ -28,13 +40,12 @@ To launch the database, caching layer, backend API, and React client concurrentl
 
 2. **Run Docker Compose**:
    ```bash
-   docker compose up --build
+   docker compose up -d --build
    ```
 
 3. **Access the Services**:
-   - React Frontend: [http://localhost:5173](http://localhost:5173)
-   - FastAPI Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - Live Telemetry WebSocket: `ws://localhost:8000/api/ws/telemetry`
+   - React Frontend: [http://localhost:8080](http://localhost:8080)
+   - Live Telemetry WebSocket: `ws://localhost:8080/api/ws/telemetry`
 
 ---
 

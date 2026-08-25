@@ -22,7 +22,9 @@ RUN apt-get update \
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN grep -Ev '^(debugpy|ipykernel|ipython|ipython_pygments_lexers|jupyter_client|jupyter_core|jupyterlab_widgets|matplotlib-inline|nbclient|nbconvert|nbformat|notebook|widgetsnbextension)(==|$)' requirements.txt > requirements.docker.txt \
+    && pip install --no-cache-dir --timeout 120 --retries 5 -r requirements.docker.txt \
+    && rm requirements.docker.txt
 
 COPY app ./app
 COPY mes_catalog_full.json parsed_catalog.json ./

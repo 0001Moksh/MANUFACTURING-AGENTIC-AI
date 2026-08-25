@@ -75,13 +75,12 @@ services:
       - ./docs/mes_db_info/mes_new.bak:/backups/mes_new.bak:ro
     networks: [mai_internal]
     healthcheck:
-      # The initializer performs the authenticated sqlcmd check and restore. This keeps the
-      # server image unmodified while ensuring Compose waits for its listening endpoint first.
+      # The init service performs the authenticated sqlcmd check after this listener gate.
       test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/1433'"]
       interval: 10s
       timeout: 10s
       retries: 30
-      start_period: 30s
+      start_period: 60s
 
   init-sqlserver:
     image: manufacturing-agentic-ai-sqlserver-init:latest
@@ -148,7 +147,7 @@ services:
       backend: {condition: service_healthy}
     networks: [mai_internal]
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12

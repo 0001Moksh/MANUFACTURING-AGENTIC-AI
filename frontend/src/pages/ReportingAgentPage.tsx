@@ -30,12 +30,6 @@ export const ReportingAgentPage: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-
-        <div className="flex items-center gap-2 text-[12px] text-faint font-mono">
-          <span>AI AGENTS</span>
-          <span>/</span>
-          <span className="text-teal font-semibold">REPORTING AGENT</span>
-        </div>
       </div>
 
       {/* ── Collapsible Hero Banner ── */}

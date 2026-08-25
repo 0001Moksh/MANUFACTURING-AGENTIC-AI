@@ -57,10 +57,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Allow the configured frontend to make authenticated API requests.
+configured_origins = [origin.strip().rstrip("/") for origin in os.getenv("FRONTEND_URLS", os.getenv("FRONTEND_URL", "http://localhost:3000")).split(",") if origin.strip()]
+
+# Allow only configured frontend origins to make authenticated API requests.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
+    allow_origins=configured_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
