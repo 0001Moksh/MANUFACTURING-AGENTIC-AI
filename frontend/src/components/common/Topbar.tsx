@@ -99,7 +99,7 @@ export const Topbar: React.FC = () => {
     // Fixed top-right — does not take space in layout / scrollbar
     <div
       ref={popoverRef}
-      className="fixed top-1 right-6 z-50"
+      className="fixed top-2 right-2 sm:top-2 sm:right-2 z-50"
     >
       <button
         onClick={() => {
@@ -118,7 +118,7 @@ export const Topbar: React.FC = () => {
       </button>
 
       {open && (
-      <div className="absolute right-6 top-8 z-50 w-[380px] max-w-[calc(100vw-32px)] rounded-[14px] border border-border-color bg-panel shadow-xl overflow-hidden">
+        <div className="absolute right-0 top-12 z-50 w-[380px] max-w-[calc(100vw-32px)] rounded-[14px] border border-border-color bg-panel shadow-xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-color">
             <div>
