@@ -320,7 +320,6 @@ export const UseCaseDetailPage: React.FC = () => {
                         }}
                         className="bg-navy-900 hover:bg-teal text-white text-[11px] font-semibold py-1 px-3 rounded-full transition-all cursor-pointer border-none flex items-center gap-1.5 shadow-sm active:scale-95"
                       >
-                        <span>🤖</span>
                         {agentName}
                       </button>
                     ))}

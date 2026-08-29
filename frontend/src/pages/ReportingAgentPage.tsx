@@ -30,12 +30,6 @@ export const ReportingAgentPage: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-
-        <div className="flex items-center gap-2 text-[12px] text-faint font-mono">
-          <span>AI AGENTS</span>
-          <span>/</span>
-          <span className="text-teal font-semibold">REPORTING AGENT</span>
-        </div>
       </div>
 
       {/* ── Collapsible Hero Banner ── */}
@@ -102,10 +96,10 @@ export const ReportingAgentPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🧠 LangGraph State Machine</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🗄️ Natural Language SQL</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">✅ Human-in-the-Loop</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📄 PDF Export</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">LangGraph State Machine</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Natural Language SQL</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Human-in-the-Loop</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">PDF Export</span>
                 </div>
               </div>
             </motion.div>

@@ -198,14 +198,14 @@ function MarkdownTable({ lines }: { lines: string[] }) {
 // ─── Suggested Prompt Pills ───────────────────────────────────────────────────
 
 const SUGGESTED_QUERIES = [
-  { icon: '⚠️', label: 'Active HSE Violations', query: 'Show all active HSE incidents and restricted zone breaches' },
-  { icon: '🏭', label: 'High-Risk Work Context', query: 'Get live permit context summary: active incidents + maintenance windows + work orders' },
-  { icon: '📋', label: 'Shift Handover Narrative', query: 'Give me a complete shift handover narrative for permit-to-work and site safety' },
-  { icon: '🔥', label: 'Hot Work Checklist', query: 'What are the required controls and close-out checklist for Hot Work permits?' },
-  { icon: '🚧', label: 'Confined Space Controls', query: 'What are the required minimum controls and entry checklist for Confined Space?' },
-  { icon: '🏗️', label: 'Work at Height Rules', query: 'What are the required minimum controls for Work at Height?' },
-  { icon: '🚨', label: 'Escalations Required', query: 'Show everything needing immediate escalation: critical incidents, overdue maintenance and delayed work orders' },
-  { icon: 'ℹ️', label: 'Agent Data & Ownership', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
+  { icon: '', label: 'Active HSE Violations', query: 'Show all active HSE incidents and restricted zone breaches' },
+  { icon: '', label: 'High-Risk Work Context', query: 'Get live permit context summary: active incidents + maintenance windows + work orders' },
+  { icon: '', label: 'Shift Handover Narrative', query: 'Give me a complete shift handover narrative for permit-to-work and site safety' },
+  { icon: '', label: 'Hot Work Checklist', query: 'What are the required controls and close-out checklist for Hot Work permits?' },
+  { icon: '', label: 'Confined Space Controls', query: 'What are the required minimum controls and entry checklist for Confined Space?' },
+  { icon: '', label: 'Work at Height Rules', query: 'What are the required minimum controls for Work at Height?' },
+  { icon: '', label: 'Escalations Required', query: 'Show everything needing immediate escalation: critical incidents, overdue maintenance and delayed work orders' },
+  { icon: '', label: 'Agent Data & Ownership', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
 ];
 
 // ─── Message Bubble ────────────────────────────────────────────────────────────
@@ -370,7 +370,7 @@ export const PermitToWorkAgentPage: React.FC = () => {
       const errorMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: 'assistant',
-        text: '⚠️ The Permit-to-Work Agent backend is temporarily unreachable. Please ensure the backend server is running and try again, sir.',
+        text: 'The Permit-to-Work Agent backend is temporarily unreachable. Please ensure the backend server is running and try again, sir.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -486,13 +486,13 @@ export const PermitToWorkAgentPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔥 Hot Work</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚧 Confined Space</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🏗️ Work at Height</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📍 Restricted Zones</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">⚙️ MES Work Orders</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚨 Auto-Escalation</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📋 Shift Handover</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Hot Work</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Confined Space</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Work at Height</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Restricted Zones</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">MES Work Orders</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Auto-Escalation</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Shift Handover</span>
                 </div>
               </div>
             </motion.div>

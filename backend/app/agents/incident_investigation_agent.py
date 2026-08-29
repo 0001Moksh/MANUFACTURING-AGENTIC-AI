@@ -558,14 +558,14 @@ def _offline_forensic_fallback(user_text: str) -> AIMessage:
     if "trir" in lower or "recordable" in lower:
         data = calculate_trir.invoke({"start_date": "2026-01-01", "end_date": datetime.now().strftime("%Y-%m-%d")})
         res = data[0] if isinstance(data, list) and len(data) > 0 else {}
-        content = f"""### 📊 Total Recordable Incident Rate (TRIR) Forensic Analysis
+        content = f"""### Total Recordable Incident Rate (TRIR) Forensic Analysis
 
 Sir, based on the attendance and incident records across all active manufacturing plants:
 
 | Metric | Measured Value | Industry Benchmark (OSHA) | Status |
 | :--- | :--- | :--- | :--- |
-| **Total Recordable Incidents** | **{res.get('total_incidents', 3)}** | < 5.0 | ✅ Optimal |
-| **Calculated TRIR** | **{res.get('trir', 0.42)}** | 1.20 | ✅ Compliant (65% below threshold) |
+| **Total Recordable Incidents** | **{res.get('total_incidents', 3)}** | < 5.0 | Optimal |
+| **Calculated TRIR** | **{res.get('trir', 0.42)}** | 1.20 | Compliant (65% below threshold) |
 | **Reporting Horizon** | **{res.get('period', '2026-01-01 to Present')}** | Full Calendar Year | Verified |
 
 **Forensic Observation:** No lost-time fatalities or high-potential (HIPO) critical escalations were observed in this period."""
@@ -576,13 +576,13 @@ Sir, based on the attendance and incident records across all active manufacturin
     elif "zero harm" in lower or "harm index" in lower:
         data = get_zero_harm_index.invoke({"week_start": "2026-08-11"})
         res = data[0] if isinstance(data, list) and len(data) > 0 else {}
-        content = f"""### 🛡️ Zero Harm Index Assessment
+        content = f"""### Zero Harm Index Assessment
 
 Sir, the current **Zero Harm Index** evaluation for the workforce stands at **{res.get('zero_harm_score', 98.4)}%**.
 
 | Parameter | Value | Standard Goal | Evaluation |
 | :--- | :--- | :--- | :--- |
-| **Zero Harm Score** | **{res.get('zero_harm_score', 98.4)} / 100** | > 95.0 | 🟢 Gold Tier |
+| **Zero Harm Score** | **{res.get('zero_harm_score', 98.4)} / 100** | > 95.0 | Gold Tier |
 | **Total Logged Incidents** | **{res.get('total_incidents', 1)}** | 0 | Minor Non-Conformance |
 | **Active Monitored Workforce** | **{res.get('total_workers', 420)} Workers** | 100% Shift Tracked | Full Compliance |
 
@@ -593,13 +593,13 @@ I recommend maintaining the current geofence perimeter checks in the Stamping an
 
     elif "spill" in lower or "leak" in lower:
         data = get_active_spills.invoke({})
-        content = """### 💧 Liquid Spill & Chemical Detection Audit
+        content = """### Liquid Spill & Chemical Detection Audit
 
 Sir, here is the real-time status of chemical and oil spill detections:
 
 | Incident ID | Camera / Location | Detected Defect | AI Confidence | Current Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **#402** | **IGL HazMat Cam 11** | Coolant / Chemical Drip | **94.2%** | 🟢 Contained & Neutralized |
+| **#402** | **IGL HazMat Cam 11** | Coolant / Chemical Drip | **94.2%** | Contained & Neutralized |
 
 **Audit Conclusion:** Zero unacknowledged or active spreading spills on the shop floor."""
         msg = AIMessage(content=content)
@@ -608,14 +608,14 @@ Sir, here is the real-time status of chemical and oil spill detections:
 
     elif "high risk" in lower or "zone" in lower or "anomaly" in lower:
         data = get_high_risk_zones.invoke({})
-        content = """### 🚨 High-Risk Zone & Anomaly Audit
+        content = """### High-Risk Zone & Anomaly Audit
 
 Sir, the following manufacturing zones currently show elevated risk scores:
 
 | Zone ID & Name | Risk Level | Top Detected Class | Event Count |
 | :--- | :--- | :--- | :--- |
-| **Zone 10 — Stamping Press Bay** | 🔴 **High (78/100)** | Restricted Boundary Breach | 14 |
-| **Zone 101 — Chemical Solvent Enclosure** | 🔴 **High (74/100)** | Unauthorized HazMat Entry | 9 |
+| **Zone 10 — Stamping Press Bay** | **High (78/100)** | Restricted Boundary Breach | 14 |
+| **Zone 101 — Chemical Solvent Enclosure** | **High (74/100)** | Unauthorized HazMat Entry | 9 |
 
 **Action Taken:** Automatic supervisor alert dispatched for Zone 10 press boundary verification."""
         msg = AIMessage(content=content)
@@ -624,7 +624,7 @@ Sir, the following manufacturing zones currently show elevated risk scores:
 
     elif "confidence" in lower or "false positive" in lower:
         data = get_low_confidence_tracking.invoke({"threshold": 0.50})
-        content = """### 🔍 AI Vision Tracking Confidence & False Positive Audit
+        content = """### AI Vision Tracking Confidence & False Positive Audit
 
 Sir, based on tracking alert distributions with confidence score < 0.50:
 
@@ -681,6 +681,7 @@ def _investigator_agent_node(state: TeamState):
     3. Format all investigative records and logs in clean, scannable Markdown tables.
     4. For safety KPI metrics (like TRIR, Zero Harm Index, LTIFR), highlight the score, industry benchmark, and status clearly.
     5. Do not invent or hallucinate data. If a tool returns no matching records, explicitly state that no records were found.
+    Constraint: Do not include emojis in any response under any circumstance. Provide professional, plain-text or structured markdown outputs.
     """)
     
     prepared_messages = [system_prompt] + [m for m in messages if not isinstance(m, SystemMessage)]

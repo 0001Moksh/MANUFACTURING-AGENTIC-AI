@@ -160,8 +160,8 @@ export const feedPool = [
 ];
 
 export const connectors = [
-  ["🏭", "MES", "Line-level throughput, machine status and control telemetry.", "Connected", "SQL Server (mes_new)"],
-  ["🎥", "Video Analytics", "Existing camera infrastructure for safety and site monitoring.", "Connected", "Construction DB (construction_db)"],
+  ["", "MES", "Line-level throughput, machine status and control telemetry.", "Connected", "SQL Server (mes_new)"],
+  ["", "Video Analytics", "Existing camera infrastructure for safety and site monitoring.", "Connected", "Construction DB (construction_db)"],
 ];
 
 // Maps each agent name to the integration key it requires (null = no external dependency)
@@ -197,6 +197,6 @@ export const rules = [
   ["IF","SO₂ reading exceeds the regulatory limit for 10 minutes","notify the Environmental Compliance Agent owner and auto-generate a report."],
 ];
 
-export const channels = [["📧","Email"],["📱","SMS"],["💬","MS Teams"],["🟢","WhatsApp Business"],["🔔","Mobile Push"],["📥","SAP Inbox"]];
+export const channels = [["","Email"],["","SMS"],["","MS Teams"],["","WhatsApp Business"],["","Mobile Push"],["","SAP Inbox"]];
 
 export const adoption = [["Alpha",100],["Beta",67],["Gamma",83],["Delta",100],["Epsilon",50],["Zeta",33]];

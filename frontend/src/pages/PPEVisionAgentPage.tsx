@@ -231,12 +231,12 @@ function MessageBubble({
 // ─── Suggested Prompts ────────────────────────────────────────────────────────
 
 const SUGGESTED_PROMPTS = [
-  { icon: '⚠️', label: 'Top Broken Rules', query: 'Show top broken HSE rules this month' },
-  { icon: '🪖', label: 'PPE Violations', query: 'Any active hard hat or safety vest violations?' },
-  { icon: '🌙', label: 'Night Shift Violations', query: 'List violations detected during night shifts' },
-  { icon: '🏭', label: 'Riskiest Plant', query: 'Which plant has the highest number of safety violations?' },
-  { icon: '📹', label: 'Camera Health', query: 'Show CCTV camera health and offline cameras' },
-  { icon: 'ℹ️', label: 'Agent Info', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
+  { icon: '', label: 'Top Broken Rules', query: 'Show top broken HSE rules this month' },
+  { icon: '', label: 'PPE Violations', query: 'Any active hard hat or safety vest violations?' },
+  { icon: '', label: 'Night Shift Violations', query: 'List violations detected during night shifts' },
+  { icon: '', label: 'Riskiest Plant', query: 'Which plant has the highest number of safety violations?' },
+  { icon: '', label: 'Camera Health', query: 'Show CCTV camera health and offline cameras' },
+  { icon: '', label: 'Agent Info', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -352,7 +352,7 @@ export const PPEVisionAgentPage: React.FC = () => {
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: '⚠️ I am unable to reach the PPE & Behavior Vision Agent at this time, sir. Please try again shortly.',
+          text: 'I am unable to reach the PPE & Behavior Vision Agent at this time, sir. Please try again shortly.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -461,12 +461,12 @@ export const PPEVisionAgentPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🪖 Helmet &amp; Vest Detection</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📍 Hazard Zone Geofencing</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🕐 Shift Analytics</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚩 Unremediated Flags</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">⚙️ HSE Rule Engine</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚶 Worker Movement Audits</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Helmet &amp; Vest Detection</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Hazard Zone Geofencing</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Shift Analytics</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Unremediated Flags</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">HSE Rule Engine</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Worker Movement Audits</span>
                 </div>
               </div>
             </motion.div>

@@ -16,6 +16,7 @@ import type { MaintenanceVisual } from '../services/maintenanceInsightsService';
 import { maintenanceInsightsService } from '../services/maintenanceInsightsService';
 import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
 import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
+import { parseMarkdown } from '../utils/markdownParser';
 import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
 import { createEstimatedTelemetry } from '../utils/telemetryHelper';
 
@@ -41,12 +42,12 @@ const renderData = (visual: MaintenanceVisual) =>
 // ─── Suggested Prompt Pills ───────────────────────────────────────────────────
 
 const SUGGESTED_QUERIES = [
-  { icon: '🩺', label: 'Machine Health', query: 'Give me the current health status of all critical machines' },
-  { icon: '📅', label: 'Predictive Schedule', query: 'Show the predictive maintenance schedule for this week' },
-  { icon: '🛠️', label: 'Open Work Orders', query: 'List all open maintenance work orders with priority' },
-  { icon: '🚨', label: 'Active Alerts', query: 'Show all active machine alerts that need attention' },
-  { icon: '📉', label: 'Downtime Trend', query: 'Show downtime trend for the last 7 days by machine' },
-  { icon: 'ℹ️', label: 'Agent Data & Ownership', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
+  { icon: '', label: 'Machine Health', query: 'Give me the current health status of all critical machines' },
+  { icon: '', label: 'Predictive Schedule', query: 'Show the predictive maintenance schedule for this week' },
+  { icon: '', label: 'Open Work Orders', query: 'List all open maintenance work orders with priority' },
+  { icon: '', label: 'Active Alerts', query: 'Show all active machine alerts that need attention' },
+  { icon: '', label: 'Downtime Trend', query: 'Show downtime trend for the last 7 days by machine' },
+  { icon: '', label: 'Agent Data & Ownership', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
 ];
 
 // ─── Chart Renderer ───────────────────────────────────────────────────────────
@@ -144,6 +145,100 @@ function VisualBlock({ visual }: { visual: MaintenanceVisual }) {
   );
 }
 
+// ─── Assistant Content Renderer (JSON / Structured Text → Tables) ──────────
+function AssistantContent({ text }: { text: string }) {
+  // Try parse JSON first
+  try {
+    const obj = JSON.parse(text);
+    // machines array
+    if (obj && Array.isArray(obj.machines)) {
+      return (
+        <div className="my-3 overflow-x-auto">
+          <table className="min-w-full text-[13px] bg-white border border-border-color rounded-md">
+            <thead className="bg-[#F8FAFC]">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold">Machine Code</th>
+                <th className="px-3 py-2 text-left font-semibold">Status</th>
+                <th className="px-3 py-2 text-left font-semibold">Capacity / hr</th>
+                <th className="px-3 py-2 text-left font-semibold">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {obj.machines.map((m: any, i: number) => (
+                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFF]'}>
+                  <td className="px-3 py-2 align-top">{m.machine_code}</td>
+                  <td className="px-3 py-2 align-top">{m.status}</td>
+                  <td className="px-3 py-2 align-top">{m.capacity_per_hour}</td>
+                  <td className="px-3 py-2 align-top">{m.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    // generic array -> render table
+    if (obj && Array.isArray(obj)) {
+      const keys = Array.from(new Set(obj.flatMap((r: any) => Object.keys(r))));
+      return (
+        <div className="my-3 overflow-x-auto">
+          <table className="min-w-full text-[13px] bg-white border border-border-color rounded-md">
+            <thead className="bg-[#F8FAFC]">
+              <tr>{keys.map((k) => <th key={k} className="px-3 py-2 text-left font-semibold">{k}</th>)}</tr>
+            </thead>
+            <tbody>
+              {obj.map((row: any, i: number) => (
+                <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFF]'}>
+                  {keys.map((k) => <td key={k} className="px-3 py-2 align-top">{String(row[k] ?? '')}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+  } catch (e) {
+    // not JSON — fall through
+  }
+
+  // Try to parse simple key: value blocks (work orders)
+  if (text.includes('Work Order Number:') || text.match(/Machine ID:\s*\d+/)) {
+    const blocks = text.split(/\n\n+/).map((b) => b.trim()).filter(Boolean);
+    const rows = blocks.map((blk) => {
+      const obj: any = {};
+      blk.split('\n').forEach((line) => {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+          const key = parts.shift()!.trim();
+          const val = parts.join(':').trim();
+          obj[key] = val;
+        }
+      });
+      return obj;
+    });
+    const keys = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+    return (
+      <div className="my-3 overflow-x-auto">
+        <table className="min-w-full text-[13px] bg-white border border-border-color rounded-md">
+          <thead className="bg-[#F8FAFC]">
+            <tr>{keys.map((k) => <th key={k} className="px-3 py-2 text-left font-semibold">{k}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-[#FAFAFF]'}>
+                {keys.map((k) => <td key={k} className="px-3 py-2 align-top">{row[k] ?? ''}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // fallback to markdown/html
+  return <div dangerouslySetInnerHTML={{ __html: parseMarkdown(text) }} />;
+}
+
 // ─── Message Bubble ────────────────────────────────────────────────────────────
 
 const MessageBubble: React.FC<{
@@ -180,7 +275,9 @@ const MessageBubble: React.FC<{
           {copiedId === msg.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-muted" />}
         </button>
 
-        <div className="whitespace-pre-wrap m-0">{msg.text}</div>
+        <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2">
+          {msg.role === 'assistant' ? <AssistantContent text={msg.text} /> : <div dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.text) }} />}
+        </div>
 
         {msg.visuals?.map((visual, idx) => (
           <VisualBlock key={`${msg.id}-${idx}`} visual={visual} />
@@ -305,7 +402,7 @@ export const MaintenanceAgentPage: React.FC = () => {
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: '⚠️ Maintenance service is temporarily unreachable. Please ensure the backend server is running and try again, sir.',
+          text: 'Maintenance service is temporarily unreachable. Please ensure the backend server is running and try again, sir.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -422,11 +519,11 @@ export const MaintenanceAgentPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🩺 Machine Health</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📅 Predictive Schedules</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🛠️ Work Orders</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚨 Alerts</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📉 Downtime Trends</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Machine Health</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Predictive Schedules</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Work Orders</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Alerts</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Downtime Trends</span>
                 </div>
               </div>
             </motion.div>

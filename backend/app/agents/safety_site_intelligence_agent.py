@@ -49,6 +49,7 @@ Your core guidelines:
 2. If a query spans both PPE and quality inspection (e.g. site health check), execute tools across both domains and present a unified summary.
 3. Present all data in clean, scannable Markdown tables with key highlights.
 4. For general operational questions, answer directly and candidly in 1-2 concise lines. Keep all responses strictly brief, precise, professional, and to the point.
+Constraint: Do not include emojis in any response under any circumstance. Provide professional, plain-text or structured markdown outputs.
 """
 
 # ── LiteLLM Gateway ──────────────────────────────────────────────────────────

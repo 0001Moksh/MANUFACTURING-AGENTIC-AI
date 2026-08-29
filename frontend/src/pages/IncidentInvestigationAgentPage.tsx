@@ -251,12 +251,12 @@ function MessageBubble({
 // ─── Suggested Forensic Prompts ───────────────────────────────────────────────
 
 const SUGGESTED_PROMPTS = [
-  { icon: '📊', label: 'TRIR (YTD)', query: 'Calculate our Total Recordable Incident Rate (TRIR)' },
-  { icon: '🛡️', label: 'Zero Harm Index', query: 'Show current Zero Harm Index & plant safety breakdown' },
-  { icon: '🚨', label: 'High-Risk Zones', query: 'List all high-risk plant zones and top anomalies' },
-  { icon: '💧', label: 'Spill Check', query: 'Check for active chemical or oil spills on the factory floor' },
-  { icon: '🔍', label: 'False Positives', query: 'Analyze low-confidence AI tracking alerts for false positives' },
-  { icon: '🔥', label: 'Heat & Fatigue', query: 'Find employees with high-heat exposure and fatigue alerts' },
+  { icon: '', label: 'TRIR (YTD)', query: 'Calculate our Total Recordable Incident Rate (TRIR)' },
+  { icon: '', label: 'Zero Harm Index', query: 'Show current Zero Harm Index & plant safety breakdown' },
+  { icon: '', label: 'High-Risk Zones', query: 'List all high-risk plant zones and top anomalies' },
+  { icon: '', label: 'Spill Check', query: 'Check for active chemical or oil spills on the factory floor' },
+  { icon: '', label: 'False Positives', query: 'Analyze low-confidence AI tracking alerts for false positives' },
+  { icon: '', label: 'Heat & Fatigue', query: 'Find employees with high-heat exposure and fatigue alerts' },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -299,11 +299,11 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
       })
       .catch((err) => console.warn('Could not fetch incident summary:', err));
 
-    setMessages([
+      setMessages([
       {
         id: 'welcome',
         role: 'assistant',
-        text: `### 🔍 Incident & Investigation Forensic Intelligence Engine\n\nGreetings sir, I am **Deva**, your dedicated Incident & Investigation Agent created by IIIOT InfoTech.\n\nI am connected to the industrial site database with **43 specialized forensic SQL tools** to analyze:\n\n- **Safety KPI Rates:** Total Recordable Incident Rate (TRIR), LTIFR, Zero Harm Index.\n- **Spill & Defect Detection:** Chemical/oil spills, Basler camera leak detections, and pipeline integrity.\n- **Anomaly & Fatigue Forensics:** Restricted zone breaches, workforce fatigue, and baseline deviations.\n- **Vision Model Audits:** AI tracking low-confidence false positive rates and offline cameras.\n\nHow may I assist your forensic safety audit today, sir?`,
+        text: `### Incident & Investigation Forensic Intelligence Engine\n\nGreetings sir, I am **Deva**, your dedicated Incident & Investigation Agent created by IIIOT InfoTech.\n\nI am connected to the industrial site database with **43 specialized forensic SQL tools** to analyze:\n\n- **Safety KPI Rates:** Total Recordable Incident Rate (TRIR), LTIFR, Zero Harm Index.\n- **Spill & Defect Detection:** Chemical/oil spills, Basler camera leak detections, and pipeline integrity.\n- **Anomaly & Fatigue Forensics:** Restricted zone breaches, workforce fatigue, and baseline deviations.\n- **Vision Model Audits:** AI tracking low-confidence false positive rates and offline cameras.\n\nHow may I assist your forensic safety audit today, sir?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);
@@ -404,17 +404,15 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
             prev.map((t) =>
               t.tool_name === tool.tool_name
                 ? {
-                  ...t,
-                  status: 'completed',
-                  durationSec: (now - t.startTime) / 1000,
-                }
+                    ...t,
+                    status: 'completed',
+                    durationSec: (now - (t.startTime || now)) / 1000,
+                  }
                 : t
             )
           );
-          completedTools.push({
-            name: tool.tool_name,
-            status: 'completed',
-          });
+          // record completed tool for telemetry summary
+          completedTools.push({ name: tool.tool_name, status: 'completed' });
         },
         onToken: (chunk) => {
           accumulatedText += chunk;
@@ -467,7 +465,7 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
                   m.id === assistantMessageId
                     ? {
                       ...m,
-                      text: `⚠️ Error executing forensic query: ${fallbackErr.message || 'Unknown network error'}.`,
+                      text: `Error executing forensic query: ${fallbackErr.message || 'Unknown network error'}.`,
                     }
                     : m
                 )
@@ -484,11 +482,11 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMessageId
-            ? {
-              ...m,
-              text: `⚠️ Request failed: ${err.message || 'Unable to connect to agent backend.'}`,
-            }
-            : m
+                ? {
+                  ...m,
+                  text: `Request failed: ${err.message || 'Unable to connect to agent backend.'}`,
+                }
+                : m
         )
       );
       setLoading(false);
@@ -585,11 +583,11 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📊 TRIR / LTIFR</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">💧 Spill Detection</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔍 Anomaly Forensics</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🎥 Vision Model Audits</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔥 Fatigue Detection</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">TRIR / LTIFR</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Spill Detection</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Anomaly Forensics</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Vision Model Audits</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Fatigue Detection</span>
                 </div>
               </div>
             </motion.div>

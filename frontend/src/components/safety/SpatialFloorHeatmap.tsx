@@ -315,7 +315,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                           isActive ? 'bg-slate-950/15' : 'bg-red-500/25 text-red-300'
                         }`}
                       >
-                        {riskCount} ⚠
+                        {riskCount}
                       </span>
                     )}
                   </button>
@@ -410,16 +410,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                             stroke="#38BDF8"
                             strokeWidth="1.5"
                           />
-                          <text
-                            x={center.x - 45}
-                            y={center.y - 15}
-                            fill="#38BDF8"
-                            fontSize="8"
-                            textAnchor="middle"
-                            fontWeight="bold"
-                          >
-                            📷
-                          </text>
+                          <circle cx={center.x - 45} cy={center.y - 15} r={6} fill="#38BDF8" />
                           <text
                             x={center.x}
                             y={center.y - 6}

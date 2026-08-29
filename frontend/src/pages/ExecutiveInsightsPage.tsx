@@ -320,12 +320,12 @@ function VisualBlock({ visual }: { visual: ExecutiveVisual }) {
 // ─── Suggested Prompt Pills ───────────────────────────────────────────────────
 
 const SUGGESTED_QUERIES = [
-  { icon: '📈', label: 'Production Summary', query: 'Give me a summary of production performance this week' },
-  { icon: '📦', label: 'Inventory Snapshot', query: 'Show current inventory snapshot across RM, WIP, and FG' },
-  { icon: '🛠️', label: 'Work Order Status', query: 'Show me all open work orders and their status' },
-  { icon: '⚙️', label: 'Machine Utilization', query: 'Show capacity vs utilization for our machines' },
-  { icon: '💰', label: 'Sales Forecast', query: 'Show forecast vs actual sales trend' },
-  { icon: '🔀', label: 'Work Order Pipeline', query: 'Show me the work order pipeline as a flow diagram' },
+  { icon: '', label: 'Production Summary', query: 'Give me a summary of production performance this week' },
+  { icon: '', label: 'Inventory Snapshot', query: 'Show current inventory snapshot across RM, WIP, and FG' },
+  { icon: '', label: 'Work Order Status', query: 'Show me all open work orders and their status' },
+  { icon: '', label: 'Machine Utilization', query: 'Show capacity vs utilization for our machines' },
+  { icon: '', label: 'Sales Forecast', query: 'Show forecast vs actual sales trend' },
+  { icon: '', label: 'Work Order Pipeline', query: 'Show me the work order pipeline as a flow diagram' },
 ];
 
 // ─── Message Bubble ────────────────────────────────────────────────────────────
@@ -562,9 +562,9 @@ export const ExecutiveInsightsPage: React.FC = () => {
                 </p>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📊 Operational Analytics</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📈 Charts</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📝 Executive Summaries</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Operational Analytics</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Charts</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Executive Summaries</span>
                 </div>
               </div>
             </motion.div>

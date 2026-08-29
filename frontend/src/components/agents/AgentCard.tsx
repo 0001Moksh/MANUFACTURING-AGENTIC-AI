@@ -1,5 +1,6 @@
 import React from 'react';
 import { type Agent, useCases, AGENT_INTEGRATION_DEPENDENCY } from '../../data/mockData';
+import { AlertTriangle } from 'lucide-react';
 import { agentService } from '../../services/api';
 import { useIntegrations } from '../../services/IntegrationContext';
 import { useNavigate } from 'react-router-dom';
@@ -89,7 +90,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
       {/* "Requires Connection" warning banner */}
       {integrationBlocked && !isComingSoon && (
         <div className="mb-[10px] flex items-start gap-[6px] bg-amber-tint border border-amber/20 rounded-[8px] px-[10px] py-[7px]">
-          <span className="text-[13px] shrink-0 mt-[1px]">⚠️</span>
+          <AlertTriangle className="w-4 h-4 text-amber shrink-0 mt-0.5" />
           <div className="text-[10.5px] text-[#9A6400] leading-[1.45] font-medium">
             Requires <span className="font-bold">{requiredIntegration}</span> — enable it in{' '}
             <span className="font-bold">Admin Console → Integrations</span>.

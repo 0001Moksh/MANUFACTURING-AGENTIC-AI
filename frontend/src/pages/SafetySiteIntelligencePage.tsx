@@ -210,7 +210,7 @@ function MessageBubble({
     >
       {msg.zoneContext && isUser && (
         <span className="text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mb-1">
-          📍 Context: {msg.zoneContext}
+          Context: {msg.zoneContext}
         </span>
       )}
       <div className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -305,7 +305,7 @@ export const SafetySiteIntelligencePage: React.FC = () => {
     {
       id: 'welcome',
       role: 'assistant',
-      text: "Hello sir! I am **Deva**, your **Safety & Site Intelligence Multi-Agent (HSE & Quality Officer Assistant)**.\n\nI am connected to the **Spatial Risk Heatmap Engine** and **135 specialized tools** covering:\n\n* **🦺 PPE & CCTV Vision Intelligence**: Real-time hard hat & safety vest compliance, geofence breaches, worker fatigue, and camera status.\n* **🔬 Safety & Quality Intelligence**: Material defect logs, quality holds, concrete & welding lab tests, and subcontractor compliance.\n\nClick any zone on the floor plan or ask me directly about safety violations and quality holds, sir!",
+      text: "Hello sir! I am **Deva**, your **Safety & Site Intelligence Multi-Agent (HSE & Quality Officer Assistant)**.\n\nI am connected to the **Spatial Risk Heatmap Engine** and **135 specialized tools** covering:\n\n* **PPE & CCTV Vision Intelligence**: Real-time hard hat & safety vest compliance, geofence breaches, worker fatigue, and camera status.\n* **Safety & Quality Intelligence**: Material defect logs, quality holds, concrete & welding lab tests, and subcontractor compliance.\n\nClick any zone on the floor plan or ask me directly about safety violations and quality holds, sir!",
     },
   ]);
   const [input, setInput] = useState('');
@@ -443,16 +443,16 @@ export const SafetySiteIntelligencePage: React.FC = () => {
   const suggestedPrompts = useMemo(() => {
     if (selectedZone) {
       return [
-        { icon: '🎯', label: 'Why flagged?', query: `Why is this zone flagged ${selectedZone.risk_level.toUpperCase()} risk, sir?` },
-        { icon: '📊', label: 'Violation breakdown', query: `Show detailed breakdown of violations in ${selectedZone.name.split('(')[0].trim()}` },
-        { icon: '✅', label: 'Corrective actions', query: 'Recommend corrective HSE actions for this area' },
+        { icon: '', label: 'Why flagged?', query: `Why is this zone flagged ${selectedZone.risk_level.toUpperCase()} risk, sir?` },
+        { icon: '', label: 'Violation breakdown', query: `Show detailed breakdown of violations in ${selectedZone.name.split('(')[0].trim()}` },
+        { icon: '', label: 'Corrective actions', query: 'Recommend corrective HSE actions for this area' },
       ];
     }
     return [
-      { icon: '🦺', label: 'PPE & Quality Holds', query: "Summarize today's active PPE violations and open material quality holds" },
-      { icon: '📍', label: 'Highest Risk Sector', query: 'Which plant sector has the highest risk score and violation density?' },
-      { icon: '🔬', label: 'Quality Holds', query: 'List active quality holds and rejected inspection batches' },
-      { icon: '📷', label: 'Camera & Night Shift', query: 'Check camera status logs and night shift violations' },
+      { icon: '', label: 'PPE & Quality Holds', query: "Summarize today's active PPE violations and open material quality holds" },
+      { icon: '', label: 'Highest Risk Sector', query: 'Which plant sector has the highest risk score and violation density?' },
+      { icon: '', label: 'Quality Holds', query: 'List active quality holds and rejected inspection batches' },
+      { icon: '', label: 'Camera & Night Shift', query: 'Check camera status logs and night shift violations' },
     ];
   }, [selectedZone]);
 
@@ -589,9 +589,9 @@ export const SafetySiteIntelligencePage: React.FC = () => {
       </div>
 
       {/* ── Main Two-Column Layout: Spatial Heatmap + Context-Aware Chatbot ── */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 px-3 pb-2 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 min-h-0 px-3 pb-2 overflow-hidden">
         {/* Left Column: Spatial Floor Heatmap */}
-        <div className="lg:col-span-5 flex flex-col min-w-0 min-h-0 overflow-y-auto custom-scrollbar">
+        <div className="flex-shrink-0 w-full lg:w-[420px] flex flex-col min-w-0 min-h-0 overflow-y-auto custom-scrollbar">
           <SpatialFloorHeatmap
             zones={zones}
             summary={summary}
@@ -605,7 +605,7 @@ export const SafetySiteIntelligencePage: React.FC = () => {
         </div>
 
         {/* Right Column: Integrated Context-Aware Chatbot */}
-        <div className="lg:col-span-7 grid grid-rows-[auto_1fr_auto] bg-panel border border-border-color rounded-[16px] overflow-hidden shadow-sm min-h-0 relative">
+        <div className="flex-1 grid grid-rows-[auto_1fr_auto] bg-panel border border-border-color rounded-[16px] overflow-hidden shadow-sm min-h-0 relative">
           {/* Chat Header */}
           <div className="px-4 py-2.5 border-b border-border-color bg-canvas flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">

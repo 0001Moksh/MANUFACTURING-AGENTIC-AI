@@ -104,7 +104,7 @@ export const AgentTelemetryFooter: React.FC<AgentTelemetryFooterProps> = ({
                         className="bg-white border border-slate-200/90 rounded-lg p-2 font-mono text-[11px]"
                       >
                         <div className="flex items-center justify-between text-cyan-800 font-bold">
-                          <span>⚡ {formatFriendlyToolName(t.name)}</span>
+                          <span className="flex items-center gap-1"><Wrench className="w-3 h-3 text-teal-600" />{formatFriendlyToolName(t.name)}</span>
                           <span className="text-[10px] text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded font-sans">
                             {t.status || 'Executed'}
                           </span>

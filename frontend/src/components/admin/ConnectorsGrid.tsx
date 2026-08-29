@@ -17,7 +17,7 @@ interface IntegrationCardDef {
 const INTEGRATION_CARDS: IntegrationCardDef[] = [
   {
     key: 'MES',
-    icon: '🏭',
+    icon: '',
     title: 'MES',
     desc: 'Line-level throughput, machine status and control telemetry. Powers scheduling, maintenance, energy and reporting agents.',
     dbLabel: 'SQL Server (mes_new)',
@@ -26,7 +26,7 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
   },
   {
     key: 'Video Analytics',
-    icon: '🎥',
+    icon: '',
     title: 'Video Analytics',
     desc: 'Existing camera infrastructure for safety and site monitoring. Powers PPE compliance, behaviour detection and spill-detection agents.',
     dbLabel: 'Construction DB (construction_db)',
@@ -76,9 +76,6 @@ export const ConnectorsGrid: React.FC = () => {
             >
               {/* Title row */}
               <div className="flex items-center gap-[12px]">
-                <div className="w-[38px] h-[38px] rounded-[10px] bg-canvas flex items-center justify-center text-[18px] shrink-0 border border-border-color">
-                  {card.icon}
-                </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-head font-bold text-[14px] leading-tight">{card.title}</div>
                   <div className="text-[10.5px] text-faint font-mono mt-[2px]">{card.dbLabel}</div>

@@ -230,12 +230,12 @@ function MessageBubble({
 // ─── Suggested Prompts ────────────────────────────────────────────────────────
 
 const SUGGESTED_PROMPTS = [
-  { icon: '📋', label: 'Inspection Rules', query: 'List all quality inspection rules in the database' },
-  { icon: '🏭', label: 'Top Defect Site', query: 'Which site has the most material defects this month?' },
-  { icon: '🚧', label: 'Open Holds', query: 'Show me all open quality holds' },
-  { icon: '📈', label: 'Pass/Fail Trend', query: 'What is the weekly pass/fail trend for inspections?' },
-  { icon: '🧑‍🔧', label: 'Vendor Performance', query: 'Show vendor performance ranking for this quarter' },
-  { icon: 'ℹ️', label: 'Agent Info', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
+  { icon: '', label: 'Inspection Rules', query: 'List all quality inspection rules in the database' },
+  { icon: '', label: 'Top Defect Site', query: 'Which site has the most material defects this month?' },
+  { icon: '', label: 'Open Holds', query: 'Show me all open quality holds' },
+  { icon: '', label: 'Pass/Fail Trend', query: 'What is the weekly pass/fail trend for inspections?' },
+  { icon: '', label: 'Vendor Performance', query: 'Show vendor performance ranking for this quarter' },
+  { icon: '', label: 'Agent Info', query: 'What data sources do you use, what happens if turned off, and who owns this agent?' },
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -348,7 +348,7 @@ export const SafetyQualityAgentPage: React.FC = () => {
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: '⚠️ I am unable to reach the Safety & Quality Agent at this time, sir. Please try again shortly.',
+          text: 'I am unable to reach the Safety & Quality Agent at this time, sir. Please try again shortly.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -457,12 +457,12 @@ export const SafetyQualityAgentPage: React.FC = () => {
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🦺 PPE Compliance</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🔬 Defect Analytics</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🚧 Quality Holds</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">🧑‍🔧 Vendor Performance</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">📋 Inspector Records</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">✅ Compliance Standards</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">PPE Compliance</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Defect Analytics</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Quality Holds</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Vendor Performance</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Inspector Records</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Compliance Standards</span>
                 </div>
               </div>
             </motion.div>

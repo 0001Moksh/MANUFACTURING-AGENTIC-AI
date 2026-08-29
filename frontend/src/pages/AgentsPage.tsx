@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { AgentCard } from '../components/agents/AgentCard';
+import { AlertTriangle } from 'lucide-react';
 import { agents, AGENT_INTEGRATION_DEPENDENCY } from '../data/mockData';
 import { useIntegrations } from '../services/IntegrationContext';
 
@@ -33,9 +34,10 @@ const ToastList: React.FC<{ toasts: Toast[] }> = ({ toasts }) => (
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.96 }}
           transition={{ duration: 0.22 }}
-          className="bg-[#2A1800] text-amber-100 text-[12.5px] font-medium px-[18px] py-[10px] rounded-[10px] shadow-xl border border-amber/30 max-w-[420px] text-center leading-[1.4]"
+          className="bg-[#2A1800] text-amber-100 text-[12.5px] font-medium px-[18px] py-[10px] rounded-[10px] shadow-xl border border-amber/30 max-w-[420px] text-center leading-[1.4] flex items-center justify-center gap-3"
         >
-          ⚠️ {t.message}
+          <AlertTriangle className="w-4 h-4" />
+          <span>{t.message}</span>
         </motion.div>
       ))}
     </AnimatePresence>
