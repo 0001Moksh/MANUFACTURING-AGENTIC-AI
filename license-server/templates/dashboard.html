@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MAI License Dashboard</title>
+    <style>body{font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px} .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px} .card{background:#111827;padding:20px;border-radius:10px}.link{color:#7dd3fc;text-decoration:none}.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}</style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h2>MAI License Dashboard</h2>
+      <a class="link" href="/logout">Logout</a>
+    </div>
+    <div class="grid">
+      <div class="card"><strong>Total Licenses</strong><div>{{ total_licenses }}</div></div>
+      <div class="card"><strong>Active</strong><div>{{ active }}</div></div>
+      <div class="card"><strong>Expiring Soon</strong><div>{{ expiring_soon }}</div></div>
+      <div class="card"><strong>Expired</strong><div>{{ expired }}</div></div>
+      <div class="card"><strong>Revoked</strong><div>{{ revoked }}</div></div>
+    </div>
+    <p><a class="link" href="/licenses/new">Create License</a></p>
+  </body>
+</html>

@@ -1,5 +1,5 @@
-// Production Nginx proxies this path to FastAPI; a Vite variable can still override it for development.
-const fallbackApiBaseUrl = '/api';
+// Local dev should hit the MAI backend directly; a Vite env var can still override this.
+const fallbackApiBaseUrl = 'http://localhost:8001/api';
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || fallbackApiBaseUrl).replace(/\/$/, '');
 

@@ -15,6 +15,16 @@ This repository implements the complete full-stack **Manufacturing Agentic AI (M
 
 ---
 
+## License & Access Control
+
+1. Start MAI.
+2. Upload the provided `.lic` file.
+3. MAI validates the license before login is allowed.
+4. Valid license → login enabled.
+5. Invalid, expired, tampered, or mismatched license → access blocked.
+
+The customer installs the MAI runtime and receives only the generated `.lic` file. The private Flask license server is run by MAI administrators only and is not part of the customer deployment.
+
 ## Production Docker Deployment
 
 See [CLIENT_DEPLOYMENT_GUIDE.md](CLIENT_DEPLOYMENT_GUIDE.md) for the client-facing Docker installation, configuration, database initialization, persistence, troubleshooting, and backup procedures.

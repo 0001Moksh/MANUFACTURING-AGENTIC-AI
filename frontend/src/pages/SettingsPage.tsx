@@ -27,12 +27,18 @@ export const SettingsPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [passwordResetNotice, setPasswordResetNotice] = useState('');
+  const [licenseStatus, setLicenseStatus] = useState<any>(null);
 
   useEffect(() => {
     void api
       .get('/profile')
       .then((response) => setProfile(response.data))
       .catch(() => console.error('Profile could not be loaded.'));
+
+    void api
+      .get('/license/status')
+      .then((response) => setLicenseStatus(response.data))
+      .catch(() => setLicenseStatus({ status: 'NOT_INSTALLED', is_valid: false, message: 'No license installed' }));
   }, []);
 
   const saveName = async () => {
@@ -274,6 +280,59 @@ export const SettingsPage: React.FC = () => {
           </div>
         </section>
       </div>
+
+      <section className="mt-8 bg-panel border border-border-color rounded-2xl p-6 md:p-7 shadow-sm">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal/10 text-teal">
+            <LockKeyhole className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="m-0 font-head text-[18px] font-bold text-ink">License</h2>
+            <p className="m-0 mt-0.5 text-[12.5px] text-muted">Product activation and entitlement status</p>
+          </div>
+        </div>
+
+        {licenseStatus ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-border-color bg-canvas p-4">
+              <div className="text-[11px] uppercase tracking-wider text-muted">License Status</div>
+              <div className="mt-2 text-[24px] font-bold text-ink">{licenseStatus.status}</div>
+              <div className="mt-2 text-[12px] text-muted">{licenseStatus.message}</div>
+            </div>
+            <div className="rounded-xl border border-border-color bg-canvas p-4">
+              <div className="text-[11px] uppercase tracking-wider text-muted">Customer</div>
+              <div className="mt-2 text-[18px] font-bold text-ink">{licenseStatus.customer_name || 'Unknown'}</div>
+              <div className="mt-2 text-[12px] text-muted">{licenseStatus.license_type || 'Unspecified'} · {licenseStatus.product || 'MANUFACTURING_AGENTIC_AI'}</div>
+            </div>
+            <div className="rounded-xl border border-border-color bg-canvas p-4">
+              <div className="text-[11px] uppercase tracking-wider text-muted">Expiry</div>
+              <div className="mt-2 text-[16px] font-bold text-ink">{licenseStatus.expires_at || 'Unknown'}</div>
+              <div className="mt-2 text-[12px] text-muted">{licenseStatus.days_remaining ?? 0} days remaining</div>
+            </div>
+            <div className="rounded-xl border border-border-color bg-canvas p-4">
+              <div className="text-[11px] uppercase tracking-wider text-muted">Installation</div>
+              <div className="mt-2 text-[16px] font-bold text-ink">{licenseStatus.installation_id || 'Not registered'}</div>
+              <div className="mt-2 text-[12px] text-muted">{licenseStatus.is_valid ? 'Registered' : 'Not activated'}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-[13px] text-muted">Loading license status…</div>
+        )}
+
+        {licenseStatus?.features && (
+          <div className="mt-6">
+            <div className="text-[11px] uppercase tracking-wider text-muted mb-2">Licensed Features</div>
+            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+              {Object.entries(licenseStatus.features).map(([feature, enabled]) => (
+                <div key={feature} className="rounded-xl border border-border-color bg-canvas px-3 py-2 flex items-center justify-between text-[12px]">
+                  <span className="text-ink">{feature}</span>
+                  <span className={enabled ? 'text-green font-bold' : 'text-muted'}>{enabled ? '✓' : '–'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ===================== ENTERPRISE FEATURES ===================== */}
       <div>

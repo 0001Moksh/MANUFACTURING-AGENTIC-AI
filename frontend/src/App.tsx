@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { OverviewPage } from './pages/OverviewPage';
@@ -17,21 +17,37 @@ import { AdminConsolePage } from './pages/AdminConsolePage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
+import { LicenseGatePage } from './pages/LicenseGatePage';
 import { useStore } from './store';
 import { IntegrationProvider } from './services/IntegrationContext';
+import { api } from './services/api';
 
 function App() {
   const { token, fetchGovernanceSettings } = useStore();
+  const [licenseStatus, setLicenseStatus] = useState<any>(null);
+  const [licenseLoading, setLicenseLoading] = useState(true);
 
   useEffect(() => {
     if (token) {
-      // Sync governance settings from DB on app startup
       fetchGovernanceSettings();
+      return;
     }
+
+    void api
+      .get('/license/status')
+      .then((response) => setLicenseStatus(response.data))
+      .catch(() => setLicenseStatus({ is_valid: false, status: 'NOT_INSTALLED' }))
+      .finally(() => setLicenseLoading(false));
   }, [token, fetchGovernanceSettings]);
 
   if (!token) {
-    return <LoginPage />;
+    if (licenseLoading) {
+      return <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] text-white">Checking MAI license…</div>;
+    }
+    if (licenseStatus?.is_valid) {
+      return <LoginPage />;
+    }
+    return <LicenseGatePage onVerified={() => setLicenseStatus({ is_valid: true, status: 'VALID' })} />;
   }
 
   return (

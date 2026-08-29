@@ -71,6 +71,21 @@ export const telemetryService = {
   }
 };
 
+export const licenseService = {
+  getStatus: async () => {
+    const res = await api.get('/license/status');
+    return res.data;
+  },
+  verify: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await api.post('/license/verify', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+};
+
 export const agentService = {
   query: async (query: string, model: string = 'auto', agent: string = 'reporting') => {
     const res = await api.post('/agent/query', { query, model, agent });

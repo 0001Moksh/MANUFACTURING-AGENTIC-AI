@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Create MAI License</title>
+    <style>body{font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px} .card{max-width:760px;background:#111827;padding:24px;border-radius:12px;margin:auto} input, select, textarea, button{width:100%;padding:10px;margin-top:8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px} button{background:#0ea5e9;border:none;font-weight:bold;cursor:pointer}</style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Create MAI License</h2>
+      <form method="post">
+        <div class="row">
+          <div><label>Customer Name<input name="customer_name" required /></label></div>
+          <div><label>Customer ID<input name="customer_id" required /></label></div>
+          <div><label>Product<select name="product"><option>MANUFACTURING_AGENTIC_AI</option></select></label></div>
+          <div><label>License Type<select name="license_type"><option>TRIAL</option><option>ANNUAL</option><option>MONTHLY</option><option>PERPETUAL</option><option>CUSTOM</option></select></label></div>
+          <div><label>Expiry Date<input type="datetime-local" name="expiry_date" required /></label></div>
+          <div><label>Installation Binding<input name="installation_binding" /></label></div>
+          <div><label>Maximum Users<input type="number" name="max_users" value="50" /></label></div>
+        </div>
+        <div style="margin-top:16px">
+          <label>Enabled Features</label><br>
+          <input type="checkbox" name="features" value="MES" checked /> MES
+          <input type="checkbox" name="features" value="SCADA" checked /> SCADA
+          <input type="checkbox" name="features" value="ERP" checked /> ERP
+          <input type="checkbox" name="features" value="IoT" checked /> IoT
+          <input type="checkbox" name="features" value="CCTV" /> CCTV
+          <input type="checkbox" name="features" value="Advanced Agents" checked /> Advanced Agents
+        </div>
+        <div style="margin-top:16px"><label>Notes<textarea name="notes" rows="4"></textarea></label></div>
+        <button type="submit">Generate License</button>
+      </form>
+    </div>
+  </body>
+</html>

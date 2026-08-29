@@ -4,7 +4,7 @@ import os
 import secrets
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
@@ -34,6 +34,13 @@ from app.agents.incident_investigation_agent import (
 )
 from app.email_service import send_pdf_report_email, send_text_email, send_html_email
 from app.voice.manager import VoiceConversationManager
+from app.license_control import (
+    get_active_license_path,
+    get_installation_id,
+    get_license_validator,
+    read_active_license,
+    write_active_license,
+)
 
 router = APIRouter()
 
@@ -290,8 +297,40 @@ async def _email_verified_super_admins(db: AsyncSession, approval_key: str, repo
 def _is_admin(user: User) -> bool:
     return user.role == "Super Admin"
 
+@router.get("/api/license/status")
+async def license_status():
+    validator = get_license_validator()
+    result = validator.validate_license_file(read_active_license(), installation_id=get_installation_id())
+    return result.to_dict()
+
+
+@router.post("/api/license/verify")
+async def verify_license(file: UploadFile = File(...)):
+    raw = await file.read()
+    validator = get_license_validator()
+    result = validator.validate_license_bytes(raw, installation_id=get_installation_id())
+    if result.is_valid:
+        write_active_license(raw)
+    return JSONResponse(
+        status_code=200 if result.is_valid else 400,
+        content={**result.to_dict(), "path": str(get_active_license_path()) if result.is_valid else None},
+    )
+
+
 @router.post("/api/auth/login", response_model=TokenResponse)
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+    validator = get_license_validator()
+    license_result = validator.validate_license_file(read_active_license(), installation_id=get_installation_id())
+    if not license_result.is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": license_result.blocking_code,
+                "status": license_result.status,
+                "message": license_result.message,
+            },
+        )
+
     result = await db.execute(select(User).where(User.username == req.username))
     user = result.scalars().first()
     

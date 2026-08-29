@@ -114,6 +114,9 @@ services:
       PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8080}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       REPORT_APPROVAL_EMAIL_SECRET: ${REPORT_APPROVAL_EMAIL_SECRET:?Set REPORT_APPROVAL_EMAIL_SECRET in .env}
+      MAI_LICENSE_PUBLIC_KEY: ${MAI_LICENSE_PUBLIC_KEY:-}
+      MAI_LICENSE_FILE: /app/licenses/customer.lic
+      MAI_LICENSE_GRACE_DAYS: "7"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -127,6 +130,7 @@ services:
     volumes:
       - backend_reports:/app/reports
       - backend_logs:/app/logs
+      - backend_licenses:/app/licenses
     depends_on:
       init-postgres-manufacturing: {condition: service_completed_successfully}
       init-postgres-video: {condition: service_completed_successfully}
@@ -161,3 +165,4 @@ volumes:
   sqlserver_data:
   backend_reports:
   backend_logs:
+  backend_licenses:

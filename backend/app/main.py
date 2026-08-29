@@ -2,8 +2,9 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from sqlalchemy import text
 
@@ -11,6 +12,7 @@ from sqlalchemy import text
 load_dotenv()
 
 from app.db import init_db, engine, test_mes_connection, test_video_analytics_connection
+from app.license_control import get_installation_id, get_license_validator, read_active_license
 from app.routes import router, stream_agent_events
 from app.scheduler import start_scheduler, stop_scheduler
 
@@ -57,12 +59,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-configured_origins = [origin.strip().rstrip("/") for origin in os.getenv("FRONTEND_URLS", os.getenv("FRONTEND_URL", "http://localhost:3000")).split(",") if origin.strip()]
+configured_origins = [origin.strip().rstrip("/") for origin in os.getenv("FRONTEND_URLS", os.getenv("FRONTEND_URL", "http://localhost:3000, http://localhost:8080, http://localhost:8001, http://127.0.0.1:3000, http://127.0.0.1:8080, http://127.0.0.1:8001")).split(",") if origin.strip()]
 
-# Allow only configured frontend origins to make authenticated API requests.
+# Allow all origins in development and mixed local deployments so frontend dev servers can reach the backend cleanly.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=configured_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,6 +77,37 @@ os.makedirs("reports", exist_ok=True)
 app.mount("/reports", StaticFiles(directory="reports"), name="reports")
 
 app.include_router(router)
+
+@app.middleware("http")
+async def middleware_enforce_license(request: Request, call_next):
+    public_paths = [
+        "/health",
+        "/docs",
+        "/openapi.json",
+        "/redoc",
+        "/api/license/status",
+        "/api/license/verify",
+        "/api/auth/login",
+        "/api/nodes/heartbeat",
+    ]
+    path = request.url.path
+    if any(path == allowed or path.startswith("/static/") for allowed in public_paths):
+        return await call_next(request)
+
+    if path.startswith("/api/"):
+        validator = get_license_validator()
+        result = validator.validate_license_file(read_active_license(), installation_id=get_installation_id())
+        if not result.is_valid:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "code": result.blocking_code or "LICENSE_REQUIRED",
+                    "status": result.status,
+                    "message": result.message,
+                },
+            )
+    return await call_next(request)
+
 
 @app.get("/health", tags=["health"])
 async def health():
