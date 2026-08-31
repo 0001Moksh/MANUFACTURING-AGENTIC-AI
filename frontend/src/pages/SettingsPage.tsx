@@ -38,7 +38,13 @@ export const SettingsPage: React.FC = () => {
     void api
       .get('/license/status')
       .then((response) => setLicenseStatus(response.data))
-      .catch(() => setLicenseStatus({ status: 'NOT_INSTALLED', is_valid: false, message: 'No license installed' }));
+      .catch(() =>
+        setLicenseStatus({
+          status: 'NOT_INSTALLED',
+          is_valid: false,
+          message: 'No license installed',
+        })
+      );
   }, []);
 
   const saveName = async () => {
@@ -47,12 +53,16 @@ export const SettingsPage: React.FC = () => {
   };
 
   const requestEmailVerification = async () => {
-    await api.post('/profile/email/request-verification', { email: profile.email });
+    await api.post('/profile/email/request-verification', {
+      email: profile.email,
+    });
     console.log('Verification code sent to the new email address.');
   };
 
   const verifyEmail = async () => {
-    const response = await api.post('/profile/email/verify', { code: verificationCode });
+    const response = await api.post('/profile/email/verify', {
+      code: verificationCode,
+    });
     setProfile((value) => ({
       ...value,
       email: response.data.email,
@@ -99,7 +109,6 @@ export const SettingsPage: React.FC = () => {
 
       {/* ===================== PROFILE + SECURITY ===================== */}
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] mb-10">
-        
         {/* -------- LEFT: Profile -------- */}
         <section className="bg-panel border border-border-color rounded-2xl p-6 md:p-7 shadow-sm">
           <div className="flex items-center gap-3 mb-7">
@@ -115,6 +124,7 @@ export const SettingsPage: React.FC = () => {
               </p>
             </div>
           </div>
+
           {/* Name */}
           <div className="mb-5">
             <label className="block">
@@ -124,7 +134,9 @@ export const SettingsPage: React.FC = () => {
               <div className="mt-2 flex gap-2.5">
                 <input
                   value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                  onChange={(e) =>
+                    setProfile({ ...profile, name: e.target.value })
+                  }
                   className="flex-1 rounded-xl border border-border-color bg-canvas px-4 py-2.5 text-[14px] text-ink outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/15"
                   placeholder="Enter your name"
                 />
@@ -162,7 +174,9 @@ export const SettingsPage: React.FC = () => {
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                  onChange={(e) =>
+                    setProfile({ ...profile, email: e.target.value })
+                  }
                   className="flex-1 rounded-xl border border-border-color bg-canvas px-4 py-2.5 text-[14px] text-ink outline-none transition focus:border-teal focus:ring-2 focus:ring-teal/15"
                   placeholder="name@company.com"
                 />
@@ -212,7 +226,9 @@ export const SettingsPage: React.FC = () => {
               <LockKeyhole className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="m-0 font-head text-[18px] font-bold text-ink">Security</h2>
+              <h2 className="m-0 font-head text-[18px] font-bold text-ink">
+                Security
+              </h2>
               <p className="m-0 mt-0.5 text-[12.5px] text-muted">
                 Password & account protection
               </p>
@@ -230,14 +246,12 @@ export const SettingsPage: React.FC = () => {
               </button>
             </div>
 
-            {/* Password Reset Notice + Fields */}
             {showPasswordReset && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-6 pt-6 border-t border-border-color"
               >
-                {/* Notice inside Security section */}
                 {passwordResetNotice && (
                   <div className="mb-4 flex items-center gap-2.5 rounded-xl bg-teal-tint border border-teal/20 px-4 py-3 text-[13px] text-teal-deep">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -281,61 +295,102 @@ export const SettingsPage: React.FC = () => {
         </section>
       </div>
 
+      {/* ===================== LICENSE (Simplified) ===================== */}
       <section className="mt-8 bg-panel border border-border-color rounded-2xl p-6 md:p-7 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-teal/10 text-teal">
             <LockKeyhole className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="m-0 font-head text-[18px] font-bold text-ink">License</h2>
-            <p className="m-0 mt-0.5 text-[12.5px] text-muted">Product activation and entitlement status</p>
+            <h2 className="m-0 font-head text-[18px] font-bold text-ink">
+              License
+            </h2>
+            <p className="m-0 mt-0.5 text-[12.5px] text-muted">
+              Product activation and entitlement status
+            </p>
           </div>
         </div>
 
         {licenseStatus ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-border-color bg-canvas p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted">License Status</div>
-              <div className="mt-2 text-[24px] font-bold text-ink">{licenseStatus.status}</div>
-              <div className="mt-2 text-[12px] text-muted">{licenseStatus.message}</div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Status Card */}
+            <div className="rounded-xl border border-border-color bg-canvas p-5">
+              <div className="text-[11px] uppercase tracking-wider text-muted mb-3">
+                License Status
+              </div>
+              <div className="flex items-center gap-2.5">
+                {licenseStatus.is_valid ? (
+                  <>
+                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-teal-tint text-teal-deep">
+                      <CheckCircle2 className="w-4.5 h-4.5" />
+                    </span>
+                    <div>
+                      <div className="text-[18px] font-bold text-ink">Valid</div>
+                      <div className="text-[12.5px] text-muted mt-0.5">
+                        Currently active
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-amber-tint text-[#9A6400]">
+                      <AlertCircle className="w-4.5 h-4.5" />
+                    </span>
+                    <div>
+                      <div className="text-[18px] font-bold text-ink">
+                        {licenseStatus.status || 'Invalid'}
+                      </div>
+                      <div className="text-[12.5px] text-muted mt-0.5">
+                        {licenseStatus.message || 'Not activated'}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="rounded-xl border border-border-color bg-canvas p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted">Customer</div>
-              <div className="mt-2 text-[18px] font-bold text-ink">{licenseStatus.customer_name || 'Unknown'}</div>
-              <div className="mt-2 text-[12px] text-muted">{licenseStatus.license_type || 'Unspecified'} · {licenseStatus.product || 'MANUFACTURING_AGENTIC_AI'}</div>
-            </div>
-            <div className="rounded-xl border border-border-color bg-canvas p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted">Expiry</div>
-              <div className="mt-2 text-[16px] font-bold text-ink">{licenseStatus.expires_at || 'Unknown'}</div>
-              <div className="mt-2 text-[12px] text-muted">{licenseStatus.days_remaining ?? 0} days remaining</div>
-            </div>
-            <div className="rounded-xl border border-border-color bg-canvas p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted">Installation</div>
-              <div className="mt-2 text-[16px] font-bold text-ink">{licenseStatus.installation_id || 'Not registered'}</div>
-              <div className="mt-2 text-[12px] text-muted">{licenseStatus.is_valid ? 'Registered' : 'Not activated'}</div>
+
+            {/* Expiry Card */}
+            <div className="rounded-xl border border-border-color bg-canvas p-5">
+              <div className="text-[11px] uppercase tracking-wider text-muted mb-3">
+                Expiry
+              </div>
+              <div className="text-[18px] font-bold text-ink">
+                {licenseStatus.expires_at
+                  ? new Date(licenseStatus.expires_at).toLocaleDateString(
+                      'en-IN',
+                      {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      }
+                    )
+                  : '—'}
+              </div>
+              <div className="mt-2 text-[13px] text-muted">
+                {typeof licenseStatus.days_remaining === 'number' ? (
+                  licenseStatus.days_remaining > 0 ? (
+                    <span>
+                      <span className="font-semibold text-ink">
+                        {licenseStatus.days_remaining}
+                      </span>{' '}
+                      days remaining
+                    </span>
+                  ) : (
+                    <span className="text-[#9A6400] font-medium">Expired</span>
+                  )
+                ) : (
+                  'No expiry data'
+                )}
+              </div>
             </div>
           </div>
         ) : (
           <div className="text-[13px] text-muted">Loading license status…</div>
         )}
-
-        {licenseStatus?.features && (
-          <div className="mt-6">
-            <div className="text-[11px] uppercase tracking-wider text-muted mb-2">Licensed Features</div>
-            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-              {Object.entries(licenseStatus.features).map(([feature, enabled]) => (
-                <div key={feature} className="rounded-xl border border-border-color bg-canvas px-3 py-2 flex items-center justify-between text-[12px]">
-                  <span className="text-ink">{feature}</span>
-                  <span className={enabled ? 'text-green font-bold' : 'text-muted'}>{enabled ? '✓' : '–'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </section>
 
       {/* ===================== ENTERPRISE FEATURES ===================== */}
-      <div>
+      <div className="mt-10">
         <h3 className="m-0 mb-4 font-head text-[15px] font-bold text-ink uppercase tracking-wider">
           Platform Capabilities
         </h3>
@@ -387,12 +442,18 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <span className="font-bold text-[13.5px] text-ink">{item.title}</span>
-                  <span className={`shrink-0 text-[10.5px] font-bold py-0.5 px-2.5 rounded-full ${item.badgeClass}`}>
+                  <span className="font-bold text-[13.5px] text-ink">
+                    {item.title}
+                  </span>
+                  <span
+                    className={`shrink-0 text-[10.5px] font-bold py-0.5 px-2.5 rounded-full ${item.badgeClass}`}
+                  >
                     {item.badge}
                   </span>
                 </div>
-                <p className="m-0 text-[12.5px] text-muted leading-snug">{item.desc}</p>
+                <p className="m-0 text-[12.5px] text-muted leading-snug">
+                  {item.desc}
+                </p>
               </div>
             </div>
           ))}
