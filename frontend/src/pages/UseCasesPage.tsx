@@ -5,7 +5,7 @@ import { UseCaseCard } from '../components/usecases/UseCaseCard';
 import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
 
-const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9]);
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24]);
 
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
@@ -64,6 +64,10 @@ export const UseCasesPage: React.FC = () => {
               }
               if (u.id === 9) {
                 navigate('/use-cases/safety-site-intelligence');
+                return;
+              }
+              if (u.id === 24) {
+                navigate('/use-cases/computer-vision-safety-monitoring');
                 return;
               }
               navigate(`/use-cases/${u.id}`);

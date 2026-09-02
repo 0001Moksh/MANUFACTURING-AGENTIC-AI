@@ -14,6 +14,7 @@ load_dotenv()
 from app.db import init_db, engine, test_mes_connection, test_video_analytics_connection
 from app.license_control import get_installation_id, get_license_validator, read_active_license
 from app.routes import router, stream_agent_events
+from app.computer_vision_routes import router as cv_router
 from app.scheduler import start_scheduler, stop_scheduler
 
 logger = logging.getLogger("mai.startup")
@@ -77,6 +78,7 @@ os.makedirs("reports", exist_ok=True)
 app.mount("/reports", StaticFiles(directory="reports"), name="reports")
 
 app.include_router(router)
+app.include_router(cv_router)
 
 @app.middleware("http")
 async def middleware_enforce_license(request: Request, call_next):

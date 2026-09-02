@@ -138,6 +138,37 @@ engine = create_async_engine(
 )
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
+# Add Video Analytics async engine
+VA_DATABASE_URL = os.getenv("CONSTRUCTION_DB_URL")
+va_engine = None
+VASessionLocal = None
+if VA_DATABASE_URL:
+    async_va_url = VA_DATABASE_URL
+    if async_va_url.startswith("postgresql://"):
+        async_va_url = async_va_url.replace("postgresql://", "postgresql+asyncpg://")
+    elif async_va_url.startswith("postgresql+psycopg2://"):
+        async_va_url = async_va_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+    
+    try:
+        va_engine = create_async_engine(
+            async_va_url,
+            echo=False,
+            pool_pre_ping=True,
+            connect_args={
+                "timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
+                "command_timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
+            },
+        )
+        VASessionLocal = async_sessionmaker(bind=va_engine, class_=AsyncSession, expire_on_commit=False)
+    except Exception as e:
+        print(f"Failed to initialize Video Analytics async engine: {e}")
+
+async def get_va_db():
+    if not VASessionLocal:
+        raise RuntimeError("Video Analytics DB is not configured.")
+    async with VASessionLocal() as session:
+        yield session
+
 # Sync engine for local DB (used by synchronous tools)
 from sqlalchemy import create_engine as create_sync_engine_sqlite
 sync_engine_local = create_sync_engine_sqlite("sqlite:///./mai_platform.db")

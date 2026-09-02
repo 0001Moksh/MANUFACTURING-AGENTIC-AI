@@ -17,7 +17,7 @@ The deployment contains two PostgreSQL 17 services, SQL Server 2022 Express, thr
    ```powershell
    docker compose up -d --build
    ```
-
+ 
    On Windows, `scripts\start.bat` performs the Docker check, build, startup, and basic URL wait for you.
 
 4. Open `http://localhost:8080` (or `http://localhost:<APP_PORT>` if changed).
