@@ -91,9 +91,10 @@ async def middleware_enforce_license(request: Request, call_next):
         "/api/license/verify",
         "/api/auth/login",
         "/api/nodes/heartbeat",
+        "/api/video-monitoring",
     ]
     path = request.url.path
-    if any(path == allowed or path.startswith("/static/") for allowed in public_paths):
+    if any(path == allowed or path.startswith(allowed) or path.startswith("/static/") for allowed in public_paths):
         return await call_next(request)
 
     if path.startswith("/api/"):
