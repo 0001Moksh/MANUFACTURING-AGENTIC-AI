@@ -13,7 +13,7 @@ import { PPEVisionAgentPage } from './pages/PPEVisionAgentPage';
 import { PermitToWorkAgentPage } from './pages/PermitToWorkAgentPage';
 import { IncidentInvestigationAgentPage } from './pages/IncidentInvestigationAgentPage';
 import { SafetySiteIntelligencePage } from './pages/SafetySiteIntelligencePage';
-import { ComputerVisionSafetyMonitoringPage } from './pages/ComputerVisionSafetyMonitoringPage';
+import { VideoMonitoringPage } from './pages/VideoMonitoringPage';
 import { AdminConsolePage } from './pages/AdminConsolePage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -60,7 +60,7 @@ function App() {
             <Route path="use-cases" element={<UseCasesPage />} />
             <Route path="use-cases/executive-insights" element={<ExecutiveInsightsPage />} />
             <Route path="use-cases/safety-site-intelligence" element={<SafetySiteIntelligencePage />} />
-            <Route path="use-cases/computer-vision-safety-monitoring" element={<ComputerVisionSafetyMonitoringPage />} />
+            <Route path="use-cases/video-monitoring" element={<VideoMonitoringPage />} />
             <Route path="use-cases/:id" element={<UseCaseDetailPage />} />
             <Route path="agents" element={<AgentsPage />} />
             <Route path="agents/reporting" element={<ReportingAgentPage />} />

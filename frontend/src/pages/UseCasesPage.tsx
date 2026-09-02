@@ -67,7 +67,7 @@ export const UseCasesPage: React.FC = () => {
                 return;
               }
               if (u.id === 24) {
-                navigate('/use-cases/computer-vision-safety-monitoring');
+                navigate('/use-cases/video-monitoring');
                 return;
               }
               navigate(`/use-cases/${u.id}`);

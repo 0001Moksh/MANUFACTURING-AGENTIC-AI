@@ -102,7 +102,7 @@ export const useCases: UseCase[] = [
    desc:"Supports sourcing requests for spare parts and services: drafting request documents, comparing vendor responses against evaluation criteria side by side, and tracking clarifications through to closure.",
    impact:"Shorter sourcing cycles; more consistent evaluation; stronger procurement governance.",
    poweredBy:["Contractor & Asset Risk Agent","Finance Agent"]},
-  {id:24,pillar:"sustain",title:"Computer Vision Safety & Site Monitoring",tags:["VISION","ML"],status:"live",
+  {id:24,pillar:"sustain",title:"Video Monitoring",tags:["VISION","ML"],status:"live",
    desc:"Real-time dashboard for live streaming site cameras, tracking safety incidents, and rendering violation logs with snapshot evidence directly from the construction AI backend.",
    impact:"Instant safety intervention; accurate historical logs of compliance violations.",
    poweredBy:["Safety & Quality Agent","PPE & Behavior Vision Agent"]},

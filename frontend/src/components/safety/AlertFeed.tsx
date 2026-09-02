@@ -9,18 +9,35 @@ interface Alert {
 
 export const AlertFeed: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // In a real app, this would use SSE to get real-time alerts
-    setAlerts([
-      { id: 1, severity: 'CRITICAL', message: '[RED / CRITICAL] No PPE / Hardhat Violation - CAM-02', timestamp: '14:32:05' },
-      { id: 2, severity: 'WARNING', message: '[YELLOW / WARNING] Zone B Restricted Area Entry - CAM-01', timestamp: '14:30:12' },
-      { id: 3, severity: 'NORMAL', message: '[GREEN / NORMAL] Zone B Clear - CAM-01', timestamp: '14:28:10' },
-    ]);
+    const eventSource = new EventSource('/api/video-monitoring/stream');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const newAlert = JSON.parse(event.data);
+        setAlerts((prev) => [newAlert, ...prev].slice(0, 50)); // Keep last 50
+        setError(null);
+      } catch (e) {
+        console.error("Failed to parse alert data", e);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("EventSource failed:", err);
+      setError('Live connection lost. Attempting to reconnect...');
+      eventSource.close();
+      // In a real app, implement a retry backoff here
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const getSeverityStyle = (severity: string) => {
-    switch(severity) {
+    switch(severity?.toUpperCase()) {
       case 'CRITICAL': return 'bg-red-500/10 text-red-500 border-red-500/30';
       case 'WARNING': return 'bg-amber-500/10 text-amber-500 border-amber-500/30';
       case 'NORMAL': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30';
@@ -29,7 +46,7 @@ export const AlertFeed: React.FC = () => {
   };
 
   const getBadgeStyle = (severity: string) => {
-    switch(severity) {
+    switch(severity?.toUpperCase()) {
       case 'CRITICAL': return 'bg-red-500 text-white';
       case 'WARNING': return 'bg-amber-500 text-white';
       case 'NORMAL': return 'bg-emerald-500 text-white';
@@ -43,11 +60,22 @@ export const AlertFeed: React.FC = () => {
         <h3 className="font-bold text-lg text-ink">Real-Time Violation Feed</h3>
         <p className="text-xs text-muted">Auto-scrolling as construction_ai.alerts updates</p>
       </div>
+      
+      {error && (
+        <div className="p-4 bg-red-50 border-b border-red-200 text-red-600 text-sm font-semibold">
+          {error}
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {alerts.map(alert => (
-          <div key={alert.id} className="relative pl-6">
+        {alerts.length === 0 && !error && (
+           <div className="flex items-center justify-center h-full text-muted text-sm">
+             Listening for live alerts...
+           </div>
+        )}
+        {alerts.map((alert, index) => (
+          <div key={`${alert.id}-${index}`} className="relative pl-6">
             <div className={`absolute left-0 top-2 w-2 h-2 rounded-full ${getBadgeStyle(alert.severity)}`}></div>
-            {/* Timeline line */}
             <div className="absolute left-[3px] top-4 bottom-[-16px] w-[2px] bg-border-color"></div>
             
             <div className={`p-3 rounded-lg border ${getSeverityStyle(alert.severity)}`}>
