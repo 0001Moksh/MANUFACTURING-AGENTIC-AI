@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 interface Device {
   id: number;
@@ -12,15 +12,91 @@ interface Device {
   stream_url?: string;
 }
 
+interface CameraStats {
+  critical: number;
+  warning: number;
+  normal: number;
+}
+
+type LayoutMode = 'grid' | 'single';
+
+const Icon = {
+  Search: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+    </svg>
+  ),
+  Refresh: ({ spinning }: { spinning?: boolean }) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      className={spinning ? 'animate-spin' : ''}>
+      <path d="M21 12a9 9 0 11-3-6.7" strokeLinecap="round" /><path d="M21 4v5h-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Grid: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="8" height="8" rx="1" /><rect x="13" y="3" width="8" height="8" rx="1" />
+      <rect x="3" y="13" width="8" height="8" rx="1" /><rect x="13" y="13" width="8" height="8" rx="1" />
+    </svg>
+  ),
+  Single: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="5" width="18" height="14" rx="1.5" />
+    </svg>
+  ),
+  Expand: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M21 16v3a2 2 0 01-2 2h-3M3 16v3a2 2 0 002 2h3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Close: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+    </svg>
+  ),
+  Camera: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  ),
+  Warn: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 9v4M12 17h.01M10.29 3.86l-8.4 14.55A1.5 1.5 0 003.19 21h17.62a1.5 1.5 0 001.3-2.59l-8.4-14.55a1.5 1.5 0 00-2.6 0z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  Chevron: ({ open }: { open: boolean }) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+      className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
 export const StreamGrid: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeStreams, setActiveStreams] = useState<Set<number>>(new Set());
-  const [streamErrors, setStreamErrors] = useState<Record<number, string>>( {});
+  const [refreshing, setRefreshing] = useState(false);
+  const [streamErrors, setStreamErrors] = useState<Record<number, string>>({});
+  const [imgLoaded, setImgLoaded] = useState<Record<number, boolean>>({});
 
-  const fetchDevices = () => {
-    setLoading(true);
+  const [query, setQuery] = useState('');
+  const [layout, setLayout] = useState<LayoutMode>('grid');
+  const [fullscreenId, setFullscreenId] = useState<number | null>(null);
+  const [snapshotFlash, setSnapshotFlash] = useState<number | null>(null);
+
+  // Expand / Collapse state
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  // Mock per-camera stats (replace later with real API)
+  const [cameraStats] = useState<Record<number, CameraStats>>({
+    // will be filled dynamically if needed
+  });
+
+  const imgRefs = useRef<Record<number, HTMLImageElement | null>>({});
+
+  const fetchDevices = useCallback((silent = false) => {
+    if (silent) setRefreshing(true); else setLoading(true);
     setError(null);
     fetch('/api/video-monitoring/devices')
       .then(res => {
@@ -30,28 +106,31 @@ export const StreamGrid: React.FC = () => {
       .then((data: Device[]) => {
         setDevices(data);
         setLoading(false);
+        setRefreshing(false);
       })
-      .catch(err => {
-        console.error("Error loading devices from construction_ai:", err);
+      .catch(() => {
         setError('Database Connection Unavailable or Unable to reach Video Analytics backend.');
         setLoading(false);
+        setRefreshing(false);
       });
-  };
+  }, []);
 
   useEffect(() => {
     fetchDevices();
-  }, []);
+    const interval = setInterval(() => fetchDevices(true), 30000);
+    return () => clearInterval(interval);
+  }, [fetchDevices]);
 
-  const toggleStream = (id: number) => {
-    setActiveStreams(prev => {
+  const toggleExpand = (id: number) => {
+    setExpandedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        // Clear any error state when disconnecting
-        setStreamErrors(e => {
-          const updated = { ...e };
-          delete updated[id];
-          return updated;
+        // clear loaded state when collapsing so it reloads next time
+        setImgLoaded(p => {
+          const c = { ...p };
+          delete c[id];
+          return c;
         });
       } else {
         next.add(id);
@@ -60,19 +139,64 @@ export const StreamGrid: React.FC = () => {
     });
   };
 
-  const handleStreamError = (id: number) => {
-    setStreamErrors(prev => ({
-      ...prev,
-      [id]: 'STREAM UNAVAILABLE'
-    }));
+  const expandAll = () => {
+    setExpandedIds(new Set(devices.map(d => d.id)));
   };
 
+  const collapseAll = () => {
+    setExpandedIds(new Set());
+    setImgLoaded({});
+  };
+
+  const handleStreamError = (id: number) => setStreamErrors(prev => ({ ...prev, [id]: 'STREAM UNAVAILABLE' }));
+
   const retryStream = (id: number) => {
-    setStreamErrors(prev => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
+    setStreamErrors(prev => { const c = { ...prev }; delete c[id]; return c; });
+    setImgLoaded(prev => ({ ...prev, [id]: false }));
+  };
+
+  const takeSnapshot = (device: Device) => {
+    const img = imgRefs.current[device.id];
+    if (!img) return;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || 640;
+      canvas.height = img.naturalHeight || 360;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const link = document.createElement('a');
+      link.download = `${device.name.replace(/\s+/g, '_')}_${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      setSnapshotFlash(device.id);
+      setTimeout(() => setSnapshotFlash(null), 400);
+    } catch (e) {
+      console.error('Snapshot failed (likely CORS on the stream):', e);
+    }
+  };
+
+  const filteredDevices = useMemo(() => {
+    if (!query) return devices;
+    const q = query.toLowerCase();
+    return devices.filter(d =>
+      d.name.toLowerCase().includes(q) ||
+      d.camera_number.toLowerCase().includes(q) ||
+      d.ip.toLowerCase().includes(q)
+    );
+  }, [devices, query]);
+
+  const fullscreenDevice = devices.find(d => d.id === fullscreenId) || null;
+
+  // Simple mock stats generator (replace with real data later)
+  const getStats = (id: number): CameraStats => {
+    if (cameraStats[id]) return cameraStats[id];
+    // deterministic mock based on id
+    return {
+      critical: (id * 3) % 7,
+      warning: (id * 5) % 12,
+      normal: (id * 2) % 9,
+    };
   };
 
   if (loading) {
@@ -80,7 +204,7 @@ export const StreamGrid: React.FC = () => {
       <div className="animate-pulse bg-slate-900 border border-slate-800 text-slate-300 p-8 rounded-xl flex items-center justify-center min-h-[300px]">
         <div className="flex items-center space-x-3">
           <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="font-medium">Querying construction_ai database & decrypting camera credentials...</span>
+          <span className="font-medium text-sm">Querying construction_ai database &amp; decrypting camera credentials...</span>
         </div>
       </div>
     );
@@ -89,13 +213,13 @@ export const StreamGrid: React.FC = () => {
   if (error) {
     return (
       <div className="bg-red-950/40 border border-red-800/60 text-red-300 rounded-xl p-6 flex flex-col items-center justify-center min-h-[300px]">
-        <div className="w-12 h-12 bg-red-900/50 rounded-full flex items-center justify-center mb-3">
-          <span className="text-red-400 font-bold text-xl">!</span>
+        <div className="w-12 h-12 bg-red-900/50 rounded-full flex items-center justify-center mb-3 text-red-400">
+          <Icon.Warn />
         </div>
         <h3 className="font-bold text-lg mb-1 text-red-200">Error Loading Devices</h3>
         <p className="text-sm text-red-300/80 text-center max-w-md mb-4">{error}</p>
-        <button 
-          onClick={fetchDevices}
+        <button
+          onClick={() => fetchDevices()}
           className="px-4 py-2 bg-red-800/80 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors"
         >
           Retry Connection
@@ -113,116 +237,231 @@ export const StreamGrid: React.FC = () => {
     );
   }
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {devices.map(device => {
-        const isStreaming = activeStreams.has(device.id);
-        const streamErr = streamErrors[device.id];
-        const streamSrc = device.stream_url || `/api/video-monitoring/stream/${device.id}`;
-        
-        return (
-          <div key={device.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-800 flex flex-col">
-            {/* Camera Header Bar */}
-            <div className="px-4 py-2.5 bg-slate-950 text-white flex justify-between items-center text-sm border-b border-slate-800">
-              <div className="flex items-center space-x-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="font-bold text-slate-100">{device.name}</span>
-                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono">
-                  CAM-{device.camera_number}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className={`text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-                  device.status === 'online' || device.status === 'active'
-                    ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50'
-                    : 'bg-amber-950 text-amber-400 border border-amber-800/50'
-                }`}>
-                  {device.status?.toUpperCase() || 'ONLINE'}
-                </span>
-              </div>
-            </div>
-            
-            {/* Stream Viewport Container */}
-            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
-              {isStreaming ? (
-                streamErr ? (
-                  /* Non-blocking error/reconnecting badge overlay */
-                  <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
-                    <span className="px-3 py-1 bg-amber-950 text-amber-400 border border-amber-800 text-xs font-bold rounded-full mb-3 uppercase tracking-wider animate-pulse">
-                      ● RECONNECTING / {streamErr}
-                    </span>
-                    <p className="text-xs text-slate-400 max-w-xs mb-3">
-                      Unable to pull stream from target RTSP endpoint: <span className="font-mono text-slate-300">{device.ip}:{device.port}</span>
-                    </p>
-                    <button 
-                      onClick={() => retryStream(device.id)}
-                      className="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition-colors"
-                    >
-                      Retry Stream
-                    </button>
-                  </div>
-                ) : (
-                  /* Active Live Video Feed */
-                  <div className="relative w-full h-full group">
-                    <img 
-                      src={streamSrc} 
-                      alt={`Live feed for ${device.name}`}
-                      className="w-full h-full object-cover"
-                      onError={() => handleStreamError(device.id)}
-                    />
-                    
-                    {/* Live indicator overlay badge */}
-                    <div className="absolute top-3 left-3 bg-red-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center space-x-1 uppercase tracking-wider backdrop-blur-sm">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
-                      <span>LIVE</span>
-                    </div>
+  const renderCard = (device: Device) => {
+    const isExpanded = expandedIds.has(device.id);
+    const streamErr = streamErrors[device.id];
+    const streamSrc = device.stream_url || `/api/video-monitoring/stream/${device.id}`;
+    const loaded = !!imgLoaded[device.id];
+    const stats = getStats(device.id);
 
-                    {/* Encrypted/Decrypted RTSP URL Telemetry Overlay */}
-                    {device.rtsp_url && (
-                      <div className="absolute bottom-2 left-2 right-2 bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-2.5 py-1 rounded text-[11px] font-mono text-slate-300 truncate">
-                        <span className="text-emerald-400 font-bold mr-1.5">RTSP:</span>
-                        <span>{device.rtsp_url}</span>
-                      </div>
-                    )}
-                  </div>
-                )
-              ) : (
-                /* Offline / Feed Standby View */
-                <div className="flex flex-col items-center justify-center space-y-3 p-4 text-center">
-                  <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <button 
-                    onClick={() => toggleStream(device.id)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-5 rounded-lg text-sm transition-colors shadow-lg shadow-emerald-900/30 flex items-center space-x-2"
+    return (
+      <div key={device.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-800 flex flex-col">
+        {/* Header - always visible */}
+        <div
+          className="px-4 py-2.5 bg-slate-950 text-white flex justify-between items-center text-sm border-b border-slate-800 cursor-pointer hover:bg-slate-900/80 transition-colors"
+          onClick={() => toggleExpand(device.id)}
+        >
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <span className="font-bold text-slate-100 truncate">{device.name}</span>
+            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono whitespace-nowrap">
+              CAM-{device.camera_number}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+
+            {!streamErr && isExpanded && (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-950/60 border border-red-800/50 px-2 py-0.5 rounded uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                LIVE
+              </span>
+            )}
+
+            <span className="text-slate-400">
+              <Icon.Chevron open={isExpanded} />
+            </span>
+          </div>
+        </div>
+
+        {/* Collapsed summary */}
+        {!isExpanded && (
+          <div className="px-4 py-3 bg-slate-950/50 flex items-center justify-between text-xs text-slate-400">
+            <span>Click to expand live feed</span>
+            <div className="flex items-center gap-2 sm:hidden">
+              <span className="text-red-400">{stats.critical} Crit</span>
+              <span className="text-amber-400">{stats.warning} Warn</span>
+              <span className="text-emerald-400">{stats.normal} Norm</span>
+            </div>
+          </div>
+        )}
+
+        {/* Expanded content */}
+        {isExpanded && (
+          <>
+            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+              {streamErr ? (
+                <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
+                  <span className="px-3 py-1 bg-amber-950 text-amber-400 border border-amber-800 text-xs font-bold rounded-full mb-3 uppercase tracking-wider animate-pulse">
+                    Reconnecting · {streamErr}
+                  </span>
+                  <p className="text-xs text-slate-400 max-w-xs mb-3">
+                    Unable to pull stream from RTSP endpoint:{' '}
+                    <span className="font-mono text-slate-300">{device.ip}:{device.port}</span>
+                  </p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); retryStream(device.id); }}
+                    className="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition-colors"
                   >
-                    <span>Show Live Feed</span>
+                    Retry Stream
                   </button>
-                  <span className="text-xs text-slate-500 font-mono">{device.ip}:{device.port}</span>
+                </div>
+              ) : (
+                <div className="relative w-full h-full group">
+                  {!loaded && (
+                    <div className="absolute inset-0 bg-slate-800 animate-pulse flex items-center justify-center text-slate-500">
+                      <Icon.Camera />
+                    </div>
+                  )}
+                  <img
+                    ref={(el) => { imgRefs.current[device.id] = el; }}
+                    src={streamSrc}
+                    alt={`Live feed for ${device.name}`}
+                    className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                    onLoad={() => setImgLoaded(prev => ({ ...prev, [device.id]: true }))}
+                    onError={() => handleStreamError(device.id)}
+                    crossOrigin="anonymous"
+                  />
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); takeSnapshot(device); }}
+                    title="Capture snapshot"
+                    className="absolute top-3 right-3 w-7 h-7 rounded-full bg-slate-950/70 backdrop-blur-sm border border-slate-700 flex items-center justify-center text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Icon.Camera />
+                  </button>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFullscreenId(device.id); }}
+                    title="Expand fullscreen"
+                    className="absolute top-3 right-12 w-7 h-7 rounded-full bg-slate-950/70 backdrop-blur-sm border border-slate-700 flex items-center justify-center text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Icon.Expand />
+                  </button>
+
+                  {snapshotFlash === device.id && (
+                    <div className="absolute inset-0 bg-white animate-[fadeOut_0.4s_ease_forwards] pointer-events-none"></div>
+                  )}
+
+                  {/* {device.rtsp_url && (
+                    <div className="absolute bottom-2 left-2 right-2 bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-2.5 py-1 rounded text-[11px] font-mono text-slate-300 truncate">
+                      <span className="text-emerald-400 font-bold mr-1.5">RTSP:</span>
+                      <span>{device.rtsp_url}</span>
+                    </div>
+                  )} */}
                 </div>
               )}
             </div>
-            
-            {/* Footer Control Panel */}
-            <div className="px-4 py-2.5 bg-slate-950 flex items-center justify-between text-slate-400 text-xs border-t border-slate-800">
-              <span className="font-mono text-slate-500 truncate max-w-[200px]">
-                {device.user_id ? `User: ${device.user_id}` : 'No auth required'}
-              </span>
 
-              {isStreaming && (
-                <button 
-                  onClick={() => toggleStream(device.id)}
-                  className="text-red-400 hover:text-red-300 font-bold uppercase tracking-wider text-[11px] bg-red-950/40 border border-red-900/40 px-2.5 py-1 rounded transition-colors"
-                >
-                  Disconnect Feed
-                </button>
-              )}
+            {/* Footer with counts */}
+            <div className="px-4 py-2.5 bg-slate-950 flex items-center justify-between text-slate-300 text-xs border-t border-slate-800">
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  Critical: <b className="text-red-400">{stats.critical}</b>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  Warning: <b className="text-amber-400">{stats.warning}</b>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Normal: <b className="text-emerald-400">{stats.normal}</b>
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-500 font-mono">30 FPS</span>
             </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <style>{`@keyframes fadeOut { 0% { opacity: 0.7; } 100% { opacity: 0; } }`}</style>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800  border border-emerald-800/50 px-3 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-800 animate-pulse"></span>
+            {devices.length} Cameras Streaming Live
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          
+
+          <div className="flex items-center bg-slate-800/70 border border-slate-700 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setLayout('grid')}
+              title="Grid view"
+              className={`w-8 h-8 flex items-center justify-center transition-colors ${layout === 'grid' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <Icon.Grid />
+            </button>
+            <button
+              onClick={() => setLayout('single')}
+              title="Single column view"
+              className={`w-8 h-8 flex items-center justify-center transition-colors ${layout === 'single' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <Icon.Single />
+            </button>
           </div>
-        );
-      })}
+
+          <button
+            onClick={expandAll}
+            className="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+          >
+            Show All Cameras
+          </button>
+          <button
+            onClick={collapseAll}
+            className="px-3 py-1.5 text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors"
+          >
+            Collapse All
+          </button>
+
+          <button
+            onClick={() => fetchDevices(true)}
+            title="Refresh camera list"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 hover:text-white transition-colors"
+          >
+            <Icon.Refresh spinning={refreshing} />
+          </button>
+        </div>
+      </div>
+
+      {filteredDevices.length === 0 ? (
+        <div className="bg-slate-900 border border-slate-800 text-slate-400 rounded-xl p-8 text-center text-sm">
+          No cameras match &quot;{query}&quot;.
+        </div>
+      ) : (
+        <div className={layout === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}>
+          {filteredDevices.map(device => renderCard(device))}
+        </div>
+      )}
+
+      {/* Fullscreen modal */}
+      {fullscreenDevice && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6"
+          onClick={() => setFullscreenId(null)}
+        >
+          <div className="max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-slate-100 font-bold">{fullscreenDevice.name} · CAM-{fullscreenDevice.camera_number}</span>
+              <button
+                onClick={() => setFullscreenId(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors"
+              >
+                <Icon.Close />
+              </button>
+            </div>
+            {renderCard(fullscreenDevice)}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
