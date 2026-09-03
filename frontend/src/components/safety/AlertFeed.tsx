@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { EvidenceModal, type AlertEvidence } from './EvidenceModal';
 
 interface Alert {
   id: number;
-  severity: 'CRITICAL' | 'WARNING' | 'NORMAL';
+  severity: 'CRITICAL' | 'WARNING' | 'NORMAL' | string;
   message: string;
   timestamp: string;
+  camera_name?: string;
+  class_name?: string;
+  snapshot_path?: string;
+  imageUrl?: string;
+  confidence?: number;
 }
 
 type SeverityFilter = 'ALL' | 'CRITICAL' | 'WARNING' | 'NORMAL';
@@ -96,7 +102,7 @@ const labelForDateKey = (key: string): string => {
 
 export const AlertFeed: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
 
@@ -108,8 +114,6 @@ export const AlertFeed: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [isLive, setIsLive] = useState(true);
   const [soundOn, setSoundOn] = useState(false);
-  const [ackIds, setAckIds] = useState<Set<number>>(new Set());
-  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [autoStick, setAutoStick] = useState(true);
   const [visibleDayCount, setVisibleDayCount] = useState(1);
@@ -134,6 +138,27 @@ export const AlertFeed: React.FC = () => {
       });
     }, 1200);
   };
+
+  const [selectedEvidenceAlert, setSelectedEvidenceAlert] = useState<AlertEvidence | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchInitialAlerts = async () => {
+      try {
+        const res = await fetch('/api/video-monitoring/alerts');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data) && data.length > 0) {
+            setAlerts(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch initial alerts:', err);
+      }
+    };
+    fetchInitialAlerts();
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -210,14 +235,6 @@ export const AlertFeed: React.FC = () => {
   const jumpToLatest = () => {
     setAutoStick(true);
     containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const toggleAck = (id: number) => {
-    setAckIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
   };
 
   const counts = useMemo(() => {
@@ -867,19 +884,16 @@ export const AlertFeed: React.FC = () => {
               )}
 
               {visibleAlerts.map((alert) => {
-                const acked = ackIds.has(alert.id);
-                const expanded = expandedId === alert.id;
                 return (
                   <div
                     key={alert.id}
-                    className={`alert-item relative pl-6 ${newIds.has(alert.id) ? 'alert-enter' : ''} ${acked ? 'opacity-50' : ''}`}
+                    className={`alert-item relative pl-6 ${newIds.has(alert.id) ? 'alert-enter' : ''}`}
                   >
                     <div className={`absolute left-0 top-2.5 w-2.5 h-2.5 rounded-full ${getBadgeStyle(alert.severity)}`}></div>
                     <div className="absolute left-[4px] top-5 bottom-[-16px] w-[2px] bg-slate-800"></div>
 
                     <div
-                      className={`p-3 rounded-lg border cursor-pointer ${getSeverityStyle(alert.severity)} shadow-sm`}
-                      onClick={() => setExpandedId(expanded ? null : alert.id)}
+                      className={`p-3 rounded-lg border ${getSeverityStyle(alert.severity)} shadow-sm`}
                     >
                       <div className="flex justify-between items-center mb-1.5">
                         <span className={`px-2 py-0.5 text-[10px] font-semibold rounded uppercase tracking-wider ${getBadgeStyle(alert.severity)}`}>
@@ -889,18 +903,22 @@ export const AlertFeed: React.FC = () => {
                       </div>
                       <p className="text-xs font-medium text-slate-200">{alert.message}</p>
 
-                      {expanded && (
-                        <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between pop-in">
-                          <span className="text-[11px] text-slate-400">Alert ID #{alert.id}</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); toggleAck(alert.id); }}
-                            className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded transition-colors ${acked ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-900 hover:bg-white'
-                              }`}
-                          >
-                            {!acked && <Icon.Check />} {acked ? 'Unacknowledge' : 'Acknowledge'}
-                          </button>
-                        </div>
-                      )}
+                      <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-slate-400 font-mono">ID #{alert.id}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEvidenceAlert(alert);
+                          }}
+                          className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md transition-all cursor-pointer"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                          View Evidence
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -926,6 +944,12 @@ export const AlertFeed: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Real-Time Evidence Viewer In-Place Modal Overlay */}
+      <EvidenceModal
+        alert={selectedEvidenceAlert}
+        onClose={() => setSelectedEvidenceAlert(null)}
+      />
     </div>
   );
 };

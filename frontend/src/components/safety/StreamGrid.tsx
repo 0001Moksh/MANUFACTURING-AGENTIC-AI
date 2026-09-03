@@ -80,7 +80,7 @@ export const StreamGrid: React.FC = () => {
   const [streamErrors, setStreamErrors] = useState<Record<number, string>>({});
   const [imgLoaded, setImgLoaded] = useState<Record<number, boolean>>({});
 
-  const [query, setQuery] = useState('');
+  const [query, _setQuery] = useState('');
   const [layout, setLayout] = useState<LayoutMode>('grid');
   const [fullscreenId, setFullscreenId] = useState<number | null>(null);
   const [snapshotFlash, setSnapshotFlash] = useState<number | null>(null);
