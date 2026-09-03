@@ -128,33 +128,58 @@ async def get_alerts(db: AsyncSession = Depends(get_va_db)):
 from fastapi.responses import FileResponse
 import os
 
-STORAGE_BASE_PATH = os.getenv("STORAGE_BASE_PATH", r"C:\Users\Administrator\Desktop\denso%20code\backend")
+import urllib.parse
+
+DEFAULT_STORAGE_BASE = r"C:\Users\Administrator\Desktop\denso code\backend"
+raw_env_storage = os.getenv("STORAGE_BASE_PATH", DEFAULT_STORAGE_BASE)
+STORAGE_BASE_PATH = urllib.parse.unquote(raw_env_storage).replace("%20", " ")
 
 def resolve_local_snapshot_path(raw_path: str) -> str | None:
-    """
+    r"""
     Safely resolves raw snapshot paths stored in construction_ai (e.g. '/storage/alerts/snapshots/uuid.jpg')
-    to full absolute disk paths using STORAGE_BASE_PATH configured in environment variables.
+    or attendance paths (e.g. 'C:/Users/Administrator/Desktop/denso code/backend/storage/attendance/...')
+    to full absolute disk paths on the local system.
     """
     if not raw_path:
         return None
 
-    # 1. Check if raw_path is already a valid absolute file path on local disk
+    # Unquote URL-encoded characters (e.g. %20 -> space)
+    unquoted_path = urllib.parse.unquote(raw_path).replace("%20", " ")
+
+    # 1. Check if raw_path / unquoted_path is already a valid absolute file path on local disk
+    if os.path.isabs(unquoted_path) and os.path.exists(unquoted_path):
+        return unquoted_path
     if os.path.isabs(raw_path) and os.path.exists(raw_path):
         return raw_path
 
     # 2. Clean leading slashes / backslashes to construct relative path
-    clean_rel_path = raw_path.lstrip("/\\")
+    clean_rel_path = unquoted_path.lstrip("/\\")
 
-    # 3. Join relative path with STORAGE_BASE_PATH
-    candidate = os.path.normpath(os.path.join(STORAGE_BASE_PATH, clean_rel_path))
-    if os.path.exists(candidate):
-        return candidate
+    # Candidate storage base directories to search
+    base_dirs = [
+        STORAGE_BASE_PATH,
+        DEFAULT_STORAGE_BASE,
+        os.path.join(DEFAULT_STORAGE_BASE, "storage"),
+    ]
 
-    # 4. Fallback check inside storage/alerts/snapshots directory
-    filename = os.path.basename(raw_path)
-    fallback_candidate = os.path.normpath(os.path.join(STORAGE_BASE_PATH, "storage", "alerts", "snapshots", filename))
-    if os.path.exists(fallback_candidate):
-        return fallback_candidate
+    for base in base_dirs:
+        # Check standard relative join
+        cand = os.path.normpath(os.path.join(base, clean_rel_path))
+        if os.path.exists(cand):
+            return cand
+
+        # Check filename directly in common snapshot subdirectories
+        filename = os.path.basename(unquoted_path)
+        subdirs = [
+            os.path.join("storage", "alerts", "snapshots"),
+            os.path.join("alerts", "snapshots"),
+            "storage",
+            "",
+        ]
+        for sub in subdirs:
+            fallback = os.path.normpath(os.path.join(base, sub, filename))
+            if os.path.exists(fallback):
+                return fallback
 
     return None
 
