@@ -201,7 +201,7 @@ export const StreamGrid: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="animate-pulse bg-slate-900 border border-slate-800 text-slate-300 p-8 rounded-xl flex items-center justify-center min-h-[300px]">
+      <div className="animate-pulse bg-white border border-slate-200 text-slate-600 p-8 rounded-xl flex items-center justify-center min-h-[300px] shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
           <span className="font-medium text-sm">Querying construction_ai database &amp; decrypting camera credentials...</span>
@@ -212,15 +212,15 @@ export const StreamGrid: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-950/40 border border-red-800/60 text-red-300 rounded-xl p-6 flex flex-col items-center justify-center min-h-[300px]">
-        <div className="w-12 h-12 bg-red-900/50 rounded-full flex items-center justify-center mb-3 text-red-400">
+      <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3 text-red-500">
           <Icon.Warn />
         </div>
-        <h3 className="font-bold text-lg mb-1 text-red-200">Error Loading Devices</h3>
-        <p className="text-sm text-red-300/80 text-center max-w-md mb-4">{error}</p>
+        <h3 className="font-bold text-lg mb-1 text-red-700">Error Loading Devices</h3>
+        <p className="text-sm text-red-600/80 text-center max-w-md mb-4">{error}</p>
         <button
           onClick={() => fetchDevices()}
-          className="px-4 py-2 bg-red-800/80 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors"
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm font-semibold transition-colors"
         >
           Retry Connection
         </button>
@@ -230,8 +230,8 @@ export const StreamGrid: React.FC = () => {
 
   if (devices.length === 0) {
     return (
-      <div className="bg-slate-900 border border-slate-800 text-slate-400 rounded-xl p-8 flex flex-col items-center justify-center min-h-[300px]">
-        <h3 className="font-bold text-lg mb-2 text-slate-200">No Cameras Found</h3>
+      <div className="bg-white border border-slate-200 text-slate-500 rounded-xl p-8 flex flex-col items-center justify-center min-h-[300px] shadow-sm">
+        <h3 className="font-bold text-lg mb-2 text-slate-800">No Cameras Found</h3>
         <p className="text-sm">No active camera configurations were returned from construction_ai.</p>
       </div>
     );
@@ -245,15 +245,15 @@ export const StreamGrid: React.FC = () => {
     const stats = getStats(device.id);
 
     return (
-      <div key={device.id} className="bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-slate-800 flex flex-col">
+      <div key={device.id} className="bg-white rounded-xl overflow-hidden shadow-md border border-slate-200 flex flex-col">
         {/* Header - always visible */}
         <div
-          className="px-4 py-2.5 bg-slate-950 text-white flex justify-between items-center text-sm border-b border-slate-800 cursor-pointer hover:bg-slate-900/80 transition-colors"
+          className="px-4 py-2.5 bg-slate-50 text-slate-900 flex justify-between items-center text-sm border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
           onClick={() => toggleExpand(device.id)}
         >
           <div className="flex items-center space-x-2.5 min-w-0">
-            <span className="font-bold text-slate-100 truncate">{device.name}</span>
-            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded font-mono whitespace-nowrap">
+            <span className="font-bold text-slate-800 truncate">{device.name}</span>
+            <span className="text-xs text-slate-600 bg-slate-200 px-2 py-0.5 rounded font-mono whitespace-nowrap">
               CAM-{device.camera_number}
             </span>
           </div>
@@ -261,13 +261,13 @@ export const StreamGrid: React.FC = () => {
           <div className="flex items-center gap-2 flex-shrink-0">
 
             {!streamErr && isExpanded && (
-              <span className="flex items-center gap-1 text-[10px] font-bold text-red-400 bg-red-950/60 border border-red-800/50 px-2 py-0.5 rounded uppercase tracking-wider">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded uppercase tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
                 LIVE
               </span>
             )}
 
-            <span className="text-slate-400">
+            <span className="text-slate-500">
               <Icon.Chevron open={isExpanded} />
             </span>
           </div>
@@ -275,12 +275,12 @@ export const StreamGrid: React.FC = () => {
 
         {/* Collapsed summary */}
         {!isExpanded && (
-          <div className="px-4 py-3 bg-slate-950/50 flex items-center justify-between text-xs text-slate-400">
+          <div className="px-4 py-3 bg-slate-50/60 flex items-center justify-between text-xs text-slate-500">
             <span>Click to expand live feed</span>
             <div className="flex items-center gap-2 sm:hidden">
-              <span className="text-red-400">{stats.critical} Crit</span>
-              <span className="text-amber-400">{stats.warning} Warn</span>
-              <span className="text-emerald-400">{stats.normal} Norm</span>
+              <span className="text-red-600">{stats.critical} Crit</span>
+              <span className="text-amber-600">{stats.warning} Warn</span>
+              <span className="text-emerald-600">{stats.normal} Norm</span>
             </div>
           </div>
         )}
@@ -288,19 +288,19 @@ export const StreamGrid: React.FC = () => {
         {/* Expanded content */}
         {isExpanded && (
           <>
-            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+            <div className="relative aspect-video bg-slate-950 flex items-center justify-center overflow-hidden">
               {streamErr ? (
-                <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
-                  <span className="px-3 py-1 bg-amber-950 text-amber-400 border border-amber-800 text-xs font-bold rounded-full mb-3 uppercase tracking-wider animate-pulse">
+                <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center p-4 text-center">
+                  <span className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-300 text-xs font-bold rounded-full mb-3 uppercase tracking-wider animate-pulse">
                     Reconnecting · {streamErr}
                   </span>
-                  <p className="text-xs text-slate-400 max-w-xs mb-3">
+                  <p className="text-xs text-slate-500 max-w-xs mb-3">
                     Unable to pull stream from RTSP endpoint:{' '}
-                    <span className="font-mono text-slate-300">{device.ip}:{device.port}</span>
+                    <span className="font-mono text-slate-700">{device.ip}:{device.port}</span>
                   </p>
                   <button
                     onClick={(e) => { e.stopPropagation(); retryStream(device.id); }}
-                    className="text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded transition-colors"
+                    className="text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 px-3 py-1.5 rounded transition-colors"
                   >
                     Retry Stream
                   </button>
@@ -308,7 +308,7 @@ export const StreamGrid: React.FC = () => {
               ) : (
                 <div className="relative w-full h-full group">
                   {!loaded && (
-                    <div className="absolute inset-0 bg-slate-800 animate-pulse flex items-center justify-center text-slate-500">
+                    <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center text-slate-400">
                       <Icon.Camera />
                     </div>
                   )}
@@ -325,7 +325,7 @@ export const StreamGrid: React.FC = () => {
                   <button
                     onClick={(e) => { e.stopPropagation(); takeSnapshot(device); }}
                     title="Capture snapshot"
-                    className="absolute top-3 right-3 w-7 h-7 rounded-full bg-slate-950/70 backdrop-blur-sm border border-slate-700 flex items-center justify-center text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                   >
                     <Icon.Camera />
                   </button>
@@ -333,7 +333,7 @@ export const StreamGrid: React.FC = () => {
                   <button
                     onClick={(e) => { e.stopPropagation(); setFullscreenId(device.id); }}
                     title="Expand fullscreen"
-                    className="absolute top-3 right-12 w-7 h-7 rounded-full bg-slate-950/70 backdrop-blur-sm border border-slate-700 flex items-center justify-center text-slate-200 hover:bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3 right-12 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                   >
                     <Icon.Expand />
                   </button>
@@ -343,8 +343,8 @@ export const StreamGrid: React.FC = () => {
                   )}
 
                   {/* {device.rtsp_url && (
-                    <div className="absolute bottom-2 left-2 right-2 bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-2.5 py-1 rounded text-[11px] font-mono text-slate-300 truncate">
-                      <span className="text-emerald-400 font-bold mr-1.5">RTSP:</span>
+                    <div className="absolute bottom-2 left-2 right-2 bg-white/90 border border-slate-200 backdrop-blur-md px-2.5 py-1 rounded text-[11px] font-mono text-slate-700 truncate">
+                      <span className="text-emerald-600 font-bold mr-1.5">RTSP:</span>
                       <span>{device.rtsp_url}</span>
                     </div>
                   )} */}
@@ -353,22 +353,22 @@ export const StreamGrid: React.FC = () => {
             </div>
 
             {/* Footer with counts */}
-            <div className="px-4 py-2.5 bg-slate-950 flex items-center justify-between text-slate-300 text-xs border-t border-slate-800">
+            <div className="px-4 py-2.5 bg-slate-50 flex items-center justify-between text-slate-600 text-xs border-t border-slate-200">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                  Critical: <b className="text-red-400">{stats.critical}</b>
+                  Critical: <b className="text-red-600">{stats.critical}</b>
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  Warning: <b className="text-amber-400">{stats.warning}</b>
+                  Warning: <b className="text-amber-600">{stats.warning}</b>
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  Normal: <b className="text-emerald-400">{stats.normal}</b>
+                  Normal: <b className="text-emerald-600">{stats.normal}</b>
                 </span>
               </div>
-              <span className="text-[10px] text-slate-500 font-mono">30 FPS</span>
+              <span className="text-[10px] text-slate-400 font-mono">30 FPS</span>
             </div>
           </>
         )}
@@ -383,27 +383,27 @@ export const StreamGrid: React.FC = () => {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800  border border-emerald-800/50 px-3 py-1 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-800 animate-pulse"></span>
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-300 px-3 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
             {devices.length} Cameras Streaming Live
           </span>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          
 
-          <div className="flex items-center bg-slate-800/70 border border-slate-700 rounded-lg overflow-hidden">
+
+          <div className="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm">
             <button
               onClick={() => setLayout('grid')}
               title="Grid view"
-              className={`w-8 h-8 flex items-center justify-center transition-colors ${layout === 'grid' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`w-8 h-8 flex items-center justify-center transition-colors ${layout === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`}
             >
               <Icon.Grid />
             </button>
             <button
               onClick={() => setLayout('single')}
               title="Single column view"
-              className={`w-8 h-8 flex items-center justify-center transition-colors ${layout === 'single' ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-200'}`}
+              className={`w-8 h-8 flex items-center justify-center transition-colors ${layout === 'single' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'}`}
             >
               <Icon.Single />
             </button>
@@ -411,13 +411,13 @@ export const StreamGrid: React.FC = () => {
 
           <button
             onClick={expandAll}
-            className="px-3 py-1.5 text-xs font-semibold bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg transition-colors"
+            className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm"
           >
             Show All Cameras
           </button>
           <button
             onClick={collapseAll}
-            className="px-3 py-1.5 text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors"
           >
             Collapse All
           </button>
@@ -425,7 +425,7 @@ export const StreamGrid: React.FC = () => {
           <button
             onClick={() => fetchDevices(true)}
             title="Refresh camera list"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 hover:text-white transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-sm"
           >
             <Icon.Refresh spinning={refreshing} />
           </button>
@@ -433,7 +433,7 @@ export const StreamGrid: React.FC = () => {
       </div>
 
       {filteredDevices.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 text-slate-400 rounded-xl p-8 text-center text-sm">
+        <div className="bg-white border border-slate-200 text-slate-500 rounded-xl p-8 text-center text-sm shadow-sm">
           No cameras match &quot;{query}&quot;.
         </div>
       ) : (
@@ -445,15 +445,15 @@ export const StreamGrid: React.FC = () => {
       {/* Fullscreen modal */}
       {fullscreenDevice && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-6"
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
           onClick={() => setFullscreenId(null)}
         >
           <div className="max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-slate-100 font-bold">{fullscreenDevice.name} · CAM-{fullscreenDevice.camera_number}</span>
+              <span className="text-white font-bold">{fullscreenDevice.name} · CAM-{fullscreenDevice.camera_number}</span>
               <button
                 onClick={() => setFullscreenId(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/90 text-slate-800 hover:bg-white transition-colors"
               >
                 <Icon.Close />
               </button>

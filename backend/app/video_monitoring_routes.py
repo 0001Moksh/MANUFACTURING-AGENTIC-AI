@@ -672,6 +672,39 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
                 for r in rows_types
             ]
 
+        # 6. Zone-level heatmap distribution
+        heatmap_zones_data = [
+            {"zone": "Zone A", "intensity": 9, "alerts": 18},
+            {"zone": "Zone B", "intensity": 7, "alerts": 13},
+            {"zone": "Conveyor", "intensity": 8, "alerts": 16},
+            {"zone": "Entry", "intensity": 5, "alerts": 9},
+            {"zone": "Packing", "intensity": 4, "alerts": 7},
+            {"zone": "Storage", "intensity": 2, "alerts": 3},
+        ]
+        res_zones = await _safe_db_execute(
+            db,
+            """
+            SELECT
+                COALESCE(zone_name, camera_name, 'Zone ' || COALESCE(camera_id::text, '1')) as zone_label,
+                COUNT(*) as alert_cnt
+            FROM alerts
+            GROUP BY zone_label
+            ORDER BY alert_cnt DESC
+            LIMIT 6
+            """
+        )
+        rows_zones = res_zones.fetchall()
+        if rows_zones and len(rows_zones) > 0:
+            _max_zone = max(r[1] for r in rows_zones) or 1
+            heatmap_zones_data = [
+                {
+                    "zone": r[0],
+                    "intensity": max(1, round((r[1] / _max_zone) * 10)),
+                    "alerts": r[1]
+                }
+                for r in rows_zones
+            ]
+
         return {
             "severityData": {
                 "critical": critical or 23,
@@ -682,7 +715,8 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             "violationTrends": daily_trends,
             "hourlyData": hourly_data,
             "cameraWise": camera_wise,
-            "violationTypeTotals": violation_type_totals
+            "violationTypeTotals": violation_type_totals,
+            "heatmapZones": heatmap_zones_data
         }
     except Exception as e:
         print(f"Error fetching analytics from construction_ai: {e}")
@@ -711,6 +745,14 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
                 {"name": "No PPE", "value": 21},
                 {"name": "Zone B Entry", "value": 15},
                 {"name": "Other", "value": 9},
+            ],
+            "heatmapZones": [
+                {"zone": "Zone A", "intensity": 9, "alerts": 18},
+                {"zone": "Zone B", "intensity": 7, "alerts": 13},
+                {"zone": "Conveyor", "intensity": 8, "alerts": 16},
+                {"zone": "Entry", "intensity": 5, "alerts": 9},
+                {"zone": "Packing", "intensity": 4, "alerts": 7},
+                {"zone": "Storage", "intensity": 2, "alerts": 3},
             ]
         }
 

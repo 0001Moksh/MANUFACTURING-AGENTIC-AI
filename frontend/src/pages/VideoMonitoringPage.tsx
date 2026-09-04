@@ -264,6 +264,7 @@ export const VideoMonitoringPage: React.FC = () => {
 
   // Calculated derived values
   const { severityData, violationTrends, hourlyData, cameraWise, violationTypeTotals } = analyticsData;
+  const liveHeatmapZones: typeof heatmapZones = analyticsData.heatmapZones || heatmapZones;
   const totalAlerts = severityData.critical + severityData.warning + severityData.normal || 1;
   const criticalPct = Math.round((severityData.critical / totalAlerts) * 100);
   const warningPct = Math.round((severityData.warning / totalAlerts) * 100);
@@ -282,7 +283,7 @@ export const VideoMonitoringPage: React.FC = () => {
     }))
     .sort((a: any, b: any) => b.risk - a.risk);
 
-  const zoneRanking = [...heatmapZones].sort((a, b) => b.intensity - a.intensity);
+  const zoneRanking = [...liveHeatmapZones].sort((a, b) => b.intensity - a.intensity);
   const maxDaily = Math.max(...dailyTotals.map((d: any) => d.total)) || 1;
   const maxViolation = Math.max(...violationTypeTotals.map((d: any) => d.value)) || 1;
   const maxRisk = Math.max(...cameraRisk.map((d: any) => d.risk)) || 1;
@@ -300,7 +301,7 @@ export const VideoMonitoringPage: React.FC = () => {
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
                   <span className="text-[9px] text-slate-500 font-mono">{total}</span>
                   <div
-                    className="w-full max-w-[52px] rounded-t-lg overflow-hidden flex flex-col-reverse bg-slate-800 hover:scale-[1.03] transition-transform cursor-pointer"
+                    className="w-full max-w-[52px] rounded-t-lg overflow-hidden flex flex-col-reverse bg-slate-100 hover:scale-[1.03] transition-transform cursor-pointer"
                     style={{ height: `${Math.min(100, (total / 40) * 100)}%` }}
                   >
                     <div className="bg-red-500" style={{ height: total ? `${(d.hardhat / total) * 100}%` : '0%' }} />
@@ -321,18 +322,18 @@ export const VideoMonitoringPage: React.FC = () => {
             <div className="flex justify-center py-3">
               <div className="relative w-36 h-36">
                 <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1e293b" strokeWidth="3.5" />
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ef4444" strokeWidth="3.5" strokeDasharray={`${criticalPct} 100`} />
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f59e0b" strokeWidth="3.5" strokeDasharray={`${warningPct} 100`} strokeDashoffset={-criticalPct} />
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="#10b981" strokeWidth="3.5" strokeDasharray={`${normalPct} 100`} strokeDashoffset={-(criticalPct + warningPct)} />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-white">{totalAlerts}</span>
+                  <span className="text-2xl font-bold text-slate-800">{totalAlerts}</span>
                   <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">TOTAL</span>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 w-full pt-2 border-t border-slate-800/80">
+            <div className="grid grid-cols-3 gap-2 w-full pt-2 border-t border-slate-200">
               <div className="text-center">
                 <div className="text-sm font-bold text-red-400">{criticalPct}%</div>
                 <div className="text-[10px] text-slate-500 font-semibold">Critical</div>
@@ -377,10 +378,10 @@ export const VideoMonitoringPage: React.FC = () => {
               return (
                 <div key={cam.id}>
                   <div className="flex justify-between mb-1">
-                    <span className="text-xs text-slate-300 font-medium">{cam.name}</span>
-                    <span className="text-[10px] text-slate-500 font-mono">{total} alerts</span>
+                    <span className="text-xs text-slate-600 font-medium">{cam.name}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{total} alerts</span>
                   </div>
-                  <div className="h-2.5 rounded-full overflow-hidden bg-slate-800 flex">
+                  <div className="h-2.5 rounded-full overflow-hidden bg-slate-100 flex">
                     <div className="bg-red-500" style={{ width: `${(cam.critical / total) * 100}%` }} />
                     <div className="bg-amber-500" style={{ width: `${(cam.warning / total) * 100}%` }} />
                     <div className="bg-emerald-500" style={{ width: `${(cam.normal / total) * 100}%` }} />
@@ -428,12 +429,12 @@ export const VideoMonitoringPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3">
-              {heatmapZones.map((zone) => (
-                <div key={zone.zone} className="rounded-lg bg-slate-800/60 border border-slate-700 px-2 py-1.5">
-                  <div className="text-[9px] text-slate-400">{zone.zone}</div>
+              {liveHeatmapZones.map((zone) => (
+                <div key={zone.zone} className="rounded-lg bg-white/90 border border-slate-200 px-2 py-1.5 shadow-sm">
+                  <div className="text-[9px] text-slate-500 font-medium">{zone.zone}</div>
                   <div className="flex items-center justify-between mt-0.5">
-                    <span className="text-xs font-bold text-slate-200">{zone.alerts}</span>
-                    <span className="text-[9px] font-semibold text-amber-400">{zone.intensity}/10</span>
+                    <span className="text-xs font-bold text-slate-800">{zone.alerts}</span>
+                    <span className="text-[9px] font-semibold text-amber-500">{zone.intensity}/10</span>
                   </div>
                 </div>
               ))}
@@ -463,13 +464,13 @@ export const VideoMonitoringPage: React.FC = () => {
             {violationTypeTotals.map((item: any, index: number) => (
               <div key={item.name}>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-slate-300">
-                    <span className="text-slate-600 mr-1.5 font-bold">#{index + 1}</span>
+                  <span className="text-xs text-slate-700">
+                    <span className="text-slate-400 mr-1.5 font-bold">#{index + 1}</span>
                     {item.name}
                   </span>
-                  <span className="text-xs font-bold text-slate-100 font-mono">{item.value}</span>
+                  <span className="text-xs font-bold text-slate-800 font-mono">{item.value}</span>
                 </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-400"
                     style={{ width: `${(item.value / maxViolation) * 100}%` }}
@@ -486,13 +487,13 @@ export const VideoMonitoringPage: React.FC = () => {
             {cameraRisk.map((cam: any, index: number) => (
               <div key={cam.id}>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-slate-300">
-                    <span className="text-slate-600 mr-1.5 font-bold">#{index + 1}</span>
+                  <span className="text-xs text-slate-700">
+                    <span className="text-slate-400 mr-1.5 font-bold">#{index + 1}</span>
                     {cam.name}
                   </span>
-                  <span className="text-xs font-bold text-red-400 font-mono">{cam.risk}</span>
+                  <span className="text-xs font-bold text-red-500 font-mono">{cam.risk}</span>
                 </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-red-700 via-orange-500 to-yellow-400"
                     style={{ width: `${(cam.risk / maxRisk) * 100}%` }}
@@ -507,16 +508,16 @@ export const VideoMonitoringPage: React.FC = () => {
         return (
           <div className="space-y-2.5 pt-1">
             {zoneRanking.map((zone, index) => (
-              <div key={zone.zone} className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-800/40 border border-slate-800">
-                <div className="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">
+              <div key={zone.zone} className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/80 border border-slate-200">
+                <div className="w-6 h-6 rounded-lg bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
                   {index + 1}
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between mb-1">
-                    <span className="text-xs text-slate-300 font-medium">{zone.zone}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{zone.intensity}/10</span>
+                    <span className="text-xs text-slate-700 font-medium">{zone.zone}</span>
+                    <span className="text-[10px] text-slate-500 font-mono">{zone.intensity}/10</span>
                   </div>
-                  <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500"
                       style={{ width: `${zone.intensity * 10}%` }}
@@ -538,17 +539,17 @@ export const VideoMonitoringPage: React.FC = () => {
   return (
     <div className="p-4 md:p-6 h-full flex flex-col gap-6 overflow-y-auto text-slate-950">
       {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-3">
             Video Monitoring Engine
-            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               LIVE TELEMETRY
             </span>
           </h1>
-          <p className="text-xs text-slate-600 mt-1">
-            Real-time Computer Vision streams, PostgreSQL <code className="text-bold text-cyan-400">Video analytics Application</code> analytics & incident evidence
+          <p className="text-xs text-slate-500 mt-1">
+            Real-time Computer Vision streams, PostgreSQL <code className="text-bold text-blue-600">Video analytics Application</code> analytics & incident evidence
           </p>
         </div>
       </div>
@@ -569,14 +570,14 @@ export const VideoMonitoringPage: React.FC = () => {
       {/* ============================================================ */}
       {/* 3. COLLAPSIBLE ANALYTICS SECTION & LAYOUT CONTROL            */}
       {/* ============================================================ */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-xl">
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-lg">
         {/* Accordion Header */}
-        <div className="flex items-center justify-between p-4 px-6 bg-slate-900 border-b border-slate-800/80">
+        <div className="flex items-center justify-between p-4 px-6 bg-slate-50 border-b border-slate-200">
           <div
             className="flex items-center gap-3 cursor-pointer select-none"
             onClick={() => setIsAnalyticsOpen((prev) => !prev)}
           >
-            <div className="p-2 rounded-xl bg-slate-800 text-cyan-400">
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600 border border-blue-200">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <rect x="3" y="3" width="7" height="9" rx="1" />
                 <rect x="14" y="3" width="7" height="5" rx="1" />
@@ -587,13 +588,13 @@ export const VideoMonitoringPage: React.FC = () => {
 
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-slate-100">Real-Time Safety Analytics</h2>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-950 text-blue-400 border border-blue-800">
+                <h2 className="text-base font-bold text-slate-800">Real-Time Safety Analytics</h2>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-200">
                   ZERO REFRESH
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Live aggregations from PostgreSQL <code className="text-slate-300">construction_ai</code>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Live aggregations from PostgreSQL <code className="text-slate-700">construction_ai</code>
               </p>
             </div>
           </div>
@@ -602,7 +603,7 @@ export const VideoMonitoringPage: React.FC = () => {
             {/* Edit Dashboard / + Add Charts Button */}
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 transition-colors cursor-pointer"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" strokeLinejoin="round" />
@@ -613,7 +614,7 @@ export const VideoMonitoringPage: React.FC = () => {
             {/* Accordion Collapse / Expand Toggle Button */}
             <button
               onClick={() => setIsAnalyticsOpen((prev) => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium border border-slate-300 transition-all cursor-pointer"
             >
               <span>{isAnalyticsOpen ? 'Collapse' : 'Expand'}</span>
               <svg
@@ -636,35 +637,35 @@ export const VideoMonitoringPage: React.FC = () => {
           <div className="p-2 space-y-6 animate-fadeIn">
             {/* AIP Metrics Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Detections</div>
-                <div className="text-2xl font-extrabold text-slate-100 mt-1">{severityData.total}</div>
-                <div className="text-[10px] text-cyan-400/80 mt-1 font-mono">Live Delta Polled</div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Detections</div>
+                <div className="text-2xl font-extrabold text-slate-800 mt-1">{severityData.total}</div>
+                <div className="text-[10px] text-blue-600 mt-1 font-mono">Live Delta Polled</div>
               </div>
-              <div className="rounded-2xl border border-red-900/40 bg-slate-900 p-4 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-red-400/80">Critical</div>
-                <div className="text-2xl font-extrabold text-red-400 mt-1">{severityData.critical}</div>
-                <div className="text-[10px] text-red-400/60 mt-1 font-mono">{criticalPct}% of total</div>
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-red-500">Critical</div>
+                <div className="text-2xl font-extrabold text-red-600 mt-1">{severityData.critical}</div>
+                <div className="text-[10px] text-red-400 mt-1 font-mono">{criticalPct}% of total</div>
               </div>
-              <div className="rounded-2xl border border-amber-900/40 bg-slate-900 p-4 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/80">Warning</div>
-                <div className="text-2xl font-extrabold text-amber-400 mt-1">{severityData.warning}</div>
-                <div className="text-[10px] text-amber-400/60 mt-1 font-mono">{warningPct}% of total</div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Warning</div>
+                <div className="text-2xl font-extrabold text-amber-600 mt-1">{severityData.warning}</div>
+                <div className="text-[10px] text-amber-500 mt-1 font-mono">{warningPct}% of total</div>
               </div>
-              <div className="rounded-2xl border border-emerald-900/40 bg-slate-900 p-4 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/80 font-mono">Normal</div>
-                <div className="text-2xl font-extrabold text-emerald-400 mt-1">{severityData.normal}</div>
-                <div className="text-[10px] text-emerald-400/60 mt-1 font-mono">{normalPct}% of total</div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Normal</div>
+                <div className="text-2xl font-extrabold text-emerald-600 mt-1">{severityData.normal}</div>
+                <div className="text-[10px] text-emerald-500 mt-1 font-mono">{normalPct}% of total</div>
               </div>
-              <div className="rounded-2xl border border-blue-900/40 bg-slate-900 p-4 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-blue-400/80">Peak Hour</div>
-                <div className="text-2xl font-extrabold text-blue-400 mt-1">{hourlyData.indexOf(maxHourly)}:00</div>
-                <div className="text-[10px] text-blue-400/60 mt-1 font-mono">{maxHourly} events</div>
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Peak Hour</div>
+                <div className="text-2xl font-extrabold text-blue-700 mt-1">{hourlyData.indexOf(maxHourly)}:00</div>
+                <div className="text-[10px] text-blue-500 mt-1 font-mono">{maxHourly} events</div>
               </div>
-              <div className="rounded-2xl border border-violet-900/40 bg-slate-900 p-4 shadow-sm">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-violet-400/80">High Risk Zone</div>
-                <div className="text-base font-extrabold text-violet-400 mt-2 truncate">{zoneRanking[0]?.zone || 'Zone A'}</div>
-                <div className="text-[10px] text-violet-400/60 mt-1 font-mono">Score {zoneRanking[0]?.intensity || 9}/10</div>
+              <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm hover:shadow-md transition-shadow">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-violet-600">High Risk Zone</div>
+                <div className="text-base font-extrabold text-violet-700 mt-2 truncate">{zoneRanking[0]?.zone || 'Zone A'}</div>
+                <div className="text-[10px] text-violet-500 mt-1 font-mono">Score {zoneRanking[0]?.intensity || 9}/10</div>
               </div>
             </div>
 
@@ -689,11 +690,11 @@ export const VideoMonitoringPage: React.FC = () => {
             </div>
 
             {visibleCharts.length === 0 && (
-              <div className="py-12 text-center text-slate-500 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
+              <div className="py-12 text-center text-slate-400 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
                 <p className="text-sm font-semibold">All analytics charts are currently hidden.</p>
                 <button
                   onClick={() => setIsDrawerOpen(true)}
-                  className="mt-3 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-bold rounded-xl border border-slate-700 cursor-pointer"
+                  className="mt-3 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-blue-600 text-xs font-bold rounded-xl border border-slate-200 cursor-pointer"
                 >
                   Open Chart Library to Add Widgets
                 </button>

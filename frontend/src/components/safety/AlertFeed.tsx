@@ -134,9 +134,9 @@ export const AlertFeed: React.FC = () => {
   const [, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ids currently in "just arrived" state -> ids fading out -> then gone (fully normal)
+  // ids currently in "just arrived" glow state — cleared after 1s so the
+  // card returns to a completely normal look.
   const [newIds, setNewIds] = useState<Set<number>>(new Set());
-  const [fadingIds, setFadingIds] = useState<Set<number>>(new Set());
 
   const [panelOpen, setPanelOpen] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -165,11 +165,7 @@ export const AlertFeed: React.FC = () => {
   useEffect(() => { soundOnRef.current = soundOn; }, [soundOn]);
   useEffect(() => { autoStickRef.current = autoStick; }, [autoStick]);
 
-  // Three-stage lifecycle so the "new" look eases back to a completely
-  // normal card instead of popping away abruptly:
-  // 1) newIds -> full highlight + badge (0 - 2.6s)
-  // 2) fadingIds -> badge fades out, glow softens (2.6s - 3.4s)
-  // 3) removed entirely -> indistinguishable from any other card
+  // New alert gets a blue glow for exactly 1s, then eases straight back to normal.
   const flashNew = useCallback((id: number) => {
     setNewIds((prev) => new Set(prev).add(id));
 
@@ -179,16 +175,7 @@ export const AlertFeed: React.FC = () => {
         next.delete(id);
         return next;
       });
-      setFadingIds((prev) => new Set(prev).add(id));
-    }, 2600);
-
-    setTimeout(() => {
-      setFadingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }, 3400);
+    }, 1000);
   }, []);
 
   const [selectedEvidenceAlert, setSelectedEvidenceAlert] = useState<AlertEvidence | null>(null);
@@ -396,32 +383,32 @@ export const AlertFeed: React.FC = () => {
     else setSelectedDate(yesterdayStr);
   };
 
-  /* ---------- Professional severity styles ---------- */
+  /* ---------- Professional severity styles (light theme) ---------- */
   const getSeverityAccent = (severity: string) => {
     switch (severity?.toUpperCase()) {
       case 'CRITICAL':
         return {
           bar: 'bg-red-500',
-          badge: 'bg-red-500/15 text-red-400 border-red-500/30',
-          card: 'border-red-500/20 hover:border-red-500/40',
+          badge: 'bg-red-50 text-red-600 border-red-200',
+          card: 'border-red-200/70 hover:border-red-300',
         };
       case 'WARNING':
         return {
           bar: 'bg-amber-500',
-          badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-          card: 'border-amber-500/20 hover:border-amber-500/40',
+          badge: 'bg-amber-50 text-amber-700 border-amber-200',
+          card: 'border-amber-200/70 hover:border-amber-300',
         };
       case 'NORMAL':
         return {
           bar: 'bg-emerald-500',
-          badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-          card: 'border-emerald-500/20 hover:border-emerald-500/40',
+          badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          card: 'border-emerald-200/70 hover:border-emerald-300',
         };
       default:
         return {
-          bar: 'bg-slate-500',
-          badge: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
-          card: 'border-slate-500/20 hover:border-slate-500/40',
+          bar: 'bg-slate-400',
+          badge: 'bg-slate-100 text-slate-600 border-slate-200',
+          card: 'border-slate-200 hover:border-slate-300',
         };
     }
   };
@@ -430,8 +417,8 @@ export const AlertFeed: React.FC = () => {
     <button
       onClick={() => setFilter(key)}
       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border transition-colors whitespace-nowrap ${filter === key
-        ? 'bg-slate-100 text-slate-900 border-slate-100'
-        : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+        ? 'bg-slate-900 text-white border-slate-900'
+        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
         }`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
@@ -444,8 +431,8 @@ export const AlertFeed: React.FC = () => {
     <button
       onClick={() => applyQuickDate(mode)}
       className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors whitespace-nowrap ${quickDateMode === mode
-        ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
-        : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+        ? 'bg-cyan-50 text-cyan-700 border-cyan-300'
+        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
         }`}
     >
       {label}
@@ -458,7 +445,7 @@ export const AlertFeed: React.FC = () => {
 
   return (
     <div
-      className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 flex flex-col overflow-hidden transition-all duration-300 w-full"
+      className="bg-white rounded-xl shadow-md border border-slate-200 flex flex-col overflow-hidden transition-all duration-300 w-full"
       style={
         panelOpen
           ? {
@@ -475,26 +462,16 @@ export const AlertFeed: React.FC = () => {
   @keyframes pulseGlow {
     0% {
       box-shadow:
-        0 0 0 0 rgba(59, 130, 246, 0.45),
-        0 0 0 0 rgba(59, 130, 246, 0.18),
-        0 8px 24px rgba(0, 0, 0, 0.18);
-      border-color: rgba(59, 130, 246, 0.55);
-      background: linear-gradient(145deg, rgba(37, 55, 90, 0.75), rgba(15, 23, 42, 0.9));
-    }
-    55% {
-      box-shadow:
-        0 0 0 3px rgba(59, 130, 246, 0.16),
-        0 0 0 8px rgba(59, 130, 246, 0.06),
-        0 12px 32px rgba(0, 0, 0, 0.2);
-      border-color: rgba(59, 130, 246, 0.3);
+        0 0 0 3px rgba(37, 99, 235, 0.18),
+        0 0 24px rgba(37, 99, 235, 0.35),
+        0 6px 18px rgba(0, 0, 0, 0.08);
+      border-color: rgba(37, 99, 235, 0.55);
+      background: linear-gradient(145deg, rgba(219, 234, 254, 0.9), rgba(255, 255, 255, 1));
     }
     100% {
-      box-shadow:
-        0 0 0 0 rgba(59, 130, 246, 0),
-        0 0 0 0 rgba(59, 130, 246, 0),
-        0 4px 16px rgba(0, 0, 0, 0.12);
-      border-color: rgba(148, 163, 184, 0.12);
-      background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      border-color: rgba(226, 232, 240, 1);
+      background: #ffffff;
     }
   }
 
@@ -513,14 +490,11 @@ export const AlertFeed: React.FC = () => {
     }
   }
 
-  @keyframes badgeFadeIn {
+  @keyframes badgeFadeInOut {
     0% { opacity: 0; transform: scale(0.8) translateY(-2px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-
-  @keyframes badgeFadeOut {
-    0% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0; transform: scale(0.85); }
+    15% { opacity: 1; transform: scale(1) translateY(0); }
+    80% { opacity: 1; transform: scale(1) translateY(0); }
+    100% { opacity: 0; transform: scale(0.85) translateY(-2px); }
   }
 
   @keyframes dropdownEnter {
@@ -535,22 +509,22 @@ export const AlertFeed: React.FC = () => {
 
   .alert-enter {
     animation:
-      alertEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both,
-      pulseGlow 3.2s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
+      alertEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both,
+      pulseGlow 1s ease-out 0.02s forwards;
   }
 
   .alert-card {
     position: relative;
     border-radius: 14px;
-    background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   .alert-card:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
   }
 
   .new-badge {
@@ -566,12 +540,8 @@ export const AlertFeed: React.FC = () => {
     border-radius: 999px;
     background: linear-gradient(135deg, #3b82f6, #6366f1);
     color: white;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
-    animation: badgeFadeIn 0.25s ease both;
-  }
-
-  .new-badge.fading {
-    animation: badgeFadeOut 0.7s ease forwards;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    animation: badgeFadeInOut 1s ease both;
   }
 
   .pop-in { animation: dropdownEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -579,21 +549,21 @@ export const AlertFeed: React.FC = () => {
 
   .bottom-shadow {
     background: linear-gradient(to bottom,
-      rgba(2, 6, 23, 0) 0%,
-      rgba(2, 6, 23, 0.4) 40%,
-      rgba(2, 6, 23, 0.9) 100%);
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.7) 40%,
+      rgba(255, 255, 255, 0.98) 100%);
     pointer-events: none;
   }
 
   .thin-scroll {
     scroll-behavior: smooth;
     scrollbar-width: thin;
-    scrollbar-color: rgba(100, 116, 139, 0.55) transparent;
+    scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
   }
   .thin-scroll::-webkit-scrollbar { width: 5px; }
   .thin-scroll::-webkit-scrollbar-track { background: transparent; }
   .thin-scroll::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #64748b, #475569);
+    background: linear-gradient(180deg, #94a3b8, #64748b);
     border-radius: 999px;
   }
 
@@ -625,53 +595,55 @@ export const AlertFeed: React.FC = () => {
         <button
           type="button"
           onClick={() => setPanelOpen((prev) => !prev)}
-          className="w-full p-3 py-4 flex items-center justify-between gap-3 text-left bg-slate-950/40 transition-colors hover:bg-slate-950/60"
+          className="w-full p-3 py-4 flex items-center justify-between gap-3 text-left bg-slate-50 transition-colors hover:bg-slate-100"
         >
           <div className="min-w-0">
-            <h3 className="font-bold text-base text-slate-100 truncate">
+            <h3 className="font-bold text-base text-slate-900 truncate">
               Real-Time Violation Feed
             </h3>
             <p className="text-[11px] text-slate-500 leading-relaxed">
               <span className="hidden sm:inline">construction_ai.alerts &middot; </span>
-              <span className="font-bold text-cyan-400">{displayTotal} total</span>
+              <span className="font-bold text-cyan-700">{displayTotal} total</span>
               <span className="hidden sm:inline"> &middot; Showing </span>
               <span className="sm:hidden"> &middot; </span>
-              <span className="font-bold text-cyan-400">{currentDateLabel}</span>
+              <span className="font-bold text-cyan-700">{currentDateLabel}</span>
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <span
               className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${isLive
-                ? 'bg-emerald-950 text-emerald-400 border-emerald-800/60'
-                : 'bg-amber-950 text-amber-400 border-amber-800/60'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
                 }`}
             >
               <span
-                className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
                   }`}
               />
               <span className="hidden xs:inline">{isLive ? 'Live' : 'Paused'}</span>
             </span>
-            <Icon.Chevron open={panelOpen} />
+            <span className="text-slate-500">
+              <Icon.Chevron open={panelOpen} />
+            </span>
           </div>
         </button>
       </div>
 
       {/* ========== COLLAPSIBLE BODY ========== */}
       {panelOpen && (
-        <div className="panel-in border-t border-slate-800 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="panel-in border-t border-slate-200 flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Toolbar */}
-          <div className="flex-shrink-0 px-3 sm:px-4 pt-1 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex-shrink-0 px-3 sm:px-4 pt-3 flex flex-wrap items-center justify-between gap-2">
             <button
               onClick={() => setFiltersOpen((o) => !o)}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors ${filtersOpen
-                ? 'bg-slate-100 text-slate-900 border-slate-100'
-                : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                 }`}
             >
               <Icon.Filter /> Filters <Icon.Chevron open={filtersOpen} />
               {(filter !== 'ALL' || query || selectedDate) && (
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
               )}
             </button>
 
@@ -680,8 +652,8 @@ export const AlertFeed: React.FC = () => {
                 onClick={() => setSoundOn((s) => !s)}
                 title={soundOn ? 'Mute critical sound alerts' : 'Enable critical sound alerts'}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${soundOn
-                  ? 'bg-emerald-600 border-emerald-500 text-white'
-                  : 'bg-slate-800 border-slate-700 text-slate-400'
+                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                  : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-100'
                   }`}
               >
                 <Icon.Bell on={soundOn} />
@@ -689,8 +661,8 @@ export const AlertFeed: React.FC = () => {
               <button
                 onClick={() => (isLive ? setIsLive(false) : resumeLive())}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors ${isLive
-                  ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                  : 'bg-amber-600 text-white border-amber-500 hover:bg-amber-500'
+                  ? 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                  : 'bg-amber-600 text-white border-amber-600 hover:bg-amber-500'
                   }`}
               >
                 {isLive ? <Icon.Pause /> : <Icon.Play />}
@@ -703,19 +675,19 @@ export const AlertFeed: React.FC = () => {
           {filtersOpen && (
             <div className="panel-in flex-shrink-0 px-3 sm:px-4 pt-3 space-y-3">
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   <Icon.Search />
                 </span>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search alerts by keyword..."
-                  className="w-full bg-slate-800/70 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-cyan-600 transition-colors"
+                  className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-cyan-500 transition-colors"
                 />
                 {query && (
                   <button
                     onClick={() => setQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   >
                     <Icon.X />
                   </button>
@@ -737,8 +709,8 @@ export const AlertFeed: React.FC = () => {
 
                 <div
                   className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors cursor-pointer whitespace-nowrap ${quickDateMode === 'custom'
-                    ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
-                    : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    ? 'bg-cyan-50 text-cyan-700 border-cyan-300'
+                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                     }`}
                   onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.focus()}
                 >
@@ -763,7 +735,7 @@ export const AlertFeed: React.FC = () => {
                       setSelectedDate('');
                       setVisibleDayCount(1);
                     }}
-                    className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                    className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                     title="Clear date filter"
                   >
                     <Icon.X />
@@ -774,7 +746,7 @@ export const AlertFeed: React.FC = () => {
           )}
 
           {error && (
-            <div className="flex-shrink-0 mx-3 sm:mx-4 mt-3 px-3 py-2 rounded-lg bg-amber-950/60 border border-amber-800/60 text-amber-300 text-xs font-medium">
+            <div className="flex-shrink-0 mx-3 sm:mx-4 mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
               {error}
             </div>
           )}
@@ -794,10 +766,10 @@ export const AlertFeed: React.FC = () => {
             <div
               ref={containerRef}
               onScroll={handleScroll}
-              className="thin-scroll h-full overflow-y-auto px-3 sm:px-4 pb-5 space-y-3"
+              className="thin-scroll h-full overflow-y-auto px-3 sm:px-4 pb-5 space-y-3 bg-slate-50/40"
             >
               {visibleAlerts.length === 0 && !error && (
-                <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm space-y-2 py-16">
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm space-y-2 py-16">
                   {alerts.length === 0 ? (
                     <>
                       <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -816,13 +788,13 @@ export const AlertFeed: React.FC = () => {
                 return (
                   <div
                     key={alert.id}
-                    className={`alert-card relative ${sev.card} ${isNew ? "alert-enter border-t-[16px] border-t-blue-600 shadow-[0_-4px_18px_rgba(30,64,175,0.55),0_0_22px_rgba(15,23,42,0.75)]" : ""
-                      }`}
+                    className={`alert-card relative ${sev.card} ${isNew ? 'alert-enter' : ''}`}
                   >
                     {/* Left accent bar */}
-                    <div
-                      className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${sev.bar}`}
-                    />
+                    <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${sev.bar}`} />
+
+                    {/* Transient NEW badge — fades in and out inside the 1s glow window */}
+                    {isNew && <span className="new-badge">New</span>}
 
                     <div className="pl-4 pr-3.5 py-3">
                       {/* Top row: severity + time */}
@@ -833,19 +805,19 @@ export const AlertFeed: React.FC = () => {
                           {alert.severity}
                         </span>
 
-                        <span className="text-[11px] text-slate-400 font-medium tabular-nums">
+                        <span className="text-[11px] text-slate-500 font-medium tabular-nums">
                           {formatAlertTime(alert.timestamp)}
                         </span>
                       </div>
 
                       {/* Message */}
-                      <p className="text-[13px] font-medium text-slate-100 leading-snug pr-1 break-words">
+                      <p className="text-[13px] font-medium text-slate-800 leading-snug pr-1 break-words">
                         {alert.message}
                       </p>
 
                       {/* Footer */}
-                      <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
-                        <span className="text-[10px] text-slate-500 font-mono tracking-wide">
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-slate-400 font-mono tracking-wide">
                           ID #{alert.id}
                         </span>
 
@@ -855,9 +827,9 @@ export const AlertFeed: React.FC = () => {
                             setSelectedEvidenceAlert(alert);
                           }}
                           className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg
-                       bg-blue-600/90 hover:bg-blue-500 text-white
-                       border border-blue-500/40 shadow-sm
-                       transition-all active:scale-[0.97]"
+                                     bg-blue-600 hover:bg-blue-700 text-white
+                                     border border-blue-600 shadow-sm
+                                     transition-all active:scale-[0.97]"
                         >
                           <Icon.Eye />
                           View Evidence
@@ -870,7 +842,7 @@ export const AlertFeed: React.FC = () => {
 
               {hasMoreDays && visibleAlerts.length > 0 && (
                 <div className="text-center py-2">
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-[11px] text-slate-400">
                     Scroll for earlier dates...
                   </span>
                 </div>
@@ -882,7 +854,7 @@ export const AlertFeed: React.FC = () => {
             {!autoStick && isLive && (
               <button
                 onClick={jumpToLatest}
-                className="pop-in absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-100 text-slate-900 text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 hover:bg-white transition-colors z-10"
+                className="pop-in absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 hover:bg-slate-800 transition-colors z-10"
               >
                 <Icon.Up /> Jump to latest
               </button>
