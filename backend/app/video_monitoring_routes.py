@@ -16,6 +16,11 @@ from .crypto import decrypt_value, build_rtsp_url
 router = APIRouter(prefix="/api/video-monitoring", tags=["Video Monitoring"])
 
 
+async def _safe_db_execute(db: AsyncSession, query: str, params: Dict[str, Any] | None = None, timeout_seconds: float = 5.0):
+    """Protect video monitoring endpoints from slow or dead database connections."""
+    return await asyncio.wait_for(db.execute(text(query), params or {}), timeout=timeout_seconds)
+
+
 @router.get("/devices")
 async def get_devices(db: AsyncSession = Depends(get_va_db)):
     """
@@ -24,12 +29,15 @@ async def get_devices(db: AsyncSession = Depends(get_va_db)):
     """
     try:
         # Strict SELECT query on construction_ai database
-        result = await db.execute(text("""
+        result = await _safe_db_execute(
+            db,
+            """
             SELECT id, name, ip, port, camera_number, user_id, password, rtsp_template, status 
             FROM cameras 
             ORDER BY id ASC
             LIMIT 20
-        """))
+            """
+        )
         devices = []
         rows = result.fetchall()
         
@@ -84,12 +92,15 @@ async def get_devices(db: AsyncSession = Depends(get_va_db)):
 async def get_alerts(db: AsyncSession = Depends(get_va_db)):
     """Fetch recent alert violation feed strictly read-only from construction_ai."""
     try:
-        result = await db.execute(text("""
+        result = await _safe_db_execute(
+            db,
+            """
             SELECT id, camera_name, class_name, confidence, snapshot_path, is_acknowledged, created_at 
             FROM alerts 
             ORDER BY created_at DESC 
             LIMIT 50
-        """))
+            """
+        )
         alerts = []
         rows = result.fetchall()
         for row in rows:
@@ -204,12 +215,13 @@ async def get_alert_image(
         # ---------------------------------------------------------
         print(f"[ALERT IMAGE] Executing DB query for alert_id={alert_id}")
 
-        result = await db.execute(
-            text("""
+        result = await _safe_db_execute(
+            db,
+            """
                 SELECT snapshot_path, class_name, camera_name, created_at
                 FROM alerts
                 WHERE id = :alert_id
-            """),
+            """,
             {"alert_id": alert_id}
         )
 
@@ -553,7 +565,9 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
         ]
         
         # Try live query for daily breakdown
-        res_daily = await db.execute(text("""
+        res_daily = await _safe_db_execute(
+            db,
+            """
             SELECT 
                 TO_CHAR(created_at, 'Dy') as day_name,
                 COUNT(CASE WHEN LOWER(class_name) LIKE '%hardhat%' THEN 1 END) as hardhat_cnt,
@@ -564,7 +578,8 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             WHERE created_at >= NOW() - INTERVAL '7 days'
             GROUP BY TO_CHAR(created_at, 'Dy'), DATE(created_at)
             ORDER BY DATE(created_at) ASC
-        """))
+            """
+        )
         rows_daily = res_daily.fetchall()
         if rows_daily and len(rows_daily) > 0:
             daily_trends = [
@@ -583,13 +598,16 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             1, 1, 0, 1, 2, 4, 7, 10, 13, 12, 9, 8,
             11, 14, 18, 13, 11, 9, 8, 6, 4, 3, 2, 1
         ]
-        res_hourly = await db.execute(text("""
+        res_hourly = await _safe_db_execute(
+            db,
+            """
             SELECT EXTRACT(HOUR FROM created_at)::int as hr, COUNT(*) as cnt
             FROM alerts
             WHERE created_at >= NOW() - INTERVAL '24 hours'
             GROUP BY hr
             ORDER BY hr ASC
-        """))
+            """
+        )
         rows_hourly = res_hourly.fetchall()
         if rows_hourly:
             h_map = {r[0]: r[1] for r in rows_hourly}
@@ -602,7 +620,9 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             {"id": "CAM-03", "name": "Entry Gate", "critical": 5, "warning": 4, "normal": 2, "status": "LIVE"},
             {"id": "CAM-04", "name": "Packing Area", "critical": 4, "warning": 2, "normal": 1, "status": "LIVE"},
         ]
-        res_cam = await db.execute(text("""
+        res_cam = await _safe_db_execute(
+            db,
+            """
             SELECT 
                 COALESCE(camera_name, 'Camera ' || COALESCE(camera_id::text, '1')) as cam_label,
                 COUNT(CASE WHEN LOWER(class_name) LIKE '%hardhat%' OR LOWER(class_name) LIKE '%person%' THEN 1 END) as crit,
@@ -611,7 +631,8 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             FROM alerts
             GROUP BY cam_label
             LIMIT 6
-        """))
+            """
+        )
         rows_cam = res_cam.fetchall()
         if rows_cam:
             camera_wise = [
@@ -634,13 +655,16 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             {"name": "Zone B Entry", "value": 15},
             {"name": "Other", "value": 9},
         ]
-        res_types = await db.execute(text("""
+        res_types = await _safe_db_execute(
+            db,
+            """
             SELECT class_name, COUNT(*) as cnt
             FROM alerts
             GROUP BY class_name
             ORDER BY cnt DESC
             LIMIT 5
-        """))
+            """
+        )
         rows_types = res_types.fetchall()
         if rows_types:
             violation_type_totals = [
@@ -698,13 +722,23 @@ async def alert_stream(db: AsyncSession = Depends(get_va_db)):
         last_id = 0
         try:
             while True:
-                result = await db.execute(text("""
-                    SELECT id, class_name, camera_name, created_at, snapshot_path 
-                    FROM alerts 
-                    WHERE id > :last_id 
-                    ORDER BY id ASC 
-                    LIMIT 10
-                """), {"last_id": last_id})
+                try:
+                    result = await _safe_db_execute(
+                        db,
+                        """
+                            SELECT id, class_name, camera_name, created_at, snapshot_path 
+                            FROM alerts 
+                            WHERE id > :last_id 
+                            ORDER BY id ASC 
+                            LIMIT 10
+                        """,
+                        {"last_id": last_id}
+                    )
+                except asyncio.TimeoutError:
+                    print("Alert SSE stream database timed out; keeping stream alive without data.")
+                    yield f": keep-alive\n\n"
+                    await asyncio.sleep(2)
+                    continue
                 rows = result.fetchall()
                 if rows:
                     for row in rows:
@@ -745,11 +779,15 @@ async def video_feed_stream(device_id: int, db: AsyncSession = Depends(get_va_db
     opens real RTSP stream via OpenCV, and streams live camera frames to MAI frontend.
     """
     try:
-        res = await db.execute(text("""
+        res = await _safe_db_execute(
+            db,
+            """
             SELECT id, name, ip, port, camera_number, user_id, password, rtsp_template, status
             FROM cameras
             WHERE id = :cam_id
-        """), {"cam_id": device_id})
+            """,
+            {"cam_id": device_id}
+        )
         cam_row = res.fetchone()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database connection error: {exc}")

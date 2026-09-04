@@ -15,7 +15,7 @@ interface Alert {
 
 type SeverityFilter = 'ALL' | 'CRITICAL' | 'WARNING' | 'NORMAL';
 
-/* ---------- tiny inline icons (no emoji, no external deps) ---------- */
+/* ---------- tiny inline icons ---------- */
 const Icon = {
   Chevron: ({ open }: { open: boolean }) => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
@@ -31,6 +31,11 @@ const Icon = {
   Search: () => (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+    </svg>
+  ),
+  X: () => (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
     </svg>
   ),
   Bell: ({ on }: { on: boolean }) => (
@@ -56,9 +61,10 @@ const Icon = {
       <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
-  Check: () => (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-      <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+  Eye: () => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   ),
 };
@@ -100,14 +106,40 @@ const labelForDateKey = (key: string): string => {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+/** Human-readable timestamp: "03 Sep · 12:54 PM" */
+const formatAlertTime = (ts: string): string => {
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return ts;
+
+  const day = d.toLocaleDateString(undefined, { day: '2-digit' });
+  const month = d.toLocaleDateString(undefined, { month: 'short' });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  return `${day} ${month} · ${time}`;
+};
+
+const toInputDate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export const AlertFeed: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [newIds, setNewIds] = useState<Set<number>>(new Set());
 
-  const [panelOpen, setPanelOpen] = useState(false);      // whole feed panel: closed by default
-  const [filtersOpen, setFiltersOpen] = useState(false);  // filter section: closed by default
+  // ids currently in "just arrived" state -> ids fading out -> then gone (fully normal)
+  const [newIds, setNewIds] = useState<Set<number>>(new Set());
+  const [fadingIds, setFadingIds] = useState<Set<number>>(new Set());
+
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [filter, setFilter] = useState<SeverityFilter>('ALL');
   const [query, setQuery] = useState('');
@@ -118,40 +150,70 @@ export const AlertFeed: React.FC = () => {
   const [autoStick, setAutoStick] = useState(true);
   const [visibleDayCount, setVisibleDayCount] = useState(1);
 
+  const [activeDateTotal, setActiveDateTotal] = useState<number | null>(null);
+  const [activeDateKey, setActiveDateKey] = useState<string>('');
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const isLiveRef = useRef(isLive);
   const soundOnRef = useRef(soundOn);
   const autoStickRef = useRef(autoStick);
   const bufferRef = useRef<Alert[]>([]);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => { isLiveRef.current = isLive; }, [isLive]);
   useEffect(() => { soundOnRef.current = soundOn; }, [soundOn]);
   useEffect(() => { autoStickRef.current = autoStick; }, [autoStick]);
 
-  const flashNew = (id: number) => {
+  // Three-stage lifecycle so the "new" look eases back to a completely
+  // normal card instead of popping away abruptly:
+  // 1) newIds -> full highlight + badge (0 - 2.6s)
+  // 2) fadingIds -> badge fades out, glow softens (2.6s - 3.4s)
+  // 3) removed entirely -> indistinguishable from any other card
+  const flashNew = useCallback((id: number) => {
     setNewIds((prev) => new Set(prev).add(id));
+
     setTimeout(() => {
       setNewIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
-    }, 1200);
-  };
+      setFadingIds((prev) => new Set(prev).add(id));
+    }, 2600);
+
+    setTimeout(() => {
+      setFadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 3400);
+  }, []);
 
   const [selectedEvidenceAlert, setSelectedEvidenceAlert] = useState<AlertEvidence | null>(null);
 
+  // ---------- Initial load (NO "NEW" tags) ----------
   useEffect(() => {
     let isMounted = true;
     const fetchInitialAlerts = async () => {
       try {
         const res = await fetch('/api/video-monitoring/alerts');
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && Array.isArray(data) && data.length > 0) {
-            setAlerts(data);
-          }
-        }
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (!isMounted) return;
+
+        const list: Alert[] = Array.isArray(data) ? data : (data.alerts ?? []);
+        const total = Array.isArray(data) ? list.length : (data.totalForDate ?? list.length);
+        const dateKey = Array.isArray(data)
+          ? (list[0] ? dateKeyOf(list[0].timestamp) : new Date().toDateString())
+          : (data.activeDate ? new Date(data.activeDate).toDateString() : (list[0] ? dateKeyOf(list[0].timestamp) : ''));
+
+        setAlerts(list);
+        setActiveDateTotal(total);
+        setActiveDateKey(dateKey);
+        initialLoadDone.current = true;
       } catch (err) {
         console.error('Failed to fetch initial alerts:', err);
       }
@@ -160,6 +222,7 @@ export const AlertFeed: React.FC = () => {
     return () => { isMounted = false; };
   }, []);
 
+  // ---------- SSE stream ----------
   useEffect(() => {
     let es: EventSource | null = null;
     let isMounted = true;
@@ -167,7 +230,12 @@ export const AlertFeed: React.FC = () => {
     const connectStream = () => {
       es = new EventSource('/api/video-monitoring/stream');
 
-      es.onopen = () => { if (isMounted) { setError(null); setIsConnecting(false); } };
+      es.onopen = () => {
+        if (isMounted) {
+          setError(null);
+          setIsConnecting(false);
+        }
+      };
 
       es.onmessage = (event) => {
         if (!isMounted) return;
@@ -181,15 +249,24 @@ export const AlertFeed: React.FC = () => {
           }
 
           setAlerts((prev) => {
-            if (prev.some(a => a.id === newAlert.id)) return prev;
+            if (prev.some((a) => a.id === newAlert.id)) return prev;
             return [newAlert, ...prev].slice(0, 300);
           });
+
           flashNew(newAlert.id);
+
+          const todayKey = new Date().toDateString();
+          if (dateKeyOf(newAlert.timestamp) === todayKey) {
+            setActiveDateTotal((t) => (t == null ? 1 : t + 1));
+            setActiveDateKey(todayKey);
+          }
 
           if (soundOnRef.current && newAlert.severity === 'CRITICAL') beep();
 
           if (autoStickRef.current) {
-            requestAnimationFrame(() => containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
+            requestAnimationFrame(() =>
+              containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+            );
           }
 
           setError(null);
@@ -202,13 +279,17 @@ export const AlertFeed: React.FC = () => {
       es.onerror = () => {
         if (!isMounted) return;
         if (es?.readyState === EventSource.CONNECTING) setIsConnecting(true);
-        else if (es?.readyState === EventSource.CLOSED) setError('Live alert stream disconnected. Retrying connection...');
+        else if (es?.readyState === EventSource.CLOSED)
+          setError('Live alert stream disconnected. Retrying connection...');
       };
     };
 
     connectStream();
-    return () => { isMounted = false; es?.close(); };
-  }, []);
+    return () => {
+      isMounted = false;
+      es?.close();
+    };
+  }, [flashNew]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -224,7 +305,7 @@ export const AlertFeed: React.FC = () => {
     setIsLive(true);
     if (bufferRef.current.length > 0) {
       setAlerts((prev) => [...bufferRef.current, ...prev].slice(0, 300));
-      bufferRef.current.forEach(a => flashNew(a.id));
+      bufferRef.current.forEach((a) => flashNew(a.id));
       bufferRef.current = [];
     }
     setPendingCount(0);
@@ -239,13 +320,15 @@ export const AlertFeed: React.FC = () => {
 
   const counts = useMemo(() => {
     const c = { CRITICAL: 0, WARNING: 0, NORMAL: 0 };
-    alerts.forEach(a => { if (a.severity in c) (c as any)[a.severity]++; });
+    alerts.forEach((a) => {
+      if (a.severity in c) (c as any)[a.severity]++;
+    });
     return c;
   }, [alerts]);
 
   const dayGroups = useMemo(() => {
     const map = new Map<string, Alert[]>();
-    alerts.forEach(a => {
+    alerts.forEach((a) => {
       const key = dateKeyOf(a.timestamp);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(a);
@@ -265,561 +348,378 @@ export const AlertFeed: React.FC = () => {
     }
     if (dayGroups.keys.length === 0) return [];
     const todayKey = new Date().toDateString();
-    const startIdx = dayGroups.keys.includes(todayKey) ? dayGroups.keys.indexOf(todayKey) : 0;
+    const startIdx = dayGroups.keys.includes(todayKey)
+      ? dayGroups.keys.indexOf(todayKey)
+      : 0;
     return dayGroups.keys.slice(startIdx, startIdx + visibleDayCount);
   }, [selectedDate, dayGroups, visibleDayCount]);
 
+  const displayDateKey = selectedDate
+    ? new Date(selectedDate).toDateString()
+    : activeDateKey || activeDayKeys[0] || '';
+
+  const displayTotal =
+    selectedDate
+      ? (dayGroups.map.get(new Date(selectedDate).toDateString())?.length ?? 0)
+      : activeDateTotal ?? alerts.length;
+
   const visibleAlerts = useMemo(() => {
-    const pool = activeDayKeys.flatMap(k => dayGroups.map.get(k) || []);
-    return pool.filter(a => {
+    const pool = activeDayKeys.flatMap((k) => dayGroups.map.get(k) || []);
+    return pool.filter((a) => {
       if (filter !== 'ALL' && a.severity !== filter) return false;
       if (query && !a.message.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
   }, [activeDayKeys, dayGroups, filter, query]);
 
-  const hasMoreDays = !selectedDate && (() => {
-    const todayKey = new Date().toDateString();
-    const startIdx = dayGroups.keys.includes(todayKey) ? dayGroups.keys.indexOf(todayKey) : 0;
-    return startIdx + visibleDayCount < dayGroups.keys.length;
-  })();
+  const hasMoreDays =
+    !selectedDate &&
+    (() => {
+      const todayKey = new Date().toDateString();
+      const startIdx = dayGroups.keys.includes(todayKey)
+        ? dayGroups.keys.indexOf(todayKey)
+        : 0;
+      return startIdx + visibleDayCount < dayGroups.keys.length;
+    })();
 
-  const getSeverityStyle = (severity: string) => {
-    switch (severity?.toUpperCase()) {
-      case 'CRITICAL': return 'bg-red-500/10 text-red-400 border-red-500/30';
-      case 'WARNING': return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-      case 'NORMAL': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
-    }
+  const todayStr = toInputDate(new Date());
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = toInputDate(yesterdayDate);
+  const quickDateMode: 'today' | 'yesterday' | 'custom' | 'all' =
+    !selectedDate ? 'all' : selectedDate === todayStr ? 'today' : selectedDate === yesterdayStr ? 'yesterday' : 'custom';
+
+  const applyQuickDate = (mode: 'today' | 'yesterday' | 'all') => {
+    setVisibleDayCount(1);
+    if (mode === 'all') setSelectedDate('');
+    else if (mode === 'today') setSelectedDate(todayStr);
+    else setSelectedDate(yesterdayStr);
   };
-  const getBadgeStyle = (severity: string) => {
+
+  /* ---------- Professional severity styles ---------- */
+  const getSeverityAccent = (severity: string) => {
     switch (severity?.toUpperCase()) {
-      case 'CRITICAL': return 'bg-red-600 text-white';
-      case 'WARNING': return 'bg-amber-600 text-white';
-      case 'NORMAL': return 'bg-emerald-600 text-white';
-      default: return 'bg-slate-600 text-white';
+      case 'CRITICAL':
+        return {
+          bar: 'bg-red-500',
+          badge: 'bg-red-500/15 text-red-400 border-red-500/30',
+          card: 'border-red-500/20 hover:border-red-500/40',
+        };
+      case 'WARNING':
+        return {
+          bar: 'bg-amber-500',
+          badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+          card: 'border-amber-500/20 hover:border-amber-500/40',
+        };
+      case 'NORMAL':
+        return {
+          bar: 'bg-emerald-500',
+          badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+          card: 'border-emerald-500/20 hover:border-emerald-500/40',
+        };
+      default:
+        return {
+          bar: 'bg-slate-500',
+          badge: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+          card: 'border-slate-500/20 hover:border-slate-500/40',
+        };
     }
   };
 
   const chip = (key: SeverityFilter, label: string, count: number, dot: string) => (
     <button
       onClick={() => setFilter(key)}
-      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border transition-colors ${filter === key
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border transition-colors whitespace-nowrap ${filter === key
         ? 'bg-slate-100 text-slate-900 border-slate-100'
         : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
         }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`}></span>
+      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
       {label}
       <span className="opacity-70">{count}</span>
     </button>
   );
 
-  const currentDateLabel = selectedDate
-    ? labelForDateKey(new Date(selectedDate).toDateString())
-    : (activeDayKeys[0] ? labelForDateKey(activeDayKeys[0]) : '—');
+  const dateQuickBtn = (mode: 'today' | 'yesterday' | 'all', label: string) => (
+    <button
+      onClick={() => applyQuickDate(mode)}
+      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors whitespace-nowrap ${quickDateMode === mode
+        ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+        : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+        }`}
+    >
+      {label}
+    </button>
+  );
+
+  const currentDateLabel = displayDateKey
+    ? labelForDateKey(displayDateKey)
+    : '—';
 
   return (
-    <div className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 flex flex-col overflow-hidden">
+    <div
+      className="bg-slate-900 rounded-xl shadow-lg border border-slate-800 flex flex-col overflow-hidden transition-all duration-300 w-full"
+      style={
+        panelOpen
+          ? {
+            height: 'calc(100vh - 94px)',
+            maxHeight: 'calc(100vh - 230px)',
+          }
+          : {
+            height: 'auto',
+            maxHeight: 'none',
+          }
+      }
+    >
       <style>{`
-  /* ================================
-     ALERT SYSTEM — MODERN DARK UI
-     ================================ */
+  @keyframes pulseGlow {
+    0% {
+      box-shadow:
+        0 0 0 0 rgba(59, 130, 246, 0.45),
+        0 0 0 0 rgba(59, 130, 246, 0.18),
+        0 8px 24px rgba(0, 0, 0, 0.18);
+      border-color: rgba(59, 130, 246, 0.55);
+      background: linear-gradient(145deg, rgba(37, 55, 90, 0.75), rgba(15, 23, 42, 0.9));
+    }
+    55% {
+      box-shadow:
+        0 0 0 3px rgba(59, 130, 246, 0.16),
+        0 0 0 8px rgba(59, 130, 246, 0.06),
+        0 12px 32px rgba(0, 0, 0, 0.2);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    100% {
+      box-shadow:
+        0 0 0 0 rgba(59, 130, 246, 0),
+        0 0 0 0 rgba(59, 130, 246, 0),
+        0 4px 16px rgba(0, 0, 0, 0.12);
+      border-color: rgba(148, 163, 184, 0.12);
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
+    }
+  }
 
   @keyframes alertEnter {
     0% {
       opacity: 0;
-      transform: translateY(-18px) scale(0.96);
-      filter: blur(4px);
+      transform: translateY(-16px) scale(0.97);
     }
-
     60% {
       opacity: 1;
-      transform: translateY(2px) scale(1.01);
-      filter: blur(0);
+      transform: translateY(1px) scale(1.005);
     }
-
     100% {
       opacity: 1;
       transform: translateY(0) scale(1);
     }
   }
 
-  @keyframes alertPulse {
-    0% {
-      box-shadow:
-        0 0 0 0 rgba(59, 130, 246, 0),
-        0 10px 30px rgba(0, 0, 0, 0.18);
-    }
-
-    50% {
-      box-shadow:
-        0 0 0 6px rgba(59, 130, 246, 0.08),
-        0 14px 40px rgba(0, 0, 0, 0.25);
-    }
-
-    100% {
-      box-shadow:
-        0 0 0 0 rgba(59, 130, 246, 0),
-        0 10px 30px rgba(0, 0, 0, 0.18);
-    }
+  @keyframes badgeFadeIn {
+    0% { opacity: 0; transform: scale(0.8) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
   }
 
-  @keyframes alertExit {
-    0% {
-      opacity: 1;
-      transform: translateX(0);
-      max-height: 300px;
-    }
-
-    100% {
-      opacity: 0;
-      transform: translateX(20px);
-      max-height: 0;
-      margin: 0;
-      padding-top: 0;
-      padding-bottom: 0;
-    }
+  @keyframes badgeFadeOut {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.85); }
   }
 
   @keyframes dropdownEnter {
-    0% {
-      opacity: 0;
-      transform: translateY(-10px) scale(0.97);
-    }
-
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   @keyframes panelEnter {
-    0% {
-      opacity: 0;
-      transform: translateY(-8px);
-      filter: blur(2px);
-    }
-
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-      filter: blur(0);
-    }
+    0% { opacity: 0; transform: translateY(-6px); }
+    100% { opacity: 1; transform: translateY(0); }
   }
-
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-
-    100% {
-      background-position: 200% 0;
-    }
-  }
-
-  @keyframes statusPulse {
-    0% {
-      transform: scale(1);
-      opacity: 1;
-    }
-
-    50% {
-      transform: scale(1.25);
-      opacity: 0.65;
-    }
-
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-
-  /* ================================
-     MAIN ANIMATIONS
-     ================================ */
 
   .alert-enter {
     animation:
-      alertEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both,
-      alertPulse 1.2s ease-out 0.15s both;
+      alertEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both,
+      pulseGlow 3.2s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
   }
 
-  .alert-item {
+  .alert-card {
     position: relative;
-    overflow: hidden;
-
+    border-radius: 14px;
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
     border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 16px;
-
-    background:
-      linear-gradient(
-        135deg,
-        rgba(30, 41, 59, 0.92),
-        rgba(15, 23, 42, 0.96)
-      );
-
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-
-    box-shadow:
-      0 10px 30px rgba(0, 0, 0, 0.18),
-      inset 0 1px 0 rgba(255, 255, 255, 0.04);
-
-    transition:
-      opacity 0.25s ease,
-      transform 0.25s ease,
-      background 0.25s ease,
-      border-color 0.25s ease,
-      box-shadow 0.25s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
 
-  .alert-item:hover {
-    transform: translateY(-2px);
-
-    border-color: rgba(148, 163, 184, 0.25);
-
-    background:
-      linear-gradient(
-        135deg,
-        rgba(51, 65, 85, 0.95),
-        rgba(15, 23, 42, 0.98)
-      );
-
-    box-shadow:
-      0 16px 40px rgba(0, 0, 0, 0.28),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  .alert-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   }
 
-  .alert-item::before {
-    content: "";
-
+  .new-badge {
     position: absolute;
-    inset: 0;
-
-    pointer-events: none;
-
-    background:
-      linear-gradient(
-        120deg,
-        transparent 20%,
-        rgba(255, 255, 255, 0.035) 50%,
-        transparent 80%
-      );
-
-    background-size: 200% 100%;
-    opacity: 0;
-
-    transition: opacity 0.3s ease;
+    top: 10px;
+    right: 12px;
+    z-index: 5;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    animation: badgeFadeIn 0.25s ease both;
   }
 
-  .alert-item:hover::before {
-    opacity: 1;
-    animation: shimmer 2s linear infinite;
+  .new-badge.fading {
+    animation: badgeFadeOut 0.7s ease forwards;
   }
 
-  /* ================================
-     POPUP / DROPDOWN
-     ================================ */
-
-  .pop-in {
-    animation:
-      dropdownEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1)
-      both;
-  }
-
-  .panel-in {
-    animation:
-      panelEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1)
-      both;
-  }
-
-  /* ================================
-     PANEL
-     ================================ */
-
-  .alert-panel {
-    border: 1px solid rgba(148, 163, 184, 0.14);
-
-    background:
-      linear-gradient(
-        145deg,
-        rgba(15, 23, 42, 0.97),
-        rgba(2, 6, 23, 0.98)
-      );
-
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-
-    border-radius: 20px;
-
-    box-shadow:
-      0 25px 70px rgba(0, 0, 0, 0.42),
-      0 8px 25px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  }
-
-  /* ================================
-     BOTTOM FADE
-     ================================ */
+  .pop-in { animation: dropdownEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .panel-in { animation: panelEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
   .bottom-shadow {
-    background:
-      linear-gradient(
-        to bottom,
-        rgba(2, 6, 23, 0) 0%,
-        rgba(2, 6, 23, 0.35) 35%,
-        rgba(2, 6, 23, 0.82) 75%,
-        rgba(2, 6, 23, 1) 100%
-      );
-
+    background: linear-gradient(to bottom,
+      rgba(2, 6, 23, 0) 0%,
+      rgba(2, 6, 23, 0.4) 40%,
+      rgba(2, 6, 23, 0.9) 100%);
     pointer-events: none;
   }
-
-  /* ================================
-     SCROLLBAR
-     ================================ */
 
   .thin-scroll {
     scroll-behavior: smooth;
-
     scrollbar-width: thin;
-    scrollbar-color:
-      rgba(100, 116, 139, 0.65)
-      transparent;
+    scrollbar-color: rgba(100, 116, 139, 0.55) transparent;
   }
-
-  .thin-scroll::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-
-  .thin-scroll::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
+  .thin-scroll::-webkit-scrollbar { width: 5px; }
+  .thin-scroll::-webkit-scrollbar-track { background: transparent; }
   .thin-scroll::-webkit-scrollbar-thumb {
-    background:
-      linear-gradient(
-        180deg,
-        #64748b,
-        #475569
-      );
-
+    background: linear-gradient(180deg, #64748b, #475569);
     border-radius: 999px;
-
-    border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .thin-scroll::-webkit-scrollbar-thumb:hover {
-    background:
-      linear-gradient(
-        180deg,
-        #94a3b8,
-        #64748b
-      );
-  }
-
-  /* ================================
-     STATUS INDICATOR
-     ================================ */
-
-  .status-dot {
-    position: relative;
-  }
-
-  .status-dot::after {
-    content: "";
-
+  .date-input-native {
     position: absolute;
-    inset: -3px;
-
-    border-radius: 999px;
-
-    border: 1px solid currentColor;
-
-    opacity: 0.25;
-
-    animation: statusPulse 2s ease-in-out infinite;
-  }
-
-  /* ================================
-     CLOSE BUTTON
-     ================================ */
-
-  .alert-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    width: 30px;
-    height: 30px;
-
-    border-radius: 10px;
-
-    color: #94a3b8;
-
-    background: rgba(255, 255, 255, 0.035);
-
-    border: 1px solid rgba(148, 163, 184, 0.08);
-
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
     cursor: pointer;
-
-    transition:
-      color 0.2s ease,
-      background 0.2s ease,
-      border-color 0.2s ease,
-      transform 0.2s ease;
   }
-
-  .alert-close:hover {
-    color: #f8fafc;
-
-    background: rgba(239, 68, 68, 0.12);
-
-    border-color: rgba(248, 113, 113, 0.2);
-
-    transform: rotate(4deg) scale(1.05);
+  .date-input-native::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
   }
-
-  .alert-close:active {
-    transform: scale(0.92);
-  }
-
-  /* ================================
-     INTERACTIVE ITEMS
-     ================================ */
-
-  .alert-action {
-    transition:
-      transform 0.2s ease,
-      background 0.2s ease,
-      border-color 0.2s ease;
-  }
-
-  .alert-action:hover {
-    transform: translateY(-1px);
-
-    background: rgba(255, 255, 255, 0.06);
-
-    border-color: rgba(148, 163, 184, 0.18);
-  }
-
-  .alert-action:active {
-    transform: translateY(0) scale(0.98);
-  }
-
-  /* ================================
-     ACCESSIBILITY
-     ================================ */
 
   @media (prefers-reduced-motion: reduce) {
-    .alert-enter,
-    .pop-in,
-    .panel-in,
-    .status-dot::after {
-      animation: none !important;
-    }
-
-    .alert-item,
-    .alert-close,
-    .alert-action {
-      transition: none !important;
-    }
+    .alert-enter, .pop-in, .panel-in, .new-badge { animation: none !important; }
+    .alert-card { transition: none !important; }
   }
 `}</style>
-      <div>
-        {/* Panel Header — always visible, collapse/expand whole feed */}
-        <button
-          className="w-full p-3 py-4 flex items-center justify-between text-left bg-slate-950/40 transition-colors"
-        >
-          <div>
-            <h3 className="font-bold text-base text-slate-100">
-              Real-Time Violation Feed
-            </h3>
 
-            <p className="text-[11px] text-slate-500">
-              construction_ai.alerts &middot;{" "}
-              <span className="font-bold text-cyan-400">
-                {alerts.length} total
-              </span><br />
-              Showing {" "}
-              <span className="font-bold text-cyan-400">
-                {currentDateLabel}
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${isLive ? 'bg-emerald-950 text-emerald-400 border-emerald-800/60' : 'bg-amber-950 text-amber-400 border-amber-800/60'
-              }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-              {isLive ? 'Live' : 'Paused'}
-            </span>
-          </div>
-        </button>
+      {/* ========== HEADER ========== */}
+      <div className="flex-shrink-0">
         <button
           type="button"
           onClick={() => setPanelOpen((prev) => !prev)}
-          className="
-    flex items-center justify-center
-    w-full h-8
-    rounded-lg
-    text-slate-400
-    hover:text-white
-    hover:bg-slate-800
-    border border-transparent
-    hover:border-slate-700
-    transition-all duration-200
-    cursor-pointer
-  "
-          aria-label={panelOpen ? "Collapse panel" : "Expand panel"}
+          className="w-full p-3 py-4 flex items-center justify-between gap-3 text-left bg-slate-950/40 transition-colors hover:bg-slate-950/60"
         >
-          <Icon.Chevron open={panelOpen} />
+          <div className="min-w-0">
+            <h3 className="font-bold text-base text-slate-100 truncate">
+              Real-Time Violation Feed
+            </h3>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              <span className="hidden sm:inline">construction_ai.alerts &middot; </span>
+              <span className="font-bold text-cyan-400">{displayTotal} total</span>
+              <span className="hidden sm:inline"> &middot; Showing </span>
+              <span className="sm:hidden"> &middot; </span>
+              <span className="font-bold text-cyan-400">{currentDateLabel}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span
+              className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${isLive
+                ? 'bg-emerald-950 text-emerald-400 border-emerald-800/60'
+                : 'bg-amber-950 text-amber-400 border-amber-800/60'
+                }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+                  }`}
+              />
+              <span className="hidden xs:inline">{isLive ? 'Live' : 'Paused'}</span>
+            </span>
+            <Icon.Chevron open={panelOpen} />
+          </div>
         </button>
       </div>
 
-
+      {/* ========== COLLAPSIBLE BODY ========== */}
       {panelOpen && (
-        <div className="panel-in border-t border-slate-800">
-          <div className="px-4 pt-3 flex items-center justify-between gap-2">
+        <div className="panel-in border-t border-slate-800 flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Toolbar */}
+          <div className="flex-shrink-0 px-3 sm:px-4 pt-1 flex flex-wrap items-center justify-between gap-2">
             <button
-              onClick={() => setFiltersOpen(o => !o)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors ${filtersOpen ? 'bg-slate-100 text-slate-900 border-slate-100' : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+              onClick={() => setFiltersOpen((o) => !o)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors ${filtersOpen
+                ? 'bg-slate-100 text-slate-900 border-slate-100'
+                : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
                 }`}
             >
               <Icon.Filter /> Filters <Icon.Chevron open={filtersOpen} />
+              {(filter !== 'ALL' || query || selectedDate) && (
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              )}
             </button>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setSoundOn(s => !s)}
+                onClick={() => setSoundOn((s) => !s)}
                 title={soundOn ? 'Mute critical sound alerts' : 'Enable critical sound alerts'}
-                className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${soundOn ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'
+                className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-colors ${soundOn
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
+                  : 'bg-slate-800 border-slate-700 text-slate-400'
                   }`}
               >
                 <Icon.Bell on={soundOn} />
               </button>
               <button
                 onClick={() => (isLive ? setIsLive(false) : resumeLive())}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors ${isLive ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700' : 'bg-amber-600 text-white border-amber-500 hover:bg-amber-500'
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors ${isLive
+                  ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  : 'bg-amber-600 text-white border-amber-500 hover:bg-amber-500'
                   }`}
               >
                 {isLive ? <Icon.Pause /> : <Icon.Play />}
-                {isLive ? 'Pause' : 'Resume'}
+                <span className="hidden xs:inline">{isLive ? 'Pause' : 'Resume'}</span>
               </button>
             </div>
           </div>
 
+          {/* Filters */}
           {filtersOpen && (
-            <div className="panel-in px-4 pt-3 space-y-3">
+            <div className="panel-in flex-shrink-0 px-3 sm:px-4 pt-3 space-y-3">
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"><Icon.Search /></span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                  <Icon.Search />
+                </span>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search alerts by keyword..."
-                  className="w-full bg-slate-800/70 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-emerald-600"
+                  className="w-full bg-slate-800/70 border border-slate-700 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-cyan-600 transition-colors"
                 />
+                {query && (
+                  <button
+                    onClick={() => setQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  >
+                    <Icon.X />
+                  </button>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -829,20 +729,44 @@ export const AlertFeed: React.FC = () => {
                 {chip('NORMAL', 'Normal', counts.NORMAL, 'bg-emerald-500')}
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500"><Icon.Calendar /></span>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => { setSelectedDate(e.target.value); setVisibleDayCount(1); }}
-                  className="bg-slate-800/70 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:border-emerald-600"
-                />
+              {/* ---- Improved date filter ---- */}
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {dateQuickBtn('all', 'All dates')}
+                {dateQuickBtn('today', 'Today')}
+                {dateQuickBtn('yesterday', 'Yesterday')}
+
+                <div
+                  className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide border transition-colors cursor-pointer whitespace-nowrap ${quickDateMode === 'custom'
+                    ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40'
+                    : 'bg-slate-800/60 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }`}
+                  onClick={() => dateInputRef.current?.showPicker?.() ?? dateInputRef.current?.focus()}
+                >
+                  <Icon.Calendar />
+                  {quickDateMode === 'custom' ? labelForDateKey(new Date(selectedDate).toDateString()) : 'Pick date'}
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    value={selectedDate}
+                    max={todayStr}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setVisibleDayCount(1);
+                    }}
+                    className="date-input-native"
+                  />
+                </div>
+
                 {selectedDate && (
                   <button
-                    onClick={() => { setSelectedDate(''); setVisibleDayCount(1); }}
-                    className="text-[11px] font-semibold text-slate-400 hover:text-slate-200 underline"
+                    onClick={() => {
+                      setSelectedDate('');
+                      setVisibleDayCount(1);
+                    }}
+                    className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                    title="Clear date filter"
                   >
-                    Clear date
+                    <Icon.X />
                   </button>
                 )}
               </div>
@@ -850,7 +774,7 @@ export const AlertFeed: React.FC = () => {
           )}
 
           {error && (
-            <div className="mx-4 mt-3 px-3 py-2 rounded-lg bg-amber-950/60 border border-amber-800/60 text-amber-300 text-xs font-medium">
+            <div className="flex-shrink-0 mx-3 sm:mx-4 mt-3 px-3 py-2 rounded-lg bg-amber-950/60 border border-amber-800/60 text-amber-300 text-xs font-medium">
               {error}
             </div>
           )}
@@ -858,23 +782,25 @@ export const AlertFeed: React.FC = () => {
           {!isLive && pendingCount > 0 && (
             <button
               onClick={resumeLive}
-              className="pop-in mx-4 mt-3 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors w-[calc(100%-2rem)]"
+              className="pop-in flex-shrink-0 mx-3 sm:mx-4 mt-3 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-colors w-[calc(100%-1.5rem)] sm:w-[calc(100%-2rem)]"
             >
-              <Icon.Pause /> Paused &middot; {pendingCount} new alert{pendingCount > 1 ? 's' : ''} waiting &middot; tap to resume
+              <Icon.Pause /> Paused · {pendingCount} new alert
+              {pendingCount > 1 ? 's' : ''} waiting · tap to resume
             </button>
           )}
 
-          <div className="relative mt-3">
+          {/* ========== SCROLLABLE LIST ========== */}
+          <div className="relative flex-1 min-h-0 mt-3">
             <div
               ref={containerRef}
               onScroll={handleScroll}
-              className="thin-scroll overflow-y-auto px-4 pb-4 space-y-4 min-h-[280px] max-h-[520px]"
+              className="thin-scroll h-full overflow-y-auto px-3 sm:px-4 pb-5 space-y-3"
             >
               {visibleAlerts.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm space-y-2 py-16">
                   {alerts.length === 0 ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                       <span>Listening for live alerts...</span>
                     </>
                   ) : (
@@ -884,38 +810,56 @@ export const AlertFeed: React.FC = () => {
               )}
 
               {visibleAlerts.map((alert) => {
+                const isNew = newIds.has(alert.id);
+                const sev = getSeverityAccent(alert.severity);
+
                 return (
                   <div
                     key={alert.id}
-                    className={`alert-item relative pl-6 ${newIds.has(alert.id) ? 'alert-enter' : ''}`}
+                    className={`alert-card relative ${sev.card} ${isNew ? "alert-enter border-t-[16px] border-t-blue-600 shadow-[0_-4px_18px_rgba(30,64,175,0.55),0_0_22px_rgba(15,23,42,0.75)]" : ""
+                      }`}
                   >
-                    <div className={`absolute left-0 top-2.5 w-2.5 h-2.5 rounded-full ${getBadgeStyle(alert.severity)}`}></div>
-                    <div className="absolute left-[4px] top-5 bottom-[-16px] w-[2px] bg-slate-800"></div>
-
+                    {/* Left accent bar */}
                     <div
-                      className={`p-3 rounded-lg border ${getSeverityStyle(alert.severity)} shadow-sm`}
-                    >
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className={`px-2 py-0.5 text-[10px] font-semibold rounded uppercase tracking-wider ${getBadgeStyle(alert.severity)}`}>
+                      className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${sev.bar}`}
+                    />
+
+                    <div className="pl-4 pr-3.5 py-3">
+                      {/* Top row: severity + time */}
+                      <div className="flex items-center justify-between gap-3 mb-1.5">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase rounded-md border ${sev.badge}`}
+                        >
                           {alert.severity}
                         </span>
-                        <span className="text-[11px] text-slate-400 font-mono">{alert.timestamp}</span>
-                      </div>
-                      <p className="text-xs font-medium text-slate-200">{alert.message}</p>
 
-                      <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between gap-2">
-                        <span className="text-[10px] text-slate-400 font-mono">ID #{alert.id}</span>
+                        <span className="text-[11px] text-slate-400 font-medium tabular-nums">
+                          {formatAlertTime(alert.timestamp)}
+                        </span>
+                      </div>
+
+                      {/* Message */}
+                      <p className="text-[13px] font-medium text-slate-100 leading-snug pr-1 break-words">
+                        {alert.message}
+                      </p>
+
+                      {/* Footer */}
+                      <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                        <span className="text-[10px] text-slate-500 font-mono tracking-wide">
+                          ID #{alert.id}
+                        </span>
+
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedEvidenceAlert(alert);
                           }}
-                          className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-md transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg
+                       bg-blue-600/90 hover:bg-blue-500 text-white
+                       border border-blue-500/40 shadow-sm
+                       transition-all active:scale-[0.97]"
                         >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
+                          <Icon.Eye />
                           View Evidence
                         </button>
                       </div>
@@ -926,12 +870,14 @@ export const AlertFeed: React.FC = () => {
 
               {hasMoreDays && visibleAlerts.length > 0 && (
                 <div className="text-center py-2">
-                  <span className="text-[11px] text-slate-500">Scroll for earlier dates...</span>
+                  <span className="text-[11px] text-slate-500">
+                    Scroll for earlier dates...
+                  </span>
                 </div>
               )}
             </div>
 
-            <div className="bottom-shadow pointer-events-none absolute bottom-0 left-0 right-0 h-24"></div>
+            <div className="bottom-shadow pointer-events-none absolute bottom-0 left-0 right-0 h-16" />
 
             {!autoStick && isLive && (
               <button
@@ -945,7 +891,6 @@ export const AlertFeed: React.FC = () => {
         </div>
       )}
 
-      {/* Real-Time Evidence Viewer In-Place Modal Overlay */}
       <EvidenceModal
         alert={selectedEvidenceAlert}
         onClose={() => setSelectedEvidenceAlert(null)}
