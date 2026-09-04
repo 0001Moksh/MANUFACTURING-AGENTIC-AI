@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MAI License Details</title>
+    <style>body{font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px}.card{max-width:900px;margin:auto;background:#111827;padding:24px;border-radius:12px}.key{color:#7dd3fc} pre{white-space:pre-wrap;overflow:auto;background:#020817;padding:16px;border-radius:8px}</style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Generated MAI License</h2>
+      <p><strong>License ID:</strong> {{ license.license_id }}</p>
+      <p><strong>Customer:</strong> {{ license.customer_name }}</p>
+      <p><strong>Installation:</strong> {{ license.installation_id }}</p>
+      <p><strong>Expiry:</strong> {{ license.expires_at }}</p>
+      <p><strong>Features:</strong> {{ license.features }}</p>
+      <p><strong>Public key:</strong> <span class="key">{{ public_key }}</span></p>
+      <div style="margin: 20px 0;">
+        <a href="{{ download_url }}" style="display:inline-block;padding:12px 18px;background:#0ea5e9;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Download .lic file</a>
+      </div>
+      <pre>{{ license_text }}</pre>
+    </div>
+  </body>
+</html>

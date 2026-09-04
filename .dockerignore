@@ -1,0 +1,12 @@
+.git
+.env
+**/.env
+backend/venv
+**/__pycache__
+frontend/node_modules
+frontend/dist
+backend/reports
+backend/logs
+backend/mai_platform.db
+jupyter notebooks
+monitoring_setups
