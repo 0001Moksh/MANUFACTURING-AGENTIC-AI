@@ -105,7 +105,7 @@ export const useCases: UseCase[] = [
   {id:24,pillar:"sustain",title:"Video Monitoring",tags:["VISION","ML"],status:"live",
    desc:"Real-time dashboard for live streaming site cameras, tracking safety incidents, and rendering violation logs with snapshot evidence directly from the construction AI backend.",
    impact:"Instant safety intervention; accurate historical logs of compliance violations.",
-   poweredBy:["Safety & Quality Agent","PPE & Behavior Vision Agent"]},
+   poweredBy:["Safety & Quality Agent","PPE & Behavior Vision Agent","Insights Summary Agent"]},
 ];
 
 export const pillarMeta: Record<string, { label: string }> = {
@@ -183,6 +183,7 @@ export const AGENT_INTEGRATION_DEPENDENCY: Record<string, 'MES' | 'Video Analyti
   "Contractor & Asset Risk Agent":       "MES",
   "Safety & Quality Agent":              "Video Analytics",
   "PPE & Behavior Vision Agent":         "Video Analytics",
+  "Insights Summary Agent":              "Video Analytics",
   "ESG & Compliance Agent":             null,
 };
 

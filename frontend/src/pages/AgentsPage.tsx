@@ -101,6 +101,8 @@ export const AgentsPage: React.FC = () => {
       agentName === 'Incident & Investigation'
     ) {
       navigate('/agents/incident-investigation');
+    } else if (agentName === 'Insights Summary Agent') {
+      navigate('/agents/insights-summary-agent');
     } else {
       setActiveAgentName(agentName);
     }

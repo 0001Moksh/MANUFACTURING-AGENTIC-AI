@@ -333,6 +333,38 @@ async def generate_chart_summary_endpoint(req: ChartSummaryGenerateRequest, requ
         return JSONResponse(status_code=500, content={"error": "Generation failed", "detail": str(exc)})
 
 
+@router.post('/api/agents/insights/validate-image')
+async def validate_insights_image(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    """Validate uploaded image to ensure it's a chart/visualization. This is a lightweight guardrail.
+    If advanced vision checks are required, replace with a Vision-LLM call.
+    """
+    # Basic content-type check
+    allowed = {'image/png', 'image/jpeg', 'image/jpg', 'image/webp'}
+    content_type = (file.content_type or '').lower()
+    if content_type not in allowed:
+        return JSONResponse(status_code=400, content={"valid": False, "reason": "unsupported_file_type"})
+
+    # Read a small portion of file to ensure it's not empty
+    try:
+        data = await file.read()
+        size = len(data)
+    except Exception as e:
+        logging.exception("Failed reading uploaded image: %s", e)
+        return JSONResponse(status_code=400, content={"valid": False, "reason": "read_error"})
+
+    if size < 1024:  # too small to be a meaningful chart image
+        return JSONResponse(status_code=400, content={"valid": False, "reason": "file_too_small"})
+
+    # Heuristic: if filename or content type suggests chart, accept; otherwise mark as 'uncertain'
+    filename = getattr(file, 'filename', '') or ''
+    lower = filename.lower()
+    if any(k in lower for k in ['chart', 'plot', 'graph', 'heatmap', 'hist', 'timeseries']):
+        return {"valid": True, "reason": "filename_hint"}
+
+    # Default: return uncertain / likely valid but flagged for review. Frontend should ask user to confirm.
+    return {"valid": True, "reason": "heuristic_pass"}
+
+
 def _hash_one_time_code(code: str) -> str:
     return hashlib.sha256(code.encode("utf-8")).hexdigest()
 

@@ -1,7 +1,7 @@
 ﻿# NotebookLM Quick Summary
 
 ## Platform Summary
-The IIIIoT Manufacturing Agentic AI Platform is a simulated manufacturing intelligence experience that unifies production, safety, finance, analytics, and enterprise governance in one command centre.
+The IIIoT Manufacturing Agentic AI Platform is a simulated manufacturing intelligence experience that unifies production, safety, finance, analytics, and enterprise governance in one command centre.
 
 ## Main Concepts
 - Agentic workflows
@@ -38,7 +38,7 @@ See also:
 # Project Overview
 
 ## Purpose
-This repository documents the **IIIIoT Manufacturing Agentic AI Platform** simulated in the source HTML walkthrough.
+This repository documents the **IIIoT Manufacturing Agentic AI Platform** simulated in the source HTML walkthrough.
 
 ## Description
 The platform presents a unified command centre for manufacturing leaders, digital heads, HSE teams, and operations staff. It combines agentic AI, generative AI, vision AI, IoT telemetry, and enterprise integrations to support production, safety, finance, planning, and governance.

@@ -15,7 +15,7 @@ export const Sidebar: React.FC = () => {
           <img src="/logo-bg.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
         {!collapsed && <div className="flex flex-col min-w-0">
-          <div className="font-head font-extrabold text-[20.5px] tracking-[0.2px] truncate text-black">IIIIoT Infotech</div>
+          <div className="font-head font-extrabold text-[20.5px] tracking-[0.2px] truncate text-black">IIIoT Infotech</div>
           <div className="text-[10px] text-[#8FA0C4] tracking-[0.5px] uppercase truncate">Manufacturing Agentic AI</div>
         </div>}
         <button

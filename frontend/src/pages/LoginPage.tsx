@@ -35,10 +35,10 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-[420px] bg-[#111625]/90 border border-border-color/30 rounded-[18px] p-8 shadow-2xl backdrop-blur-md relative z-10">
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="w-[64px] h-[64px] rounded-[16px] bg-white/10 p-2 flex items-center justify-center mb-4 border border-white/20 shadow-lg">
-            <img src="/logo.png" alt="IIIIoT Logo" className="w-full h-full object-contain" />
+            <img src="/logo.png" alt="IIIoT Logo" className="w-full h-full object-contain" />
           </div>
           <h2 className="font-head text-[22px] font-extrabold m-0 tracking-tight">Manufacturing Agentic AI</h2>
-          <p className="text-[12.5px] text-muted mt-1.5 leading-relaxed">Enterprise IIIIoT &amp; MES Orchestration Console</p>
+          <p className="text-[12.5px] text-muted mt-1.5 leading-relaxed">Enterprise IIIoT &amp; MES Orchestration Console</p>
         </div>
 
         {error && (
