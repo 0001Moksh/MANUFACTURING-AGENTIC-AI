@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import hashlib
 import os
 import secrets
@@ -20,9 +21,11 @@ from app.db import (
     AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken
 )
+from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
+from app.agents.insights_summary_agent import generate_chart_summary as agent_generate_chart_summary
 from app.agents.maintenance_agent import run_maintenance_conversation
 from app.agents.safety_quality_agent import run_safety_quality_conversation
 from app.agents.ppe_vision_agent import run_ppe_conversation
@@ -147,6 +150,9 @@ active_agents = {
     "Permit-to-Work Agent", "Incident & Investigation Agent", "Environmental Compliance Agent",
     "Predictive Safety Intelligence Agent", "Contractor & Asset Risk Agent", "AI Spill/Leak Detection Agent"
 }
+# Register Insights Summary Agent as a controllable agent
+if "Insights Summary Agent" not in active_agents:
+    active_agents.add("Insights Summary Agent")
 
 # In-memory store for paused workflows (HITL)
 paused_workflows: Dict[str, AgentState] = {}
@@ -254,6 +260,77 @@ async def get_current_user(request: Request, db: AsyncSession) -> User:
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authenticated user no longer exists")
     return user
+
+
+class ChartSummaryGenerateRequest(BaseModel):
+    chart_id: str
+    input_type: str
+    length: str
+    language: str
+    metadata_payload: Dict[str, Any]
+
+
+@router.get('/api/chart-summaries/{chart_id}')
+async def get_chart_summary(chart_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(ChartSummary).where(ChartSummary.chart_id == chart_id).order_by(ChartSummary.created_at.desc()).limit(1)
+    )
+    rec = result.scalars().first()
+    if not rec:
+        return JSONResponse(status_code=200, content=None)
+    return {
+        'id': rec.id,
+        'chart_id': rec.chart_id,
+        'summary_text': rec.summary_text,
+        'language': rec.language,
+        'summary_length': rec.summary_length,
+        'metadata_snapshot': rec.metadata_snapshot,
+        'created_at': rec.created_at.isoformat(),
+    }
+
+
+@router.post('/api/chart-summaries/generate')
+async def generate_chart_summary_endpoint(req: ChartSummaryGenerateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    # Guard: check agent toggle
+    if "Insights Summary Agent" not in active_agents:
+        raise HTTPException(status_code=403, detail="Insights Summary Agent is currently disabled. Please enable it from the AI Agents Dashboard to generate fresh summaries.")
+    # Delegate to agent module which handles enrichment + LLM calling + fallback
+    try:
+        result = await agent_generate_chart_summary(
+            test_name=f"summary_{req.chart_id}",
+            input_type=req.input_type,
+            length=req.length,
+            language=req.language,
+            metadata_payload=req.metadata_payload,
+            image_file=None,
+        )
+
+        # Persist into DB
+        new = ChartSummary(
+            chart_id=req.chart_id,
+            use_case_id='video_monitoring_engine',
+            summary_text=result.get('summary_text', ''),
+            language=result.get('language', req.language),
+            summary_length=result.get('summary_length', req.length),
+            metadata_snapshot=result.get('metadata_snapshot', req.metadata_payload),
+        )
+        db.add(new)
+        await db.commit()
+        await db.refresh(new)
+
+        return {
+            'id': new.id,
+            'chart_id': new.chart_id,
+            'summary_text': new.summary_text,
+            'language': new.language,
+            'summary_length': new.summary_length,
+            'metadata_snapshot': new.metadata_snapshot,
+            'created_at': new.created_at.isoformat(),
+        }
+    except Exception as exc:
+        # Log the exception for server-side debugging and return structured error
+        logging.exception("Failed to generate chart summary for %s", req.chart_id)
+        return JSONResponse(status_code=500, content={"error": "Generation failed", "detail": str(exc)})
 
 
 def _hash_one_time_code(code: str) -> str:

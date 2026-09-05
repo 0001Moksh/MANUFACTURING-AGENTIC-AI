@@ -149,6 +149,10 @@ export const AlertFeed: React.FC = () => {
   const [pendingCount, setPendingCount] = useState(0);
   const [autoStick, setAutoStick] = useState(true);
   const [visibleDayCount, setVisibleDayCount] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [beforeCursor, setBeforeCursor] = useState<string | null>(null);
+  const [maxLoadedTs, setMaxLoadedTs] = useState<string | null>(null);
 
   const [activeDateTotal, setActiveDateTotal] = useState<number | null>(null);
   const [activeDateKey, setActiveDateKey] = useState<string>('');
@@ -180,34 +184,74 @@ export const AlertFeed: React.FC = () => {
 
   const [selectedEvidenceAlert, setSelectedEvidenceAlert] = useState<AlertEvidence | null>(null);
 
-  // ---------- Initial load (NO "NEW" tags) ----------
+  const loadAlerts = useCallback(async (mode: 'initial' | 'more' = 'initial', cursorOverride?: string | null) => {
+    const dateParam = selectedDate || undefined;
+    const resolvedBefore = mode === 'more' ? (cursorOverride ?? null) : null;
+    const queryString = new URLSearchParams({
+      ...(dateParam ? { date: dateParam } : {}),
+      severity: filter,
+      limit: '10',
+      ...(resolvedBefore ? { before: resolvedBefore } : {}),
+    }).toString();
+
+    try {
+      const res = await fetch(`/api/video-monitoring/alerts?${queryString}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const list: Alert[] = Array.isArray(data) ? data : (data.alerts ?? []);
+      const total = Array.isArray(data) ? list.length : (typeof data.total === 'number' ? data.total : list.length);
+      const nextBefore = Array.isArray(data) ? null : (data.next_before ?? null);
+      const hasMoreNext = Array.isArray(data) ? false : Boolean(data.has_more);
+
+      setActiveDateTotal(total);
+      setActiveDateKey(selectedDate ? new Date(selectedDate).toDateString() : (list[0] ? dateKeyOf(list[0].timestamp) : new Date().toDateString()));
+
+      if (mode === 'initial') {
+        setAlerts(list);
+        setBeforeCursor(nextBefore);
+        setHasMore(hasMoreNext);
+        setMaxLoadedTs(list.length ? list[0].timestamp : null);
+      } else {
+        setAlerts((prev) => {
+          const seen = new Set(prev.map((item) => item.id));
+          const extras = list.filter((item) => !seen.has(item.id));
+          return [...prev, ...extras];
+        });
+        setBeforeCursor(nextBefore);
+        setHasMore(hasMoreNext);
+      }
+
+      if (list.length > 0) {
+        const newest = list.reduce((best, item) => new Date(item.timestamp).getTime() > new Date(best.timestamp).getTime() ? item : best, list[0]);
+        setMaxLoadedTs((prev) => {
+          if (!prev) return newest.timestamp;
+          return new Date(newest.timestamp).getTime() > new Date(prev).getTime() ? newest.timestamp : prev;
+        });
+      }
+
+      if (mode === 'initial') {
+        initialLoadDone.current = true;
+      }
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+    }
+  }, [filter, selectedDate]);
+
   useEffect(() => {
     let isMounted = true;
+
     const fetchInitialAlerts = async () => {
-      try {
-        const res = await fetch('/api/video-monitoring/alerts');
-        if (!res.ok) return;
-        const data = await res.json();
-
-        if (!isMounted) return;
-
-        const list: Alert[] = Array.isArray(data) ? data : (data.alerts ?? []);
-        const total = Array.isArray(data) ? list.length : (data.totalForDate ?? list.length);
-        const dateKey = Array.isArray(data)
-          ? (list[0] ? dateKeyOf(list[0].timestamp) : new Date().toDateString())
-          : (data.activeDate ? new Date(data.activeDate).toDateString() : (list[0] ? dateKeyOf(list[0].timestamp) : ''));
-
-        setAlerts(list);
-        setActiveDateTotal(total);
-        setActiveDateKey(dateKey);
-        initialLoadDone.current = true;
-      } catch (err) {
-        console.error('Failed to fetch initial alerts:', err);
-      }
+      setBeforeCursor(null);
+      setHasMore(false);
+      setError(null);
+      if (!isMounted) return;
+      await loadAlerts('initial');
     };
+
     fetchInitialAlerts();
     return () => { isMounted = false; };
-  }, []);
+  }, [filter, selectedDate, loadAlerts]);
 
   // ---------- SSE stream ----------
   useEffect(() => {
@@ -229,28 +273,46 @@ export const AlertFeed: React.FC = () => {
         try {
           const newAlert: Alert = JSON.parse(event.data);
 
+          const activeDateMatch = !selectedDate || dateKeyOf(newAlert.timestamp) === new Date(selectedDate).toDateString();
+          if (!activeDateMatch) return;
+
+          if (filter !== 'ALL' && newAlert.severity !== filter) return;
+
           if (!isLiveRef.current) {
-            bufferRef.current = [newAlert, ...bufferRef.current];
+            bufferRef.current = [newAlert, ...bufferRef.current.filter((a) => a.id !== newAlert.id)];
             setPendingCount(bufferRef.current.length);
+            return;
+          }
+
+          if (maxLoadedTs && new Date(newAlert.timestamp).getTime() <= new Date(maxLoadedTs).getTime()) {
             return;
           }
 
           setAlerts((prev) => {
             if (prev.some((a) => a.id === newAlert.id)) return prev;
-            return [newAlert, ...prev].slice(0, 300);
+            const next = [newAlert, ...prev];
+            return next.slice(0, 300);
+          });
+
+          setMaxLoadedTs((prev) => {
+            if (!prev) return newAlert.timestamp;
+            return new Date(newAlert.timestamp).getTime() > new Date(prev).getTime() ? newAlert.timestamp : prev;
           });
 
           flashNew(newAlert.id);
 
-          const todayKey = new Date().toDateString();
-          if (dateKeyOf(newAlert.timestamp) === todayKey) {
-            setActiveDateTotal((t) => (t == null ? 1 : t + 1));
-            setActiveDateKey(todayKey);
-          }
+          setActiveDateKey((prev) => {
+            if (!prev) return new Date(newAlert.timestamp).toDateString();
+            return prev;
+          });
+
+          // Keep the header total authoritative from the backend query result.
+          // Incrementing it on every SSE event makes the panel look like it is
+          // refreshing a full dataset when it is only receiving a live update.
 
           if (soundOnRef.current && newAlert.severity === 'CRITICAL') beep();
 
-          if (autoStickRef.current) {
+          if (autoStickRef.current && containerRef.current && Math.abs(containerRef.current.scrollTop) < 8) {
             requestAnimationFrame(() =>
               containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
             );
@@ -276,7 +338,7 @@ export const AlertFeed: React.FC = () => {
       isMounted = false;
       es?.close();
     };
-  }, [flashNew]);
+  }, [filter, flashNew, maxLoadedTs, selectedDate]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -348,7 +410,7 @@ export const AlertFeed: React.FC = () => {
   const displayTotal =
     selectedDate
       ? (dayGroups.map.get(new Date(selectedDate).toDateString())?.length ?? 0)
-      : activeDateTotal ?? alerts.length;
+      : (activeDateTotal ?? alerts.length);
 
   const visibleAlerts = useMemo(() => {
     const pool = activeDayKeys.flatMap((k) => dayGroups.map.get(k) || []);
@@ -358,6 +420,16 @@ export const AlertFeed: React.FC = () => {
       return true;
     });
   }, [activeDayKeys, dayGroups, filter, query]);
+
+  const pendingLoadMore = useCallback(async () => {
+    if (!hasMore || !beforeCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      await loadAlerts('more', beforeCursor);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [beforeCursor, hasMore, isLoadingMore, loadAlerts]);
 
   const hasMoreDays =
     !selectedDate &&
@@ -771,10 +843,14 @@ export const AlertFeed: React.FC = () => {
               {visibleAlerts.length === 0 && !error && (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400 text-sm space-y-2 py-16">
                   {alerts.length === 0 ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Listening for live alerts...</span>
-                    </>
+                    selectedDate ? (
+                      <span>No alerts found for {labelForDateKey(new Date(selectedDate).toDateString())}.</span>
+                    ) : (
+                      <>
+                        <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                        <span>Listening for live alerts...</span>
+                      </>
+                    )
                   ) : (
                     <span>No alerts match the current filter.</span>
                   )}
@@ -792,9 +868,6 @@ export const AlertFeed: React.FC = () => {
                   >
                     {/* Left accent bar */}
                     <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${sev.bar}`} />
-
-                    {/* Transient NEW badge — fades in and out inside the 1s glow window */}
-                    {isNew && <span className="new-badge">New</span>}
 
                     <div className="pl-4 pr-3.5 py-3">
                       {/* Top row: severity + time */}
@@ -839,6 +912,19 @@ export const AlertFeed: React.FC = () => {
                   </div>
                 );
               })}
+
+              {hasMore && visibleAlerts.length > 0 && (
+                <div className="text-center py-3">
+                  <button
+                    type="button"
+                    onClick={pendingLoadMore}
+                    disabled={isLoadingMore}
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isLoadingMore ? 'Loading...' : '[ Load More ]'}
+                  </button>
+                </div>
+              )}
 
               {hasMoreDays && visibleAlerts.length > 0 && (
                 <div className="text-center py-2">

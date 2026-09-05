@@ -16,6 +16,30 @@ from .crypto import decrypt_value, build_rtsp_url
 router = APIRouter(prefix="/api/video-monitoring", tags=["Video Monitoring"])
 
 
+def _deterministic_severity(class_name: str | None) -> str:
+    """Return the MAI severity tag from the actual violation labels used in construction_ai."""
+    normalized = (class_name or "").lower().replace("-", " ").replace("_", " ")
+    normalized = " ".join(normalized.split())
+
+    critical_terms = [
+        "fire", "smoke", "intrusion", "zone intrusion", "restricted",
+        "unauthorized", "overcrowding", "fall", "crowding",
+        "no vest", "no hardhat", "unsafe act", "unsafe behavior",
+        "ppe violation", "safety breach"
+    ]
+    warning_terms = [
+        "person", "no helmet", "helmet", "vest", "warning", "zone",
+        "unsafe", "harness", "overcrowd", "pedestrian", "goggles",
+        "gloves", "mask", "ppe", "shoes"
+    ]
+
+    if any(term in normalized for term in critical_terms):
+        return "CRITICAL"
+    if any(term in normalized for term in warning_terms):
+        return "WARNING"
+    return "NORMAL"
+
+
 async def _safe_db_execute(db: AsyncSession, query: str, params: Dict[str, Any] | None = None, timeout_seconds: float = 5.0):
     """Protect video monitoring endpoints from slow or dead database connections."""
     return await asyncio.wait_for(db.execute(text(query), params or {}), timeout=timeout_seconds)
@@ -89,39 +113,70 @@ async def get_devices(db: AsyncSession = Depends(get_va_db)):
 
 
 @router.get("/alerts")
-async def get_alerts(db: AsyncSession = Depends(get_va_db)):
-    """Fetch recent alert violation feed strictly read-only from construction_ai."""
+async def get_alerts(
+    db: AsyncSession = Depends(get_va_db),
+    date: str | None = None,
+    severity: str = "ALL",
+    limit: int = 10,
+    before: str | None = None,
+):
+    """Fetch alerts from construction_ai with optional date scoping and real cursor pagination."""
+    requested_date = date.strip() if isinstance(date, str) and date.strip() else None
+    page_limit = max(1, min(int(limit or 10), 50))
+    severity_filter = (severity or "ALL").upper()
+
     try:
-        result = await _safe_db_execute(
-            db,
-            """
-            SELECT id, camera_name, class_name, confidence, snapshot_path, is_acknowledged, created_at 
-            FROM alerts 
-            ORDER BY created_at DESC 
-            LIMIT 50
-            """
-        )
-        alerts = []
+        base_query = """
+            SELECT id, camera_name, class_name, confidence, snapshot_path, is_acknowledged, created_at
+            FROM alerts
+        """
+        params: Dict[str, Any] = {}
+
+        if requested_date:
+            base_query += " WHERE created_at::date = CAST(:selected_date AS date) "
+            params["selected_date"] = requested_date
+        else:
+            base_query += " WHERE 1 = 1 "
+
+        if before:
+            base_query += " AND created_at < CAST(:before_ts AS timestamp) "
+            params["before_ts"] = before
+
+        base_query += " ORDER BY created_at DESC LIMIT :limit "
+        params["limit"] = page_limit
+
+        total_query = """
+            SELECT COUNT(*)
+            FROM alerts
+        """
+        total_params: Dict[str, Any] = {}
+        if requested_date:
+            total_query += " WHERE created_at::date = CAST(:selected_date AS date) "
+            total_params["selected_date"] = requested_date
+
+        total_result = await _safe_db_execute(db, total_query, total_params)
+        total_count = int(total_result.scalar() or 0)
+
+        result = await _safe_db_execute(db, base_query, params)
         rows = result.fetchall()
+
+        filtered_alerts = []
         for row in rows:
             alert_id = row[0]
             cam_name = row[1] or "Camera"
             class_name = row[2] or "Violation"
             conf = row[3] or 0.0
             snapshot_path = row[4] or ""
-            created_at_str = str(row[6]) if row[6] else datetime.now().isoformat()
-            
-            c_lower = class_name.lower()
-            if any(term in c_lower for term in ["no hardhat", "no ppe", "restricted", "person"]):
-                severity = "CRITICAL"
-            elif any(term in c_lower for term in ["warning", "zone"]):
-                severity = "WARNING"
-            else:
-                severity = "NORMAL"
+            created_at_raw = row[6]
+            created_at_str = str(created_at_raw) if created_at_raw else datetime.now().isoformat()
+            severity_value = _deterministic_severity(class_name)
 
-            alerts.append({
+            if severity_filter != "ALL" and severity_value != severity_filter:
+                continue
+
+            filtered_alerts.append({
                 "id": alert_id,
-                "severity": severity,
+                "severity": severity_value,
                 "message": f"Safety Violation: {class_name} detected on {cam_name}",
                 "timestamp": created_at_str,
                 "camera_name": cam_name,
@@ -130,10 +185,26 @@ async def get_alerts(db: AsyncSession = Depends(get_va_db)):
                 "snapshot_path": snapshot_path,
                 "imageUrl": f"/api/video-monitoring/alert-image/{alert_id}" if snapshot_path else None
             })
-        return alerts
+
+        oldest_ts = filtered_alerts[-1]["timestamp"] if filtered_alerts else None
+        has_more = total_count > len(filtered_alerts)
+
+        return {
+            "alerts": filtered_alerts,
+            "total": total_count,
+            "active_date": requested_date or "ALL",
+            "has_more": has_more,
+            "next_before": oldest_ts,
+        }
     except Exception as e:
         print(f"Error fetching alerts from construction_ai: {e}")
-        return []
+        return {
+            "alerts": [],
+            "total": 0,
+            "active_date": requested_date or "ALL",
+            "has_more": False,
+            "next_before": None,
+        }
 
 
 from fastapi.responses import FileResponse
@@ -541,16 +612,20 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
 
         # 1. Total alerts and severity breakdown
         result_sev = await db.execute(text("""
-            SELECT 
-                COUNT(*) as total,
-                COUNT(CASE WHEN LOWER(class_name) LIKE '%hardhat%' OR LOWER(class_name) LIKE '%ppe%' OR LOWER(class_name) LIKE '%person%' OR LOWER(class_name) LIKE '%restricted%' THEN 1 END) as critical_count,
-                COUNT(CASE WHEN LOWER(class_name) LIKE '%zone%' OR LOWER(class_name) LIKE '%warning%' THEN 1 END) as warning_count
+            SELECT class_name
             FROM alerts
         """))
-        sev_row = result_sev.fetchone()
-        total_alerts = sev_row[0] if sev_row and sev_row[0] else 0
-        critical = sev_row[1] if sev_row and sev_row[1] else 0
-        warning = sev_row[2] if sev_row and sev_row[2] else 0
+        sev_rows = result_sev.fetchall()
+        total_alerts = len(sev_rows)
+        critical = 0
+        warning = 0
+
+        for row in sev_rows:
+            severity = _deterministic_severity(row[0])
+            if severity == "CRITICAL":
+                critical += 1
+            elif severity == "WARNING":
+                warning += 1
         normal = max(0, total_alerts - critical - warning)
 
         # 2. Daily violation breakdown (last 7 days)
@@ -685,10 +760,10 @@ async def get_analytics(db: AsyncSession = Depends(get_va_db)):
             db,
             """
             SELECT
-                COALESCE(zone_name, camera_name, 'Zone ' || COALESCE(camera_id::text, '1')) as zone_label,
-                COUNT(*) as alert_cnt
+                COALESCE(camera_name, 'Zone ' || COALESCE(camera_id::text, '1')) AS zone_label,
+                COUNT(*) AS alert_cnt
             FROM alerts
-            GROUP BY zone_label
+            GROUP BY COALESCE(camera_name, 'Zone ' || COALESCE(camera_id::text, '1'))
             ORDER BY alert_cnt DESC
             LIMIT 6
             """
@@ -770,7 +845,8 @@ async def alert_stream(db: AsyncSession = Depends(get_va_db)):
                         """
                             SELECT id, class_name, camera_name, created_at, snapshot_path 
                             FROM alerts 
-                            WHERE id > :last_id 
+                            WHERE id > :last_id
+                              AND DATE(created_at) = CURRENT_DATE
                             ORDER BY id ASC 
                             LIMIT 10
                         """,
@@ -790,7 +866,7 @@ async def alert_stream(db: AsyncSession = Depends(get_va_db)):
                         snapshot_path = row[4] or ""
                         data = {
                             "id": row[0],
-                            "severity": "CRITICAL" if any(k in class_name.lower() for k in ["person", "hardhat", "ppe", "restricted"]) else "WARNING",
+                            "severity": _deterministic_severity(class_name),
                             "message": f"Safety Violation: {class_name} detected on {cam_name}",
                             "timestamp": str(row[3]),
                             "camera_name": cam_name,

@@ -5,7 +5,9 @@ from sqlalchemy import create_engine as create_sync_engine
 from urllib.parse import quote_plus
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, Boolean, DateTime, select, text
+from sqlalchemy import String, Integer, Float, Boolean, DateTime, select, text, JSON, Text
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -348,6 +350,20 @@ class IntegrationConfig(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ChartSummary(Base):
+    __tablename__ = "chart_summaries"
+
+    # Use native PostgreSQL UUID type when available to avoid type-casting issues
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    chart_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    use_case_id: Mapped[str] = mapped_column(String(100), nullable=False, default='video_monitoring_engine')
+    summary_text: Mapped[str] = mapped_column(Text, nullable=False)
+    language: Mapped[str] = mapped_column(String(20), nullable=False)
+    summary_length: Mapped[str] = mapped_column(String(20), nullable=False)
+    metadata_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 # --- DB INIT & SEEDING ---
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { ChartMetadataPanel } from './ChartMetadataPanel';
+import ErrorBoundary from '../ErrorBoundary';
 
 interface ChartCardWrapperProps {
   id: string;
@@ -6,6 +8,7 @@ interface ChartCardWrapperProps {
   subtitle?: string;
   badgeText?: string;
   colSpan?: string;
+  metadata?: Record<string, unknown> | null;
   children: React.ReactNode;
   onRemove?: () => void;
   isDragActive?: boolean;
@@ -20,6 +23,7 @@ export const ChartCardWrapper: React.FC<ChartCardWrapperProps> = ({
   subtitle,
   badgeText,
   colSpan = 'col-span-1',
+  metadata,
   children,
   onRemove,
   onDragStart,
@@ -116,7 +120,7 @@ export const ChartCardWrapper: React.FC<ChartCardWrapperProps> = ({
           onClick={() => setIsFullscreen(false)}
         >
           <div
-            className="relative w-full max-w-6xl h-[85vh] bg-white border border-slate-200 rounded-3xl p-6 flex flex-col shadow-2xl overflow-hidden"
+            className="relative w-full max-w-7xl h-[85vh] bg-white border border-slate-200 rounded-3xl p-6 flex flex-col shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Fullscreen Header */}
@@ -146,8 +150,16 @@ export const ChartCardWrapper: React.FC<ChartCardWrapperProps> = ({
             </div>
 
             {/* Scaled Fullscreen Viewport */}
-            <div className="flex-1 w-full h-full min-h-0 overflow-y-auto p-4 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col justify-center">
-              {children}
+            <div className="grid grid-cols-[70%_30%] gap-4 flex-1 w-full h-full min-h-0 overflow-hidden">
+              <div className="min-h-0 overflow-y-auto p-4 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col justify-center">
+                {children}
+              </div>
+
+              <div className="min-h-0">
+                <ErrorBoundary>
+                  <ChartMetadataPanel metadata={metadata} chartId={id} />
+                </ErrorBoundary>
+              </div>
             </div>
           </div>
         </div>

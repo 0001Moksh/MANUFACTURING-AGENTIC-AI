@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { StreamGrid } from '../components/safety/StreamGrid';
 import { AlertFeed } from '../components/safety/AlertFeed';
 import { ChartCardWrapper } from '../components/safety/ChartCardWrapper';
 import { ChartCustomizationDrawer, type ChartDefinition } from '../components/safety/ChartCustomizationDrawer';
+import { formatChartMetadata } from '../utils/chartMetadata';
 
 // Default chart library definition
 const INITIAL_CHARTS: ChartDefinition[] = [
@@ -266,6 +267,34 @@ export const VideoMonitoringPage: React.FC = () => {
   const { severityData, violationTrends, hourlyData, cameraWise, violationTypeTotals } = analyticsData;
   const liveHeatmapZones: typeof heatmapZones = analyticsData.heatmapZones || heatmapZones;
   const totalAlerts = severityData.critical + severityData.warning + severityData.normal || 1;
+  const chartMetadataById = useMemo(() => {
+    const metadataMap: Record<string, ReturnType<typeof formatChartMetadata>> = {};
+    const cameraId = cameraWise?.[0]?.id || 'CAM_BASAI_03';
+
+    charts.forEach((chart) => {
+      let chartType = 'bar';
+
+      if (chart.id === 'severity_donut') {
+        chartType = 'donut';
+      } else if (chart.id === 'hourly_activity') {
+        chartType = 'histogram';
+      } else if (chart.id === 'site_heatmap') {
+        chartType = 'heatmap';
+      } else if (chart.id === 'violation_trends' || chart.id === 'daily_trend') {
+        chartType = 'line';
+      }
+
+      metadataMap[chart.id] = formatChartMetadata({
+        chartId: chart.id,
+        chartName: chart.name,
+        chartType,
+        data: analyticsData,
+        cameraId,
+      });
+    });
+
+    return metadataMap;
+  }, [analyticsData, cameraWise, charts]);
   const criticalPct = Math.round((severityData.critical / totalAlerts) * 100);
   const warningPct = Math.round((severityData.warning / totalAlerts) * 100);
   const normalPct = Math.max(0, 100 - criticalPct - warningPct);
@@ -679,6 +708,7 @@ export const VideoMonitoringPage: React.FC = () => {
                   subtitle={chart.description}
                   badgeText={chart.category}
                   colSpan={chart.colSpan}
+                  metadata={chartMetadataById[chart.id]}
                   onRemove={() => handleRemoveChart(chart.id)}
                   onDragStart={(e) => handleDragStart(e, chart.id)}
                   onDragOver={handleDragOver}

@@ -104,33 +104,33 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
           icon: <AlertTriangle className="w-4 h-4" />,
           label: 'HIGH RISK',
           value: summary.high_risk_zones,
-          color: 'text-red-400',
-          bg: 'bg-red-500/15',
-          border: 'border-red-500/20',
+          color: 'text-red-600',
+          bg: 'bg-red-50',
+          border: 'border-red-100',
         },
         {
           icon: <Layers className="w-4 h-4" />,
           label: 'VIOLATIONS',
           value: summary.total_incidents,
-          color: 'text-amber-300',
-          bg: 'bg-amber-500/15',
-          border: 'border-amber-500/20',
+          color: 'text-amber-600',
+          bg: 'bg-amber-50',
+          border: 'border-amber-100',
         },
         {
           icon: <ShieldCheck className="w-4 h-4" />,
           label: 'SAFETY IDX',
           value: `${summary.safety_index}%`,
-          color: 'text-emerald-400',
-          bg: 'bg-emerald-500/15',
-          border: 'border-emerald-500/20',
+          color: 'text-emerald-600',
+          bg: 'bg-emerald-50',
+          border: 'border-emerald-100',
         },
         {
           icon: <Camera className="w-4 h-4" />,
           label: 'CCTV LIVE',
           value: summary.active_cameras,
-          color: 'text-sky-300',
-          bg: 'bg-sky-500/15',
-          border: 'border-sky-500/20',
+          color: 'text-sky-600',
+          bg: 'bg-sky-50',
+          border: 'border-sky-100',
         },
       ]
     : [];
@@ -143,7 +143,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
         width: expanded ? '100%' : 72,
       }}
       transition={{ type: 'spring', stiffness: 340, damping: 34 }}
-      className={`bg-[#0B1528] text-white rounded-[20px] border border-white/10 shadow-xl overflow-hidden relative flex flex-col ${
+      className={`bg-white text-slate-800 rounded-[20px] border border-slate-200 shadow-lg shadow-slate-200/60 overflow-hidden relative flex flex-col ${
         expanded ? 'p-4 sm:p-5 gap-3.5' : 'py-4 px-2 gap-3 items-center'
       }`}
       style={{ minWidth: expanded ? undefined : 72 }}
@@ -156,25 +156,22 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
           exit={{ opacity: 0 }}
           className="flex flex-col items-center gap-3 w-full h-full"
         >
-          {/* Expand button */}
           <button
             onClick={() => setExpanded(true)}
-            className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer"
+            className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-800 transition-all cursor-pointer"
             title="Expand floor plan"
           >
             <PanelLeftOpen className="w-4.5 h-4.5" />
           </button>
 
-          {/* Vertical label */}
           <div
-            className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.14em] text-emerald-400 font-bold"
+            className="flex items-center gap-1.5 text-[9px] uppercase tracking-[0.14em] text-emerald-600 font-bold"
             style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
           >
             <Activity className="w-3 h-3 animate-pulse" />
             Spatial Risk
           </div>
 
-          {/* KPI icons stacked */}
           <div className="flex flex-col gap-2.5 mt-1 w-full items-center">
             {kpiItems.map((k) => (
               <div
@@ -186,7 +183,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                 <div className={`text-[10px] font-bold ${k.color} leading-none`}>
                   {k.value}
                 </div>
-                <div className="text-[7.5px] text-white/45 uppercase tracking-wider leading-none text-center px-0.5">
+                <div className="text-[7.5px] text-slate-400 uppercase tracking-wider leading-none text-center px-0.5">
                   {k.label.split(' ')[0]}
                 </div>
               </div>
@@ -209,19 +206,18 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-start gap-2.5">
                 <div>
-                  <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-wider text-emerald-400 font-bold">
+                  <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-wider text-emerald-600 font-bold">
                     <Activity className="w-3.5 h-3.5 animate-pulse" />
                     Spatial Risk Heat Map
                   </div>
-                  <h2 className="text-[16px] font-bold text-white mt-0.5">
+                  <h2 className="text-[16px] font-bold text-slate-800 mt-0.5">
                     Plant Floor Safety &amp; Risk Layout
                   </h2>
                 </div>
 
-                {/* Collapse button */}
                 <button
                   onClick={() => setExpanded(false)}
-                  className="mt-0.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer border border-white/15 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white"
+                  className="mt-0.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-800"
                   title="Collapse to sidebar"
                 >
                   <PanelLeftClose className="w-3.5 h-3.5" />
@@ -229,7 +225,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-white/10 p-1 rounded-xl border border-white/10 self-start sm:self-auto">
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
                 {[
                   { id: 'TODAY', label: 'Today' },
                   { id: '7_DAYS', label: '7 Days' },
@@ -240,8 +236,8 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                     onClick={() => onChangeTimeFilter(tf.id as any)}
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer border-none ${
                       timeFilter === tf.id
-                        ? 'bg-emerald-500 text-slate-950 shadow-md'
-                        : 'bg-transparent text-white/70 hover:text-white hover:bg-white/5'
+                        ? 'bg-emerald-500 text-white shadow-sm'
+                        : 'bg-transparent text-slate-500 hover:text-slate-800 hover:bg-white'
                     }`}
                   >
                     {tf.label}
@@ -256,7 +252,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                 {kpiItems.map((k) => (
                   <div
                     key={k.label}
-                    className="bg-white/5 border border-white/10 rounded-xl p-2 flex items-center gap-2"
+                    className="bg-slate-50 border border-slate-200 rounded-xl p-2 flex items-center gap-2"
                   >
                     <div
                       className={`w-7 h-7 rounded-lg ${k.bg} ${k.color} flex items-center justify-center shrink-0`}
@@ -264,7 +260,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                       {k.icon}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[9px] text-white/55 uppercase tracking-wider truncate">
+                      <div className="text-[9px] text-slate-400 uppercase tracking-wider truncate">
                         {k.label}
                       </div>
                       <div className={`text-[13px] font-bold ${k.color}`}>{k.value}</div>
@@ -275,20 +271,20 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
             )}
 
             {/* Sector Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 custom-scrollbar-dark">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
               <button
                 onClick={() => setActiveSector('ALL')}
                 className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-semibold transition-all cursor-pointer border ${
                   activeSector === 'ALL'
-                    ? 'bg-white text-slate-950 border-white shadow-md'
-                    : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white'
+                    ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
                 <Layers className="w-3 h-3" />
                 All Zones
                 <span
                   className={`text-[9.5px] px-1.5 py-0.5 rounded-full ${
-                    activeSector === 'ALL' ? 'bg-slate-950/10' : 'bg-white/10'
+                    activeSector === 'ALL' ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
                   }`}
                 >
                   {zones.length}
@@ -303,8 +299,8 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                     onClick={() => setActiveSector(s)}
                     className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11.5px] font-semibold transition-all cursor-pointer border whitespace-nowrap ${
                       isActive
-                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md'
-                        : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white'
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-800'
                     }`}
                   >
                     <MapPin className="w-3 h-3" />
@@ -312,7 +308,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                     {riskCount > 0 && (
                       <span
                         className={`text-[9.5px] px-1.5 py-0.5 rounded-full font-bold ${
-                          isActive ? 'bg-slate-950/15' : 'bg-red-500/25 text-red-300'
+                          isActive ? 'bg-white/25' : 'bg-red-50 text-red-600'
                         }`}
                       >
                         {riskCount}
@@ -324,11 +320,11 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
             </div>
 
             {/* Floor Map */}
-            <div className="relative bg-[#060D1A] rounded-2xl border border-white/15 overflow-hidden flex items-center justify-center aspect-[8/5] min-h-[220px]">
+            <div className="relative bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex items-center justify-center aspect-[8/5] min-h-[220px]">
               <div
-                className="absolute inset-0 opacity-15 pointer-events-none"
+                className="absolute inset-0 opacity-40 pointer-events-none"
                 style={{
-                  backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)`,
+                  backgroundImage: `radial-gradient(circle at 1px 1px, rgba(148,163,184,0.45) 1px, transparent 0)`,
                   backgroundSize: '24px 24px',
                 }}
               />
@@ -340,7 +336,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                   width={svgWidth - 40}
                   height={svgHeight - 40}
                   fill="none"
-                  stroke="#1E293B"
+                  stroke="#CBD5E1"
                   strokeWidth="2"
                   strokeDasharray="6 6"
                   rx="12"
@@ -350,7 +346,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                   y1={svgHeight * 0.55}
                   x2={svgWidth - 20}
                   y2={svgHeight * 0.55}
-                  stroke="#334155"
+                  stroke="#94A3B8"
                   strokeWidth="1.5"
                   strokeDasharray="4 4"
                 />
@@ -378,7 +374,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                       key={z.id}
                       onClick={() => onSelectZone(isSelected ? null : z)}
                       className="cursor-pointer transition-all"
-                      opacity={inActiveSector ? 1 : 0.18}
+                      opacity={inActiveSector ? 1 : 0.2}
                     >
                       {z.pulse && inActiveSector && (
                         <circle
@@ -388,17 +384,17 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                           fill="none"
                           stroke="#EF4444"
                           strokeWidth="2"
-                          opacity="0.75"
+                          opacity="0.7"
                           className="animate-ping origin-center"
                         />
                       )}
                       <polygon
                         points={points}
                         fill={z.color}
-                        fillOpacity={isSelected ? 0.45 : 0.22}
-                        stroke={isSelected ? '#FFFFFF' : z.color}
-                        strokeWidth={isSelected ? 3 : 1.8}
-                        className="transition-all duration-200 hover:fill-opacity-40"
+                        fillOpacity={isSelected ? 0.4 : 0.2}
+                        stroke={isSelected ? '#0F172A' : z.color}
+                        strokeWidth={isSelected ? 2.5 : 1.6}
+                        className="transition-all duration-200 hover:fill-opacity-35"
                       />
                       {inActiveSector && (
                         <>
@@ -406,19 +402,19 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                             cx={center.x - 45}
                             cy={center.y - 18}
                             r="8"
-                            fill="#0F172A"
-                            stroke="#38BDF8"
+                            fill="#FFFFFF"
+                            stroke="#0EA5E9"
                             strokeWidth="1.5"
                           />
-                          <circle cx={center.x - 45} cy={center.y - 15} r={6} fill="#38BDF8" />
+                          <circle cx={center.x - 45} cy={center.y - 15} r={6} fill="#0EA5E9" />
                           <text
                             x={center.x}
                             y={center.y - 6}
-                            fill="#FFFFFF"
+                            fill="#0F172A"
                             fontSize="11"
                             fontWeight="bold"
                             textAnchor="middle"
-                            className="pointer-events-none drop-shadow-md"
+                            className="pointer-events-none"
                           >
                             {z.name.split('(')[0].trim()}
                           </text>
@@ -429,7 +425,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                             height="18"
                             rx="9"
                             fill={z.color}
-                            fillOpacity="0.9"
+                            fillOpacity="0.95"
                             className="pointer-events-none"
                           />
                           <text
@@ -451,8 +447,8 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
               </svg>
 
               {loading && (
-                <div className="absolute inset-0 bg-[#0B1528]/70 backdrop-blur-sm flex items-center justify-center">
-                  <div className="flex items-center gap-2 text-emerald-400 font-semibold text-sm">
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center">
+                  <div className="flex items-center gap-2 text-emerald-600 font-semibold text-sm">
                     <Activity className="w-4 h-4 animate-spin" />
                     Updating spatial violation density...
                   </div>
@@ -461,9 +457,9 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
             </div>
 
             {/* Zone List */}
-            <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto custom-scrollbar-dark pr-0.5">
+            <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-0.5">
               {visibleZones.length === 0 && (
-                <div className="text-center text-white/50 text-[12px] py-6">
+                <div className="text-center text-slate-400 text-[12px] py-6">
                   No zones in this sector.
                 </div>
               )}
@@ -475,8 +471,8 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                     onClick={() => onSelectZone(isSelected ? null : z)}
                     className={`text-left flex items-center gap-3 px-3 py-2 rounded-xl border transition-all cursor-pointer ${
                       isSelected
-                        ? 'bg-white/15 border-white/30 shadow-md'
-                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                        ? 'bg-slate-100 border-slate-300 shadow-sm'
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     <span
@@ -488,17 +484,17 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[12.5px] font-semibold text-white truncate">
+                        <span className="text-[12.5px] font-semibold text-slate-800 truncate">
                           {z.name.split('(')[0].trim()}
                         </span>
                         <span
                           className="text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide"
-                          style={{ backgroundColor: `${z.color}30`, color: z.color }}
+                          style={{ backgroundColor: `${z.color}22`, color: z.color }}
                         >
                           {z.risk_level}
                         </span>
                       </div>
-                      <div className="text-[10.5px] text-white/55 truncate">
+                      <div className="text-[10.5px] text-slate-500 truncate">
                         {z.sector} · {z.camera_name}
                       </div>
                     </div>
@@ -506,11 +502,11 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                       <div className="text-[13px] font-bold" style={{ color: z.color }}>
                         {z.risk_score}
                       </div>
-                      <div className="text-[9px] text-white/50 uppercase">
+                      <div className="text-[9px] text-slate-400 uppercase">
                         {z.incident_count} events
                       </div>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-white/30 shrink-0" />
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
                   </button>
                 );
               })}
@@ -523,11 +519,11 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="bg-white/10 border border-white/20 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur-md relative"
+                  className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 relative"
                 >
                   <button
                     onClick={() => onSelectZone(null)}
-                    className="absolute top-3 right-3 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-all cursor-pointer border-none flex items-center justify-center z-10"
+                    className="absolute top-3 right-3 p-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-all cursor-pointer border border-slate-200 flex items-center justify-center z-10"
                     title="Close inspection panel"
                   >
                     <X className="w-4 h-4" />
@@ -539,15 +535,15 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: selectedZone.color }}
                       />
-                      <span className="text-[11px] uppercase tracking-wider text-white/70 font-semibold">
+                      <span className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
                         {selectedZone.sector}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/10 text-white">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white border border-slate-200 text-slate-700">
                         Camera: {selectedZone.camera_name}
                       </span>
                     </div>
-                    <h3 className="text-[16px] font-bold text-white">{selectedZone.name}</h3>
-                    <p className="text-[12.5px] text-white/80">
+                    <h3 className="text-[16px] font-bold text-slate-800">{selectedZone.name}</h3>
+                    <p className="text-[12.5px] text-slate-600">
                       Total Violations: <strong>{selectedZone.incident_count} events</strong> ·
                       Risk Score:{' '}
                       <strong style={{ color: selectedZone.color }}>
@@ -558,7 +554,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                       {Object.entries(selectedZone.violations_breakdown).map(([k, v]) => (
                         <span
                           key={k}
-                          className="text-[10.5px] px-2 py-0.5 rounded-md bg-black/30 border border-white/10 text-white/90"
+                          className="text-[10.5px] px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700"
                         >
                           {k}: <strong>{v}</strong>
                         </span>
@@ -569,7 +565,7 @@ export const SpatialFloorHeatmap: React.FC<SpatialFloorHeatmapProps> = ({
                   {onAskDevaAboutZone && (
                     <button
                       onClick={() => onAskDevaAboutZone(selectedZone)}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[12.5px] px-4 py-2.5 rounded-xl transition-colors cursor-pointer border-none flex items-center gap-2 shrink-0 shadow-md"
+                      className="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-[12.5px] px-4 py-2.5 rounded-xl transition-colors cursor-pointer border-none flex items-center gap-2 shrink-0 shadow-sm"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       Ask Deva why this zone is {selectedZone.risk_level}

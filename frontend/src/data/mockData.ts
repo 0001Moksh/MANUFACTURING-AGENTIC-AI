@@ -148,6 +148,7 @@ export const agents: Agent[] = [
   {n:"Environmental Compliance Agent",status:"active",sig:"94.1% rollup",desc:"Tracks CO₂, CH₄, NOx, SOx, waste and effluent against regulatory limits.",last:"7 min ago",owner:"Environmental Lead"},
   {n:"Predictive Safety Intelligence Agent",status:"watch",sig:"6 zones flagged",desc:"Forecasts incident probability, heat stress and equipment failure 7–30 days ahead.",last:"2 min ago",owner:"HSE Officer"},
   {n:"Contractor & Asset Risk Agent",status:"active",sig:"4 high-risk",desc:"Aggregates contractor safety scores and asset failure risk into one site ranking.",last:"9 min ago",owner:"Plant Digital Head"},
+  {n:"Insights Summary Agent",status:"active",sig:"live",desc:"Generates concise, contextual summaries for charts and video monitoring insights. Supports language and length customization.",last:"just now",owner:"AI Platform"},
 ];
 
 export const feedPool = [
