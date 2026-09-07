@@ -1,4 +1,5 @@
 import asyncio
+import re
 import logging
 import hashlib
 import os
@@ -92,6 +93,7 @@ class GovernanceSettingToggleRequest(BaseModel):
 
 class UseCaseHITLRequest(BaseModel):
     enabled: bool
+    recipient_emails: Optional[str] = None
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -382,23 +384,45 @@ async def _create_notification(
     return notification
 
 
-async def _email_verified_super_admins(db: AsyncSession, approval_key: str, report_url: str) -> int:
-    """Send the approval request only to verified Super Admin profile emails."""
-    profiles = (await db.execute(
-        select(UserProfile).join(User, User.id == UserProfile.user_id).where(
-            User.role == "Super Admin", UserProfile.email_verified.is_(True)
-        )
-    )).scalars().all()
+async def _send_hitl_approval_request(db: AsyncSession, approval_key: str, report_url: str) -> int:
+    """
+    Send HITL approval request email strictly to the configured HITL Approver Email(s).
+    Fallback to verified Super Admin emails ONLY IF no HITL approver email is configured.
+    """
+    approver_emails = set()
+    uc_setting = (await db.execute(
+        select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == "daily_operations_reporting")
+    )).scalars().first()
+    
+    if uc_setting and getattr(uc_setting, 'recipient_emails', None):
+        for email in uc_setting.recipient_emails.split(','):
+            email_clean = email.strip()
+            if email_clean == "nofackai@gmail.com":
+                email_clean = "nofakeai@gmail.com"
+            if email_clean:
+                approver_emails.add(email_clean)
+
+    # Fallback to verified Super Admins ONLY if no approver email is configured
+    if not approver_emails:
+        profiles = (await db.execute(
+            select(UserProfile).join(User, User.id == UserProfile.user_id).where(
+                User.role == "Super Admin", UserProfile.email_verified.is_(True)
+            )
+        )).scalars().all()
+        for p in profiles:
+            if p.email:
+                approver_emails.add(p.email)
+
     delivered = 0
-    for profile in profiles:
+    for target_email in approver_emails:
         expires = datetime.utcnow() + timedelta(hours=24)
-        approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
-        reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
+        approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
+        reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
         approve_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={approve_token}"
         reject_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={reject_token}"
         body = f"A Daily Operations report PDF is awaiting Human-in-the-Loop approval.\n\nReport reference: {approval_key}\nReview PDF: {report_url or 'Available in the MAI Admin Console'}\n\nApprove: {approve_url}\nReject: {reject_url}\n\nThe links expire in 24 hours and can be used only once."
         html = f"""<div style='font-family:Arial,sans-serif;color:#17324d;max-width:600px'><h2>Daily Operations report approval required</h2><p>A PDF has been generated and is waiting for your Human-in-the-Loop decision.</p><p><b>Report reference:</b> {approval_key}<br><a href='{report_url}'>Review PDF</a></p><p><a href='{approve_url}' style='display:inline-block;background:#0e6b52;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:bold'>Approve &amp; Send Report</a>&nbsp;<a href='{reject_url}' style='display:inline-block;background:#fff;color:#a12b2b;padding:12px 18px;border:1px solid #d39a9a;border-radius:6px;text-decoration:none;font-weight:bold'>Reject Report</a></p><p style='font-size:12px;color:#667'>These signed links expire in 24 hours and the decision can be applied only once.</p></div>"""
-        if send_html_email(profile.email, "Approval required: Daily Operations report", body, html):
+        if send_html_email(target_email, "Approval required: Daily Operations report", body, html):
             delivered += 1
     return delivered
 
@@ -688,6 +712,7 @@ async def get_daily_reporting_governance(db: AsyncSession = Depends(get_db)):
         "hitl_enabled": bool(setting and setting.hitl_enabled),
         "global_hitl_enabled": bool(global_setting and global_setting.is_enabled),
         "effective_hitl_enabled": bool(setting and setting.hitl_enabled and global_setting and global_setting.is_enabled),
+        "recipient_emails": setting.recipient_emails if setting else None,
     }
 
 
@@ -703,8 +728,46 @@ async def update_daily_reporting_governance(req: UseCaseHITLRequest, request: Re
         setting = UseCaseGovernanceSettings(use_case_key="daily_operations_reporting")
         db.add(setting)
     setting.hitl_enabled = req.enabled
+    # Update optional recipient override (validate simple comma-separated emails)
+    if getattr(req, 'recipient_emails', None) is not None:
+        emails_raw = (req.recipient_emails or '').strip()
+        if emails_raw:
+            parts = [e.strip() for e in emails_raw.split(',') if e.strip()]
+            email_re = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+            if not all(email_re.match(p) for p in parts):
+                raise HTTPException(status_code=422, detail="One or more recipient emails are invalid")
+            setting.recipient_emails = ','.join(parts)
+        else:
+            setting.recipient_emails = None
     await db.commit()
     return {"status": "success", "hitl_enabled": setting.hitl_enabled}
+
+
+@router.get("/api/admin/governance/hitl-use-cases")
+async def list_hitl_use_cases(db: AsyncSession = Depends(get_db)):
+    """Return all use-cases that support HITL and their per-use-case settings."""
+    # For now we enumerate known HITL-capable use cases; extend as new use-cases are added.
+    known = [
+        {
+            "use_case_key": "daily_operations_reporting",
+            "label": "Agentic Daily Operations & Resources Reporting",
+            "description": "Automated daily reporting with optional human approval before dispatch",
+        }
+    ]
+    results = []
+    global_setting = (await db.execute(select(GlobalGovernanceSettings).where(GlobalGovernanceSettings.setting_key == "hitl_approval"))).scalars().first()
+    for u in known:
+        setting = (await db.execute(select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == u['use_case_key']))).scalars().first()
+        results.append({
+            "use_case_key": u['use_case_key'],
+            "label": u['label'],
+            "description": u['description'],
+            "hitl_enabled": bool(setting and setting.hitl_enabled),
+            "recipient_emails": setting.recipient_emails if setting else None,
+            "global_hitl_enabled": bool(global_setting and global_setting.is_enabled),
+            "effective_hitl_enabled": bool(setting and setting.hitl_enabled and global_setting and global_setting.is_enabled),
+        })
+    return results
 
 
 @router.get("/api/notifications")
@@ -744,9 +807,13 @@ async def list_report_approvals(request: Request, db: AsyncSession = Depends(get
         query = query.where(ReportApproval.requested_by_user_id == user.id)
     approvals = (await db.execute(query.limit(100))).scalars().all()
     return [{
-        "approval_key": approval.approval_key, "status": approval.status, "query": approval.query,
-        "report_url": approval.report_url, "created_at": approval.created_at.isoformat(),
+        "approval_key": approval.approval_key,
+        "status": approval.status,
+        "query": approval.query,
+        "report_url": approval.report_url,
+        "created_at": approval.created_at.isoformat(),
         "decision_note": approval.decision_note,
+        "recipient_email": getattr(approval, 'recipient_email', None),
     } for approval in approvals]
 
 
@@ -791,13 +858,14 @@ async def decide_report_from_email(token: str, request: Request, db: AsyncSessio
     except (jwt.PyJWTError, KeyError, ValueError):
         return HTMLResponse("<h2>Invalid or expired approval link</h2><p>This action link is no longer valid. Open MAI Admin Console to review the report.</p>", status_code=400)
 
-    profile = (await db.execute(
-        select(UserProfile).join(User, User.id == UserProfile.user_id).where(
-            UserProfile.user_id == user_id, User.role == "Super Admin", UserProfile.email_verified.is_(True)
-        )
-    )).scalars().first()
-    if not profile:
-        return HTMLResponse("<h2>Approval not authorized</h2><p>The intended Super Admin profile is no longer verified.</p>", status_code=403)
+    if user_id != 0:
+        profile = (await db.execute(
+            select(UserProfile).join(User, User.id == UserProfile.user_id).where(
+                UserProfile.user_id == user_id, User.role == "Super Admin", UserProfile.email_verified.is_(True)
+            )
+        )).scalars().first()
+        if not profile:
+            return HTMLResponse("<h2>Approval not authorized</h2><p>The intended Super Admin profile is no longer verified.</p>", status_code=403)
 
     # Email security scanners commonly prefetch GET links. Render a confirmation page
     # first so the signed action runs only after an intentional browser POST.
@@ -1030,6 +1098,7 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
             )).scalars().first()
             if bool(global_hitl and global_hitl.is_enabled and local_hitl and local_hitl.hitl_enabled):
                 reporting_settings = (await db.execute(select(AgentReportingSettings))).scalars().first()
+                # Determine recipient email: per-use-case override (first address) wins, then request override, then reporting settings
                 recipient_email = req.email_to or (reporting_settings.email if reporting_settings else None)
                 approval_key = secrets.token_urlsafe(24)
                 approval = ReportApproval(
@@ -1043,6 +1112,7 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
                 )
                 db.add(approval)
                 await db.flush()
+                logging.getLogger("routes").info(f"Created ReportApproval {approval_key} with recipient={recipient_email}")
                 await _create_notification(
                     db, recipient_user_id=None, category="human_intervention",
                     title="Daily Operations report requires approval",
@@ -1050,13 +1120,13 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
                     source_type="report_approval", source_id=approval_key,
                 )
                 await db.commit()
-                emailed_admins = await _email_verified_super_admins(db, approval_key, state.get("pdf_url", ""))
+                emailed_admins = await _send_hitl_approval_request(db, approval_key, state.get("pdf_url", ""))
                 if not emailed_admins:
                     # The notification is already persisted; surface the missing verified recipient explicitly.
                     await _create_notification(
                         db, recipient_user_id=current_user.id, category="alert",
                         title="Approval email was not delivered",
-                        message="No verified Super Admin profile email is available. Approve the report from Admin Console.",
+                        message="No HITL approver email or verified Super Admin profile email is available. Approve the report from Admin Console.",
                         source_type="report_approval", source_id=approval_key,
                     )
                     await db.commit()

@@ -88,6 +88,4 @@ cover/
 # Misc
 *.tmp
 *.temp
-
-/backend/reports
-.env
+\backend

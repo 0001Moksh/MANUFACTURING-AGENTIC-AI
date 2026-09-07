@@ -5,12 +5,15 @@ import { UsersTable } from '../components/admin/UsersTable';
 import { ConnectorsGrid } from '../components/admin/ConnectorsGrid';
 import { RulesBuilder } from '../components/admin/RulesBuilder';
 import { useStore } from '../store';
+import { Settings2 } from 'lucide-react';
+import { HITLSettingsModal } from '../components/admin/HITLSettingsModal';
 import { guardrails } from '../data/mockData';
 import { api } from '../services/api';
 
 export const AdminConsolePage: React.FC = () => {
   const location = useLocation();
   const { explainableLogs, humanInLoop, toggleGovernanceSetting } = useStore();
+  const [showHitlModal, setShowHitlModal] = useState(false);
   const [activePane, setActivePane] = useState(() => new URLSearchParams(location.search).get('pane') === 'notifications' ? 'notifications' : 'users');
   const [notifications, setNotifications] = useState<any[]>([]);
   const [approvals, setApprovals] = useState<any[]>([]);
@@ -168,16 +171,21 @@ export const AdminConsolePage: React.FC = () => {
                     <div className="font-bold text-[13px] mb-[2px]">{label}</div>
                     <div className="text-[11.5px] text-muted">{desc}</div>
                   </div>
-                  <button
-                    onClick={() => toggleGovernanceSetting(key, !isOn)}
-                    className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
-                      isOn ? 'bg-green' : 'bg-[#D7DCE8]'
-                    }`}
-                  >
-                    <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 shadow-sm ${
-                      isOn ? 'right-[2px]' : 'left-[2px]'
-                    }`} />
-                  </button>
+                                  <div className="flex items-center gap-3">
+                                    {key === 'hitl_approval' && (
+                                      <button title="HITL settings" onClick={() => setShowHitlModal(true)} className="p-2 rounded hover:bg-gray-100"><Settings2 className="w-4 h-4 text-muted" /></button>
+                                    )}
+                                    <button
+                                      onClick={() => toggleGovernanceSetting(key, !isOn)}
+                                      className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
+                                        isOn ? 'bg-green' : 'bg-[#D7DCE8]'
+                                      }`}
+                                    >
+                                      <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 shadow-sm ${
+                                        isOn ? 'right-[2px]' : 'left-[2px]'
+                                      }`} />
+                                    </button>
+                                  </div>
                 </div>
               ))}
 
@@ -212,6 +220,9 @@ export const AdminConsolePage: React.FC = () => {
           
         </motion.div>
       </AnimatePresence>
+      {showHitlModal && (
+        <HITLSettingsModal onClose={() => setShowHitlModal(false)} onUpdated={() => { void useStore().fetchGovernanceSettings(); }} />
+      )}
     </motion.div>
   );
 };

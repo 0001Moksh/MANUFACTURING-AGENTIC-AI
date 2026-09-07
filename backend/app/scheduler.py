@@ -21,13 +21,32 @@ PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/"
 
 
 async def _notify_verified_super_admins(approval_key: str, report_url: str, delivery_time: str) -> int:
-    """Email all verified Super Admin profiles; addresses are never hardcoded."""
+    """
+    Email configured HITL approval recipients.
+    Fallback to verified Super Admin emails ONLY IF no HITL approver email is configured.
+    """
     async with AsyncSessionLocal() as session:
-        profiles = (await session.execute(
-            select(UserProfile).join(User, User.id == UserProfile.user_id).where(
-                User.role == "Super Admin", UserProfile.email_verified.is_(True)
-            )
-        )).scalars().all()
+        approver_emails = set()
+        uc_setting = (await session.execute(
+            select(UseCaseGovernanceSettings).where(UseCaseGovernanceSettings.use_case_key == "daily_operations_reporting")
+        )).scalars().first()
+        if uc_setting and getattr(uc_setting, 'recipient_emails', None):
+            for email in uc_setting.recipient_emails.split(','):
+                email_clean = email.strip()
+                if email_clean:
+                    approver_emails.add(email_clean)
+
+        # Fallback to verified Super Admins ONLY if no approver email is configured
+        if not approver_emails:
+            profiles = (await session.execute(
+                select(UserProfile).join(User, User.id == UserProfile.user_id).where(
+                    User.role == "Super Admin", UserProfile.email_verified.is_(True)
+                )
+            )).scalars().all()
+            for p in profiles:
+                if p.email:
+                    approver_emails.add(p.email)
+
     subject = "Approval required: Daily Operations report"
     body = (
         "A Daily Operations PDF has been generated and is waiting for Human-in-the-Loop approval.\n\n"
@@ -35,18 +54,18 @@ async def _notify_verified_super_admins(approval_key: str, report_url: str, deli
         f"Report reference: {approval_key}\n"
         f"Review PDF: {report_url or 'Available in the MAI Admin Console'}\n\n"
         "Open MAI Platform > Admin Console > Notifications to approve and send, or reject the report. "
-        "The PDF will not be emailed to the recipient until a Super Admin approves it."
+        "The PDF will not be emailed to the recipient until approved."
     )
     delivered = 0
-    for profile in profiles:
+    for target_email in approver_emails:
         expires = datetime.utcnow() + timedelta(hours=24)
-        approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
-        reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": profile.user_id, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
+        approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
+        reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
         approve_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={approve_token}"
         reject_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={reject_token}"
         text_body = f"{body}\n\nApprove: {approve_url}\nReject: {reject_url}\n\nThese signed links expire in 24 hours and can be used only once."
         html_body = f"""<div style='font-family:Arial,sans-serif;color:#17324d;max-width:600px'><h2>Daily Operations report approval required</h2><p>A PDF has been generated and is waiting for your Human-in-the-Loop decision.</p><p><b>Scheduled delivery:</b> {delivery_time}<br><b>Report reference:</b> {approval_key}<br><a href='{report_url}'>Review PDF</a></p><p><a href='{approve_url}' style='display:inline-block;background:#0e6b52;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:bold'>Approve &amp; Send Report</a>&nbsp;<a href='{reject_url}' style='display:inline-block;background:#fff;color:#a12b2b;padding:12px 18px;border:1px solid #d39a9a;border-radius:6px;text-decoration:none;font-weight:bold'>Reject Report</a></p><p style='font-size:12px;color:#667'>These signed links expire in 24 hours and the decision can be applied only once.</p></div>"""
-        if send_html_email(profile.email, subject, text_body, html_body):
+        if send_html_email(target_email, subject, text_body, html_body):
             delivered += 1
     return delivered
 
@@ -113,8 +132,9 @@ async def check_and_run_daily_report():
                 requires_approval = bool(global_hitl and global_hitl.is_enabled and local_hitl and local_hitl.hitl_enabled)
 
                 if requires_approval:
-                    if not settings.email:
-                        logger.error("HITL is enabled but no report recipient email is configured; report will not be dispatched.")
+                    final_recipient = settings.email
+                    if not final_recipient:
+                        logger.error("HITL is enabled but no report recipient email is configured in Agent Reporting Settings; report will not be dispatched.")
                         approval_session.add(PlatformNotification(
                             recipient_user_id=None, category="alert", title="Daily report dispatch blocked",
                             message="HITL is enabled but UC01 has no recipient email configured.", source_type="daily_reporting",
@@ -124,7 +144,7 @@ async def check_and_run_daily_report():
                     approval_key = secrets.token_urlsafe(24)
                     approval_session.add(ReportApproval(
                         approval_key=approval_key, status="PENDING_APPROVAL", use_case_key="daily_operations_reporting",
-                        recipient_email=settings.email, report_path=local_pdf_path,
+                        recipient_email=final_recipient, report_path=local_pdf_path,
                         report_url=workflow_result.get("pdf_url", ""), query=settings.prompt or "Scheduled daily report",
                     ))
                     approval_session.add(PlatformNotification(
@@ -133,6 +153,7 @@ async def check_and_run_daily_report():
                         source_type="report_approval", source_id=approval_key,
                     ))
                     await approval_session.commit()
+                    logger.info("Created scheduled ReportApproval %s with recipient=%s", approval_key, final_recipient)
                     emailed_admins = await _notify_verified_super_admins(
                         approval_key, workflow_result.get("pdf_url", ""), settings.schedule_time
                     )
@@ -141,11 +162,12 @@ async def check_and_run_daily_report():
                     logger.info("Scheduled report generated and held for HITL approval; approval_key=%s", approval_key)
                     return
 
-            if not settings.email:
-                logger.warning("Automated report generated but no recipient email configured.")
+            final_recipient = settings.email
+            if not final_recipient:
+                logger.warning("Automated report generated but no recipient email configured in Agent Reporting Settings.")
                 return
             delivered = send_pdf_report_email(
-                settings.email, "Daily MES Manufacturing Executive Summary Report",
+                final_recipient, "Daily MES Manufacturing Executive Summary Report",
                 "Please find attached your automated daily production and resources report generated by MAI.", local_pdf_path,
             )
             async with AsyncSessionLocal() as notification_session:
@@ -153,11 +175,11 @@ async def check_and_run_daily_report():
                     recipient_user_id=None,
                     category="system" if delivered else "alert",
                     title="Daily report sent" if delivered else "Daily report delivery failed",
-                    message=(f"Scheduled report was sent to {settings.email}." if delivered else f"The report was generated, but SMTP delivery to {settings.email} failed."),
+                    message=(f"Scheduled report was sent to {final_recipient}." if delivered else f"The report was generated, but SMTP delivery to {final_recipient} failed."),
                     source_type="daily_reporting",
                 ))
                 await notification_session.commit()
-            logger.info("Scheduled report autonomous dispatch %s for %s", "succeeded" if delivered else "failed", settings.email)
+            logger.info("Scheduled report autonomous dispatch %s for %s", "succeeded" if delivered else "failed", final_recipient)
 
     except Exception as e:
         import traceback

@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine as create_sync_engine
 from urllib.parse import quote_plus
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, select, text, JSON, Text
 from sqlalchemy.dialects.postgresql import UUID
+from typing import Optional
 import uuid
 from dotenv import load_dotenv
 
@@ -133,6 +135,7 @@ engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     pool_pre_ping=True,
+    pool_reset_on_return=None,
     connect_args={
         "timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
         "command_timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
@@ -155,7 +158,7 @@ if VA_DATABASE_URL:
         va_engine = create_async_engine(
             async_va_url,
             echo=False,
-            pool_pre_ping=True,
+            poolclass=NullPool,
             connect_args={
                 "timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
                 "command_timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
@@ -239,6 +242,8 @@ class UseCaseGovernanceSettings(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     use_case_key: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     hitl_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Optional comma-separated override recipient emails for HITL notifications
+    recipient_emails: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
@@ -440,6 +445,12 @@ async def init_db():
     async with engine.begin() as conn:
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure new nullable column exists for older DBs (safe to run repeatedly)
+        try:
+            await conn.execute(text("ALTER TABLE use_case_governance_settings ADD COLUMN IF NOT EXISTS recipient_emails VARCHAR(1000);"))
+        except Exception:
+            # Non-blocking: if the table doesn't exist yet or DB doesn't support IF NOT EXISTS, ignore and continue
+            pass
         
     async with AsyncSessionLocal() as session:
         await seed_data(session)
