@@ -51,7 +51,7 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "IIOT_MANUFACTURING_SECRET_KEY_JWT")
 ALGORITHM = "HS256"
 REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_KEY)
 PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://192.168.10.8:3000").rstrip("/")
 
 # Models for Request/Response
 class LoginRequest(BaseModel):
