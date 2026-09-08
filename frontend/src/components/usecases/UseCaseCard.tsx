@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Ban, PlugZap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { type UseCase, pillarMeta, AGENT_INTEGRATION_DEPENDENCY } from '../../data/mockData';
 import { useIntegrations } from '../../services/IntegrationContext';
@@ -73,12 +74,12 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
           <span className="ml-auto text-[9.5px] font-extrabold tracking-[0.6px] py-[3px] px-[8px] rounded-[5px] bg-navy-900 text-white border border-navy-800 shadow-sm whitespace-nowrap">COMING SOON</span>
         ) : blockedDep?.type === 'agent' ? (
           <span className="ml-auto inline-flex items-center gap-[4px] text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[8px] rounded-[20px] bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+            <Ban className="h-3 w-3" />
             Unavailable - Agent Offline
           </span>
         ) : blockedDep?.type === 'integration' ? (
           <span className="ml-auto inline-flex items-center gap-[4px] text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[8px] rounded-[20px] bg-amber-tint text-[#9A6400] whitespace-nowrap">
-            <span>⚠</span>
+            <PlugZap className="h-3 w-3" />
             Requires {blockedDep.name}
           </span>
         ) : (
@@ -114,14 +115,14 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
         </div>
       ) : blockedDep?.type === 'agent' ? (
         <div className="flex items-center gap-[6px] bg-red-50 border border-red-200/80 rounded-[7px] px-[9px] py-[6px]">
-          <span className="text-[12px]">🚫</span>
+          <Ban className="h-3.5 w-3.5 text-red-600" />
           <span className="text-[10.5px] text-red-700 font-medium">
             Powering agent <span className="font-bold">{blockedDep.name}</span> is disabled in AI Agents portfolio.
           </span>
         </div>
       ) : blockedDep?.type === 'integration' && (
         <div className="flex items-center gap-[6px] bg-amber-tint/60 border border-amber/15 rounded-[7px] px-[9px] py-[6px]">
-          <span className="text-[12px]">🔌</span>
+          <PlugZap className="h-3.5 w-3.5 text-[#9A6400]" />
           <span className="text-[10.5px] text-[#9A6400] font-medium">
             Connect <span className="font-bold">{blockedDep.name}</span> in Admin Console to activate.
           </span>

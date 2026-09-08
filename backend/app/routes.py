@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,8 +20,10 @@ from app.db import (
     get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot,
     mes_db_status, video_analytics_db_status, test_mes_connection, test_video_analytics_connection,
     AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
-    UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken
+    UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
+    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site
 )
+from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.guardrails_firewall import validate_query_safety
@@ -119,6 +121,78 @@ class PasswordResetConfirmRequest(BaseModel):
 
 class ApprovalDecisionRequest(BaseModel):
     note: str = ""
+
+class SiteCreateRequest(BaseModel):
+    code: Optional[str] = None
+    name: str
+    location: Optional[str] = None
+    region: Optional[str] = None
+    status: str = "Active"
+    is_active: bool = True
+    description: Optional[str] = None
+    connectivity: Optional[str] = "Pending"
+    modules_live: int = 0
+    agents_count: int = 0
+
+
+class SiteUpdateRequest(SiteCreateRequest):
+    pass
+
+
+class RbacRoleCreateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    status: str = "ACTIVE"
+    scope_bounds: Optional[Dict[str, Any]] = None
+    permissions: Optional[List[Any]] = None
+
+def _derive_username(employee_id: Optional[str], full_name: Optional[str], email: Optional[str]) -> str:
+    employee_candidate = (employee_id or "").strip()
+    if employee_candidate:
+        return employee_candidate
+
+    email_candidate = (email or "").strip().split("@", 1)[0].strip()
+    if email_candidate:
+        return re.sub(r"[^A-Za-z0-9._-]+", ".", email_candidate).strip(".") or "user"
+
+    name_candidate = (full_name or "").strip()
+    if not name_candidate:
+        return "user"
+
+    normalized = re.sub(r"[^A-Za-z0-9._-]+", ".", name_candidate).strip(".")
+    return normalized or "user"
+
+
+class RbacUserCreateRequest(BaseModel):
+    employee_id: Optional[str] = None
+    employeeId: Optional[str] = None
+    full_name: Optional[str] = None
+    fullName: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    temporaryPassword: Optional[str] = None
+    department: Optional[str] = None
+    site: str = "Alpha Refinery"
+    role: Optional[str] = "Viewer / Auditor"
+    status: str = "INVITED"
+    manager: Optional[str] = None
+    identity_provider: str = "Local"
+    scope_bounds: Optional[Dict[str, Any]] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_aliases(cls, values):
+        if not isinstance(values, dict):
+            return values
+
+        if "employee_id" not in values and "employeeId" in values:
+            values["employee_id"] = values["employeeId"]
+        if "full_name" not in values and "fullName" in values:
+            values["full_name"] = values["fullName"]
+        if "password" not in values and "temporaryPassword" in values:
+            values["password"] = values["temporaryPassword"]
+        return values
 
 class MaintenanceChatRequest(BaseModel):
     message: str
@@ -429,6 +503,626 @@ async def _send_hitl_approval_request(db: AsyncSession, approval_key: str, repor
 
 def _is_admin(user: User) -> bool:
     return user.role == "Super Admin"
+
+
+DEFAULT_PERMISSION_CATALOG = [
+    "users.create","users.view","users.update","users.delete",
+    "guardrails.approve","guardrails.config","guardrails.view","guardrails.review",
+    "agents.configure","agents.view","agents.execute",
+    "workflows.execute","workflows.manage","workflows.view",
+    "integrations.edit","integrations.view","integrations.manage",
+    "reports.export","reports.view",
+    "audit_logs.view","security.manage",
+    "sites.manage","sites.view","zones.manage","zones.view","departments.manage","departments.view","lines.manage","lines.view",
+    "use_cases.manage","use_cases.view","platform.manage","company.manage"
+]
+
+
+def _role_permission_map() -> Dict[str, List[str]]:
+    return {
+        "Super Admin": DEFAULT_PERMISSION_CATALOG,
+        "Plant Digital Head": [
+            "sites.manage","zones.manage","departments.manage","lines.manage","use_cases.manage","workflows.execute","workflows.manage","agents.configure","integrations.edit","reports.export","users.create","users.update","guardrails.approve"
+        ],
+        "Operations Head": [
+            "sites.view","zones.view","lines.manage","use_cases.manage","workflows.execute","reports.export","guardrails.approve"
+        ],
+        "HSE Officer": [
+            "sites.view","zones.view","workflows.execute","reports.export","guardrails.approve","audit_logs.view"
+        ],
+        "Shift Supervisor": [
+            "sites.view","zones.view","workflows.execute","agents.view","reports.export"
+        ],
+        "Operator": [
+            "sites.view","workflows.execute","agents.view"
+        ],
+        "Maintenance Manager": [
+            "sites.view","departments.manage","lines.manage","agents.configure","workflows.execute","reports.export"
+        ],
+        "Maintenance Engineer": [
+            "sites.view","lines.view","workflows.execute","agents.view","reports.export"
+        ],
+        "Quality Manager": [
+            "sites.view","departments.manage","workflows.execute","reports.export","audit_logs.view"
+        ],
+        "IT/Integration Admin": [
+            "integrations.edit","integrations.view","sites.view","agents.configure","users.create","users.update"
+        ],
+        "Security Admin": [
+            "security.manage","audit_logs.view","sites.view","users.update","guardrails.approve"
+        ],
+        "Viewer / Auditor": [
+            "sites.view","reports.export","audit_logs.view","agents.view"
+        ],
+    }
+
+
+async def _get_permission_id(db: AsyncSession, permission_key: str) -> Optional[int]:
+    result = await db.execute(select(Permission.id).where(Permission.key == permission_key))
+    return result.scalar_one_or_none()
+
+
+async def _ensure_permission(db: AsyncSession, permission_key: str, permission_rule: Optional[Dict[str, Any]] = None) -> Permission:
+    existing = (await db.execute(select(Permission).where(Permission.key == permission_key))).scalars().first()
+    if existing:
+        if permission_rule:
+            existing.module_key = permission_rule.get("module_key", existing.module_key)
+            existing.resource_key = permission_rule.get("resource_key", existing.resource_key)
+            existing.access_types = permission_rule.get("access_types", existing.access_types or ["read_only"])
+            existing.description = permission_rule.get("description") or existing.description or permission_key
+            existing.category = existing.category or permission_rule.get("module_key", "general")
+            existing.updated_at = datetime.utcnow()
+        return existing
+
+    normalized = normalize_permission_rule(permission_rule or permission_key)
+    permission = Permission(
+        key=normalized["permission_key"],
+        module_key=normalized.get("module_key", "general"),
+        resource_key=normalized.get("resource_key", "*"),
+        access_types=normalized.get("access_types", ["read_only"]),
+        description=normalized.get("description") or normalized["permission_key"],
+        category=normalized.get("module_key", "general"),
+    )
+    db.add(permission)
+    await db.flush()
+    return permission
+
+
+async def _normalize_role_permission_keys(db: AsyncSession, raw_permissions: Optional[List[Any]]) -> List[str]:
+    if not raw_permissions:
+        return []
+
+    permission_keys: List[str] = []
+    seen: set[str] = set()
+    for raw_permission in raw_permissions:
+        normalized = normalize_permission_rule(raw_permission)
+        permission_key = normalized["permission_key"]
+        if permission_key in seen:
+            continue
+        seen.add(permission_key)
+        await _ensure_permission(db, permission_key, normalized)
+        permission_keys.append(permission_key)
+    return permission_keys
+
+
+async def _log_rbac_event(
+    db: AsyncSession,
+    *,
+    actor_user_id: Optional[int],
+    action: str,
+    resource_id: Optional[str],
+    previous_value: Optional[Dict[str, Any]] = None,
+    new_value: Optional[Dict[str, Any]] = None,
+    scope: Optional[str] = None,
+    ip_address: Optional[str] = None,
+    result: str = "SUCCESS",
+):
+    log = RbacAuditLog(
+        actor_user_id=actor_user_id,
+        action=action,
+        resource_id=resource_id,
+        previous_value=previous_value,
+        new_value=new_value,
+        scope=scope,
+        ip_address=ip_address,
+        result=result,
+    )
+    db.add(log)
+    await db.flush()
+    return log
+
+
+async def _evaluate_user_permissions(db: AsyncSession, user_id: int) -> Dict[str, Any]:
+    role_rows = (await db.execute(
+        select(Role.name, UserRole.scope_type, UserRole.scope_value).join(UserRole, UserRole.role_id == Role.id).where(UserRole.user_id == user_id, UserRole.is_active.is_(True))
+    )).all()
+    direct_permissions = set()
+    for role_name, scope_type, scope_value in role_rows:
+        role = (await db.execute(select(Role).where(Role.name == role_name))).scalars().first()
+        if not role:
+            continue
+        permissions = await db.execute(select(Permission.key).join(RolePermission, RolePermission.permission_id == Permission.id).where(RolePermission.role_id == role.id, RolePermission.is_active.is_(True)))
+        for permission_key, in permissions.all():
+            direct_permissions.add(permission_key)
+
+    scoped_assignments = []
+    for role_name, scope_type, scope_value in role_rows:
+        scoped_assignments.append({"role": role_name, "scope_type": scope_type, "scope_value": scope_value or "*"})
+
+    return {
+        "roles": [row[0] for row in role_rows],
+        "permissions": sorted(direct_permissions),
+        "scopes": scoped_assignments,
+    }
+
+
+@router.get("/api/rbac/roles")
+async def list_rbac_roles(db: AsyncSession = Depends(get_db)):
+    roles = (await db.execute(select(Role).order_by(Role.name))).scalars().all()
+    rows = []
+    for role in roles:
+        permission_count = (await db.execute(select(func.count(RolePermission.id)).where(RolePermission.role_id == role.id))).scalar() or 0
+        assigned_user_count = (await db.execute(select(func.count(UserRole.id)).where(UserRole.role_id == role.id, UserRole.is_active.is_(True)))).scalar() or 0
+        rows.append({
+            "id": role.id,
+            "name": role.name,
+            "description": role.description,
+            "type": role.kind,
+            "status": role.status,
+            "scope": role.scope_bounds or {"type": "Platform", "level": "Platform"},
+            "permissions": [
+                permission_key for permission_key, in (await db.execute(select(Permission.key).join(RolePermission, RolePermission.permission_id == Permission.id).where(RolePermission.role_id == role.id, RolePermission.is_active.is_(True)))).all()
+            ],
+            "user_count": assigned_user_count,
+            "protected": role.is_protected,
+            "system": role.is_system,
+        })
+    return rows
+
+
+@router.get("/api/admin/roles")
+async def list_admin_roles(db: AsyncSession = Depends(get_db)):
+    return await list_rbac_roles(db)
+
+
+@router.get("/api/rbac/permissions")
+async def list_rbac_permissions(db: AsyncSession = Depends(get_db)):
+    permissions = (await db.execute(select(Permission).order_by(Permission.module_key, Permission.resource_key))).scalars().all()
+    return [{
+        "id": permission.id,
+        "key": permission.key,
+        "module_key": permission.module_key,
+        "resource_key": permission.resource_key,
+        "access_types": permission.access_types or ["read_only"],
+        "description": permission.description,
+        "category": permission.category,
+    } for permission in permissions]
+
+
+@router.get("/api/rbac/permissions/catalog")
+async def list_permission_catalog():
+    return get_permission_catalog_definitions()
+
+
+@router.post("/api/rbac/roles")
+async def create_rbac_role(req: RbacRoleCreateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    if not req.name or not req.name.strip():
+        raise HTTPException(status_code=422, detail="Role name is required")
+    normalized = req.name.strip()
+    existing = (await db.execute(select(Role).where(Role.name == normalized))).scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail="A role with this name already exists")
+
+    permission_keys = await _normalize_role_permission_keys(db, req.permissions)
+    role = Role(
+        name=normalized,
+        description=req.description or f"Custom role for {normalized}",
+        kind="Custom",
+        status=req.status,
+        scope_bounds=req.scope_bounds or {"type": "Global", "level": "Global"},
+        is_protected=False,
+        is_system=False,
+    )
+    db.add(role)
+    await db.flush()
+
+    for permission_key in permission_keys:
+        permission = (await db.execute(select(Permission).where(Permission.key == permission_key))).scalars().first()
+        if not permission:
+            permission = await _ensure_permission(db, permission_key)
+        db.add(RolePermission(role_id=role.id, permission_id=permission.id, scope_type="Platform", scope_value="*", is_active=True))
+
+    await db.commit()
+    await _log_rbac_event(db, actor_user_id=None, action="ROLE_CREATED", resource_id=str(role.id), new_value={"name": normalized}, scope=req.scope_bounds or "Platform", ip_address=request.client.host if request.client else None)
+    await db.commit()
+    return {"status": "created", "role": {"id": role.id, "name": role.name}}
+
+
+@router.patch("/api/rbac/roles/{role_id}")
+async def update_rbac_role(role_id: int, req: RbacRoleCreateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    role = (await db.execute(select(Role).where(Role.id == role_id))).scalars().first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    if req.name and req.name.strip():
+        role.name = req.name.strip()
+    if req.description is not None:
+        role.description = req.description
+    if req.status:
+        role.status = req.status
+    if req.scope_bounds:
+        role.scope_bounds = req.scope_bounds
+    else:
+        role.scope_bounds = {"type": "Global", "level": "Global"}
+    role.updated_at = datetime.utcnow()
+
+    await db.execute(RolePermission.__table__.delete().where(RolePermission.role_id == role_id))
+    permission_keys = await _normalize_role_permission_keys(db, req.permissions)
+    for permission_key in permission_keys:
+        permission = (await db.execute(select(Permission).where(Permission.key == permission_key))).scalars().first()
+        if not permission:
+            permission = await _ensure_permission(db, permission_key)
+        db.add(RolePermission(role_id=role.id, permission_id=permission.id, scope_type="Platform", scope_value="*", is_active=True))
+
+    await db.commit()
+    return {"status": "updated", "role": {"id": role.id, "name": role.name}}
+
+
+@router.delete("/api/rbac/roles/{role_id}")
+async def delete_rbac_role(role_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    role = (await db.execute(select(Role).where(Role.id == role_id))).scalars().first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    if role.is_protected or role.is_system:
+        raise HTTPException(status_code=403, detail="System roles cannot be deleted")
+
+    await db.execute(select(RolePermission).where(RolePermission.role_id == role_id))
+    await db.execute(RolePermission.__table__.delete().where(RolePermission.role_id == role_id))
+    await db.execute(UserRole.__table__.delete().where(UserRole.role_id == role_id))
+    await db.delete(role)
+    await _log_rbac_event(db, actor_user_id=None, action="ROLE_DELETED", resource_id=str(role_id), previous_value={"name": role.name}, scope="Platform", ip_address=request.client.host if request.client else None)
+    await db.commit()
+    return {"status": "deleted", "role_id": role_id}
+
+
+@router.get("/api/rbac/users")
+async def list_rbac_users(db: AsyncSession = Depends(get_db)):
+    users = (await db.execute(select(User).order_by(User.id))).scalars().all()
+    rows = []
+    for user in users:
+        profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+        role_rows = (await db.execute(
+            select(Role.name, UserRole.scope_type, UserRole.scope_value)
+            .join(UserRole, UserRole.role_id == Role.id)
+            .where(UserRole.user_id == user.id, UserRole.is_active.is_(True))
+        )).all()
+        effective = await _evaluate_user_permissions(db, user.id)
+        rows.append({
+            "id": user.id,
+            "username": user.username,
+            "employee_id": user.employee_id,
+            "full_name": profile.name if profile else user.username,
+            "name": profile.name if profile else user.username,
+            "email": profile.email if profile else None,
+            "role": user.role,
+            "status": user.status,
+            "department": user.department or (profile.name if profile else None),
+            "manager": user.manager,
+            "identity_provider": user.identity_provider,
+            "site": user.site,
+            "scope": user.scope_bounds or {"type": "Site", "value": user.site},
+            "assigned_roles": [{"name": name, "scope_type": scope_type, "scope_value": scope_value or "*"} for name, scope_type, scope_value in role_rows],
+            "permissions": effective["permissions"],
+        })
+    return rows
+
+
+@router.get("/api/sites")
+async def list_sites(db: AsyncSession = Depends(get_db)):
+    sites = (await db.execute(select(Site).order_by(Site.name))).scalars().all()
+    return [{
+        "id": site.id,
+        "code": site.code,
+        "name": site.name,
+        "location": site.location,
+        "region": site.region,
+        "status": site.status,
+        "is_active": site.is_active,
+        "description": site.description,
+        "connectivity": site.connectivity,
+        "modules_live": site.modules_live,
+        "agents_count": site.agents_count,
+    } for site in sites]
+
+
+@router.get("/api/admin/sites")
+async def list_admin_sites(db: AsyncSession = Depends(get_db)):
+    return await list_sites(db)
+
+
+@router.post("/api/admin/sites")
+async def create_site(payload: SiteCreateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can configure sites")
+
+    code = (payload.code or payload.name).strip()
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Site name is required")
+
+    existing = (await db.execute(select(Site).where(Site.name == name))).scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail="A site with this name already exists")
+
+    site = Site(
+        code=code or re.sub(r"[^A-Za-z0-9-]", "-", name).upper(),
+        name=name,
+        location=payload.location,
+        region=payload.region,
+        status=payload.status,
+        is_active=payload.is_active,
+        description=payload.description,
+        connectivity=payload.connectivity,
+        modules_live=payload.modules_live,
+        agents_count=payload.agents_count,
+    )
+    db.add(site)
+    await db.commit()
+    await db.refresh(site)
+    return {"status": "created", "site": {"id": site.id, "name": site.name, "code": site.code}}
+
+
+@router.put("/api/admin/sites/{site_id}")
+async def update_site(site_id: int, payload: SiteUpdateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can update sites")
+
+    site = (await db.execute(select(Site).where(Site.id == site_id))).scalars().first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    if payload.name and payload.name.strip():
+        site.name = payload.name.strip()
+    if payload.code is not None:
+        site.code = (payload.code or payload.name).strip() or site.code
+    if payload.location is not None:
+        site.location = payload.location
+    if payload.region is not None:
+        site.region = payload.region
+    if payload.status is not None:
+        site.status = payload.status
+    if payload.is_active is not None:
+        site.is_active = payload.is_active
+    if payload.description is not None:
+        site.description = payload.description
+    if payload.connectivity is not None:
+        site.connectivity = payload.connectivity
+    if payload.modules_live is not None:
+        site.modules_live = payload.modules_live
+    if payload.agents_count is not None:
+        site.agents_count = payload.agents_count
+
+    site.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "updated", "site": {"id": site.id, "name": site.name, "code": site.code}}
+
+
+@router.delete("/api/admin/sites/{site_id}")
+async def delete_site(site_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can delete sites")
+
+    site = (await db.execute(select(Site).where(Site.id == site_id))).scalars().first()
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    await db.delete(site)
+    await db.commit()
+    return {"status": "deleted", "site_id": site_id}
+
+
+@router.get("/api/admin/users")
+async def list_admin_users(db: AsyncSession = Depends(get_db)):
+    return await list_rbac_users(db)
+
+
+@router.post("/api/rbac/users")
+async def create_rbac_user(req: RbacUserCreateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    employee_id = (req.employee_id or "").strip()
+    full_name = (req.full_name or req.name or "").strip()
+    email = (req.email or "").strip()
+    department = (req.department or "").strip()
+    site = (req.site or "Alpha Refinery").strip() or "Alpha Refinery"
+    temp_password = (req.password or "").strip() or secrets.token_urlsafe(12)
+    account_role = (req.role or "Viewer / Auditor").strip() or "Viewer / Auditor"
+    status_value = (req.status or "INVITED").strip().upper() or "INVITED"
+
+    if not employee_id:
+        raise HTTPException(status_code=422, detail="Employee ID is required")
+    if not full_name:
+        raise HTTPException(status_code=422, detail="Full name is required")
+    if not email:
+        raise HTTPException(status_code=422, detail="Email address is required")
+    if not department:
+        raise HTTPException(status_code=422, detail="Department is required")
+
+    normalized_username = _derive_username(employee_id, full_name, email)
+    existing_user = (await db.execute(select(User).where(User.username == normalized_username))).scalars().first()
+    if existing_user:
+        raise HTTPException(status_code=409, detail="An employee with this identifier already exists")
+
+    role = (await db.execute(select(Role).where(Role.name == account_role))).scalars().first()
+    if not role:
+        role = Role(name=account_role, description=f"Provisioned role for {account_role}", kind="Custom", status="ACTIVE", is_protected=False, is_system=False)
+        db.add(role)
+        await db.flush()
+
+    user = User(
+        username=normalized_username,
+        password_hash=bcrypt.hashpw(temp_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
+        role=account_role,
+        site=site,
+        status=status_value,
+        identity_provider=(req.identity_provider or "Local").strip() or "Local",
+        employee_id=employee_id,
+        department=department,
+        manager=req.manager,
+        scope_bounds=req.scope_bounds or {"type": "Site", "value": site},
+        is_super_admin=account_role == "Super Admin",
+    )
+    db.add(user)
+    await db.flush()
+
+    db.add(UserRole(user_id=user.id, role_id=role.id, scope_type="Site", scope_value=site, is_active=True))
+
+    profile_name = full_name
+    if email:
+        profile = UserProfile(user_id=user.id, name=profile_name, email=email, email_verified=False)
+        db.add(profile)
+        send_text_email(
+            email,
+            "Your MAI access has been created",
+            f"Welcome {profile_name}.\n\nEmployee ID: {employee_id}\nFull Name: {full_name}\nTemporary password: {temp_password}\nPortal: {FRONTEND_URL}\n\nPlease change your password after first login."
+        )
+
+    await db.commit()
+    await _log_rbac_event(db, actor_user_id=user.id, action="USER_CREATED", resource_id=str(user.id), new_value={"employee_id": employee_id, "full_name": full_name, "role": account_role}, scope=site, ip_address=request.client.host if request.client else None)
+    await db.commit()
+
+    return {
+        "status": "created",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "employee_id": user.employee_id,
+            "full_name": full_name,
+            "role": account_role,
+            "site": user.site,
+            "status": user.status,
+            "temporary_password": temp_password,
+        },
+    }
+
+
+@router.put("/api/rbac/users/{user_id}")
+async def update_rbac_user(user_id: int, req: RbacUserCreateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    employee_id = (req.employee_id or "").strip() or user.employee_id or ""
+    full_name = (req.full_name or req.name or "").strip() or user.username
+    email = (req.email or "").strip()
+    department = (req.department or "").strip() or user.department or ""
+    site = (req.site or user.site or "Alpha Refinery").strip() or "Alpha Refinery"
+    account_role = (req.role or user.role or "Viewer / Auditor").strip() or "Viewer / Auditor"
+    status_value = (req.status or user.status or "INVITED").strip().upper() or "INVITED"
+
+    user.username = _derive_username(employee_id, full_name, email) or user.username
+    user.employee_id = employee_id or user.employee_id
+    user.department = department or user.department
+    user.role = account_role
+    user.site = site
+    user.status = status_value
+    user.manager = req.manager or user.manager
+    user.scope_bounds = req.scope_bounds or user.scope_bounds or {"type": "Site", "value": site}
+    user.updated_at = datetime.utcnow()
+
+    role = (await db.execute(select(Role).where(Role.name == account_role))).scalars().first()
+    if not role:
+        role = Role(name=account_role, description=f"Provisioned role for {account_role}", kind="Custom", status="ACTIVE", is_protected=False, is_system=False)
+        db.add(role)
+        await db.flush()
+
+    existing_assignments = (await db.execute(select(UserRole).where(UserRole.user_id == user.id))).scalars().all()
+    for assignment in existing_assignments:
+        assignment.is_active = False
+
+    db.add(UserRole(user_id=user.id, role_id=role.id, scope_type="Site", scope_value=site, is_active=True))
+
+    profile = (await db.execute(select(UserProfile).where(UserProfile.user_id == user.id))).scalars().first()
+    if profile:
+        profile.name = full_name
+        if email:
+            profile.email = email
+    elif email:
+        db.add(UserProfile(user_id=user.id, name=full_name, email=email, email_verified=False))
+
+    await db.commit()
+    return {"status": "updated", "user": {"id": user.id, "full_name": full_name, "role": account_role, "site": user.site, "status": user.status}}
+
+
+@router.get("/api/rbac/audit-logs")
+async def list_rbac_audit_logs(db: AsyncSession = Depends(get_db)):
+    logs = (await db.execute(select(RbacAuditLog).order_by(RbacAuditLog.timestamp.desc()).limit(200))).scalars().all()
+    return [{
+        "event_id": log.event_id,
+        "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        "actor_user_id": log.actor_user_id,
+        "action": log.action,
+        "resource_id": log.resource_id,
+        "previous_value": log.previous_value,
+        "new_value": log.new_value,
+        "scope": log.scope,
+        "ip_address": log.ip_address,
+        "result": log.result,
+    } for log in logs]
+
+
+@router.get("/api/admin/audit")
+async def list_admin_audit(db: AsyncSession = Depends(get_db)):
+    return await list_rbac_audit_logs(db)
+
+
+@router.get("/api/rbac/effective-access/{user_id}")
+async def evaluate_rbac_access(user_id: int, db: AsyncSession = Depends(get_db)):
+    user = (await db.execute(select(User).where(User.id == user_id))).scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    effective = await _evaluate_user_permissions(db, user_id)
+    return {
+        "user_id": user.id,
+        "username": user.username,
+        "roles": effective["roles"],
+        "permissions": effective["permissions"],
+        "scopes": effective["scopes"],
+    }
+
+
+@router.post("/api/rbac/resolve-hitl")
+async def resolve_hitl_approvers(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    required_role = payload.get("role", "Operations Head")
+    role = (await db.execute(select(Role).where(Role.name == required_role))).scalars().first()
+    if not role:
+        return {"approvers": [], "fallback": ["Fail Closed / Block"]}
+
+    rows = (await db.execute(
+        select(User.id, User.username, UserProfile.email)
+        .join(UserRole, UserRole.user_id == User.id)
+        .outerjoin(UserProfile, UserProfile.user_id == User.id)
+        .where(UserRole.role_id == role.id, UserRole.is_active.is_(True), User.username.is_not(None))
+    )).all()
+    approvers = []
+    for user_id, username, email in rows:
+        approvers.append({"user_id": user_id, "username": username, "email": email})
+
+    if not approvers:
+        return {"approvers": [], "fallback": ["Fail Closed / Block"]}
+    return {"approvers": approvers, "fallback": ["Maintenance Manager (30m)", "Operations Head (30m)", "Fail Closed / Block"]}
+
+
+@router.post("/api/rbac/invalidate-sessions")
+async def invalidate_sessions(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
+    user_id = payload.get("user_id")
+    if user_id is None:
+        return {"status": "noop", "message": "No user specified"}
+    await _log_rbac_event(db, actor_user_id=user_id, action="SESSION_INVALIDATED", resource_id=str(user_id), new_value={"status": "revoked"}, scope="Platform")
+    await db.commit()
+    return {"status": "revoked", "user_id": user_id}
+
 
 @router.get("/api/license/status")
 async def license_status():

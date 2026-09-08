@@ -16,6 +16,15 @@ import InsightsSummaryAgentPage from './pages/InsightsSummaryAgentPage';
 import { SafetySiteIntelligencePage } from './pages/SafetySiteIntelligencePage';
 import { VideoMonitoringPage } from './pages/VideoMonitoringPage';
 import { AdminConsolePage } from './pages/AdminConsolePage';
+import { AddUserPage } from './pages/AddUserPage';
+import { AddSitePage } from './pages/AddSitePage';
+import { AddRolePage } from './pages/AddRolePage';
+import { AllUsersPage } from './pages/AllUsersPage';
+import { AllRolesPage } from './pages/AllRolesPage';
+import { UserDetailPage } from './pages/UserDetailPage';
+import { UserEditPage } from './pages/UserEditPage';
+import { RoleDetailPage } from './pages/RoleDetailPage';
+import { RoleEditPage } from './pages/RoleEditPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
@@ -75,6 +84,18 @@ function App() {
             <Route path="permit-to-work-agent" element={<PermitToWorkAgentPage />} />
             <Route path="incident-investigation-agent" element={<IncidentInvestigationAgentPage />} />
             <Route path="admin" element={<AdminConsolePage />} />
+            <Route path="admin/users" element={<AllUsersPage />} />
+            <Route path="admin/roles" element={<AllRolesPage />} />
+            <Route path="admin/users/create" element={<AddUserPage />} />
+            <Route path="admin/sites/create" element={<AddSitePage />} />
+            <Route path="admin/roles/create" element={<AddRolePage />} />
+            <Route path="admin/users/new" element={<AddUserPage />} />
+            <Route path="admin/sites/new" element={<AddSitePage />} />
+            <Route path="admin/roles/new" element={<AddRolePage />} />
+            <Route path="admin/users/:id" element={<UserDetailPage />} />
+            <Route path="admin/users/:id/edit" element={<UserEditPage />} />
+            <Route path="admin/roles/:id" element={<RoleDetailPage />} />
+            <Route path="admin/roles/:id/edit" element={<RoleEditPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

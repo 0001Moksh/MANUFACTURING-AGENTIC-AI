@@ -11,6 +11,14 @@ import {
   Image as ImageIcon,
   ArrowDown,
   Paperclip,
+  TrendingUp,
+  Search,
+  ClipboardList,
+  Target,
+  TrendingDown,
+  Database,
+  Info,
+  type LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
@@ -198,15 +206,15 @@ function MarkdownTable({ lines }: { lines: string[] }) {
 
 // ─── Suggested Prompt Pills ───────────────────────────────────────────────────
 
-const SUGGESTED_QUERIES = [
-  { icon: '📊', label: 'Summarize Chart Trends', query: 'Summarize the key trends and anomalies visible in the attached chart or latest dashboard metrics.' },
-  { icon: '📈', label: 'Executive Brief', query: 'Generate a concise executive summary of production KPIs, quality metrics, and any red-flag indicators.' },
-  { icon: '🔍', label: 'Anomaly Deep-Dive', query: 'Highlight any statistical outliers or sudden shifts in the metadata and visual analytics provided.' },
-  { icon: '📋', label: 'Shift Handover Notes', query: 'Create a clear shift-handover narrative based on current charts, alarms and process metadata.' },
-  { icon: '🎯', label: 'Actionable Insights', query: 'Extract the top 3–5 actionable recommendations from the current visual and metadata context.' },
-  { icon: '📉', label: 'Root-Cause Hints', query: 'Suggest possible root causes for the most significant deviations shown in the data.' },
-  { icon: '🗂', label: 'Metadata Overview', query: 'Give a structured overview of the available metadata fields and their relevance to the current analysis.' },
-  { icon: 'ℹ️', label: 'Agent Capabilities', query: 'What data sources do you use, what happens if the agent is offline, and who owns this Insights Summary Agent?' },
+const SUGGESTED_QUERIES: Array<{ icon: LucideIcon; label: string; query: string }> = [
+  { icon: BarChart3, label: 'Summarize Chart Trends', query: 'Summarize the key trends and anomalies visible in the attached chart or latest dashboard metrics.' },
+  { icon: TrendingUp, label: 'Executive Brief', query: 'Generate a concise executive summary of production KPIs, quality metrics, and any red-flag indicators.' },
+  { icon: Search, label: 'Anomaly Deep-Dive', query: 'Highlight any statistical outliers or sudden shifts in the metadata and visual analytics provided.' },
+  { icon: ClipboardList, label: 'Shift Handover Notes', query: 'Create a clear shift-handover narrative based on current charts, alarms and process metadata.' },
+  { icon: Target, label: 'Actionable Insights', query: 'Extract the top 3–5 actionable recommendations from the current visual and metadata context.' },
+  { icon: TrendingDown, label: 'Root-Cause Hints', query: 'Suggest possible root causes for the most significant deviations shown in the data.' },
+  { icon: Database, label: 'Metadata Overview', query: 'Give a structured overview of the available metadata fields and their relevance to the current analysis.' },
+  { icon: Info, label: 'Agent Capabilities', query: 'What data sources do you use, what happens if the agent is offline, and who owns this Insights Summary Agent?' },
 ];
 
 // ─── Message Bubble ────────────────────────────────────────────────────────────
@@ -466,6 +474,7 @@ I have reviewed the request${attachedFile ? ` and the attached visual (${attache
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="h-[calc(100vh-22px)] flex flex-col gap-1 w-full px-0 overflow-hidden"
+      data-thread-id={threadId}
     >
       {/* ── Top Bar / Navigation ── */}
       <div className="flex items-center justify-between pt-2 shrink-0 px-3">
@@ -608,17 +617,20 @@ I have reviewed the request${attachedFile ? ` and the attached visual (${attache
         <div className="border-t border-border-color bg-white p-2.5 md:p-3 space-y-2 shrink-0">
           {/* Suggestion Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar text-[12px]">
-            {SUGGESTED_QUERIES.map((sq, i) => (
-              <button
-                key={i}
-                onClick={() => handleSend(sq.query)}
-                disabled={loading}
-                className="shrink-0 bg-canvas hover:bg-amber-50 text-ink hover:text-amber-900 border border-border-color hover:border-amber-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
-              >
-                <span>{sq.icon}</span>
-                <span>{sq.label}</span>
-              </button>
-            ))}
+            {SUGGESTED_QUERIES.map((sq, i) => {
+              const Icon = sq.icon;
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleSend(sq.query)}
+                  disabled={loading}
+                  className="shrink-0 bg-canvas hover:bg-amber-50 text-ink hover:text-amber-900 border border-border-color hover:border-amber-300 px-3 py-1.5 rounded-full transition-all text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-95"
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{sq.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Attachment chip (when file selected) */}

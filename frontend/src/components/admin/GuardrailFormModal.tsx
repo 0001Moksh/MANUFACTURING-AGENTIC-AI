@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   X,
   Plus,
@@ -12,13 +12,33 @@ import {
   Lock,
   Loader2,
 } from 'lucide-react';
-import { guardrailPolicyService } from '../../services/api';
+import { api, guardrailPolicyService } from '../../services/api';
 
 interface GuardrailFormModalProps {
   initialData?: any | null;
   onClose: () => void;
   onSaved: () => void;
 }
+
+const useCaseTargets = [
+  'Daily Operations Reporting',
+  'Executive Insights',
+  'Predictive Maintenance',
+  'PPE & Behavior Monitoring',
+  'Incident Investigation',
+  'Permit to Work',
+  'Video Monitoring',
+];
+
+const agentTargets = [
+  'Maintenance Agent',
+  'Reporting Agent',
+  'Safety & Quality Agent',
+  'Incident & Investigation Agent',
+  'Permit-to-Work Agent',
+  'PPE & Behavior Vision Agent',
+  'Insights Summary Agent',
+];
 
 export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
   initialData,
@@ -27,86 +47,109 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
 }) => {
   const isEditing = Boolean(initialData);
 
-  // Section 1
   const [name, setName] = useState(initialData?.name || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [priority, setPriority] = useState(initialData?.priority || 'Medium');
   const [status, setStatus] = useState(initialData?.status || 'Active');
 
-  // Section 2
   const [scopeType, setScopeType] = useState(initialData?.scope_type || 'Global');
-  const [scopeTarget, setScopeTarget] = useState(initialData?.scope_target || '*');
+  const [scopeTarget, setScopeTarget] = useState(initialData?.scope_target || 'All');
+  const [selectedRole, setSelectedRole] = useState('All Roles');
+  const [selectedUser, setSelectedUser] = useState('All Users');
 
-  // Section 3
-  const [triggerEvent, setTriggerEvent] = useState(
-    initialData?.triggers_conditions?.trigger_event || 'Before Execution'
-  );
-  const [conditions, setConditions] = useState<
-    Array<{ field: string; operator: string; value: string }>
-  >(initialData?.triggers_conditions?.conditions || []);
+  const [triggerEvent, setTriggerEvent] = useState(initialData?.triggers_conditions?.trigger_event || 'Before Execution');
+  const [conditions, setConditions] = useState<Array<{ field: string; operator: string; value: string }>>(initialData?.triggers_conditions?.conditions || []);
 
-  // Section 4
   const [type, setType] = useState(initialData?.type || 'HITL');
 
-  // Section 5 – type configs
-  const [approverType, setApproverType] = useState(
-    initialData?.type_config?.approver_type || 'Role'
-  );
-  const [approverTarget, setApproverTarget] = useState(
-    initialData?.type_config?.approver_target || 'Super Admin'
-  );
-  const [sequence, setSequence] = useState(
-    initialData?.type_config?.sequence || 'Sequential'
-  );
-  const [channel, setChannel] = useState(
-    initialData?.type_config?.channel || 'Both'
-  );
-  const [timeoutMinutes, setTimeoutMinutes] = useState(
-    initialData?.type_config?.timeout_minutes || 1440
-  );
+  const [approverType, setApproverType] = useState(initialData?.type_config?.approver_type || 'Role');
+  const [approverTarget, setApproverTarget] = useState(initialData?.type_config?.approver_target || 'Super Admin');
+  const [sequence, setSequence] = useState(initialData?.type_config?.sequence || 'Sequential');
+  const [channel, setChannel] = useState(initialData?.type_config?.channel || 'Both');
+  const [timeoutMinutes, setTimeoutMinutes] = useState(initialData?.type_config?.timeout_minutes || 1440);
 
-  const [loggingTargets, setLoggingTargets] = useState<string[]>(
-    initialData?.type_config?.logging_targets || [
-      'LLM Cost',
-      'Token Usage',
-      'Tool Calls',
-    ]
-  );
-  const [retentionDays, setRetentionDays] = useState(
-    initialData?.type_config?.retention_days || 365
-  );
+  const [loggingTargets, setLoggingTargets] = useState<string[]>(initialData?.type_config?.logging_targets || ['LLM Cost', 'Token Usage', 'Tool Calls']);
+  const [retentionDays, setRetentionDays] = useState(initialData?.type_config?.retention_days || 365);
 
-  const [allowThreshold, setAllowThreshold] = useState(
-    initialData?.type_config?.allow_threshold || 0.4
-  );
-  const [notifyThreshold, setNotifyThreshold] = useState(
-    initialData?.type_config?.notify_threshold || 0.7
-  );
-  const [hitlThreshold, setHitlThreshold] = useState(
-    initialData?.type_config?.hitl_threshold || 0.9
-  );
+  const [allowThreshold, setAllowThreshold] = useState(initialData?.type_config?.allow_threshold || 0.4);
+  const [notifyThreshold, setNotifyThreshold] = useState(initialData?.type_config?.notify_threshold || 0.7);
+  const [hitlThreshold, setHitlThreshold] = useState(initialData?.type_config?.hitl_threshold || 0.9);
 
-  const [maxTokens, setMaxTokens] = useState(
-    initialData?.type_config?.max_tokens || 4000
-  );
-  const [maxCostUsd, setMaxCostUsd] = useState(
-    initialData?.type_config?.max_cost_usd || 1.0
-  );
-  const [activeHours, setActiveHours] = useState(
-    initialData?.type_config?.active_hours || '00:00-23:59'
-  );
+  const [maxTokens, setMaxTokens] = useState(initialData?.type_config?.max_tokens || 4000);
+  const [maxCostUsd, setMaxCostUsd] = useState(initialData?.type_config?.max_cost_usd || 1.0);
+  const [activeHours, setActiveHours] = useState(initialData?.type_config?.active_hours || '00:00-23:59');
 
-  // Section 6
-  const [action, setAction] = useState(
-    initialData?.execution_behavior?.action || 'Require HITL'
-  );
-  const [failureMode, setFailureMode] = useState(
-    initialData?.execution_behavior?.failure_mode || 'Fail Closed'
-  );
+  const [action, setAction] = useState(initialData?.execution_behavior?.action || 'Require HITL');
+  const [failureMode, setFailureMode] = useState(initialData?.execution_behavior?.failure_mode || 'Fail Closed');
   const [changeReason, setChangeReason] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
+  const [userOptions, setUserOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const [roleResponse, userResponse] = await Promise.all([
+          api.get('/rbac/roles'),
+          api.get('/rbac/users'),
+        ]);
+
+        const roles = Array.isArray(roleResponse.data) ? roleResponse.data.map((item: any) => item.name).filter(Boolean) : [];
+        const users = Array.isArray(userResponse.data)
+          ? userResponse.data
+              .map((item: any) => ({
+                fullName: item.full_name || item.name || item.username,
+                role: item.role || item.role_name || item.roles?.[0] || '',
+              }))
+              .filter((item) => item.fullName)
+          : [];
+
+        const nextRoles = roles.length ? roles : ['Super Admin', 'Operations Head', 'Plant Digital Head'];
+        const nextUsers = users.length ? users.map((user) => user.fullName) : ['Super Admin', 'Plant Digital Head', 'Operations Head'];
+        setRoleOptions(nextRoles);
+        setUserOptions(nextUsers);
+
+        if (!initialData) {
+          setSelectedRole('All Roles');
+          setSelectedUser('All Users');
+        }
+      } catch {
+        setRoleOptions(['Super Admin', 'Operations Head', 'Plant Digital Head']);
+        setUserOptions(['Super Admin', 'Plant Digital Head', 'Operations Head']);
+      }
+    };
+
+    void loadOptions();
+  }, [initialData]);
+
+  const filteredUserOptions = useMemo(() => {
+    if (selectedRole === 'All Roles') return ['All Users', ...userOptions];
+    return ['All Users', ...userOptions.filter((user) => user.toLowerCase().includes(selectedRole.toLowerCase().replace(/ /g, '')) || user.toLowerCase().includes('admin'))];
+  }, [selectedRole, userOptions]);
+
+  const getEffectiveScopeTarget = () => {
+    if (scopeType === 'Global') return 'All';
+    if (scopeType === 'UseCase') return scopeTarget || 'Not Mapped Yet';
+    if (scopeType === 'Agent') return scopeTarget || 'Not Mapped Yet';
+    if (scopeType === 'Workflow' || scopeType === 'Action') return 'Not Mapped Yet';
+    if (scopeType === 'Role') {
+      if (selectedRole === 'All Roles') return 'All Roles';
+      if (selectedUser === 'All Users') return `${selectedRole} / All Users`;
+      return `${selectedRole} / ${selectedUser}`;
+    }
+    return scopeTarget || '*';
+  };
+
+  const isScopeTargetComplete = useMemo(() => {
+    if (scopeType === 'Global') return true;
+    if (scopeType === 'UseCase') return !!scopeTarget && scopeTarget !== 'Not Mapped Yet';
+    if (scopeType === 'Agent') return !!scopeTarget && scopeTarget !== 'Not Mapped Yet';
+    if (scopeType === 'Workflow' || scopeType === 'Action') return false;
+    if (scopeType === 'Role') return selectedRole !== '' && selectedUser !== '';
+    return !!scopeTarget;
+  }, [scopeType, scopeTarget, selectedRole, selectedUser]);
 
   const addCondition = () => {
     setConditions([...conditions, { field: 'risk_score', operator: '>=', value: '0.7' }]);
@@ -117,9 +160,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
   };
 
   const updateCondition = (index: number, field: string, value: string) => {
-    setConditions(
-      conditions.map((c, i) => (i === index ? { ...c, [field]: value } : c))
-    );
+    setConditions(conditions.map((c, i) => (i === index ? { ...c, [field]: value } : c)));
   };
 
   const toggleLoggingTarget = (item: string) => {
@@ -134,6 +175,11 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
     e.preventDefault();
     if (!name.trim()) {
       setError('Guardrail Policy Name is required.');
+      return;
+    }
+
+    if (!isScopeTargetComplete) {
+      setError('Select a valid scope target mapping before saving the guardrail policy.');
       return;
     }
 
@@ -175,7 +221,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
       description: description.trim() || null,
       type,
       scope_type: scopeType,
-      scope_target: scopeTarget.trim() || '*',
+      scope_target: getEffectiveScopeTarget(),
       priority,
       status,
       is_enabled: status === 'Active',
@@ -188,9 +234,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
         action,
         failure_mode: failureMode,
       },
-      change_reason:
-        changeReason.trim() ||
-        (isEditing ? 'Updated via Admin Console' : 'Created via Admin Console'),
+      change_reason: changeReason.trim() || (isEditing ? 'Updated via Admin Console' : 'Created via Admin Console'),
     };
 
     try {
@@ -207,79 +251,38 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
     }
   };
 
-  const inputClass =
-    'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/25 focus:border-teal-500 transition';
+  const inputClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/25 focus:border-teal-500 transition';
   const labelClass = 'block text-[12px] font-semibold text-slate-700 mb-1.5';
 
   const guardrailTypes = [
-    {
-      id: 'HITL',
-      label: 'Human-in-the-Loop',
-      desc: 'Require approval before action execution',
-    },
-    {
-      id: 'Traceability',
-      label: 'Audit & Traceability',
-      desc: 'Log model parameters, costs, and tool calls',
-    },
-    {
-      id: 'RiskBased',
-      label: 'Risk-Based Control',
-      desc: 'Categorize actions by evaluated risk score',
-    },
-    {
-      id: 'AccessControl',
-      label: 'Access & Security',
-      desc: 'Deterministic firewall & role restrictions',
-    },
-    {
-      id: 'LimitTime',
-      label: 'Cost / Time Limits',
-      desc: 'Set token limits & active operational hours',
-    },
-    {
-      id: 'DataPrivacy',
-      label: 'Data Privacy',
-      desc: 'Mask sensitive PII and confidential terms',
-    },
+    { id: 'HITL', label: 'Human-in-the-Loop', desc: 'Require approval before action execution' },
+    { id: 'Traceability', label: 'Audit & Traceability', desc: 'Log model parameters, costs, and tool calls' },
+    { id: 'RiskBased', label: 'Risk-Based Control', desc: 'Categorize actions by evaluated risk score' },
+    { id: 'AccessControl', label: 'Access & Security', desc: 'Deterministic firewall & role restrictions' },
+    { id: 'LimitTime', label: 'Cost / Time Limits', desc: 'Set token limits & active operational hours' },
+    { id: 'DataPrivacy', label: 'Data Privacy', desc: 'Mask sensitive PII and confidential terms' },
   ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
       <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-        {/* Sticky Header */}
         <div className="shrink-0 flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/90">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
               <Shield className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-[16px] sm:text-[17px] font-semibold text-slate-900 truncate">
-                {isEditing ? 'Edit Guardrail Policy' : 'Create Guardrail Policy'}
-              </h2>
-              <p className="text-[12.5px] text-slate-500 mt-0.5 truncate">
-                Central rules evaluated independently by the Guardrail Engine
-              </p>
+              <h2 className="text-[16px] sm:text-[17px] font-semibold text-slate-900 truncate">{isEditing ? 'Edit Guardrail Policy' : 'Create Guardrail Policy'}</h2>
+              <p className="text-[12.5px] text-slate-500 mt-0.5 truncate">Central rules evaluated independently by the Guardrail Engine</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition shrink-0"
-            aria-label="Close"
-          >
+          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition shrink-0" aria-label="Close">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mx-5 sm:mx-6 mt-4 flex items-start gap-2.5 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-[13px] text-rose-700">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
@@ -287,13 +290,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
           </div>
         )}
 
-        {/* Scrollable Form Body */}
-        <form
-          id="guardrail-form"
-          onSubmit={handleSubmit}
-          className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-5"
-        >
-          {/* 1. Basic Information */}
+        <form id="guardrail-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-5">
           <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
             <div className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wider text-slate-600">
               <Layers className="h-4 w-4 text-teal-600" />
@@ -303,23 +300,12 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className={labelClass}>Policy Name *</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. High-Risk Action Guardrail"
-                  className={inputClass}
-                  required
-                />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. High-Risk Action Guardrail" className={inputClass} required />
               </div>
 
               <div>
                 <label className={labelClass}>Priority</label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className={inputClass}
-                >
+                <select value={priority} onChange={(e) => setPriority(e.target.value)} className={inputClass}>
                   <option value="Low">Low</option>
                   <option value="Medium">Medium</option>
                   <option value="High">High</option>
@@ -329,11 +315,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
 
               <div>
                 <label className={labelClass}>Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className={inputClass}
-                >
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
                   <option value="Active">Active</option>
                   <option value="Draft">Draft</option>
                   <option value="Disabled">Disabled</option>
@@ -343,18 +325,11 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
 
               <div className="sm:col-span-2">
                 <label className={labelClass}>Description</label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe the policy purpose and scope…"
-                  className={inputClass}
-                />
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the policy purpose and scope…" className={inputClass} />
               </div>
             </div>
           </section>
 
-          {/* 2. Scope */}
           <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
             <div className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wider text-slate-600">
               <Zap className="h-4 w-4 text-teal-600" />
@@ -364,15 +339,11 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Scope Type</label>
-                <select
-                  value={scopeType}
-                  onChange={(e) => setScopeType(e.target.value)}
-                  className={inputClass}
-                >
+                <select value={scopeType} onChange={(e) => setScopeType(e.target.value)} className={inputClass}>
                   <option value="Global">Global (All Modules)</option>
                   <option value="UseCase">Use Case Library</option>
                   <option value="Workflow">Workflow</option>
-                  <option value="Agent">Agent</option>
+                  <option value="Agent">AI Agent</option>
                   <option value="Action">Action / Tool</option>
                   <option value="Role">User Role</option>
                 </select>
@@ -380,29 +351,42 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
 
               <div>
                 <label className={labelClass}>Scope Target Identifier</label>
-                <input
-                  type="text"
-                  value={scopeTarget}
-                  onChange={(e) => setScopeTarget(e.target.value)}
-                  placeholder="e.g. daily_operations_reporting or *"
-                  className={inputClass}
-                />
+                {scopeType === 'Global' ? (
+                  <input type="text" value="All" className={`${inputClass} bg-slate-100`} disabled />
+                ) : scopeType === 'UseCase' ? (
+                  <select value={scopeTarget || useCaseTargets[0]} onChange={(e) => setScopeTarget(e.target.value)} className={inputClass}>
+                    {useCaseTargets.map((target) => <option key={target} value={target}>{target}</option>)}
+                  </select>
+                ) : scopeType === 'Agent' ? (
+                  <select value={scopeTarget || agentTargets[0]} onChange={(e) => setScopeTarget(e.target.value)} className={inputClass}>
+                    {agentTargets.map((target) => <option key={target} value={target}>{target}</option>)}
+                  </select>
+                ) : scopeType === 'Workflow' || scopeType === 'Action' ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-100 px-3 py-2 text-[12.5px] text-slate-500">Not Mapped Yet</div>
+                ) : scopeType === 'Role' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} className={inputClass}>
+                      <option value="All Roles">All Roles</option>
+                      {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+                    </select>
+                    <select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} className={inputClass}>
+                      {filteredUserOptions.map((user) => <option key={user} value={user}>{user}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <input type="text" value={scopeTarget} onChange={(e) => setScopeTarget(e.target.value)} placeholder="e.g. workflow-name" className={inputClass} />
+                )}
               </div>
             </div>
           </section>
 
-          {/* 3. Triggers & Conditions */}
           <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wider text-slate-600">
                 <Sliders className="h-4 w-4 text-teal-600" />
                 3. Triggers & Conditions
               </div>
-              <button
-                type="button"
-                onClick={addCondition}
-                className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-teal-600 hover:text-teal-700 transition"
-              >
+              <button type="button" onClick={addCondition} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-teal-600 hover:text-teal-700 transition">
                 <Plus className="h-3.5 w-3.5" />
                 Add Condition
               </button>
@@ -410,11 +394,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
 
             <div>
               <label className={labelClass}>Trigger Event</label>
-              <select
-                value={triggerEvent}
-                onChange={(e) => setTriggerEvent(e.target.value)}
-                className={inputClass}
-              >
+              <select value={triggerEvent} onChange={(e) => setTriggerEvent(e.target.value)} className={inputClass}>
                 <option value="Before Execution">Before Execution</option>
                 <option value="After Execution">After Execution</option>
                 <option value="On Risk Detection">On Risk Detection</option>
@@ -428,26 +408,11 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
               </div>
             ) : (
               <div className="space-y-2.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                  Rule Stack (AND)
-                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Rule Stack (AND)</span>
                 {conditions.map((cond, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200"
-                  >
-                    <input
-                      type="text"
-                      value={cond.field}
-                      onChange={(e) => updateCondition(index, 'field', e.target.value)}
-                      placeholder="Field (e.g. risk_score)"
-                      className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                    />
-                    <select
-                      value={cond.operator}
-                      onChange={(e) => updateCondition(index, 'operator', e.target.value)}
-                      className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] bg-white"
-                    >
+                  <div key={index} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
+                    <input type="text" value={cond.field} onChange={(e) => updateCondition(index, 'field', e.target.value)} placeholder="Field (e.g. risk_score)" className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
+                    <select value={cond.operator} onChange={(e) => updateCondition(index, 'operator', e.target.value)} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] bg-white">
                       <option value=">=">≥</option>
                       <option value=">">&gt;</option>
                       <option value="<=">≤</option>
@@ -456,27 +421,14 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
                       <option value="!=">!=</option>
                       <option value="contains">contains</option>
                     </select>
-                    <input
-                      type="text"
-                      value={cond.value}
-                      onChange={(e) => updateCondition(index, 'value', e.target.value)}
-                      placeholder="Value"
-                      className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-teal-500/20"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeCondition(index)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition self-end sm:self-auto"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <input type="text" value={cond.value} onChange={(e) => updateCondition(index, 'value', e.target.value)} placeholder="Value" className="flex-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] focus:outline-none focus:ring-2 focus:ring-teal-500/20" />
+                    <button type="button" onClick={() => removeCondition(index)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition self-end sm:self-auto"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 ))}
               </div>
             )}
           </section>
 
-          {/* 4. Guardrail Type */}
           <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
             <div className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wider text-slate-600">
               <Shield className="h-4 w-4 text-teal-600" />
@@ -487,33 +439,18 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
               {guardrailTypes.map((item) => {
                 const selected = type === item.id;
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setType(item.id)}
-                    className={`flex flex-col text-left p-3.5 rounded-xl border transition-all ${selected
-                        ? 'border-teal-500 bg-teal-50/70 ring-2 ring-teal-500/15'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
-                      }`}
-                  >
+                  <button key={item.id} type="button" onClick={() => setType(item.id)} className={`flex flex-col text-left p-3.5 rounded-xl border transition-all ${selected ? 'border-teal-500 bg-teal-50/70 ring-2 ring-teal-500/15' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'}`}>
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[13px] font-semibold text-slate-900 leading-snug">
-                        {item.label}
-                      </span>
-                      {selected && (
-                        <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
-                      )}
+                      <span className="text-[13px] font-semibold text-slate-900 leading-snug">{item.label}</span>
+                      {selected && <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />}
                     </div>
-                    <span className="text-[11.5px] text-slate-500 mt-1 leading-relaxed">
-                      {item.desc}
-                    </span>
+                    <span className="text-[11.5px] text-slate-500 mt-1 leading-relaxed">{item.desc}</span>
                   </button>
                 );
               })}
             </div>
           </section>
 
-          {/* 5. Type-Specific Config */}
           <section className="rounded-xl border border-teal-200/70 bg-teal-50/25 p-4 sm:p-5 space-y-4">
             <div className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wider text-teal-800">
               <Sliders className="h-4 w-4 text-teal-600" />
@@ -524,11 +461,7 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Approver Type</label>
-                  <select
-                    value={approverType}
-                    onChange={(e) => setApproverType(e.target.value)}
-                    className={inputClass}
-                  >
+                  <select value={approverType} onChange={(e) => setApproverType(e.target.value)} className={inputClass}>
                     <option value="Role">Role-Based</option>
                     <option value="User">Specific User</option>
                     <option value="Group">Approval Group</option>
@@ -536,47 +469,25 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
                 </div>
                 <div>
                   <label className={labelClass}>Approver Target</label>
-                  <input
-                    type="text"
-                    value={approverTarget}
-                    onChange={(e) => setApproverTarget(e.target.value)}
-                    placeholder="e.g. Super Admin"
-                    className={inputClass}
-                  />
+                  {approverType === 'User' ? (
+                    <select value={approverTarget} onChange={(e) => setApproverTarget(e.target.value)} className={inputClass}>{userOptions.map((user) => <option key={user} value={user}>{user}</option>)}</select>
+                  ) : approverType === 'Group' ? (
+                    <select value={approverTarget} onChange={(e) => setApproverTarget(e.target.value)} className={inputClass}><option value="Super Admin">Super Admin</option><option value="Plant Digital Head">Plant Digital Head</option><option value="Operations Head">Operations Head</option></select>
+                  ) : (
+                    <select value={approverTarget} onChange={(e) => setApproverTarget(e.target.value)} className={inputClass}>{roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}</select>
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>Approval Sequence</label>
-                  <select
-                    value={sequence}
-                    onChange={(e) => setSequence(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="Sequential">Sequential</option>
-                    <option value="Parallel">Parallel</option>
-                    <option value="Any">Any Approver</option>
-                  </select>
+                  <select value={sequence} onChange={(e) => setSequence(e.target.value)} className={inputClass}><option value="Sequential">Sequential</option><option value="Parallel">Parallel</option><option value="Any">Any Approver</option></select>
                 </div>
                 <div>
                   <label className={labelClass}>Notification Channel</label>
-                  <select
-                    value={channel}
-                    onChange={(e) => setChannel(e.target.value)}
-                    className={inputClass}
-                  >
-                    <option value="Both">Portal & Email</option>
-                    <option value="Portal">Portal Only</option>
-                    <option value="Email">Email Only</option>
-                  </select>
+                  <select value={channel} onChange={(e) => setChannel(e.target.value)} className={inputClass}><option value="Both">Portal & Email</option><option value="Portal">Portal Only</option><option value="Email">Email Only</option></select>
                 </div>
                 <div className="sm:col-span-2">
                   <label className={labelClass}>Timeout (Minutes)</label>
-                  <input
-                    type="number"
-                    value={timeoutMinutes}
-                    onChange={(e) => setTimeoutMinutes(Number(e.target.value))}
-                    className={inputClass}
-                    min={1}
-                  />
+                  <input type="number" value={timeoutMinutes} onChange={(e) => setTimeoutMinutes(Number(e.target.value))} className={inputClass} min={1} />
                 </div>
               </div>
             )}
@@ -586,128 +497,46 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
                 <div>
                   <label className={labelClass}>Logging Targets</label>
                   <div className="flex flex-wrap gap-3">
-                    {['LLM Cost', 'Token Usage', 'Tool Calls', 'Input Payload'].map(
-                      (item) => (
-                        <label
-                          key={item}
-                          className="inline-flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer select-none"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={loggingTargets.includes(item)}
-                            onChange={() => toggleLoggingTarget(item)}
-                            className="rounded border-slate-300 text-teal-600 focus:ring-teal-500/30"
-                          />
-                          {item}
-                        </label>
-                      )
-                    )}
+                    {['LLM Cost', 'Token Usage', 'Tool Calls', 'Input Payload'].map((item) => (
+                      <label key={item} className="inline-flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer select-none">
+                        <input type="checkbox" checked={loggingTargets.includes(item)} onChange={() => toggleLoggingTarget(item)} className="rounded border-slate-300 text-teal-600 focus:ring-teal-500/30" />
+                        {item}
+                      </label>
+                    ))}
                   </div>
                 </div>
                 <div className="max-w-xs">
                   <label className={labelClass}>Retention Period (Days)</label>
-                  <input
-                    type="number"
-                    value={retentionDays}
-                    onChange={(e) => setRetentionDays(Number(e.target.value))}
-                    className={inputClass}
-                    min={1}
-                  />
+                  <input type="number" value={retentionDays} onChange={(e) => setRetentionDays(Number(e.target.value))} className={inputClass} min={1} />
                 </div>
               </div>
             )}
 
             {type === 'RiskBased' && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelClass}>Allow Threshold (&lt;)</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min={0}
-                    max={1}
-                    value={allowThreshold}
-                    onChange={(e) => setAllowThreshold(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Notify Threshold (&lt;)</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min={0}
-                    max={1}
-                    value={notifyThreshold}
-                    onChange={(e) => setNotifyThreshold(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>HITL Threshold (≥)</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min={0}
-                    max={1}
-                    value={hitlThreshold}
-                    onChange={(e) => setHitlThreshold(Number(e.target.value))}
-                    className={inputClass}
-                  />
-                </div>
+                <div><label className={labelClass}>Allow Threshold (&lt;)</label><input type="number" step="0.05" min={0} max={1} value={allowThreshold} onChange={(e) => setAllowThreshold(Number(e.target.value))} className={inputClass} /></div>
+                <div><label className={labelClass}>Notify Threshold (&lt;)</label><input type="number" step="0.05" min={0} max={1} value={notifyThreshold} onChange={(e) => setNotifyThreshold(Number(e.target.value))} className={inputClass} /></div>
+                <div><label className={labelClass}>HITL Threshold (≥)</label><input type="number" step="0.05" min={0} max={1} value={hitlThreshold} onChange={(e) => setHitlThreshold(Number(e.target.value))} className={inputClass} /></div>
               </div>
             )}
 
             {type === 'LimitTime' && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelClass}>Max Token Limit</label>
-                  <input
-                    type="number"
-                    value={maxTokens}
-                    onChange={(e) => setMaxTokens(Number(e.target.value))}
-                    className={inputClass}
-                    min={1}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Max Cost (USD)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={maxCostUsd}
-                    onChange={(e) => setMaxCostUsd(Number(e.target.value))}
-                    className={inputClass}
-                    min={0}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Active Hours</label>
-                  <input
-                    type="text"
-                    value={activeHours}
-                    onChange={(e) => setActiveHours(e.target.value)}
-                    placeholder="00:00-23:59"
-                    className={inputClass}
-                  />
-                </div>
+                <div><label className={labelClass}>Max Token Limit</label><input type="number" value={maxTokens} onChange={(e) => setMaxTokens(Number(e.target.value))} className={inputClass} min={1} /></div>
+                <div><label className={labelClass}>Max Cost (USD)</label><input type="number" step="0.1" value={maxCostUsd} onChange={(e) => setMaxCostUsd(Number(e.target.value))} className={inputClass} min={0} /></div>
+                <div><label className={labelClass}>Active Hours</label><input type="text" value={activeHours} onChange={(e) => setActiveHours(e.target.value)} placeholder="00:00-23:59" className={inputClass} /></div>
               </div>
             )}
 
             {type === 'AccessControl' && (
-              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-[13px] text-slate-600">
-                Deterministic security firewall is active for matching queries and injection threats.
-              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-[13px] text-slate-600">Deterministic security firewall is active for matching queries and injection threats.</div>
             )}
 
             {type === 'DataPrivacy' && (
-              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-[13px] text-slate-600">
-                Automatic PII, credit-card, and sensitive configuration term redaction is enabled.
-              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3.5 text-[13px] text-slate-600">Automatic PII, credit-card, and sensitive configuration term redaction is enabled.</div>
             )}
           </section>
 
-          {/* 6. Execution Behavior */}
           <section className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5 space-y-4">
             <div className="flex items-center gap-2 text-[12.5px] font-bold uppercase tracking-wider text-slate-600">
               <Lock className="h-4 w-4 text-teal-600" />
@@ -717,72 +546,29 @@ export const GuardrailFormModal: React.FC<GuardrailFormModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Trigger Action</label>
-                <select
-                  value={action}
-                  onChange={(e) => setAction(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="Allow">Allow</option>
-                  <option value="Require HITL">Require HITL Approval</option>
-                  <option value="Block">Block Execution</option>
-                  <option value="Escalate">Escalate to Admin</option>
-                  <option value="Redact">Redact Sensitive Payload</option>
-                </select>
+                <select value={action} onChange={(e) => setAction(e.target.value)} className={inputClass}><option value="Allow">Allow</option><option value="Require HITL">Require HITL Approval</option><option value="Block">Block Execution</option><option value="Escalate">Escalate to Admin</option><option value="Redact">Redact Sensitive Payload</option></select>
               </div>
 
               <div>
                 <label className={labelClass}>Failure Strategy</label>
-                <select
-                  value={failureMode}
-                  onChange={(e) => setFailureMode(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="Fail Closed">
-                    Fail Closed (Block on evaluation error)
-                  </option>
-                  <option value="Fail Open">
-                    Fail Open (Allow on evaluation error)
-                  </option>
-                </select>
+                <select value={failureMode} onChange={(e) => setFailureMode(e.target.value)} className={inputClass}><option value="Fail Closed">Fail Closed (Block on evaluation error)</option><option value="Fail Open">Fail Open (Allow on evaluation error)</option></select>
               </div>
 
               {isEditing && (
                 <div className="sm:col-span-2">
                   <label className={labelClass}>Audit Change Reason</label>
-                  <input
-                    type="text"
-                    value={changeReason}
-                    onChange={(e) => setChangeReason(e.target.value)}
-                    placeholder="Provide reason for this policy modification…"
-                    className={inputClass}
-                  />
+                  <input type="text" value={changeReason} onChange={(e) => setChangeReason(e.target.value)} placeholder="Provide reason for this policy modification…" className={inputClass} />
                 </div>
               )}
             </div>
           </section>
         </form>
 
-        {/* Sticky Footer */}
         <div className="shrink-0 flex items-center justify-end gap-3 px-5 sm:px-6 py-4 border-t border-slate-100 bg-slate-50/80">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="guardrail-form"
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-60 transition shadow-sm"
-          >
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+          <button type="submit" form="guardrail-form" disabled={saving || !isScopeTargetComplete} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-60 transition shadow-sm">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving
-              ? 'Saving…'
-              : isEditing
-                ? 'Update Policy'
-                : 'Create Policy'}
+            {saving ? 'Saving…' : isEditing ? 'Update Policy' : 'Create Policy'}
           </button>
         </div>
       </div>

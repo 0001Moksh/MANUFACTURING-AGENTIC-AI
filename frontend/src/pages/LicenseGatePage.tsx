@@ -35,17 +35,17 @@ export const LicenseGatePage: React.FC<LicenseGatePageProps> = ({ onVerified }) 
     try {
       const response = await licenseService.verify(file);
       if (response?.is_valid) {
-        setStatus('✓ License Verified');
+        setStatus('License Verified');
         setMessage(`Customer: ${response.customer_name || 'Unknown'}\nLicense: ${response.license_type || 'Annual'}`);
         onVerified();
         return;
       }
 
-      setStatus('✕ License Validation Failed');
+      setStatus('License Validation Failed');
       setMessage(response?.message || 'The supplied license is invalid or has been modified.');
     } catch (error: any) {
       const detail = error?.response?.data?.message || error?.response?.data?.detail || 'The supplied license is invalid or has been modified.';
-      setStatus('✕ License Validation Failed');
+      setStatus('License Validation Failed');
       setMessage(detail);
     } finally {
       setLoading(false);
@@ -114,8 +114,8 @@ export const LicenseGatePage: React.FC<LicenseGatePageProps> = ({ onVerified }) 
         <div className="mt-6 rounded-xl border border-border-color bg-[#0f1728] p-4">
           <div className="text-[11px] uppercase tracking-wider text-muted mb-2">Status</div>
           <div className="flex items-start gap-2 text-[14px] leading-relaxed">
-            {status.includes('✓') ? <CheckCircle2 className="h-4 w-4 text-green mt-0.5" /> : status.includes('✕') ? <AlertCircle className="h-4 w-4 text-red mt-0.5" /> : <FileUp className="h-4 w-4 text-muted mt-0.5" />}
-            <span className={status.includes('✕') ? 'text-red' : 'text-white'}>{status}</span>
+            {status === 'License Verified' ? <CheckCircle2 className="h-4 w-4 text-green mt-0.5" /> : status === 'License Validation Failed' ? <AlertCircle className="h-4 w-4 text-red mt-0.5" /> : <FileUp className="h-4 w-4 text-muted mt-0.5" />}
+            <span className={status === 'License Validation Failed' ? 'text-red' : 'text-white'}>{status}</span>
           </div>
           {message && <div className="mt-3 whitespace-pre-line text-[12.5px] text-muted">{message}</div>}
         </div>

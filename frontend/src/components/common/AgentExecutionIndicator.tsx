@@ -91,7 +91,7 @@ export const AgentExecutionIndicator: React.FC<AgentExecutionIndicatorProps> = (
                   <span className="text-cyan-700 font-semibold animate-pulse">Running...</span>
                 ) : (
                   <span className="text-emerald-700 font-medium">
-                    {step.durationSec ? `${step.durationSec.toFixed(2)}s` : '✓ Done'}
+                    {step.durationSec ? `${step.durationSec.toFixed(2)}s` : 'Done'}
                   </span>
                 )}
               </div>
