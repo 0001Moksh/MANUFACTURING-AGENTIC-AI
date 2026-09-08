@@ -123,3 +123,30 @@ export const adminService = {
     return res.data;
   }
 };
+
+export const guardrailPolicyService = {
+  getPolicies: async () => {
+    const res = await api.get('/admin/guardrail-policies');
+    return res.data;
+  },
+  createPolicy: async (data: any) => {
+    const res = await api.post('/admin/guardrail-policies', data);
+    return res.data;
+  },
+  updatePolicy: async (id: number, data: any) => {
+    const res = await api.put(`/admin/guardrail-policies/${id}`, data);
+    return res.data;
+  },
+  togglePolicy: async (id: number) => {
+    const res = await api.patch(`/admin/guardrail-policies/${id}/toggle`);
+    return res.data;
+  },
+  deletePolicy: async (id: number) => {
+    const res = await api.delete(`/admin/guardrail-policies/${id}`);
+    return res.data;
+  },
+  evaluate: async (context: any) => {
+    const res = await api.post('/admin/guardrail-policies/evaluate', context);
+    return res.data;
+  }
+};

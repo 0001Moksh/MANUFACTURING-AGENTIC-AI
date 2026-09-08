@@ -10,6 +10,8 @@ import { HITLSettingsModal } from '../components/admin/HITLSettingsModal';
 import { guardrails } from '../data/mockData';
 import { api } from '../services/api';
 
+import { GuardrailsTable } from '../components/admin/GuardrailsTable';
+
 export const AdminConsolePage: React.FC = () => {
   const location = useLocation();
   const { explainableLogs, humanInLoop, toggleGovernanceSetting } = useStore();
@@ -150,61 +152,49 @@ export const AdminConsolePage: React.FC = () => {
           {activePane === 'integrations' && <ConnectorsGrid />}
           
           {activePane === 'guardrails' && (
-            <div className="flex flex-col gap-[10px]">
-              {/* ── Functional DB-backed toggles ── */}
-              {[
-                {
-                  key: 'explainability_logging',
-                  label: 'Explainability Logging',
-                  desc: 'Every AI decision is traceable — inputs, model version and reasoning summary retained.',
-                  isOn: explainableLogs,
-                },
-                {
-                  key: 'hitl_approval',
-                  label: 'Human-in-the-Loop Approval for High-Risk Actions',
-                  desc: 'Required before any agent commits a production, safety or financial action above threshold.',
-                  isOn: humanInLoop,
-                },
-              ].map(({ key, label, desc, isOn }) => (
-                <div key={key} className="flex items-center gap-[14px] bg-panel border border-border-color rounded-[11px] p-[13px_16px] hover:border-teal/40 transition-colors">
-                  <div className="flex-1">
-                    <div className="font-bold text-[13px] mb-[2px]">{label}</div>
-                    <div className="text-[11.5px] text-muted">{desc}</div>
-                  </div>
-                                  <div className="flex items-center gap-3">
-                                    {key === 'hitl_approval' && (
-                                      <button title="HITL settings" onClick={() => setShowHitlModal(true)} className="p-2 rounded hover:bg-gray-100"><Settings2 className="w-4 h-4 text-muted" /></button>
-                                    )}
-                                    <button
-                                      onClick={() => toggleGovernanceSetting(key, !isOn)}
-                                      className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
-                                        isOn ? 'bg-green' : 'bg-[#D7DCE8]'
-                                      }`}
-                                    >
-                                      <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 shadow-sm ${
-                                        isOn ? 'right-[2px]' : 'left-[2px]'
-                                      }`} />
-                                    </button>
-                                  </div>
-                </div>
-              ))}
-
-              {/* ── Static read-only guardrails ── */}
-              {guardrails
-                .filter(g => g[0] !== 'Explainability logging' && g[0] !== 'Human-in-the-loop approval for high-risk actions')
-                .map((g, i) => (
-                  <div key={i} className="flex items-center gap-[14px] bg-panel border border-border-color rounded-[11px] p-[13px_16px]">
+            <div className="flex flex-col gap-6">
+              {/* ── Master Governance Switches ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  {
+                    key: 'explainability_logging',
+                    label: 'Explainability Logging',
+                    desc: 'Every AI decision is traceable — inputs, model version and reasoning summary retained.',
+                    isOn: explainableLogs,
+                  },
+                  {
+                    key: 'hitl_approval',
+                    label: 'Human-in-the-Loop Approval for High-Risk Actions',
+                    desc: 'Required before any agent commits a production, safety or financial action above threshold.',
+                    isOn: humanInLoop,
+                  },
+                ].map(({ key, label, desc, isOn }) => (
+                  <div key={key} className="flex items-center gap-[14px] bg-panel border border-border-color rounded-[11px] p-[13px_16px] hover:border-teal/40 transition-colors">
                     <div className="flex-1">
-                      <div className="font-bold text-[13px] mb-[2px]">{g[0]}</div>
-                      <div className="text-[11.5px] text-muted">{g[1]}</div>
+                      <div className="font-bold text-[13px] mb-[2px]">{label}</div>
+                      <div className="text-[11.5px] text-muted">{desc}</div>
                     </div>
-                    <span className={`text-[10.5px] font-bold py-[3px] px-[9px] rounded-[20px] ${
-                      g[2] === 'On' ? 'bg-green-tint text-green' : g[2] === 'Configurable' ? 'bg-blue-tint text-[#2258b0]' : 'bg-amber-tint text-[#9A6400]'
-                    }`}>
-                      {g[2]}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {key === 'hitl_approval' && (
+                        <button title="HITL settings" onClick={() => setShowHitlModal(true)} className="p-2 rounded hover:bg-gray-100"><Settings2 className="w-4 h-4 text-muted" /></button>
+                      )}
+                      <button
+                        onClick={() => toggleGovernanceSetting(key, !isOn)}
+                        className={`w-[34px] h-[19px] rounded-[20px] relative border-none shrink-0 transition-colors cursor-pointer ${
+                          isOn ? 'bg-green' : 'bg-[#D7DCE8]'
+                        }`}
+                      >
+                        <div className={`absolute w-[15px] h-[15px] bg-white rounded-full top-[2px] transition-all duration-200 shadow-sm ${
+                          isOn ? 'right-[2px]' : 'left-[2px]'
+                        }`} />
+                      </button>
+                    </div>
                   </div>
                 ))}
+              </div>
+
+              {/* ── Dynamic Policy Guardrails Management ── */}
+              <GuardrailsTable />
             </div>
           )}
           

@@ -247,6 +247,34 @@ class UseCaseGovernanceSettings(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class GuardrailPolicy(Base):
+    """Generic, dynamic guardrail policy model for central evaluation engine."""
+    __tablename__ = "guardrail_policies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    type: Mapped[str] = mapped_column(String(50), nullable=False, default="HITL") # HITL, Traceability, AccessControl, RiskBased, DataPrivacy, LimitTime
+    scope_type: Mapped[str] = mapped_column(String(50), nullable=False, default="Global") # Global, UseCase, Workflow, Agent, Action, Role
+    scope_target: Mapped[Optional[str]] = mapped_column(String(150), nullable=True) # e.g. 'daily_operations_reporting', 'Reporting Agent', '*'
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="Medium") # Low, Medium, High, Critical
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="Active") # Draft, Active, Disabled, Archived
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    
+    # JSON dynamic configurations for triggers, conditions, type sub-configs, failure behavior
+    triggers_conditions: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    type_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    execution_behavior: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True) # action: Allow/Require HITL/Block/Redact, failure_mode: Fail Closed/Fail Open
+    
+    # Audit & Versioning
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(100), default="System", nullable=False)
+    updated_by: Mapped[str] = mapped_column(String(100), default="System", nullable=False)
+    change_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class ReportApproval(Base):
     """Durable state machine for a generated report and its one-time approval decision."""
     __tablename__ = "report_approvals"
@@ -488,6 +516,62 @@ async def init_db():
                 ),
             ]
             session.add_all(gov_settings)
+            await session.commit()
+
+        # Check and seed default guardrail policies if table empty
+        gp_result = await session.execute(select(GuardrailPolicy).limit(1))
+        if not gp_result.scalars().first():
+            default_policies = [
+                GuardrailPolicy(
+                    name="High-Risk Action HITL Policy",
+                    description="Requires human approval before dispatching high-impact reporting or system actions",
+                    type="HITL",
+                    scope_type="UseCase",
+                    scope_target="daily_operations_reporting",
+                    priority="High",
+                    status="Active",
+                    is_enabled=True,
+                    triggers_conditions={"trigger_event": "On Risk Detection", "conditions": [{"field": "risk_score", "operator": ">=", "value": "0.7"}]},
+                    type_config={"approver_type": "Role", "approver_target": "Super Admin", "channel": "Both", "timeout_minutes": 1440},
+                    execution_behavior={"action": "Require HITL", "failure_mode": "Fail Closed"},
+                    version=1,
+                    created_by="System",
+                    updated_by="System"
+                ),
+                GuardrailPolicy(
+                    name="Deterministic Security Firewall",
+                    description="Prevents SQL injection, OS command injection, and system destruction attempts",
+                    type="AccessControl",
+                    scope_type="Global",
+                    scope_target="*",
+                    priority="Critical",
+                    status="Active",
+                    is_enabled=True,
+                    triggers_conditions={"trigger_event": "Before Execution", "conditions": [{"field": "query", "operator": "contains", "value": "DROP,DELETE,SHUTDOWN"}]},
+                    type_config={"access_rule": "Deny", "restricted_roles": []},
+                    execution_behavior={"action": "Block", "failure_mode": "Fail Closed"},
+                    version=1,
+                    created_by="System",
+                    updated_by="System"
+                ),
+                GuardrailPolicy(
+                    name="Full Decision Audit Traceability",
+                    description="Ensures all agent interactions log model parameters, token usage, and tool calls",
+                    type="Traceability",
+                    scope_type="Global",
+                    scope_target="*",
+                    priority="Medium",
+                    status="Active",
+                    is_enabled=True,
+                    triggers_conditions={"trigger_event": "After Execution", "conditions": []},
+                    type_config={"logging_targets": ["LLM Cost", "Token Usage", "Tool Calls"], "retention_days": 365},
+                    execution_behavior={"action": "Allow", "failure_mode": "Fail Open"},
+                    version=1,
+                    created_by="System",
+                    updated_by="System"
+                )
+            ]
+            session.add_all(default_policies)
             await session.commit()
 
         # Bootstrap durable profile records for existing authenticated users.

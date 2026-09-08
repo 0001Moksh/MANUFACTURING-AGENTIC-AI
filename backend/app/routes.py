@@ -770,6 +770,150 @@ async def list_hitl_use_cases(db: AsyncSession = Depends(get_db)):
     return results
 
 
+# ── DYNAMIC GUARDRAIL POLICY CRUD & EVALUATION ENDPOINTS ───────────────────
+
+class GuardrailPolicyPayload(BaseModel):
+    name: str
+    description: Optional[str] = None
+    type: str = "HITL"
+    scope_type: str = "Global"
+    scope_target: Optional[str] = "*"
+    priority: str = "Medium"
+    status: str = "Active"
+    is_enabled: bool = True
+    triggers_conditions: Optional[Dict[str, Any]] = None
+    type_config: Optional[Dict[str, Any]] = None
+    execution_behavior: Optional[Dict[str, Any]] = None
+    change_reason: Optional[str] = None
+
+@router.get("/api/admin/guardrail-policies")
+async def list_guardrail_policies(db: AsyncSession = Depends(get_db)):
+    from app.db import GuardrailPolicy
+    policies = (await db.execute(
+        select(GuardrailPolicy).order_by(GuardrailPolicy.created_at.desc())
+    )).scalars().all()
+    return [{
+        "id": p.id,
+        "name": p.name,
+        "description": p.description,
+        "type": p.type,
+        "scope_type": p.scope_type,
+        "scope_target": p.scope_target,
+        "priority": p.priority,
+        "status": p.status,
+        "is_enabled": p.is_enabled,
+        "triggers_conditions": p.triggers_conditions or {},
+        "type_config": p.type_config or {},
+        "execution_behavior": p.execution_behavior or {},
+        "version": p.version,
+        "created_by": p.created_by,
+        "updated_by": p.updated_by,
+        "change_reason": p.change_reason,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+    } for p in policies]
+
+@router.post("/api/admin/guardrail-policies")
+async def create_guardrail_policy(payload: GuardrailPolicyPayload, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can configure guardrail policies")
+    
+    from app.db import GuardrailPolicy
+    policy = GuardrailPolicy(
+        name=payload.name.strip(),
+        description=payload.description.strip() if payload.description else None,
+        type=payload.type,
+        scope_type=payload.scope_type,
+        scope_target=payload.scope_target.strip() if payload.scope_target else "*",
+        priority=payload.priority,
+        status=payload.status,
+        is_enabled=payload.is_enabled,
+        triggers_conditions=payload.triggers_conditions or {},
+        type_config=payload.type_config or {},
+        execution_behavior=payload.execution_behavior or {},
+        version=1,
+        created_by=user.username,
+        updated_by=user.username,
+        change_reason=payload.change_reason or "Initial creation"
+    )
+    db.add(policy)
+    await db.commit()
+    await db.refresh(policy)
+    return {"status": "success", "id": policy.id}
+
+@router.put("/api/admin/guardrail-policies/{policy_id}")
+async def update_guardrail_policy(policy_id: int, payload: GuardrailPolicyPayload, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can update guardrail policies")
+    
+    from app.db import GuardrailPolicy
+    policy = (await db.execute(select(GuardrailPolicy).where(GuardrailPolicy.id == policy_id))).scalars().first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Guardrail policy not found")
+    
+    policy.name = payload.name.strip()
+    policy.description = payload.description.strip() if payload.description else None
+    policy.type = payload.type
+    policy.scope_type = payload.scope_type
+    policy.scope_target = payload.scope_target.strip() if payload.scope_target else "*"
+    policy.priority = payload.priority
+    policy.status = payload.status
+    policy.is_enabled = payload.is_enabled
+    policy.triggers_conditions = payload.triggers_conditions or {}
+    policy.type_config = payload.type_config or {}
+    policy.execution_behavior = payload.execution_behavior or {}
+    policy.version += 1
+    policy.updated_by = user.username
+    if payload.change_reason:
+        policy.change_reason = payload.change_reason
+    policy.updated_at = datetime.utcnow()
+    
+    await db.commit()
+    return {"status": "success", "id": policy.id, "version": policy.version}
+
+@router.patch("/api/admin/guardrail-policies/{policy_id}/toggle")
+async def toggle_guardrail_policy(policy_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can toggle guardrail policies")
+    
+    from app.db import GuardrailPolicy
+    policy = (await db.execute(select(GuardrailPolicy).where(GuardrailPolicy.id == policy_id))).scalars().first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Guardrail policy not found")
+    
+    policy.is_enabled = not policy.is_enabled
+    policy.status = "Active" if policy.is_enabled else "Disabled"
+    policy.version += 1
+    policy.updated_by = user.username
+    policy.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"status": "success", "id": policy.id, "is_enabled": policy.is_enabled, "status_text": policy.status}
+
+@router.delete("/api/admin/guardrail-policies/{policy_id}")
+async def delete_guardrail_policy(policy_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user = await get_current_user(request, db)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Only Super Admin can delete guardrail policies")
+    
+    from app.db import GuardrailPolicy
+    policy = (await db.execute(select(GuardrailPolicy).where(GuardrailPolicy.id == policy_id))).scalars().first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Guardrail policy not found")
+    
+    await db.delete(policy)
+    await db.commit()
+    return {"status": "success", "message": f"Policy {policy_id} deleted successfully"}
+
+@router.post("/api/admin/guardrail-policies/evaluate")
+async def evaluate_guardrails(context: Dict[str, Any]):
+    from app.guardrail_engine import GuardrailEngine
+    result = await GuardrailEngine.evaluate_context(context)
+    return result
+
+
 @router.get("/api/notifications")
 async def get_notifications(request: Request, category: Optional[str] = None, unread_only: bool = False, db: AsyncSession = Depends(get_db)):
     user = await get_current_user(request, db)
