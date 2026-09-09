@@ -4,6 +4,7 @@ import { AlertFeed } from '../components/safety/AlertFeed';
 import { ChartCardWrapper } from '../components/safety/ChartCardWrapper';
 import { ChartCustomizationDrawer, type ChartDefinition } from '../components/safety/ChartCustomizationDrawer';
 import { formatChartMetadata } from '../utils/chartMetadata';
+import { VideoMonitoringChatWidget } from '../components/video-monitoring/VideoMonitoringChatWidget';
 
 // Default chart library definition
 const INITIAL_CHARTS: ChartDefinition[] = [
@@ -742,6 +743,9 @@ export const VideoMonitoringPage: React.FC = () => {
         onToggleChart={handleToggleChart}
         onResetLayout={handleResetLayout}
       />
+
+      {/* Multi-Agent AI Safety Assistant Floating Chatbot & HITL Drawer */}
+      <VideoMonitoringChatWidget />
     </div>
   );
 };

@@ -38,6 +38,10 @@ from app.agents.incident_investigation_agent import (
     run_incident_investigation_conversation,
     stream_incident_investigation_events,
 )
+from app.agents.video_monitoring_agent import (
+    run_video_monitoring_conversation,
+    stream_video_monitoring_events,
+)
 from app.email_service import send_pdf_report_email, send_text_email, send_html_email
 from app.voice.manager import VoiceConversationManager
 from app.license_control import (
@@ -218,6 +222,17 @@ class PermitToWorkChatRequest(BaseModel):
 class IncidentInvestigationChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
+
+class VideoMonitoringChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = "default"
+    user_id: Optional[str] = "operator_1"
+    hitl_context: Optional[Dict[str, Any]] = None
+
+class VideoGovernanceSettingsRequest(BaseModel):
+    auto_approve_threshold: Optional[float] = 0.90
+    require_hitl_for_mutations: Optional[bool] = True
+    alert_audio_enabled: Optional[bool] = True
 
 # In-memory set of active agents
 active_agents = {
@@ -2786,6 +2801,64 @@ async def incident_investigation_summary():
         "ltifr_rate": "0.00",
         "safety_audit_status": "OPTIMAL",
     }
+
+
+# ── Video Monitoring Multi-Agent Endpoints ─────────────────────────────────────
+
+@router.post("/api/agents/video-monitoring/chat")
+async def video_monitoring_chat(req: VideoMonitoringChatRequest):
+    """Standard JSON chat endpoint for Video Monitoring Multi-Agent Supervisor Mesh."""
+    result = await run_video_monitoring_conversation(
+        message=req.message,
+        thread_id=req.thread_id or "default",
+        user_id=req.user_id or "operator_1"
+    )
+    return result
+
+
+@router.post("/api/agents/video-monitoring/chat/stream")
+async def video_monitoring_stream(req: VideoMonitoringChatRequest):
+    """SSE Streaming chat endpoint for Video Monitoring Multi-Agent Supervisor Mesh."""
+    return StreamingResponse(
+        stream_video_monitoring_events(
+            message=req.message,
+            thread_id=req.thread_id or "default",
+            user_id=req.user_id or "operator_1",
+            hitl_context=req.hitl_context
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/api/agents/video-monitoring/governance")
+async def get_video_monitoring_governance():
+    """Retrieve current human-in-the-loop governance settings for Video Monitoring."""
+    return {
+        "status": "success",
+        "settings": {
+            "auto_approve_threshold": 0.90,
+            "require_hitl_for_mutations": True,
+            "alert_audio_enabled": True,
+            "active_mode": "GUARDED_HITL",
+            "allowed_roles": ["Admin", "Safety Supervisor", "HSE Manager"]
+        }
+    }
+
+
+@router.post("/api/agents/video-monitoring/governance")
+async def update_video_monitoring_governance(req: VideoGovernanceSettingsRequest):
+    """Update human-in-the-loop governance settings for Video Monitoring."""
+    return {
+        "status": "success",
+        "message": "Governance settings updated successfully.",
+        "settings": req.dict()
+    }
+
 
 
 
