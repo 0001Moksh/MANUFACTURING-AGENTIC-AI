@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Bot, User, Sparkles, Sliders, ShieldAlert, RefreshCw, Cpu, Video, Wrench, Search, ShieldCheck } from 'lucide-react';
-import { ChatWidgetRenderer, WidgetPayload } from './ChatWidgetRenderer';
+import { ChatWidgetRenderer } from './ChatWidgetRenderer';
+import type { WidgetPayload } from './ChatWidgetRenderer';
 
 interface ChatMessage {
   id: string;
