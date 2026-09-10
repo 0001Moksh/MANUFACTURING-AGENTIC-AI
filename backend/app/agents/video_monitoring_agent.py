@@ -6426,47 +6426,34 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
     uses_relative_ref = any(k in query_lower for k in [
         "this camera", "this feed", "that camera", "that feed", "same camera",
         "in this", "on this", "from this", "here", "stream it", "that cam",
+        "persons visible", "people visible", "workers visible", "how many person", "how many people",
     ])
 
     # Resolve target camera from rich keyword set (or fall back to context memory)
-    target_cam = "CAM-02 Assembly Line 1"  # default
-    if uses_relative_ref and prev_cam:
-        target_cam = prev_cam
-    elif any(k in query_lower for k in ["cam-01", "cam 01", "entrance gate", "entry gate", "zone a"]):
-        target_cam = "CAM-01 Entrance Gate"
+    target_cam = "CAM-01 Luxsphere Entrance Gate"  # default to Luxsphere
+    if any(k in query_lower for k in ["luxsphere", "cam-01", "cam 01", "entrance gate", "entry gate", "zone a"]):
+        target_cam = "CAM-01 Luxsphere Entrance Gate"
+    elif any(k in query_lower for k in ["flarehub", "cam-02", "cam 02", "assembly", "manufacturing bay"]):
+        target_cam = "CAM-02 Flarehub Assembly Line"
     elif any(k in query_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
         target_cam = "CAM-03 Loading Dock"
     elif any(k in query_lower for k in ["cam-04", "cam 04", "chemical storage", "hazard zone"]):
         target_cam = "CAM-04 Chemical Storage"
     elif any(k in query_lower for k in ["cam-05", "cam 05", "steel yard", "high bay"]):
         target_cam = "CAM-05 High Bay Crane"
-    elif any(k in query_lower for k in ["luxsphere", "cam-02", "cam 02", "assembly", "manufacturing bay"]):
-        target_cam = "CAM-02 Assembly Line 1"
+    elif uses_relative_ref and prev_cam:
+        target_cam = prev_cam
 
     tool_name = "analyze_scene_context"
     tool_args: Dict[str, Any] = {"camera_name": target_cam, "query": user_query}
     vlm_raw = analyze_scene_context.invoke(tool_args)
     vlm_data = json.loads(vlm_raw) if isinstance(vlm_raw, str) else vlm_raw
 
-    content = f"### Live Video Stream & Vision Analysis - {target_cam}\n\n"
-    content += f"**Stream URL:** `rtsp://cluster.manufacturing.ai:554/live/{target_cam.split()[0].lower()}`\n\n"
+    content = f"### Live Video Stream & Vision Analysis — {target_cam}\n\n"
+    content += f"**Stream URL:** `/api/video-monitoring/stream/{'1' if 'CAM-01' in target_cam else '2' if 'CAM-02' in target_cam else '3' if 'CAM-03' in target_cam else '4' if 'CAM-04' in target_cam else '5'}`\n\n"
     content += "| Parameter | Telemetry Value | Operational State |\n"
     content += "|:---|:---|:---|\n"
     content += f"| **Camera Name** | {target_cam} | **ONLINE** |\n"
-    content += "| **Encoding / Format** | H.264 / RTSP over TCP | STREAMING |\n"
-    content += "| **Resolution / FPS** | 1080p (1920x1080) | 25 FPS |\n"
-    content += "| **Active Vision Model** | YOLOv8x-Industrial-PPE | INFERENCE ACTIVE |\n\n"
-    content += f"#### Vision-Language Scene Summary\n"
-    content += f"> {vlm_data.get('summary', 'Observed 3 workers in yellow safety vests. 2 workers wearing white hard hats. Hazard Risk: LOW-MODERATE.')}\n\n"
-    content += "#### Live Detections in Current Frame\n\n"
-    content += "| Detected Entity | Confidence | Bounding Box | Hardhat Detected | Safety Vest Detected |\n"
-    content += "|:---|:---|:---|:---|:---|\n"
-    for idx, d in enumerate(vlm_data.get("detections", []), 1):
-        ppe = d.get("ppe", {})
-        h = "YES" if ppe.get("helmet") else "**NO (VIOLATION)**"
-        v = "YES" if ppe.get("vest") else "**NO (VIOLATION)**"
-        content += f"| Worker #{idx} ({d.get('class', 'person')}) | {float(d.get('confidence', 0.95)) * 100:.1f}% | `{d.get('bbox', [0,0,0,0])}` | {h} | {v} |\n"
-
     trace = _create_trace_record("Video Agent", f"Supervisor -> Video Agent -> {tool_name}", tool_name, tool_args, elapsed_ms, "success", f"Live stream & YOLO/VLM telemetry retrieved for {target_cam}", 170, 150)
     # Persist the camera target in state for conversation context memory
     return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace, "current_video_camera": target_cam}
@@ -6575,25 +6562,47 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
     # Video Agent: Live stream, RTSP, stream URL, YOLO/VLM detections, person/PPE visual queries,
     # real-time camera scene requests, and any query referencing a specific camera by name/number.
     if any(k in input_lower for k in [
+        "luxsphere", "flarehub", "cam-01", "cam-02", "cam-03", "cam-04", "cam-05",
+        "cam 01", "cam 02", "cam 03", "cam 04", "cam 05",
         "live feed", "live stream", "rtsp", "stream url", "show feed", "show camera feed", "watch camera",
         "yolo", "vlm", "scene context", "what are workers doing", "visual inspection",
         "motion detect", "detect motion", "snapshot", "live snapshot", "find person by",
         "interrogate scene", "frame analysis",
         # Visual presence / counting queries
         "how many person", "how many people", "how many worker", "persons visible", "people visible",
-        "who is in", "who is on", "workers visible", "visible in", "visible on",
+        "who is in", "who is on", "workers visible", "visible in", "visible on", "operators",
         # PPE compliance on live cameras
         "wearing helmet", "wearing hardhat", "not wearing", "without helmet", "without hardhat",
         "wearing vest", "without vest", "ppe check", "ppe on camera",
         # Camera-specific view requests
-        "show me cam", "show cam", "open cam", "cam-01", "cam-02", "cam-03", "cam-04", "cam-05",
-        "camera feed", "camera view", "camera stream", "camera live",
-        "show luxsphere", "luxsphere camera", "entry gate camera", "manufacturing bay camera",
-        "warehouse camera", "hazard zone camera", "steel yard camera",
+        "show me cam", "show cam", "open cam", "camera feed", "camera view", "camera stream", "camera live",
+        "entry gate camera", "manufacturing bay camera", "warehouse camera", "hazard zone camera", "steel yard camera",
         "what is happening", "what do you see", "describe the scene", "scene description",
         "real-time view", "real time view", "current view", "current feed",
     ]):
         return {"next_agent": "video_agent"}
+
+    # System Agent: Counts, status, cameras, alerts, incidents, zones, compliance, metrics, live state, ad-hoc SQL
+    if any(k in input_lower for k in [
+        "how many camera", "camera count", "camera status", "cameras", "list camera", "fleet health", "camera fleet",
+        "active alerts", "safety alerts", "alerts", "alert list", "recent alerts",
+        "incidents", "incident list", "safety violations", "violations", "safety events",
+        "zones", "zone list", "risk score", "red zones",
+        "ppe compliance", "compliance", "compliance rate", "worker count", "people count", "forklift count",
+        "counting summary", "counting stats", "statistics", "metrics",
+        "roster", "users", "user list", "operators", "hse rules", "safety rules",
+        "select ", "sql", "query", "database", "report", "anomal"
+    ]):
+        return {"next_agent": "system_agent"}
+
+    # General Agent: Greetings and pure conversational pleasantries ONLY
+    if any(k in input_lower for k in [
+        "hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening",
+        "who are you", "what can you do", "help", "thanks", "thank you", "who am i", "profile", "about you"
+    ]):
+        return {"next_agent": "general_agent"}
+
+    return {"next_agent": "general_agent"}
 
     # System Agent: Counts, status, cameras, alerts, incidents, zones, compliance, metrics, live state, ad-hoc SQL
     if any(k in input_lower for k in [
@@ -6847,18 +6856,45 @@ async def stream_video_monitoring_events(
 
     # ── Video Agent → Live Stream Player Widget ──────────────────────────────
     elif active_agent == "video_agent":
+        state_cam = final_state.get("current_video_camera", "")
         # Resolve which camera to embed in the live player
-        cam_id = 2  # default CAM-02
-        cam_display = "CAM-02 Assembly Line 1"
-        cam_location = "Manufacturing Bay 2"
-        if any(k in input_lower for k in ["cam-01", "cam 01", "entrance", "entry gate", "zone a"]):
-            cam_id, cam_display, cam_location = 1, "CAM-01 Entrance Gate", "Zone A Main Entrance"
-        elif any(k in input_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
+        if "CAM-01" in state_cam or any(k in input_lower for k in ["luxsphere", "cam-01", "cam 01", "entrance", "entry gate", "zone a"]):
+            cam_id, cam_display, cam_location = 1, "CAM-01 Luxsphere Entrance Gate", "Zone A Main Entrance"
+            vlm_detections = [
+                {"entity": "Operator #1", "class": "person", "confidence": 0.96, "helmet": True, "vest": True},
+                {"entity": "Operator #2", "class": "person", "confidence": 0.93, "helmet": False, "vest": True},
+                {"entity": "Operator #3", "class": "person", "confidence": 0.89, "helmet": True, "vest": True},
+            ]
+        elif "CAM-02" in state_cam or any(k in input_lower for k in ["flarehub", "cam-02", "cam 02", "assembly", "manufacturing bay"]):
+            cam_id, cam_display, cam_location = 2, "CAM-02 Flarehub Assembly Line", "Manufacturing Bay 2"
+            vlm_detections = [
+                {"entity": "Operator #1", "class": "person", "confidence": 0.95, "helmet": True, "vest": True},
+                {"entity": "Operator #2", "class": "person", "confidence": 0.91, "helmet": True, "vest": True},
+                {"entity": "AGV Cart", "class": "agv", "confidence": 0.88, "helmet": None, "vest": None},
+            ]
+        elif "CAM-03" in state_cam or any(k in input_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
             cam_id, cam_display, cam_location = 3, "CAM-03 Loading Dock", "Warehouse Sector C"
-        elif any(k in input_lower for k in ["cam-04", "cam 04", "chemical", "hazard"]):
+            vlm_detections = [
+                {"entity": "Operator #1", "class": "person", "confidence": 0.94, "helmet": True, "vest": True},
+                {"entity": "Forklift #1", "class": "forklift", "confidence": 0.92, "helmet": None, "vest": None},
+            ]
+        elif "CAM-04" in state_cam or any(k in input_lower for k in ["cam-04", "cam 04", "chemical", "hazard"]):
             cam_id, cam_display, cam_location = 4, "CAM-04 Chemical Storage", "Hazard Zone 4"
-        elif any(k in input_lower for k in ["cam-05", "cam 05", "steel yard", "crane"]):
+            vlm_detections = [
+                {"entity": "Hazmat Operator", "class": "person", "confidence": 0.97, "helmet": True, "vest": True},
+            ]
+        elif "CAM-05" in state_cam or any(k in input_lower for k in ["cam-05", "cam 05", "steel yard", "crane"]):
             cam_id, cam_display, cam_location = 5, "CAM-05 High Bay Crane", "Steel Yard North"
+            vlm_detections = [
+                {"entity": "Crane Operator", "class": "person", "confidence": 0.93, "helmet": True, "vest": True},
+            ]
+        else:
+            cam_id, cam_display, cam_location = 1, "CAM-01 Luxsphere Entrance Gate", "Zone A Main Entrance"
+            vlm_detections = [
+                {"entity": "Operator #1", "class": "person", "confidence": 0.96, "helmet": True, "vest": True},
+                {"entity": "Operator #2", "class": "person", "confidence": 0.93, "helmet": False, "vest": True},
+                {"entity": "Operator #3", "class": "person", "confidence": 0.89, "helmet": True, "vest": True},
+            ]
 
         live_stream_widget = {
             "type": "live_stream_player",
@@ -6867,11 +6903,7 @@ async def stream_video_monitoring_events(
             "camera_location": cam_location,
             "stream_url": f"/api/video-monitoring/stream/{cam_id}",
             "snapshot_url": f"https://images.unsplash.com/photo-1581091012184-7e6c4cce5e33?auto=format&fit=crop&w=800&q=80",
-            "vlm_detections": [
-                {"entity": "Worker #1", "class": "person", "confidence": 0.96, "helmet": True, "vest": True},
-                {"entity": "Worker #2", "class": "person", "confidence": 0.91, "helmet": False, "vest": True},
-                {"entity": "Forklift", "class": "forklift", "confidence": 0.88, "helmet": None, "vest": None},
-            ],
+            "vlm_detections": vlm_detections,
             "fps": 25,
             "resolution": "1080p",
             "status": "STREAMING",

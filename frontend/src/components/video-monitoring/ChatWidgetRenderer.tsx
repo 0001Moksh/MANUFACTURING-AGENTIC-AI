@@ -105,66 +105,6 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
             <div className="absolute bottom-8 right-0 w-6 h-6 border-r-2 border-b-2 border-cyan-400/50" />
           </div>
         </div>
-
-        {/* Quick Stats Bar */}
-        <div className="grid grid-cols-3 gap-1.5 mb-2.5 text-center text-[10px]">
-          <div className="bg-slate-800/70 p-1.5 rounded border border-slate-700">
-            <span className="text-slate-400 block">Persons</span>
-            <span className="font-mono font-bold text-cyan-300">{personCount}</span>
-          </div>
-          <div className="bg-slate-800/70 p-1.5 rounded border border-slate-700">
-            <span className="text-slate-400 block">PPE Violations</span>
-            <span className={`font-mono font-bold ${ppeViolations > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {ppeViolations}
-            </span>
-          </div>
-          <div className="bg-slate-800/70 p-1.5 rounded border border-slate-700">
-            <span className="text-slate-400 block">Objects</span>
-            <span className="font-mono font-bold text-slate-200">{detections.length}</span>
-          </div>
-        </div>
-
-        {/* VLM Detection Table */}
-        {detections.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-slate-700">
-            <table className="w-full text-left text-[10px]">
-              <thead className="bg-slate-800/80 text-slate-400 border-b border-slate-700">
-                <tr>
-                  <th className="py-1.5 px-2 font-medium">Entity</th>
-                  <th className="py-1.5 px-2 font-medium">Conf.</th>
-                  <th className="py-1.5 px-2 font-medium">Hardhat</th>
-                  <th className="py-1.5 px-2 font-medium">Vest</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-200">
-                {detections.map((det, i) => (
-                  <tr key={i} className="hover:bg-slate-800/50 transition-colors">
-                    <td className="py-1.5 px-2 font-medium">{det.entity}</td>
-                    <td className="py-1.5 px-2 font-mono text-cyan-300">{(det.confidence * 100).toFixed(0)}%</td>
-                    <td className="py-1.5 px-2">
-                      {det.helmet === null ? (
-                        <span className="text-slate-500">N/A</span>
-                      ) : det.helmet ? (
-                        <span className="text-emerald-400 font-bold">✓ YES</span>
-                      ) : (
-                        <span className="text-red-400 font-bold">✗ NO</span>
-                      )}
-                    </td>
-                    <td className="py-1.5 px-2">
-                      {det.vest === null ? (
-                        <span className="text-slate-500">N/A</span>
-                      ) : det.vest ? (
-                        <span className="text-emerald-400 font-bold">✓ YES</span>
-                      ) : (
-                        <span className="text-red-400 font-bold">✗ NO</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     );
   }
@@ -277,13 +217,12 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
               <button
                 key={act.id}
                 onClick={() => onActionClick?.(act.id, act.label)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
-                  isSuccess
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${isSuccess
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/50'
                     : isDanger
-                    ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-900/50'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                }`}
+                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-900/50'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                  }`}
               >
                 {isSuccess && <CheckCircle2 className="w-3.5 h-3.5" />}
                 {isDanger && <XCircle className="w-3.5 h-3.5" />}
