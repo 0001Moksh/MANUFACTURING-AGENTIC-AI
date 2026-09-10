@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, X } from 'lucide-react';
 
 export interface WidgetPayload {
-  type: 'evidence_gallery' | 'data_table' | 'hitl_actions';
+  type: 'evidence_gallery' | 'data_table' | 'hitl_actions' | 'live_stream_player';
   title?: string;
   description?: string;
   snapshots?: Array<{
@@ -19,6 +19,21 @@ export interface WidgetPayload {
     label: string;
     variant?: 'success' | 'danger' | 'secondary' | 'primary';
   }>;
+  // Live Stream Player fields
+  camera_name?: string;
+  camera_location?: string;
+  stream_url?: string;
+  snapshot_url?: string;
+  vlm_detections?: Array<{
+    entity: string;
+    class: string;
+    confidence: number;
+    helmet: boolean | null;
+    vest: boolean | null;
+  }>;
+  fps?: number;
+  resolution?: string;
+  status?: string;
 }
 
 interface ChatWidgetRendererProps {
@@ -28,6 +43,131 @@ interface ChatWidgetRendererProps {
 
 export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload, onActionClick }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState(false);
+
+  if (payload.type === 'live_stream_player') {
+    const detections = payload.vlm_detections || [];
+    const personCount = detections.filter((d) => d.class === 'person').length;
+    const ppeViolations = detections.filter((d) => d.helmet === false || d.vest === false).length;
+
+    return (
+      <div className="mt-3 p-3 bg-slate-900/95 border border-cyan-500/30 rounded-xl shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">LIVE</span>
+          </div>
+          <span className="text-cyan-400 font-semibold text-xs uppercase tracking-wider truncate">
+            {payload.title || `Live Feed — ${payload.camera_name}`}
+          </span>
+        </div>
+
+        {/* Live Stream Frame */}
+        <div className="relative w-full rounded-lg overflow-hidden bg-slate-950 border border-slate-700 mb-2.5" style={{ aspectRatio: '16/9' }}>
+          {!streamError ? (
+            <img
+              src={payload.stream_url}
+              alt={`Live stream — ${payload.camera_name}`}
+              className="w-full h-full object-cover"
+              onError={() => setStreamError(true)}
+            />
+          ) : (
+            /* Fallback snapshot when MJPEG stream fails to load */
+            <img
+              src={payload.snapshot_url}
+              alt={`Snapshot — ${payload.camera_name}`}
+              className="w-full h-full object-cover opacity-80"
+            />
+          )}
+
+          {/* Overlay HUD */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Top bar */}
+            <div className="absolute top-0 inset-x-0 h-8 bg-gradient-to-b from-slate-950/90 to-transparent flex items-center px-2.5 gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-white font-mono">{payload.camera_name}</span>
+              <span className="ml-auto text-[10px] text-slate-400 font-mono">
+                {payload.resolution} · {payload.fps} FPS
+              </span>
+            </div>
+            {/* Bottom info */}
+            <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-slate-950/90 to-transparent flex items-center px-2.5">
+              <span className="text-[10px] text-slate-400 font-mono">{payload.camera_location}</span>
+              <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded ${payload.status === 'STREAMING' ? 'bg-emerald-900/80 text-emerald-400' : 'bg-red-900/80 text-red-400'}`}>
+                {payload.status || 'STREAMING'}
+              </span>
+            </div>
+            {/* Corner scan lines effect */}
+            <div className="absolute top-8 left-0 w-6 h-6 border-l-2 border-t-2 border-cyan-400/50" />
+            <div className="absolute top-8 right-0 w-6 h-6 border-r-2 border-t-2 border-cyan-400/50" />
+            <div className="absolute bottom-8 left-0 w-6 h-6 border-l-2 border-b-2 border-cyan-400/50" />
+            <div className="absolute bottom-8 right-0 w-6 h-6 border-r-2 border-b-2 border-cyan-400/50" />
+          </div>
+        </div>
+
+        {/* Quick Stats Bar */}
+        <div className="grid grid-cols-3 gap-1.5 mb-2.5 text-center text-[10px]">
+          <div className="bg-slate-800/70 p-1.5 rounded border border-slate-700">
+            <span className="text-slate-400 block">Persons</span>
+            <span className="font-mono font-bold text-cyan-300">{personCount}</span>
+          </div>
+          <div className="bg-slate-800/70 p-1.5 rounded border border-slate-700">
+            <span className="text-slate-400 block">PPE Violations</span>
+            <span className={`font-mono font-bold ${ppeViolations > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+              {ppeViolations}
+            </span>
+          </div>
+          <div className="bg-slate-800/70 p-1.5 rounded border border-slate-700">
+            <span className="text-slate-400 block">Objects</span>
+            <span className="font-mono font-bold text-slate-200">{detections.length}</span>
+          </div>
+        </div>
+
+        {/* VLM Detection Table */}
+        {detections.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-slate-700">
+            <table className="w-full text-left text-[10px]">
+              <thead className="bg-slate-800/80 text-slate-400 border-b border-slate-700">
+                <tr>
+                  <th className="py-1.5 px-2 font-medium">Entity</th>
+                  <th className="py-1.5 px-2 font-medium">Conf.</th>
+                  <th className="py-1.5 px-2 font-medium">Hardhat</th>
+                  <th className="py-1.5 px-2 font-medium">Vest</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-slate-200">
+                {detections.map((det, i) => (
+                  <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                    <td className="py-1.5 px-2 font-medium">{det.entity}</td>
+                    <td className="py-1.5 px-2 font-mono text-cyan-300">{(det.confidence * 100).toFixed(0)}%</td>
+                    <td className="py-1.5 px-2">
+                      {det.helmet === null ? (
+                        <span className="text-slate-500">N/A</span>
+                      ) : det.helmet ? (
+                        <span className="text-emerald-400 font-bold">✓ YES</span>
+                      ) : (
+                        <span className="text-red-400 font-bold">✗ NO</span>
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2">
+                      {det.vest === null ? (
+                        <span className="text-slate-500">N/A</span>
+                      ) : det.vest ? (
+                        <span className="text-emerald-400 font-bold">✓ YES</span>
+                      ) : (
+                        <span className="text-red-400 font-bold">✗ NO</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (payload.type === 'evidence_gallery') {
     return (

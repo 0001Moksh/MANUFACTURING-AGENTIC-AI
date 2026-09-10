@@ -476,7 +476,14 @@ export const VideoMonitoringChatWidget: React.FC = () => {
               disabled={isStreaming}
               className="px-2 py-0.5 bg-white border border-slate-200 hover:border-teal-400 hover:text-teal-700 rounded-full text-slate-600 shrink-0 transition-colors cursor-pointer"
             >
-              Live Feed
+              Live Feed CAM-02
+            </button>
+            <button
+              onClick={() => handleSendMessage('How many persons visible in CAM-02? Are they wearing helmets?')}
+              disabled={isStreaming}
+              className="px-2 py-0.5 bg-white border border-slate-200 hover:border-teal-400 hover:text-teal-700 rounded-full text-slate-600 shrink-0 transition-colors cursor-pointer"
+            >
+              VLM Scene Check
             </button>
           </div>
 

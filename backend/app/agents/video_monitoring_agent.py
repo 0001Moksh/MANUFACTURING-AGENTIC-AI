@@ -6018,24 +6018,31 @@ def general_agent(state: TeamState) -> Dict[str, Any]:
     if response and getattr(response, "tool_calls", None):
         return {"messages": [response], "next_agent": "FINISH"}
 
-    # Fallback response for General Agent
-    content = (
-        "### Deva Video Monitoring & AI Safety Assistant\n\n"
-        "I am Deva, your multi-agent safety intelligence supervisor for video monitoring. "
-        "I coordinate a 5-agent specialist mesh:\n\n"
-        "- **System Agent**: Real-time camera fleet telemetry, status lookups, incident and alert summaries, and PPE compliance statistics.\n"
-        "- **Setup Agent**: Configuration mutations, zone setups, HSE safety rules, and notification recipient routing (with Human-in-the-Loop governance).\n"
-        "- **Investigator Agent**: Forensic incident timelines, root cause autopsies, and evidence snapshot retrieval.\n"
-        "- **Video Agent**: Live RTSP streams, YOLO object/person detections, motion analysis, and VLM scene inspection.\n"
-        "- **General Agent**: General inquiries, operator profile verification, and system status overview.\n\n"
-        "**Suggested Inquiries:**\n"
-        "- *\"How many cameras do we have and their status?\"*\n"
-        "- *\"Show active safety alerts and PPE compliance by zone\"*\n"
-        "- *\"Investigate incident INC-8891 and show evidence snapshots\"*\n"
-        "- *\"Create a new camera configuration for Zone C\"*\n"
-        "- *\"Show live RTSP feed for CAM-02\"*"
-    )
-    trace = _create_trace_record("General Agent", "Supervisor -> General Agent", "general_overview", {}, elapsed_ms, "success", "System capabilities overview delivered", 50, 95)
+    # Fallback response for General Agent — concise, token-optimized greeting.
+    # Detect if this is a simple greeting vs. a capabilities/help request.
+    query_lower = user_query.lower().strip()
+    is_greeting = any(g in query_lower for g in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "greetings"])
+
+    if is_greeting and not any(h in query_lower for h in ["help", "what can", "who are", "about you", "capabilities"]):
+        # Short greeting — no capability dump
+        content = (
+            "Hello! I'm **Deva**, your AI Safety Assistant for video monitoring operations. "
+            "Ask me about camera status, live feeds, safety alerts, PPE compliance, or incident investigations."
+        )
+    else:
+        # Capabilities overview (requested explicitly)
+        content = (
+            "### Deva AI Safety Assistant\n\n"
+            "I coordinate a 5-agent specialist mesh for video monitoring:\n\n"
+            "| Agent | Capabilities |\n"
+            "|:---|:---|\n"
+            "| **System** | Camera fleet status, alerts, incidents, PPE compliance metrics |\n"
+            "| **Setup** | Zone/rule/notification configuration (HITL-governed) |\n"
+            "| **Investigator** | Forensic timelines, root cause analysis, evidence snapshots |\n"
+            "| **Video** | Live RTSP streams, VLM scene analysis, YOLO detections |\n"
+            "| **General** | Profile lookup, system overview |\n"
+        )
+    trace = _create_trace_record("General Agent", "Supervisor -> General Agent", "general_overview", {}, elapsed_ms, "success", "Greeting delivered", 40, 35)
     return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
 
 
@@ -6340,13 +6347,27 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
         return {"messages": [response], "next_agent": "FINISH", "execution_trace": trace}
 
     # Deterministic Tool Fallback (Video Agent)
-    target_cam = "CAM-02 Assembly Line 1"
-    if "cam-01" in query_lower:
+    # ── Camera Context Memory: resolve relative references to previous camera ──
+    prev_cam = state.get("current_video_camera") or ""
+    uses_relative_ref = any(k in query_lower for k in [
+        "this camera", "this feed", "that camera", "that feed", "same camera",
+        "in this", "on this", "from this", "here", "stream it", "that cam",
+    ])
+
+    # Resolve target camera from rich keyword set (or fall back to context memory)
+    target_cam = "CAM-02 Assembly Line 1"  # default
+    if uses_relative_ref and prev_cam:
+        target_cam = prev_cam
+    elif any(k in query_lower for k in ["cam-01", "cam 01", "entrance gate", "entry gate", "zone a"]):
         target_cam = "CAM-01 Entrance Gate"
-    elif "cam-03" in query_lower:
+    elif any(k in query_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
         target_cam = "CAM-03 Loading Dock"
-    elif "cam-04" in query_lower:
+    elif any(k in query_lower for k in ["cam-04", "cam 04", "chemical storage", "hazard zone"]):
         target_cam = "CAM-04 Chemical Storage"
+    elif any(k in query_lower for k in ["cam-05", "cam 05", "steel yard", "high bay"]):
+        target_cam = "CAM-05 High Bay Crane"
+    elif any(k in query_lower for k in ["luxsphere", "cam-02", "cam 02", "assembly", "manufacturing bay"]):
+        target_cam = "CAM-02 Assembly Line 1"
 
     tool_name = "analyze_scene_context"
     tool_args: Dict[str, Any] = {"camera_name": target_cam, "query": user_query}
@@ -6373,7 +6394,8 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
         content += f"| Worker #{idx} ({d.get('class', 'person')}) | {float(d.get('confidence', 0.95)) * 100:.1f}% | `{d.get('bbox', [0,0,0,0])}` | {h} | {v} |\n"
 
     trace = _create_trace_record("Video Agent", f"Supervisor -> Video Agent -> {tool_name}", tool_name, tool_args, elapsed_ms, "success", f"Live stream & YOLO/VLM telemetry retrieved for {target_cam}", 170, 150)
-    return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
+    # Persist the camera target in state for conversation context memory
+    return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace, "current_video_camera": target_cam}
 
 
 # ── RBAC-Aware Tool Executor ───────────────────────────────────────────────────
@@ -6476,12 +6498,26 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
     ]):
         return {"next_agent": "investigator_agent"}
 
-    # Video Agent: Live stream, RTSP, stream URL, YOLO detections, VLM scene interrogation, motion
+    # Video Agent: Live stream, RTSP, stream URL, YOLO/VLM detections, person/PPE visual queries,
+    # real-time camera scene requests, and any query referencing a specific camera by name/number.
     if any(k in input_lower for k in [
         "live feed", "live stream", "rtsp", "stream url", "show feed", "show camera feed", "watch camera",
         "yolo", "vlm", "scene context", "what are workers doing", "visual inspection",
         "motion detect", "detect motion", "snapshot", "live snapshot", "find person by",
-        "interrogate scene", "frame analysis"
+        "interrogate scene", "frame analysis",
+        # Visual presence / counting queries
+        "how many person", "how many people", "how many worker", "persons visible", "people visible",
+        "who is in", "who is on", "workers visible", "visible in", "visible on",
+        # PPE compliance on live cameras
+        "wearing helmet", "wearing hardhat", "not wearing", "without helmet", "without hardhat",
+        "wearing vest", "without vest", "ppe check", "ppe on camera",
+        # Camera-specific view requests
+        "show me cam", "show cam", "open cam", "cam-01", "cam-02", "cam-03", "cam-04", "cam-05",
+        "camera feed", "camera view", "camera stream", "camera live",
+        "show luxsphere", "luxsphere camera", "entry gate camera", "manufacturing bay camera",
+        "warehouse camera", "hazard zone camera", "steel yard camera",
+        "what is happening", "what do you see", "describe the scene", "scene description",
+        "real-time view", "real time view", "current view", "current feed",
     ]):
         return {"next_agent": "video_agent"}
 
@@ -6721,6 +6757,8 @@ async def stream_video_monitoring_events(
 
     # Contextual Interactive Widgets
     input_lower = message.lower()
+
+    # ── Investigator Agent → Forensic Evidence Gallery ──────────────────────
     if active_agent == "investigator_agent" or "investigate" in input_lower or "inc-" in input_lower:
         evidence_widget = {
             "type": "evidence_gallery",
@@ -6733,6 +6771,40 @@ async def stream_video_monitoring_events(
         }
         yield f"event: widget\ndata: {json.dumps(evidence_widget)}\n\n"
 
+    # ── Video Agent → Live Stream Player Widget ──────────────────────────────
+    elif active_agent == "video_agent":
+        # Resolve which camera to embed in the live player
+        cam_id = 2  # default CAM-02
+        cam_display = "CAM-02 Assembly Line 1"
+        cam_location = "Manufacturing Bay 2"
+        if any(k in input_lower for k in ["cam-01", "cam 01", "entrance", "entry gate", "zone a"]):
+            cam_id, cam_display, cam_location = 1, "CAM-01 Entrance Gate", "Zone A Main Entrance"
+        elif any(k in input_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
+            cam_id, cam_display, cam_location = 3, "CAM-03 Loading Dock", "Warehouse Sector C"
+        elif any(k in input_lower for k in ["cam-04", "cam 04", "chemical", "hazard"]):
+            cam_id, cam_display, cam_location = 4, "CAM-04 Chemical Storage", "Hazard Zone 4"
+        elif any(k in input_lower for k in ["cam-05", "cam 05", "steel yard", "crane"]):
+            cam_id, cam_display, cam_location = 5, "CAM-05 High Bay Crane", "Steel Yard North"
+
+        live_stream_widget = {
+            "type": "live_stream_player",
+            "title": f"Live Camera Stream — {cam_display}",
+            "camera_name": cam_display,
+            "camera_location": cam_location,
+            "stream_url": f"/api/video-monitoring/stream/{cam_id}",
+            "snapshot_url": f"https://images.unsplash.com/photo-1581091012184-7e6c4cce5e33?auto=format&fit=crop&w=800&q=80",
+            "vlm_detections": [
+                {"entity": "Worker #1", "class": "person", "confidence": 0.96, "helmet": True, "vest": True},
+                {"entity": "Worker #2", "class": "person", "confidence": 0.91, "helmet": False, "vest": True},
+                {"entity": "Forklift", "class": "forklift", "confidence": 0.88, "helmet": None, "vest": None},
+            ],
+            "fps": 25,
+            "resolution": "1080p",
+            "status": "STREAMING",
+        }
+        yield f"event: widget\ndata: {json.dumps(live_stream_widget)}\n\n"
+
+    # ── Setup Agent → HITL Governance Widget ─────────────────────────────────
     elif active_agent == "setup_agent" or "update" in input_lower or "rule" in input_lower or "create camera" in input_lower:
         hitl_widget = {
             "type": "hitl_actions",
