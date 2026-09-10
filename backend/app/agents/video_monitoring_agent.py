@@ -438,10 +438,13 @@ general_agent_tools_registry = [
     get_current_user_profile,
     get_current_user,
 ]
-
 # ════════════════════════════════════════════════════════════════════════════
-# 📊 SYSTEM AGENT TOOLS (Read-Only) — 80+ specialized tools
-# (Replace the entire previous tools section with this block)
+# 📊 SYSTEM AGENT TOOLS (Read-Only) — SCHEMA-CORRECTED VERSION
+# Replace the old "SYSTEM AGENT TOOLS" section (from the comment
+# "# 1. EMPLOYEE ATTENDANCE & MOVEMENTS" down to `system_agent_tools_registry = [...]`)
+# in the original file with everything below.
+# All function names / signatures are UNCHANGED so the rest of the graph
+# (registries, RBAC map, agent nodes) keeps working without further edits.
 # ════════════════════════════════════════════════════════════════════════════
 
 from typing import Optional, List, Dict, Any, Literal
@@ -450,60 +453,63 @@ import json
 
 # ────────────────────────────────────────────────
 # 1. EMPLOYEE ATTENDANCE & MOVEMENTS
+#    Real tables: employees, attendances, employee_movements
+#    attendances.employee_id  -> varchar, matches employees.employee_id (varchar)
+#    employee_movements.employee_id -> INTEGER FK to employees.id (surrogate key!)
 # ────────────────────────────────────────────────
 
 @tool
 def get_attendance_today(department: Optional[str] = None, plant: Optional[str] = None) -> List[Dict[str, Any]]:
     """Show attendance records for today. Optional filter by department or plant."""
     sql = """
-        SELECT a.employee_id, e.full_name, e.department, e.plant, a.check_in, a.check_out,
-               a.status, a.late_minutes, a.early_exit_minutes
-        FROM attendance a
-        JOIN employees e ON e.id = a.employee_id
-        WHERE a.date = CURRENT_DATE
+        SELECT a.employee_id, e.employee_name, a.department_name, e.plant,
+               a.timestamp AS check_in, a.exit_time AS check_out,
+               a.punch_type, a.duration_minutes, a.is_restricted
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.timestamp::date = CURRENT_DATE
     """
     params = {}
     if department:
-        sql += " AND e.department ILIKE :dept"
+        sql += " AND a.department_name ILIKE :dept"
         params["dept"] = f"%{department}%"
     if plant:
         sql += " AND e.plant ILIKE :plant"
         params["plant"] = f"%{plant}%"
-    sql += " ORDER BY a.check_in;"
+    sql += " ORDER BY a.timestamp;"
     return _safe_select(sql, params)
 
 
 @tool
 def get_late_or_early_exits_today() -> List[Dict[str, Any]]:
-    """Which employees arrived late or left early today."""
+    """Show today's attendance punches flagged as restricted (proxy: no dedicated late/early columns exist)."""
     return _safe_select("""
-        SELECT a.employee_id, e.full_name, e.department, a.check_in, a.check_out,
-               a.late_minutes, a.early_exit_minutes, a.status
-        FROM attendance a
-        JOIN employees e ON e.id = a.employee_id
-        WHERE a.date = CURRENT_DATE
-          AND (a.late_minutes > 0 OR a.early_exit_minutes > 0)
-        ORDER BY a.late_minutes DESC, a.early_exit_minutes DESC;
+        SELECT a.employee_id, e.employee_name, a.department_name,
+               a.timestamp AS check_in, a.exit_time AS check_out, a.is_restricted
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.timestamp::date = CURRENT_DATE AND a.is_restricted = true
+        ORDER BY a.timestamp DESC;
     """)
 
 
 @tool
 def get_restricted_entry_attempts(date_filter: Optional[Literal["today", "yesterday", "this_week"]] = "today") -> List[Dict[str, Any]]:
-    """List all employees who had restricted entry attempts."""
+    """List all employees who had restricted entry attempts (attendances.is_restricted)."""
     sql = """
-        SELECT m.id, m.employee_id, e.full_name, m.zone_name, m.camera_id, m.timestamp,
-               m.attempt_type, m.was_allowed, m.reason
-        FROM movement_logs m
-        JOIN employees e ON e.id = m.employee_id
-        WHERE m.is_restricted_attempt = true
+        SELECT a.id, a.employee_id, e.employee_name, a.department_name, a.camera_id,
+               a.timestamp, a.punch_type, a.is_restricted
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.is_restricted = true
     """
     if date_filter == "today":
-        sql += " AND m.timestamp >= CURRENT_DATE"
+        sql += " AND a.timestamp >= CURRENT_DATE"
     elif date_filter == "yesterday":
-        sql += " AND m.timestamp >= CURRENT_DATE - INTERVAL '1 day' AND m.timestamp < CURRENT_DATE"
+        sql += " AND a.timestamp >= CURRENT_DATE - INTERVAL '1 day' AND a.timestamp < CURRENT_DATE"
     elif date_filter == "this_week":
-        sql += " AND m.timestamp >= DATE_TRUNC('week', CURRENT_DATE)"
-    sql += " ORDER BY m.timestamp DESC;"
+        sql += " AND a.timestamp >= DATE_TRUNC('week', CURRENT_DATE)"
+    sql += " ORDER BY a.timestamp DESC;"
     return _safe_select(sql)
 
 
@@ -511,11 +517,12 @@ def get_restricted_entry_attempts(date_filter: Optional[Literal["today", "yester
 def get_employee_attendance_history(employee_id: str, days: int = 7) -> List[Dict[str, Any]]:
     """Show attendance history for a specific employee ID."""
     return _safe_select("""
-        SELECT date, check_in, check_out, total_hours, late_minutes, early_exit_minutes, status
-        FROM attendance
+        SELECT timestamp AS check_in, exit_time AS check_out, duration_minutes,
+               punch_type, department_name, is_restricted
+        FROM attendances
         WHERE employee_id = :emp_id
-          AND date >= CURRENT_DATE - (:days || ' days')::interval
-        ORDER BY date DESC;
+          AND timestamp >= CURRENT_DATE - (:days || ' days')::interval
+        ORDER BY timestamp DESC;
     """, {"emp_id": employee_id, "days": days})
 
 
@@ -523,15 +530,18 @@ def get_employee_attendance_history(employee_id: str, days: int = 7) -> List[Dic
 def get_employee_hours_worked(employee_id: str, date: Optional[str] = None) -> Dict[str, Any]:
     """How many total hours did an employee work on a given day (default yesterday)."""
     if date is None:
-        date_clause = "date = CURRENT_DATE - INTERVAL '1 day'"
+        date_clause = "timestamp::date = CURRENT_DATE - INTERVAL '1 day'"
         params = {"emp_id": employee_id}
     else:
-        date_clause = "date = :dt"
+        date_clause = "timestamp::date = :dt"
         params = {"emp_id": employee_id, "dt": date}
     rows = _safe_select(f"""
-        SELECT employee_id, date, total_hours, check_in, check_out
-        FROM attendance
-        WHERE employee_id = :emp_id AND {date_clause};
+        SELECT employee_id, timestamp::date AS date,
+               SUM(duration_minutes) AS total_minutes,
+               MIN(timestamp) AS first_check_in, MAX(exit_time) AS last_check_out
+        FROM attendances
+        WHERE employee_id = :emp_id AND {date_clause}
+        GROUP BY employee_id, timestamp::date;
     """, params)
     return rows[0] if rows else {"error": "No record found"}
 
@@ -540,30 +550,32 @@ def get_employee_hours_worked(employee_id: str, date: Optional[str] = None) -> D
 def get_currently_checked_in(department: Optional[str] = None, plant: Optional[str] = None) -> List[Dict[str, Any]]:
     """List all employees currently checked in (optionally by department/plant)."""
     sql = """
-        SELECT a.employee_id, e.full_name, e.department, e.plant, a.check_in, a.current_zone
-        FROM attendance a
-        JOIN employees e ON e.id = a.employee_id
-        WHERE a.date = CURRENT_DATE AND a.check_out IS NULL
+        SELECT a.employee_id, e.employee_name, a.department_name, e.plant, a.timestamp AS check_in
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.timestamp::date = CURRENT_DATE AND a.exit_time IS NULL
     """
     params = {}
     if department:
-        sql += " AND e.department ILIKE :dept"
+        sql += " AND a.department_name ILIKE :dept"
         params["dept"] = f"%{department}%"
     if plant:
         sql += " AND e.plant ILIKE :plant"
         params["plant"] = f"%{plant}%"
-    sql += " ORDER BY a.check_in;"
+    sql += " ORDER BY a.timestamp;"
     return _safe_select(sql, params)
 
 
 @tool
 def get_employee_movement_logs(employee_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-    """Show recent movement logs for a specific employee."""
+    """Show recent internal movement logs for a specific employee (by business employee_id)."""
     return _safe_select("""
-        SELECT id, zone_name, camera_id, timestamp, direction, duration_minutes, is_restricted_attempt
-        FROM movement_logs
-        WHERE employee_id = :emp_id
-        ORDER BY timestamp DESC
+        SELECT m.id, m.current_location, m.previous_location, m.time_in, m.time_out,
+               m.duration_minutes, m.approved_by
+        FROM employee_movements m
+        JOIN employees e ON e.id = m.employee_id
+        WHERE e.employee_id = :emp_id
+        ORDER BY m.time_in DESC
         LIMIT :limit;
     """, {"emp_id": employee_id, "limit": limit})
 
@@ -572,26 +584,26 @@ def get_employee_movement_logs(employee_id: str, limit: int = 50) -> List[Dict[s
 def get_long_duration_stays(area: str, hours: float = 4.0, date_filter: str = "today") -> List[Dict[str, Any]]:
     """Which employees stayed in a specific area longer than N hours."""
     return _safe_select("""
-        SELECT m.employee_id, e.full_name, m.zone_name, m.duration_minutes,
-               m.entry_time, m.exit_time
-        FROM movement_logs m
+        SELECT e.employee_id, e.employee_name, m.current_location, m.duration_minutes,
+               m.time_in, m.time_out
+        FROM employee_movements m
         JOIN employees e ON e.id = m.employee_id
-        WHERE m.zone_name ILIKE :area
+        WHERE m.current_location ILIKE :area
           AND m.duration_minutes >= :mins
-          AND m.entry_time >= CURRENT_DATE
+          AND m.time_in >= CURRENT_DATE
         ORDER BY m.duration_minutes DESC;
     """, {"area": f"%{area}%", "mins": int(hours * 60)})
 
 
 @tool
 def get_entry_snapshot(employee_id: str) -> Dict[str, Any]:
-    """Show the latest entry snapshot for an employee."""
+    """Show the latest entry snapshot path for an employee."""
     rows = _safe_select("""
-        SELECT m.id, m.employee_id, e.full_name, m.snapshot_path, m.timestamp, m.camera_id
-        FROM movement_logs m
-        JOIN employees e ON e.id = m.employee_id
-        WHERE m.employee_id = :emp_id AND m.direction = 'entry'
-        ORDER BY m.timestamp DESC
+        SELECT a.id, a.employee_id, e.employee_name, a.entry_snapshot, a.timestamp, a.camera_id
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.employee_id = :emp_id AND a.entry_snapshot IS NOT NULL
+        ORDER BY a.timestamp DESC
         LIMIT 1;
     """, {"emp_id": employee_id})
     return rows[0] if rows else {"error": "No entry snapshot found"}
@@ -601,10 +613,10 @@ def get_entry_snapshot(employee_id: str) -> Dict[str, Any]:
 def get_missed_checkins(plant: Optional[str] = None, department: Optional[str] = None) -> List[Dict[str, Any]]:
     """List employees assigned to a plant/department who missed check-in today."""
     sql = """
-        SELECT e.id AS employee_id, e.full_name, e.department, e.plant, e.shift
+        SELECT e.id AS employee_id, e.employee_name, e.department, e.plant
         FROM employees e
-        LEFT JOIN attendance a ON a.employee_id = e.id AND a.date = CURRENT_DATE
-        WHERE a.id IS NULL AND e.is_active = true
+        LEFT JOIN attendances a ON a.employee_id = e.employee_id AND a.timestamp::date = CURRENT_DATE
+        WHERE a.id IS NULL
     """
     params = {}
     if plant:
@@ -613,50 +625,50 @@ def get_missed_checkins(plant: Optional[str] = None, department: Optional[str] =
     if department:
         sql += " AND e.department ILIKE :dept"
         params["dept"] = f"%{department}%"
-    sql += " ORDER BY e.department, e.full_name;"
+    sql += " ORDER BY e.department, e.employee_name;"
     return _safe_select(sql, params)
 
 
 @tool
 def get_avg_movement_duration(from_dept: Optional[str] = None, to_dept: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Show average duration of employee movements between departments."""
+    """Show average duration of employee movements between locations (previous_location -> current_location)."""
     sql = """
-        SELECT from_department, to_department,
+        SELECT previous_location, current_location,
                AVG(duration_minutes) AS avg_duration_minutes,
                COUNT(*) AS movement_count
-        FROM movement_logs
+        FROM employee_movements
         WHERE duration_minutes IS NOT NULL
     """
     params = {}
     if from_dept:
-        sql += " AND from_department ILIKE :from_d"
+        sql += " AND previous_location ILIKE :from_d"
         params["from_d"] = f"%{from_dept}%"
     if to_dept:
-        sql += " AND to_department ILIKE :to_d"
+        sql += " AND current_location ILIKE :to_d"
         params["to_d"] = f"%{to_dept}%"
-    sql += " GROUP BY from_department, to_department ORDER BY avg_duration_minutes DESC;"
+    sql += " GROUP BY previous_location, current_location ORDER BY avg_duration_minutes DESC;"
     return _safe_select(sql, params)
 
 
 @tool
 def get_unauthorized_restricted_zone_entries(date_filter: str = "today") -> List[Dict[str, Any]]:
-    """Which employees entered restricted zones without approval."""
+    """Which employees had a restricted-entry attendance punch (no dedicated 'approval' column exists)."""
     return _safe_select("""
-        SELECT m.employee_id, e.full_name, m.zone_name, m.timestamp, m.camera_id, m.reason
-        FROM movement_logs m
-        JOIN employees e ON e.id = m.employee_id
-        WHERE m.is_restricted_attempt = true AND m.was_allowed = false
-          AND m.timestamp >= CURRENT_DATE
-        ORDER BY m.timestamp DESC;
+        SELECT a.employee_id, e.employee_name, a.department_name, a.timestamp, a.camera_id
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.is_restricted = true
+          AND a.timestamp >= CURRENT_DATE
+        ORDER BY a.timestamp DESC;
     """)
 
 
 @tool
 def get_punch_logs_by_camera(camera_id: int, limit: int = 100) -> List[Dict[str, Any]]:
-    """List all punch-type logs (entry/exit) recorded by a specific camera."""
+    """List all attendance punch logs (entry/exit) recorded by a specific camera."""
     return _safe_select("""
-        SELECT id, employee_id, direction, timestamp, confidence, snapshot_path
-        FROM movement_logs
+        SELECT id, employee_id, punch_type, timestamp, exit_time, entry_snapshot, exit_snapshot
+        FROM attendances
         WHERE camera_id = :cam_id
         ORDER BY timestamp DESC
         LIMIT :limit;
@@ -665,11 +677,12 @@ def get_punch_logs_by_camera(camera_id: int, limit: int = 100) -> List[Dict[str,
 
 @tool
 def count_employees_by_type(employee_type: str) -> Dict[str, Any]:
-    """How many active employees are registered under a given employee type (e.g. Contractor)."""
+    """How many employees are registered under a given employee type (e.g. Contractor)."""
     rows = _safe_select("""
         SELECT COUNT(*) AS total
-        FROM employees
-        WHERE employee_type ILIKE :etype AND is_active = true;
+        FROM employees e
+        JOIN employee_types t ON t.id = e.employee_type_id
+        WHERE t.type_name ILIKE :etype;
     """, {"etype": f"%{employee_type}%"})
     return rows[0] if rows else {"total": 0}
 
@@ -678,32 +691,35 @@ def count_employees_by_type(employee_type: str) -> Dict[str, Any]:
 def get_exit_timestamps(date_filter: str = "yesterday", time_range: Optional[str] = "afternoon") -> List[Dict[str, Any]]:
     """Show all employee exit timestamps for a given period."""
     sql = """
-        SELECT employee_id, full_name, check_out, department
-        FROM attendance a
-        JOIN employees e ON e.id = a.employee_id
-        WHERE check_out IS NOT NULL
+        SELECT a.employee_id, e.employee_name, a.exit_time, a.department_name
+        FROM attendances a
+        JOIN employees e ON e.employee_id = a.employee_id
+        WHERE a.exit_time IS NOT NULL
     """
     if date_filter == "yesterday":
-        sql += " AND date = CURRENT_DATE - INTERVAL '1 day'"
+        sql += " AND a.exit_time::date = CURRENT_DATE - INTERVAL '1 day'"
     elif date_filter == "today":
-        sql += " AND date = CURRENT_DATE"
+        sql += " AND a.exit_time::date = CURRENT_DATE"
     if time_range == "afternoon":
-        sql += " AND EXTRACT(HOUR FROM check_out) >= 12"
-    sql += " ORDER BY check_out;"
+        sql += " AND EXTRACT(HOUR FROM a.exit_time) >= 12"
+    sql += " ORDER BY a.exit_time;"
     return _safe_select(sql)
 
 
 # ────────────────────────────────────────────────
 # 2. SAFETY & HSE VIOLATIONS
+#    Real tables: hse_rule_definitions, hse_rule_events, hse_camera_rules, cameras, plants
+#    NOTE: hse_rule_events has NO zone_id / confidence / is_acknowledged / shift columns.
+#    Those checks are adapted below or removed where the data genuinely doesn't exist.
 # ────────────────────────────────────────────────
 
 @tool
 def count_safety_violations_today() -> Dict[str, Any]:
-    """How many safety rule violations occurred today."""
+    """How many safety rule violation events occurred today."""
     rows = _safe_select("""
         SELECT COUNT(*) AS total_violations
         FROM hse_rule_events
-        WHERE created_at >= CURRENT_DATE;
+        WHERE triggered_at >= CURRENT_DATE;
     """)
     return rows[0] if rows else {"total_violations": 0}
 
@@ -712,7 +728,7 @@ def count_safety_violations_today() -> Dict[str, Any]:
 def list_active_hse_rules() -> List[Dict[str, Any]]:
     """List all active HSE rules configured in the system."""
     return _safe_select("""
-        SELECT id, name, description, severity, is_active, created_at
+        SELECT id, name, description, is_active, created_at
         FROM hse_rule_definitions
         WHERE is_active = true
         ORDER BY name;
@@ -724,17 +740,17 @@ def get_high_severity_hse_events(camera_id: Optional[int] = None, hours: int = 2
     """Show high-severity HSE rule events triggered on a camera in the past N hours."""
     sql = """
         SELECT e.id, e.rule_id, r.name AS rule_name, e.camera_id, e.severity,
-               e.created_at, e.snapshot_path, e.confidence
+               e.triggered_at, e.snapshot_path, e.detail
         FROM hse_rule_events e
         JOIN hse_rule_definitions r ON r.id = e.rule_id
-        WHERE e.severity ILIKE '%high%' OR e.severity ILIKE '%critical%'
-          AND e.created_at >= NOW() - (:hrs || ' hours')::interval
+        WHERE (e.severity ILIKE '%high%' OR e.severity ILIKE '%critical%')
+          AND e.triggered_at >= NOW() - (:hrs || ' hours')::interval
     """
     params = {"hrs": hours}
     if camera_id:
         sql += " AND e.camera_id = :cam"
         params["cam"] = camera_id
-    sql += " ORDER BY e.created_at DESC;"
+    sql += " ORDER BY e.triggered_at DESC;"
     return _safe_select(sql, params)
 
 
@@ -742,7 +758,7 @@ def get_high_severity_hse_events(camera_id: Optional[int] = None, hours: int = 2
 def get_cameras_with_active_hse_rules() -> List[Dict[str, Any]]:
     """Which cameras have active HSE camera rules enabled."""
     return _safe_select("""
-        SELECT DISTINCT c.id, c.name, c.location, c.status
+        SELECT DISTINCT c.id, c.name, c.status
         FROM cameras c
         JOIN hse_camera_rules hcr ON hcr.camera_id = c.id
         WHERE hcr.is_active = true
@@ -754,12 +770,12 @@ def get_cameras_with_active_hse_rules() -> List[Dict[str, Any]]:
 def get_latest_ppe_non_compliance() -> Dict[str, Any]:
     """Show details of the latest PPE non-compliance alert."""
     rows = _safe_select("""
-        SELECT e.id, e.rule_id, r.name AS rule_name, e.camera_id, e.zone_id,
-               e.created_at, e.snapshot_path, e.confidence, e.details
+        SELECT e.id, e.rule_id, r.name AS rule_name, e.camera_id,
+               e.triggered_at, e.snapshot_path, e.detail
         FROM hse_rule_events e
         JOIN hse_rule_definitions r ON r.id = e.rule_id
         WHERE r.name ILIKE '%ppe%' OR r.name ILIKE '%helmet%' OR r.name ILIKE '%vest%'
-        ORDER BY e.created_at DESC
+        ORDER BY e.triggered_at DESC
         LIMIT 1;
     """)
     return rows[0] if rows else {"error": "No PPE events found"}
@@ -767,13 +783,13 @@ def get_latest_ppe_non_compliance() -> Dict[str, Any]:
 
 @tool
 def get_missing_ppe_events(limit: int = 50) -> List[Dict[str, Any]]:
-    """List all rule events where helmet or safety vest was missing."""
+    """List all rule events where helmet or safety vest rule was triggered."""
     return _safe_select("""
-        SELECT e.id, r.name AS rule_name, e.camera_id, e.created_at, e.snapshot_path, e.details
+        SELECT e.id, r.name AS rule_name, e.camera_id, e.triggered_at, e.snapshot_path, e.detail
         FROM hse_rule_events e
         JOIN hse_rule_definitions r ON r.id = e.rule_id
-        WHERE (r.name ILIKE '%helmet%' OR r.name ILIKE '%vest%' OR e.details ILIKE '%helmet%' OR e.details ILIKE '%vest%')
-        ORDER BY e.created_at DESC
+        WHERE r.name ILIKE '%helmet%' OR r.name ILIKE '%vest%' OR r.name ILIKE '%ppe%'
+        ORDER BY e.triggered_at DESC
         LIMIT :limit;
     """, {"limit": limit})
 
@@ -789,24 +805,26 @@ def count_rule_triggers(rule_name: str, period: str = "this_week") -> Dict[str, 
     """
     params = {"rname": f"%{rule_name}%"}
     if period == "this_week":
-        sql += " AND e.created_at >= DATE_TRUNC('week', CURRENT_DATE)"
+        sql += " AND e.triggered_at >= DATE_TRUNC('week', CURRENT_DATE)"
     elif period == "today":
-        sql += " AND e.created_at >= CURRENT_DATE"
-    return _safe_select(sql, params)[0]
+        sql += " AND e.triggered_at >= CURRENT_DATE"
+    rows = _safe_select(sql, params)
+    return rows[0] if rows else {"trigger_count": 0}
 
 
 @tool
 def get_plant_with_most_violations(period: str = "today") -> List[Dict[str, Any]]:
-    """Which plant has the highest number of safety rule violations."""
+    """Which plant has the highest number of HSE rule violations (via camera -> plant)."""
     sql = """
-        SELECT e.plant, COUNT(*) AS violation_count
+        SELECT p.name AS plant, COUNT(*) AS violation_count
         FROM hse_rule_events e
         JOIN cameras c ON c.id = e.camera_id
+        JOIN plants p ON p.id = c.plant_id
         WHERE 1=1
     """
     if period == "today":
-        sql += " AND e.created_at >= CURRENT_DATE"
-    sql += " GROUP BY e.plant ORDER BY violation_count DESC;"
+        sql += " AND e.triggered_at >= CURRENT_DATE"
+    sql += " GROUP BY p.name ORDER BY violation_count DESC;"
     return _safe_select(sql)
 
 
@@ -814,7 +832,7 @@ def get_plant_with_most_violations(period: str = "today") -> List[Dict[str, Any]
 def get_hse_rule_condition_tree(rule_name: str) -> Dict[str, Any]:
     """Show the condition tree for a specific HSE rule."""
     rows = _safe_select("""
-        SELECT id, name, condition_tree, description, severity
+        SELECT id, name, condition_tree, description
         FROM hse_rule_definitions
         WHERE name ILIKE :rname
         LIMIT 1;
@@ -824,10 +842,10 @@ def get_hse_rule_condition_tree(rule_name: str) -> Dict[str, Any]:
 
 @tool
 def get_unacknowledged_safety_alerts(date_filter: str = "today") -> List[Dict[str, Any]]:
-    """List all unacknowledged safety alerts created today (or other period)."""
+    """List all unacknowledged safety alerts created today (uses `alerts` table, the only one with is_acknowledged)."""
     sql = """
-        SELECT id, rule_name, camera_id, severity, created_at, snapshot_path
-        FROM hse_rule_events
+        SELECT id, class_name, camera_name, confidence, created_at, snapshot_path
+        FROM alerts
         WHERE is_acknowledged = false
     """
     if date_filter == "today":
@@ -840,7 +858,7 @@ def get_unacknowledged_safety_alerts(date_filter: str = "today") -> List[Dict[st
 def get_hse_event_snapshot(event_id: int) -> Dict[str, Any]:
     """Show the snapshot path for a specific HSE rule event ID."""
     rows = _safe_select("""
-        SELECT id, snapshot_path, video_path, created_at, rule_id, camera_id
+        SELECT id, snapshot_path, triggered_at, rule_id, camera_id, severity
         FROM hse_rule_events
         WHERE id = :eid;
     """, {"eid": event_id})
@@ -849,35 +867,49 @@ def get_hse_event_snapshot(event_id: int) -> Dict[str, Any]:
 
 @tool
 def count_hse_violations_by_shift(shift: str = "night") -> Dict[str, Any]:
-    """How many HSE violations occurred during a specific shift."""
-    return _safe_select("""
-        SELECT COUNT(*) AS total
-        FROM hse_rule_events
-        WHERE shift ILIKE :s AND created_at >= CURRENT_DATE - INTERVAL '1 day';
-    """, {"s": f"%{shift}%"})[0]
+    """How many HSE violations occurred during a shift window (no shift column exists; night = 22:00-06:00 proxy)."""
+    if shift.lower() == "night":
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM hse_rule_events
+            WHERE (EXTRACT(HOUR FROM triggered_at) >= 22 OR EXTRACT(HOUR FROM triggered_at) < 6)
+              AND triggered_at >= CURRENT_DATE - INTERVAL '1 day';
+        """
+    else:
+        sql = """
+            SELECT COUNT(*) AS total
+            FROM hse_rule_events
+            WHERE EXTRACT(HOUR FROM triggered_at) BETWEEN 6 AND 21
+              AND triggered_at >= CURRENT_DATE - INTERVAL '1 day';
+        """
+    rows = _safe_select(sql)
+    return rows[0] if rows else {"total": 0}
 
 
 @tool
 def get_hse_rules_for_zone(zone_name: str) -> List[Dict[str, Any]]:
     """List all active HSE rules assigned to a zone."""
     return _safe_select("""
-        SELECT r.id, r.name, r.severity, r.description
+        SELECT r.id, r.name, r.description
         FROM hse_rule_definitions r
-        JOIN hse_zone_rules hz ON hz.rule_id = r.id
-        JOIN zones z ON z.id = hz.zone_id
-        WHERE z.name ILIKE :zname AND r.is_active = true;
+        JOIN hse_camera_rules hc ON hc.rule_id = r.id
+        JOIN zones z ON z.id = hc.zone_id
+        WHERE z.name ILIKE :zname AND r.is_active = true AND hc.is_active = true;
     """, {"zname": f"%{zone_name}%"})
 
 
 # ────────────────────────────────────────────────
 # 3. INCIDENTS & ALERTS
+#    Real tables: incidents, alerts (NOTE: neither has a "severity" column;
+#    incidents has classification/escalation_status instead, alerts has none.
+#    acknowledged_at / acknowledged_by / resource columns do NOT exist on alerts.)
 # ────────────────────────────────────────────────
 
 @tool
 def get_open_incidents() -> List[Dict[str, Any]]:
     """Show all open and unresolved incidents."""
     return _safe_select("""
-        SELECT id, camera_id, camera_name, zone_id, class_name, severity,
+        SELECT id, camera_id, camera_name, zone_id, class_name, classification,
                started_at, escalation_status, is_acknowledged
         FROM incidents
         WHERE is_active = true OR resolved_at IS NULL
@@ -887,11 +919,11 @@ def get_open_incidents() -> List[Dict[str, Any]]:
 
 @tool
 def get_high_severity_incidents(date_filter: str = "yesterday") -> List[Dict[str, Any]]:
-    """List incidents classified as High Severity from a period."""
+    """List incidents classified as High/Critical from a period (uses `classification` column)."""
     sql = """
-        SELECT id, camera_name, class_name, severity, started_at, escalation_status
+        SELECT id, camera_name, class_name, classification, started_at, escalation_status
         FROM incidents
-        WHERE severity ILIKE '%high%' OR severity ILIKE '%critical%'
+        WHERE classification ILIKE '%high%' OR classification ILIKE '%critical%'
     """
     if date_filter == "yesterday":
         sql += " AND started_at >= CURRENT_DATE - INTERVAL '1 day' AND started_at < CURRENT_DATE"
@@ -905,7 +937,7 @@ def get_high_severity_incidents(date_filter: str = "yesterday") -> List[Dict[str
 def get_incident_escalation_status(incident_id: int) -> Dict[str, Any]:
     """What is the escalation status of a specific incident ID."""
     rows = _safe_select("""
-        SELECT id, escalation_status, escalated_at, escalated_to, notes
+        SELECT id, escalation_status, root_cause, resolved_at
         FROM incidents
         WHERE id = :iid;
     """, {"iid": incident_id})
@@ -931,26 +963,25 @@ def get_recurring_incidents(camera_id: Optional[int] = None) -> List[Dict[str, A
 @tool
 def count_alerts_by_class_zone(class_name: str, zone_name: str, date_filter: str = "today") -> Dict[str, Any]:
     """How many alerts were generated by a class in a zone today."""
-    return _safe_select("""
+    rows = _safe_select("""
         SELECT COUNT(*) AS alert_count
         FROM alerts a
         JOIN zones z ON z.id = a.zone_id
         WHERE a.class_name ILIKE :cls
           AND z.name ILIKE :zname
           AND a.created_at >= CURRENT_DATE;
-    """, {"cls": f"%{class_name}%", "zname": f"%{zone_name}%"})[0]
+    """, {"cls": f"%{class_name}%", "zname": f"%{zone_name}%"})
+    return rows[0] if rows else {"alert_count": 0}
 
 
 @tool
 def get_acknowledged_alerts(limit: int = 50) -> List[Dict[str, Any]]:
-    """List all acknowledged alerts and who acknowledged them."""
+    """List all acknowledged alerts (no acknowledged_by/at columns exist, only created_at)."""
     return _safe_select("""
-        SELECT a.id, a.class_name, a.camera_name, a.acknowledged_at,
-               a.acknowledged_by, u.full_name AS acknowledged_by_name
-        FROM alerts a
-        LEFT JOIN users u ON u.id = a.acknowledged_by
-        WHERE a.is_acknowledged = true
-        ORDER BY a.acknowledged_at DESC
+        SELECT id, class_name, camera_name, created_at
+        FROM alerts
+        WHERE is_acknowledged = true
+        ORDER BY created_at DESC
         LIMIT :limit;
     """, {"limit": limit})
 
@@ -993,11 +1024,12 @@ def get_incident_media_paths(incident_id: int) -> Dict[str, Any]:
 @tool
 def count_total_alerts_today() -> Dict[str, Any]:
     """How many total alerts were created across all cameras today."""
-    return _safe_select("""
+    rows = _safe_select("""
         SELECT COUNT(*) AS total_alerts
         FROM alerts
         WHERE created_at >= CURRENT_DATE;
-    """)[0]
+    """)
+    return rows[0] if rows else {"total_alerts": 0}
 
 
 @tool
@@ -1039,16 +1071,19 @@ def get_resolved_incidents_with_time() -> List[Dict[str, Any]]:
 
 # ────────────────────────────────────────────────
 # 4. CAMERA MANAGEMENT & SYSTEM HEALTH
+#    Real cameras columns: id, name, ip, port, camera_number, user_id, password,
+#    rtsp_template, stream_type, status, department_id, use_for_face_recognition,
+#    plant_id, location_id.  NO fps / resolution / last_seen_at / manufacturer columns.
 # ────────────────────────────────────────────────
 
 @tool
 def get_offline_cameras() -> List[Dict[str, Any]]:
     """Which cameras are currently offline."""
     return _safe_select("""
-        SELECT id, name, location, plant, status, last_seen_at, ip
+        SELECT id, name, ip, status
         FROM cameras
         WHERE status ILIKE '%offline%' OR status ILIKE '%disconnected%'
-        ORDER BY last_seen_at;
+        ORDER BY name;
     """)
 
 
@@ -1056,11 +1091,11 @@ def get_offline_cameras() -> List[Dict[str, Any]]:
 def get_camera_status_history(camera_id: int, hours: int = 24) -> List[Dict[str, Any]]:
     """Show the status log history for a Camera ID."""
     return _safe_select("""
-        SELECT id, status, message, created_at
+        SELECT id, status, checked_at
         FROM camera_status_logs
         WHERE camera_id = :cam
-          AND created_at >= NOW() - (:hrs || ' hours')::interval
-        ORDER BY created_at DESC;
+          AND checked_at >= NOW() - (:hrs || ' hours')::interval
+        ORDER BY checked_at DESC;
     """, {"cam": camera_id, "hrs": hours})
 
 
@@ -1068,23 +1103,26 @@ def get_camera_status_history(camera_id: int, hours: int = 24) -> List[Dict[str,
 def get_cameras_by_location(plant: str, department: Optional[str] = None) -> List[Dict[str, Any]]:
     """List all cameras installed at a plant / department."""
     sql = """
-        SELECT id, name, location, department, plant, status, ip, rtsp_url
-        FROM cameras
-        WHERE plant ILIKE :plant
+        SELECT c.id, c.name, c.ip, c.status, p.name AS plant, d.name AS department, l.name AS location
+        FROM cameras c
+        LEFT JOIN plants p ON p.id = c.plant_id
+        LEFT JOIN departments d ON d.id = c.department_id
+        LEFT JOIN locations l ON l.id = c.location_id
+        WHERE p.name ILIKE :plant
     """
     params = {"plant": f"%{plant}%"}
     if department:
-        sql += " AND department ILIKE :dept"
+        sql += " AND d.name ILIKE :dept"
         params["dept"] = f"%{department}%"
-    sql += " ORDER BY name;"
+    sql += " ORDER BY c.name;"
     return _safe_select(sql, params)
 
 
 @tool
 def get_active_cameras_rtsp() -> List[Dict[str, Any]]:
-    """Show RTSP stream details and IP addresses for all active cameras."""
+    """Show RTSP template and IP addresses for all active cameras."""
     return _safe_select("""
-        SELECT id, name, ip, port, rtsp_url, status, fps, resolution
+        SELECT id, name, ip, port, rtsp_template, status, stream_type
         FROM cameras
         WHERE status ILIKE '%active%' OR status ILIKE '%online%'
         ORDER BY id;
@@ -1094,20 +1132,24 @@ def get_active_cameras_rtsp() -> List[Dict[str, Any]]:
 @tool
 def count_face_recognition_cameras() -> Dict[str, Any]:
     """How many cameras are currently used for face recognition."""
-    return _safe_select("""
+    rows = _safe_select("""
         SELECT COUNT(*) AS total
         FROM cameras
-        WHERE face_recognition_enabled = true AND status ILIKE '%active%';
-    """)[0]
+        WHERE use_for_face_recognition = true AND status ILIKE '%active%';
+    """)
+    return rows[0] if rows else {"total": 0}
 
 
 @tool
 def list_all_cameras_with_location() -> List[Dict[str, Any]]:
     """List all cameras along with their assigned location and plant names."""
     return _safe_select("""
-        SELECT id, name, location, plant, department, zone_name, status
-        FROM cameras
-        ORDER BY plant, location;
+        SELECT c.id, c.name, p.name AS plant, d.name AS department, l.name AS location, c.status
+        FROM cameras c
+        LEFT JOIN plants p ON p.id = c.plant_id
+        LEFT JOIN departments d ON d.id = c.department_id
+        LEFT JOIN locations l ON l.id = c.location_id
+        ORDER BY p.name, l.name;
     """)
 
 
@@ -1115,22 +1157,22 @@ def list_all_cameras_with_location() -> List[Dict[str, Any]]:
 def get_recent_camera_status_logs(hours: int = 6) -> List[Dict[str, Any]]:
     """Show camera status logs for the last N hours."""
     return _safe_select("""
-        SELECT csl.camera_id, c.name, csl.status, csl.message, csl.created_at
+        SELECT csl.camera_id, c.name, csl.status, csl.checked_at
         FROM camera_status_logs csl
         JOIN cameras c ON c.id = csl.camera_id
-        WHERE csl.created_at >= NOW() - (:hrs || ' hours')::interval
-        ORDER BY csl.created_at DESC;
+        WHERE csl.checked_at >= NOW() - (:hrs || ' hours')::interval
+        ORDER BY csl.checked_at DESC;
     """, {"hrs": hours})
 
 
 @tool
 def get_disconnected_cameras() -> List[Dict[str, Any]]:
-    """Which cameras have active status 'Disconnected'."""
+    """Which cameras have status 'Disconnected'."""
     return _safe_select("""
-        SELECT id, name, location, plant, last_seen_at, ip
+        SELECT id, name, ip, status
         FROM cameras
         WHERE status = 'Disconnected'
-        ORDER BY last_seen_at;
+        ORDER BY name;
     """)
 
 
@@ -1138,31 +1180,30 @@ def get_disconnected_cameras() -> List[Dict[str, Any]]:
 def list_basler_devices() -> List[Dict[str, Any]]:
     """List all Basler industrial devices registered in the system."""
     return _safe_select("""
-        SELECT id, name, serial_number, model, status, location, plant
-        FROM cameras
-        WHERE manufacturer ILIKE '%basler%' OR device_type ILIKE '%basler%'
+        SELECT id, name, serial_number, model_name, device_index, status
+        FROM basler_devices
         ORDER BY id;
     """)
 
 
 @tool
 def get_basler_model_assignments(camera_id: int) -> List[Dict[str, Any]]:
-    """Show model assignments for a Basler camera ID."""
+    """Show AI model assignments for a Basler camera ID."""
     return _safe_select("""
-        SELECT ma.id, ma.model_id, m.name AS model_name, ma.fps, ma.is_active
-        FROM model_assignments ma
+        SELECT ma.id, ma.model_id, m.name AS model_name, ma.confidence_threshold, ma.active
+        FROM basler_model_assignments ma
         JOIN ai_models m ON m.id = ma.model_id
-        WHERE ma.camera_id = :cam;
+        WHERE ma.basler_camera_id = :cam;
     """, {"cam": camera_id})
 
 
 @tool
 def get_cameras_in_zone(zone_name: str) -> List[Dict[str, Any]]:
-    """List cameras operating in a specific zone."""
+    """Show the camera that owns a specific zone (each zone belongs to exactly one camera)."""
     return _safe_select("""
-        SELECT c.id, c.name, c.location, c.status, z.name AS zone_name
-        FROM cameras c
-        JOIN zones z ON z.id = c.zone_id
+        SELECT c.id, c.name, c.status, z.name AS zone_name, z.zone_type
+        FROM zones z
+        JOIN cameras c ON c.id = z.camera_id
         WHERE z.name ILIKE :zname
         ORDER BY c.id;
     """, {"zname": f"%{zone_name}%"})
@@ -1170,6 +1211,12 @@ def get_cameras_in_zone(zone_name: str) -> List[Dict[str, Any]]:
 
 # ────────────────────────────────────────────────
 # 5. VISITORS & SECURITY PATROLS
+#    Real visitors columns: id, visitor_name, company, mobile, id_proof,
+#    host_employee_id (INT FK -> employees.id), department, plant, location,
+#    entry_time, exit_time, photo.  NO expected_exit / purpose / entry_gate columns.
+#    Real security_guards columns: id, guard_id (varchar), name, shift,
+#    assigned_patrol_area, face_encoding, mobile_device, created_at. NO is_active/badge_number.
+#    Real patrol_logs.guard_id is an INTEGER FK -> security_guards.id (not the varchar guard_id).
 # ────────────────────────────────────────────────
 
 @tool
@@ -1178,24 +1225,26 @@ def count_current_visitors(plant: Optional[str] = None) -> Dict[str, Any]:
     sql = """
         SELECT COUNT(*) AS total
         FROM visitors
-        WHERE check_out IS NULL AND check_in >= CURRENT_DATE
+        WHERE exit_time IS NULL AND entry_time >= CURRENT_DATE
     """
     params = {}
     if plant:
         sql += " AND plant ILIKE :plant"
         params["plant"] = f"%{plant}%"
-    return _safe_select(sql, params)[0]
+    rows = _safe_select(sql, params)
+    return rows[0] if rows else {"total": 0}
 
 
 @tool
 def get_visitors_hosted_by(employee_id: str, date_filter: str = "today") -> List[Dict[str, Any]]:
-    """List all visitors hosted by a specific employee today."""
+    """List all visitors hosted by a specific employee (by business employee_id) today."""
     return _safe_select("""
-        SELECT v.id, v.full_name, v.company, v.check_in, v.expected_exit, v.id_proof_type
+        SELECT v.id, v.visitor_name, v.company, v.entry_time, v.exit_time, v.id_proof
         FROM visitors v
-        WHERE v.host_employee_id = :emp
-          AND v.check_in >= CURRENT_DATE
-        ORDER BY v.check_in;
+        JOIN employees e ON e.id = v.host_employee_id
+        WHERE e.employee_id = :emp
+          AND v.entry_time >= CURRENT_DATE
+        ORDER BY v.entry_time;
     """, {"emp": employee_id})
 
 
@@ -1203,57 +1252,57 @@ def get_visitors_hosted_by(employee_id: str, date_filter: str = "today") -> List
 def get_visitor_details(visitor_name: str) -> List[Dict[str, Any]]:
     """Show visitor details and ID proof for a visitor by name."""
     return _safe_select("""
-        SELECT id, full_name, company, id_proof_type, id_proof_number,
-               check_in, check_out, host_employee_id, purpose
+        SELECT id, visitor_name, company, id_proof, entry_time, exit_time, host_employee_id
         FROM visitors
-        WHERE full_name ILIKE :name
-        ORDER BY check_in DESC;
+        WHERE visitor_name ILIKE :name
+        ORDER BY entry_time DESC;
     """, {"name": f"%{visitor_name}%"})
 
 
 @tool
-def get_overstaying_visitors() -> List[Dict[str, Any]]:
-    """List all visitors who haven't checked out past their expected exit time."""
+def get_overstaying_visitors(hours_threshold: float = 8.0) -> List[Dict[str, Any]]:
+    """List visitors still checked in longer than N hours (no expected_exit column exists, so this is a duration-based proxy)."""
     return _safe_select("""
-        SELECT id, full_name, company, check_in, expected_exit, host_employee_id
+        SELECT id, visitor_name, company, entry_time, host_employee_id,
+               EXTRACT(EPOCH FROM (NOW() - entry_time))/3600 AS hours_on_site
         FROM visitors
-        WHERE check_out IS NULL
-          AND expected_exit < NOW()
-        ORDER BY expected_exit;
-    """)
+        WHERE exit_time IS NULL
+          AND entry_time <= NOW() - (:hrs || ' hours')::interval
+        ORDER BY entry_time;
+    """, {"hrs": hours_threshold})
 
 
 @tool
 def get_visitor_history_by_company(company: str) -> List[Dict[str, Any]]:
     """Show entry and exit time history for visitors from a company."""
     return _safe_select("""
-        SELECT full_name, check_in, check_out, host_employee_id, purpose
+        SELECT visitor_name, entry_time, exit_time, host_employee_id
         FROM visitors
         WHERE company ILIKE :comp
-        ORDER BY check_in DESC;
+        ORDER BY entry_time DESC;
     """, {"comp": f"%{company}%"})
 
 
 @tool
 def list_active_security_guards() -> List[Dict[str, Any]]:
-    """List all active security guards and their assigned shifts."""
+    """List all security guards and their assigned shifts."""
     return _safe_select("""
-        SELECT id, full_name, badge_number, shift, assigned_area, is_active
+        SELECT id, guard_id, name, shift, assigned_patrol_area
         FROM security_guards
-        WHERE is_active = true
-        ORDER BY full_name;
+        ORDER BY name;
     """)
 
 
 @tool
 def get_patrol_log_status(guard_id: str, date_filter: str = "today") -> List[Dict[str, Any]]:
-    """Show patrol log status for a guard ID today."""
+    """Show patrol log status for a guard (by business guard_id) today."""
     return _safe_select("""
-        SELECT id, checkpoint_name, scheduled_time, actual_time, status, notes
-        FROM patrol_logs
-        WHERE guard_id = :gid
-          AND log_date = CURRENT_DATE
-        ORDER BY scheduled_time;
+        SELECT pl.id, pl.checkpoint_name, pl.expected_time, pl.actual_time, pl.status
+        FROM patrol_logs pl
+        JOIN security_guards g ON g.id = pl.guard_id
+        WHERE g.guard_id = :gid
+          AND pl.expected_time::date = CURRENT_DATE
+        ORDER BY pl.expected_time;
     """, {"gid": guard_id})
 
 
@@ -1261,14 +1310,14 @@ def get_patrol_log_status(guard_id: str, date_filter: str = "today") -> List[Dic
 def get_missed_patrol_checkpoints(shift: str = "night") -> List[Dict[str, Any]]:
     """Were there any missed or delayed guard patrol checkpoints during a shift."""
     return _safe_select("""
-        SELECT pl.id, pl.guard_id, g.full_name, pl.checkpoint_name,
-               pl.scheduled_time, pl.actual_time, pl.status
+        SELECT pl.id, g.guard_id, g.name, pl.checkpoint_name,
+               pl.expected_time, pl.actual_time, pl.status
         FROM patrol_logs pl
         JOIN security_guards g ON g.id = pl.guard_id
         WHERE pl.status IN ('Missed', 'Delayed', 'Incomplete')
-          AND pl.shift ILIKE :s
-          AND pl.log_date >= CURRENT_DATE - INTERVAL '1 day'
-        ORDER BY pl.scheduled_time;
+          AND g.shift ILIKE :s
+          AND pl.expected_time >= CURRENT_DATE - INTERVAL '1 day'
+        ORDER BY pl.expected_time;
     """, {"s": f"%{shift}%"})
 
 
@@ -1276,10 +1325,10 @@ def get_missed_patrol_checkpoints(shift: str = "night") -> List[Dict[str, Any]]:
 def get_incomplete_patrol_logs() -> List[Dict[str, Any]]:
     """List all security guard patrol logs marked as Incomplete or Missed."""
     return _safe_select("""
-        SELECT id, guard_id, checkpoint_name, scheduled_time, status, notes
+        SELECT id, guard_id, checkpoint_name, expected_time, actual_time, status
         FROM patrol_logs
         WHERE status IN ('Incomplete', 'Missed')
-        ORDER BY scheduled_time DESC;
+        ORDER BY expected_time DESC;
     """)
 
 
@@ -1287,57 +1336,59 @@ def get_incomplete_patrol_logs() -> List[Dict[str, Any]]:
 def get_guards_by_area(area: str) -> List[Dict[str, Any]]:
     """Which guards are assigned to patrol a specific area."""
     return _safe_select("""
-        SELECT id, full_name, badge_number, shift, assigned_area
+        SELECT id, guard_id, name, shift, assigned_patrol_area
         FROM security_guards
-        WHERE assigned_area ILIKE :area AND is_active = true;
+        WHERE assigned_patrol_area ILIKE :area;
     """, {"area": f"%{area}%"})
 
 
 @tool
 def get_visitor_logs_by_gate(gate: str) -> List[Dict[str, Any]]:
-    """Show visitor logs for all visitors who entered through a specific gate."""
+    """Show visitor logs filtered by the 'location' field (no dedicated entry_gate column exists)."""
     return _safe_select("""
-        SELECT id, full_name, company, check_in, check_out, host_employee_id
+        SELECT id, visitor_name, company, entry_time, exit_time, host_employee_id
         FROM visitors
-        WHERE entry_gate ILIKE :gate
-        ORDER BY check_in DESC;
+        WHERE location ILIKE :gate
+        ORDER BY entry_time DESC;
     """, {"gate": f"%{gate}%"})
 
 
 # ────────────────────────────────────────────────
 # 6. PEOPLE & OBJECT COUNTING
+#    Real tables: counting_configs, counting_batches, counting_snapshots, counting_recordings
+#    There is NO "counting_results" table. count_in/count_out live directly on counting_batches.
 # ────────────────────────────────────────────────
 
 @tool
 def get_object_count_today(line_name: str) -> Dict[str, Any]:
-    """What is the total object count on a Conveyor Line today."""
-    return _safe_select("""
-        SELECT SUM(count_value) AS total_count
-        FROM counting_results
+    """What is the total object count on a counting line today."""
+    rows = _safe_select("""
+        SELECT SUM(total_count) AS total_count
+        FROM counting_batches
         WHERE config_name ILIKE :line
-          AND created_at >= CURRENT_DATE;
-    """, {"line": f"%{line_name}%"})[0]
+          AND start_time >= CURRENT_DATE;
+    """, {"line": f"%{line_name}%"})
+    return rows[0] if rows else {"total_count": 0}
 
 
 @tool
 def get_count_in_vs_out(config_name: str) -> Dict[str, Any]:
-    """Show count_in versus count_out for a counting config."""
-    return _safe_select("""
-        SELECT config_name,
-               SUM(CASE WHEN direction = 'in' THEN count_value ELSE 0 END) AS count_in,
-               SUM(CASE WHEN direction = 'out' THEN count_value ELSE 0 END) AS count_out
-        FROM counting_results
+    """Show count_in versus count_out for a counting config today."""
+    rows = _safe_select("""
+        SELECT config_name, SUM(count_in) AS count_in, SUM(count_out) AS count_out
+        FROM counting_batches
         WHERE config_name ILIKE :cfg
-          AND created_at >= CURRENT_DATE
+          AND start_time >= CURRENT_DATE
         GROUP BY config_name;
-    """, {"cfg": f"%{config_name}%"})[0]
+    """, {"cfg": f"%{config_name}%"})
+    return rows[0] if rows else {"count_in": 0, "count_out": 0}
 
 
 @tool
 def list_active_counting_configs() -> List[Dict[str, Any]]:
     """List all active counting configurations in the database."""
     return _safe_select("""
-        SELECT id, name, camera_id, zone_id, object_class, is_batching_enabled, is_active
+        SELECT id, name, camera_id, model_id, selected_classes, enable_batching, is_active
         FROM counting_configs
         WHERE is_active = true
         ORDER BY name;
@@ -1348,10 +1399,10 @@ def list_active_counting_configs() -> List[Dict[str, Any]]:
 def get_batch_counting_results(date_filter: str = "today") -> List[Dict[str, Any]]:
     """Show batch counting results for today's daily batch numbers."""
     return _safe_select("""
-        SELECT batch_id, batch_number, total_count, start_time, end_time, status
+        SELECT id, config_name, daily_batch_number, total_count, count_in, count_out, start_time, end_time
         FROM counting_batches
-        WHERE batch_date = CURRENT_DATE
-        ORDER BY batch_number;
+        WHERE start_time::date = CURRENT_DATE
+        ORDER BY daily_batch_number;
     """)
 
 
@@ -1359,9 +1410,9 @@ def get_batch_counting_results(date_filter: str = "today") -> List[Dict[str, Any
 def get_last_completed_batch_count() -> Dict[str, Any]:
     """How many items were counted in the last completed counting batch."""
     rows = _safe_select("""
-        SELECT batch_id, total_count, end_time
+        SELECT id, config_name, total_count, end_time
         FROM counting_batches
-        WHERE status = 'completed'
+        WHERE end_time IS NOT NULL
         ORDER BY end_time DESC
         LIMIT 1;
     """)
@@ -1370,13 +1421,12 @@ def get_last_completed_batch_count() -> Dict[str, Any]:
 
 @tool
 def get_counting_snapshots(date_filter: str = "yesterday") -> List[Dict[str, Any]]:
-    """Show counting snapshots recorded for a day."""
+    """Show daily counting snapshots recorded for a day."""
     return _safe_select("""
-        SELECT id, config_name, snapshot_path, count_value, created_at
+        SELECT id, config_name, snapshot_date, total_count, count_in, count_out
         FROM counting_snapshots
-        WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
-          AND created_at < CURRENT_DATE
-        ORDER BY created_at DESC;
+        WHERE snapshot_date = CURRENT_DATE - INTERVAL '1 day'
+        ORDER BY config_name;
     """)
 
 
@@ -1384,7 +1434,7 @@ def get_counting_snapshots(date_filter: str = "yesterday") -> List[Dict[str, Any
 def get_counting_recordings_by_date(folder_date: str) -> List[Dict[str, Any]]:
     """List counting recordings for a folder date (YYYY-MM-DD)."""
     return _safe_select("""
-        SELECT id, config_name, video_path, start_time, end_time, batch_id
+        SELECT id, config_name, file_path, start_time, end_time, batch_id, status
         FROM counting_recordings
         WHERE folder_date = :fd
         ORDER BY start_time;
@@ -1393,23 +1443,24 @@ def get_counting_recordings_by_date(folder_date: str) -> List[Dict[str, Any]]:
 
 @tool
 def get_object_count_by_camera(camera_id: int, object_class: str, date_filter: str = "today") -> Dict[str, Any]:
-    """What is the total count of a specific object recorded by a camera today."""
-    return _safe_select("""
-        SELECT SUM(count_value) AS total
-        FROM counting_results
-        WHERE camera_id = :cam
-          AND object_class ILIKE :cls
-          AND created_at >= CURRENT_DATE;
-    """, {"cam": camera_id, "cls": f"%{object_class}%"})[0]
+    """What is the total count recorded by counting configs on a camera today (selected_classes is JSON, filtered client-side is not possible in SQL text match, so this checks config name/camera only)."""
+    rows = _safe_select("""
+        SELECT SUM(b.total_count) AS total
+        FROM counting_batches b
+        JOIN counting_configs c ON c.id = b.config_id
+        WHERE c.camera_id = :cam
+          AND b.start_time >= CURRENT_DATE;
+    """, {"cam": camera_id})
+    return rows[0] if rows else {"total": 0}
 
 
 @tool
 def get_batching_enabled_configs() -> List[Dict[str, Any]]:
     """Which counting configurations have batching enabled."""
     return _safe_select("""
-        SELECT id, name, camera_id, object_class
+        SELECT id, name, camera_id, selected_classes
         FROM counting_configs
-        WHERE is_batching_enabled = true AND is_active = true;
+        WHERE enable_batching = true AND is_active = true;
     """)
 
 
@@ -1417,7 +1468,7 @@ def get_batching_enabled_configs() -> List[Dict[str, Any]]:
 def get_counting_video_paths(batch_id: int) -> List[Dict[str, Any]]:
     """Show video file paths for counting recordings stored for a batch ID."""
     return _safe_select("""
-        SELECT id, video_path, start_time, end_time
+        SELECT id, file_path, start_time, end_time
         FROM counting_recordings
         WHERE batch_id = :bid
         ORDER BY start_time;
@@ -1426,27 +1477,28 @@ def get_counting_video_paths(batch_id: int) -> List[Dict[str, Any]]:
 
 # ────────────────────────────────────────────────
 # 7. DEFECT DETECTIONS
+#    Real table defect_detections: id, basler_camera_id, model_id, model_name,
+#    class_name, confidence, bbox, image_path, created_at.  NO camera_id / line_name / bounding_box columns.
 # ────────────────────────────────────────────────
 
 @tool
 def get_defect_detections_today(camera_type: str = "Basler") -> List[Dict[str, Any]]:
-    """List all defect detections recorded by Basler (or other) cameras today."""
+    """List all defect detections recorded by Basler cameras today."""
     return _safe_select("""
-        SELECT d.id, d.camera_id, c.name AS camera_name, d.defect_class,
+        SELECT d.id, d.basler_camera_id, b.name AS camera_name, d.class_name,
                d.confidence, d.created_at, d.image_path
         FROM defect_detections d
-        JOIN cameras c ON c.id = d.camera_id
+        JOIN basler_devices b ON b.id = d.basler_camera_id
         WHERE d.created_at >= CURRENT_DATE
-          AND (c.manufacturer ILIKE :ctype OR :ctype = 'all')
         ORDER BY d.created_at DESC;
-    """, {"ctype": f"%{camera_type}%"})
+    """)
 
 
 @tool
 def get_high_confidence_defects(min_confidence: float = 0.90, limit: int = 50) -> List[Dict[str, Any]]:
     """Show defect detections with confidence higher than a threshold."""
     return _safe_select("""
-        SELECT id, camera_id, defect_class, confidence, created_at, image_path, bounding_box
+        SELECT id, basler_camera_id, class_name, confidence, created_at, image_path, bbox
         FROM defect_detections
         WHERE confidence >= :conf
         ORDER BY confidence DESC
@@ -1456,46 +1508,45 @@ def get_high_confidence_defects(min_confidence: float = 0.90, limit: int = 50) -
 
 @tool
 def get_top_defect_class_on_line(line_name: str) -> List[Dict[str, Any]]:
-    """Which defect class has the highest detection frequency on a line."""
+    """Which defect class has the highest detection frequency (no line_name column exists; aggregated globally over 7 days)."""
     return _safe_select("""
-        SELECT defect_class, COUNT(*) AS frequency
+        SELECT class_name, COUNT(*) AS frequency
         FROM defect_detections
-        WHERE line_name ILIKE :line
-          AND created_at >= CURRENT_DATE - INTERVAL '7 days'
-        GROUP BY defect_class
+        WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+        GROUP BY class_name
         ORDER BY frequency DESC
         LIMIT 10;
-    """, {"line": f"%{line_name}%"})
+    """)
 
 
 @tool
 def get_defect_logs_by_model(model_name: str, limit: int = 50) -> List[Dict[str, Any]]:
-    """Show defect detection logs and image paths for a model."""
+    """Show defect detection logs and image paths for a model (by denormalized model_name)."""
     return _safe_select("""
-        SELECT d.id, d.defect_class, d.confidence, d.created_at, d.image_path, d.bounding_box
-        FROM defect_detections d
-        JOIN ai_models m ON m.id = d.model_id
-        WHERE m.name ILIKE :mname
-        ORDER BY d.created_at DESC
+        SELECT id, class_name, confidence, created_at, image_path, bbox
+        FROM defect_detections
+        WHERE model_name ILIKE :mname
+        ORDER BY created_at DESC
         LIMIT :limit;
     """, {"mname": f"%{model_name}%", "limit": limit})
 
 
 @tool
 def count_defects_last_shift() -> Dict[str, Any]:
-    """How many total defects were detected in the last shift."""
-    return _safe_select("""
+    """How many total defects were detected in the last 8 hours."""
+    rows = _safe_select("""
         SELECT COUNT(*) AS total_defects
         FROM defect_detections
         WHERE created_at >= NOW() - INTERVAL '8 hours';
-    """)[0]
+    """)
+    return rows[0] if rows else {"total_defects": 0}
 
 
 @tool
 def get_defect_bounding_box(detection_id: int) -> Dict[str, Any]:
     """Show bounding box details for a defect detection ID."""
     rows = _safe_select("""
-        SELECT id, defect_class, confidence, bounding_box, image_path, created_at
+        SELECT id, class_name, confidence, bbox, image_path, created_at
         FROM defect_detections
         WHERE id = :did;
     """, {"did": detection_id})
@@ -1504,13 +1555,15 @@ def get_defect_bounding_box(detection_id: int) -> Dict[str, Any]:
 
 # ────────────────────────────────────────────────
 # 8. AI MODELS & CLASSES
+#    Real ai_models columns include trt_ready (not is_tensorrt_ready), group_id (FK model_groups).
+#    Real ai_model_classes columns: model_id, class_name, class_index, color.
 # ────────────────────────────────────────────────
 
 @tool
 def list_active_ai_models() -> List[Dict[str, Any]]:
     """List all active AI models deployed in the system."""
     return _safe_select("""
-        SELECT id, name, version, framework, is_active, is_tensorrt_ready, created_at
+        SELECT id, name, version, framework, is_active, trt_ready, created_at
         FROM ai_models
         WHERE is_active = true
         ORDER BY name;
@@ -1523,7 +1576,7 @@ def get_tensorrt_ready_models() -> List[Dict[str, Any]]:
     return _safe_select("""
         SELECT id, name, version, framework
         FROM ai_models
-        WHERE is_tensorrt_ready = true AND is_active = true;
+        WHERE trt_ready = true AND is_active = true;
     """)
 
 
@@ -1531,10 +1584,10 @@ def get_tensorrt_ready_models() -> List[Dict[str, Any]]:
 def get_model_target_classes(model_id: int) -> List[Dict[str, Any]]:
     """Show all target classes associated with an AI model ID."""
     return _safe_select("""
-        SELECT id, class_name, class_id, color_hex, is_active
-        FROM model_classes
+        SELECT id, class_name, class_index, color
+        FROM ai_model_classes
         WHERE model_id = :mid
-        ORDER BY class_id;
+        ORDER BY class_index;
     """, {"mid": model_id})
 
 
@@ -1542,12 +1595,12 @@ def get_model_target_classes(model_id: int) -> List[Dict[str, Any]]:
 def get_low_fps_assignments(max_fps: float = 15.0) -> List[Dict[str, Any]]:
     """List detection assignments where inference FPS is set below a threshold."""
     return _safe_select("""
-        SELECT ma.id, ma.camera_id, c.name AS camera_name, ma.model_id,
-               m.name AS model_name, ma.inference_fps
-        FROM model_assignments ma
-        JOIN cameras c ON c.id = ma.camera_id
-        JOIN ai_models m ON m.id = ma.model_id
-        WHERE ma.inference_fps < :fps AND ma.is_active = true;
+        SELECT da.id, da.camera_id, c.name AS camera_name, da.model_id,
+               m.name AS model_name, da.inference_fps
+        FROM detection_assignments da
+        JOIN cameras c ON c.id = da.camera_id
+        JOIN ai_models m ON m.id = da.model_id
+        WHERE da.inference_fps < :fps AND da.is_active = true;
     """, {"fps": max_fps})
 
 
@@ -1555,10 +1608,11 @@ def get_low_fps_assignments(max_fps: float = 15.0) -> List[Dict[str, Any]]:
 def get_model_group_details(group_name: str) -> List[Dict[str, Any]]:
     """Show model name, version, and framework for a model group."""
     return _safe_select("""
-        SELECT id, name, version, framework, is_active
-        FROM ai_models
-        WHERE model_group ILIKE :gname
-        ORDER BY name;
+        SELECT m.id, m.name, m.version, m.framework, m.is_active
+        FROM ai_models m
+        JOIN model_groups g ON g.id = m.group_id
+        WHERE g.name ILIKE :gname
+        ORDER BY m.name;
     """, {"gname": f"%{group_name}%"})
 
 
@@ -1566,36 +1620,39 @@ def get_model_group_details(group_name: str) -> List[Dict[str, Any]]:
 def get_models_assigned_to_camera(camera_id: int) -> List[Dict[str, Any]]:
     """Which AI models are assigned to a Camera ID."""
     return _safe_select("""
-        SELECT m.id, m.name, m.version, ma.inference_fps, ma.is_active
-        FROM model_assignments ma
-        JOIN ai_models m ON m.id = ma.model_id
-        WHERE ma.camera_id = :cam;
+        SELECT m.id, m.name, m.version, da.inference_fps, da.is_active
+        FROM detection_assignments da
+        JOIN ai_models m ON m.id = da.model_id
+        WHERE da.camera_id = :cam;
     """, {"cam": camera_id})
 
 
 @tool
 def get_model_classes_with_colors(model_id: int) -> List[Dict[str, Any]]:
-    """Show model classes and their assigned color hex codes for a model ID."""
+    """Show model classes and their assigned color codes for a model ID."""
     return _safe_select("""
-        SELECT class_name, class_id, color_hex
-        FROM model_classes
+        SELECT class_name, class_index, color
+        FROM ai_model_classes
         WHERE model_id = :mid
-        ORDER BY class_id;
+        ORDER BY class_index;
     """, {"mid": model_id})
 
 
 # ────────────────────────────────────────────────
 # 9. ZONE RISK & ANOMALY FLAGS
+#    Real: zones has no risk_score column; risk lives in zone_risk_scores.
+#    correlated_events has no event_count column (classes/alert_ids are JSON arrays).
+#    agent_recommendations uses title/description, not "recommendation_text".
 # ────────────────────────────────────────────────
 
 @tool
 def get_highest_risk_zones(limit: int = 10) -> List[Dict[str, Any]]:
-    """Which zones currently have the highest risk scores."""
+    """Which zones currently have the highest risk scores (latest score per zone)."""
     return _safe_select("""
-        SELECT id, name, zone_type, risk_score, last_calculated_at
-        FROM zones
-        WHERE risk_score IS NOT NULL
-        ORDER BY risk_score DESC
+        SELECT DISTINCT ON (z.id) z.id, z.name, z.zone_type, zrs.risk_score, zrs.risk_level, zrs.computed_at
+        FROM zones z
+        JOIN zone_risk_scores zrs ON zrs.zone_id = z.id
+        ORDER BY z.id, zrs.computed_at DESC
         LIMIT :limit;
     """, {"limit": limit})
 
@@ -1616,11 +1673,11 @@ def get_critical_anomaly_flags() -> List[Dict[str, Any]]:
 def get_recent_zone_risk_scores(hours: int = 4) -> List[Dict[str, Any]]:
     """List all zone risk scores calculated within the last N hours."""
     return _safe_select("""
-        SELECT z.id, z.name, z.risk_score, zrs.calculated_at
+        SELECT z.id, z.name, zrs.risk_score, zrs.risk_level, zrs.computed_at
         FROM zone_risk_scores zrs
         JOIN zones z ON z.id = zrs.zone_id
-        WHERE zrs.calculated_at >= NOW() - (:hrs || ' hours')::interval
-        ORDER BY zrs.calculated_at DESC;
+        WHERE zrs.computed_at >= NOW() - (:hrs || ' hours')::interval
+        ORDER BY zrs.computed_at DESC;
     """, {"hrs": hours})
 
 
@@ -1638,12 +1695,11 @@ def get_anomaly_baseline_vs_observed(flag_id: int) -> Dict[str, Any]:
 
 @tool
 def get_zone_with_most_high_severity_events() -> List[Dict[str, Any]]:
-    """Which zone has the highest count of high-severity events."""
+    """Which zone has the highest high-severity event count (from zone_risk_scores.high_severity_count)."""
     return _safe_select("""
-        SELECT z.name, COUNT(*) AS high_severity_count
-        FROM incidents i
-        JOIN zones z ON z.id = i.zone_id
-        WHERE i.severity ILIKE '%high%' OR i.severity ILIKE '%critical%'
+        SELECT z.name, SUM(zrs.high_severity_count) AS high_severity_count
+        FROM zone_risk_scores zrs
+        JOIN zones z ON z.id = zrs.zone_id
         GROUP BY z.name
         ORDER BY high_severity_count DESC
         LIMIT 5;
@@ -1654,7 +1710,7 @@ def get_zone_with_most_high_severity_events() -> List[Dict[str, Any]]:
 def get_correlated_events_narrative(camera_id: int) -> Dict[str, Any]:
     """Show correlated events narrative for a camera ID."""
     rows = _safe_select("""
-        SELECT id, narrative, event_count, created_at
+        SELECT id, narrative, classes, alert_ids, risk_score, created_at
         FROM correlated_events
         WHERE camera_id = :cam
         ORDER BY created_at DESC
@@ -1667,7 +1723,7 @@ def get_correlated_events_narrative(camera_id: int) -> Dict[str, Any]:
 def get_high_priority_unacked_recommendations() -> List[Dict[str, Any]]:
     """List agent recommendations marked high priority and unacknowledged."""
     return _safe_select("""
-        SELECT id, recommendation_text, priority, zone_id, camera_id, created_at
+        SELECT id, title, description, priority, zone_id, camera_id, created_at
         FROM agent_recommendations
         WHERE priority ILIKE '%high%' AND is_acknowledged = false
         ORDER BY created_at DESC;
@@ -1688,16 +1744,19 @@ def get_high_deviation_anomalies(min_factor: float = 2.0) -> List[Dict[str, Any]
 
 # ────────────────────────────────────────────────
 # 10. NOTIFICATIONS & AUDIT LOGS
+#     Real notification_logs has NO rule_name column (join notification_rules for that).
+#     There is NO "login_attempts" table — adapted to user_activity_logs as the closest proxy.
 # ────────────────────────────────────────────────
 
 @tool
 def get_triggered_notification_logs(hours: int = 24) -> List[Dict[str, Any]]:
-    """List all triggered notification rule logs in the past N hours."""
+    """List all triggered notification logs in the past N hours."""
     return _safe_select("""
-        SELECT id, rule_name, channel, status, recipient, created_at, error_message
-        FROM notification_rule_logs
-        WHERE created_at >= NOW() - (:hrs || ' hours')::interval
-        ORDER BY created_at DESC;
+        SELECT nl.id, nr.name AS rule_name, nl.channel, nl.status, nl.recipient, nl.created_at, nl.response
+        FROM notification_logs nl
+        LEFT JOIN notification_rules nr ON nr.id = nl.rule_id
+        WHERE nl.created_at >= NOW() - (:hrs || ' hours')::interval
+        ORDER BY nl.created_at DESC;
     """, {"hrs": hours})
 
 
@@ -1706,7 +1765,7 @@ def get_failed_notification_channels(date_filter: str = "today") -> List[Dict[st
     """Which notification channels failed to deliver alerts today."""
     return _safe_select("""
         SELECT channel, COUNT(*) AS failure_count
-        FROM notification_rule_logs
+        FROM notification_logs
         WHERE status = 'failed'
           AND created_at >= CURRENT_DATE
         GROUP BY channel
@@ -1716,11 +1775,11 @@ def get_failed_notification_channels(date_filter: str = "today") -> List[Dict[st
 
 @tool
 def get_telegram_notification_rules() -> List[Dict[str, Any]]:
-    """Show notification rules configured for Telegram channel."""
+    """Show notification rules configured to use the Telegram channel."""
     return _safe_select("""
-        SELECT id, name, trigger_condition, is_active, recipient_group
+        SELECT id, name, channels, enabled, threshold_count, cooldown_seconds
         FROM notification_rules
-        WHERE channel ILIKE '%telegram%'
+        WHERE channels::text ILIKE '%telegram%'
         ORDER BY name;
     """)
 
@@ -1729,61 +1788,69 @@ def get_telegram_notification_rules() -> List[Dict[str, Any]]:
 def get_user_activity_logs(username: str, limit: int = 50) -> List[Dict[str, Any]]:
     """List recent user activity logs for a user."""
     return _safe_select("""
-        SELECT id, action, resource, ip_address, created_at, status
-        FROM user_activity_logs
-        WHERE username = :user
-        ORDER BY created_at DESC
+        SELECT ual.id, ual.action, ual.detail, ual.ip_address, ual.created_at
+        FROM user_activity_logs ual
+        JOIN users u ON u.id = ual.user_id
+        WHERE u.username = :user
+        ORDER BY ual.created_at DESC
         LIMIT :limit;
     """, {"user": username, "limit": limit})
 
 
 @tool
 def get_failed_login_attempts(limit: int = 50) -> List[Dict[str, Any]]:
-    """Show failed login attempts or unauthorized action logs."""
+    """Show failed login / unauthorized action entries (no dedicated login_attempts table exists; uses user_activity_logs as a proxy)."""
     return _safe_select("""
-        SELECT id, username, ip_address, attempt_time, reason
-        FROM login_attempts
-        WHERE success = false
-        ORDER BY attempt_time DESC
+        SELECT ual.id, u.username, ual.ip_address, ual.created_at, ual.detail
+        FROM user_activity_logs ual
+        JOIN users u ON u.id = ual.user_id
+        WHERE ual.action ILIKE '%fail%login%' OR ual.action ILIKE '%unauthorized%'
+        ORDER BY ual.created_at DESC
         LIMIT :limit;
     """, {"limit": limit})
 
 
 @tool
 def get_critical_alert_recipient_groups() -> List[Dict[str, Any]]:
-    """Which recipient groups are assigned to receive critical safety alerts."""
+    """Which recipient groups are linked to notification rules whose name references 'critical'."""
     return _safe_select("""
         SELECT rg.id, rg.name, rg.description
         FROM recipient_groups rg
-        JOIN notification_rules nr ON nr.recipient_group_id = rg.id
-        WHERE nr.severity ILIKE '%critical%' OR nr.name ILIKE '%critical%'
+        JOIN notification_rule_recipients nrr ON nrr.group_id = rg.id
+        JOIN notification_rules nr ON nr.id = nrr.rule_id
+        WHERE nr.name ILIKE '%critical%'
         GROUP BY rg.id, rg.name, rg.description;
     """)
 
 
 @tool
 def get_recipient_group_details(group_name: str) -> List[Dict[str, Any]]:
-    """Show recipient details for a recipient group."""
+    """Show recipient (channel + address) details for a recipient group."""
     return _safe_select("""
-        SELECT r.id, r.name, r.email, r.phone, r.telegram_id, r.role
+        SELECT r.id, r.channel, r.recipient
         FROM recipients r
-        JOIN recipient_group_members rgm ON rgm.recipient_id = r.id
-        JOIN recipient_groups rg ON rg.id = rgm.group_id
+        JOIN recipient_groups rg ON rg.id = r.group_id
         WHERE rg.name ILIKE :gname;
     """, {"gname": f"%{group_name}%"})
 
 
 # ────────────────────────────────────────────────
 # 11. SYSTEM SETTINGS & USER ACCESS
+#     Real system_settings columns: archive_days, auto_delete_low_severity, storage_location,
+#     session_timeout, enforce_2fa, api_token_expiry, ip_allowlist.
+#     Real access_rules stores JSON ID arrays (employee_ids / allowed_plant_ids /
+#     allowed_department_ids), NOT plant/role names — filtering by plant name is not
+#     directly supported by the schema, so this returns the raw rule set.
+#     Real scheduled_reports has no report_name column.
 # ────────────────────────────────────────────────
 
 @tool
 def get_archive_retention_settings() -> Dict[str, Any]:
-    """What are the current system archive retention settings."""
+    """What are the current system archive/retention settings."""
     rows = _safe_select("""
-        SELECT retention_days_video, retention_days_snapshots,
-               retention_days_logs, auto_cleanup_enabled
+        SELECT archive_days, auto_delete_low_severity, storage_location, updated_at
         FROM system_settings
+        ORDER BY id DESC
         LIMIT 1;
     """)
     return rows[0] if rows else {"error": "Settings not found"}
@@ -1793,8 +1860,9 @@ def get_archive_retention_settings() -> Dict[str, Any]:
 def is_2fa_enforced() -> Dict[str, Any]:
     """Is 2FA enforced in the system settings."""
     rows = _safe_select("""
-        SELECT enforce_2fa, 2fa_methods
+        SELECT enforce_2fa
         FROM system_settings
+        ORDER BY id DESC
         LIMIT 1;
     """)
     return rows[0] if rows else {"error": "Settings not found"}
@@ -1825,29 +1893,28 @@ def get_users_by_role(role_name: str) -> List[Dict[str, Any]]:
 
 @tool
 def get_access_rules_for_plant(plant: str) -> List[Dict[str, Any]]:
-    """List access rules applied to a plant."""
+    """List access rules (raw JSON ID sets — schema stores ID arrays, not plant names, so exact name filtering isn't possible)."""
     return _safe_select("""
-        SELECT id, rule_name, allowed_roles, allowed_departments, is_active
+        SELECT id, employee_ids, allowed_plant_ids, allowed_department_ids, created_at
         FROM access_rules
-        WHERE plant ILIKE :plant
-        ORDER BY rule_name;
-    """, {"plant": f"%{plant}%"})
+        ORDER BY created_at DESC;
+    """)
 
 
 @tool
 def get_scheduled_report_settings() -> List[Dict[str, Any]]:
-    """Show scheduled report settings configured for weekly PDF delivery (or any)."""
+    """Show scheduled report settings configured for delivery."""
     return _safe_select("""
-        SELECT id, report_name, frequency, format, send_time,
-               email_recipients, is_active
+        SELECT id, frequency, send_time, format, date_range, class_name,
+               camera_id, zone_id, is_active, last_sent_at
         FROM scheduled_reports
         WHERE is_active = true
-        ORDER BY frequency, report_name;
+        ORDER BY frequency;
     """)
 
 
 # ────────────────────────────────────────────────
-# KEEP A FEW GENERIC / UTILITY TOOLS
+# KEEP A FEW GENERIC / UTILITY TOOLS (unchanged — already schema-correct)
 # ────────────────────────────────────────────────
 
 @tool
@@ -1886,7 +1953,7 @@ def list_entities(entity_type: str, limit: int = 50) -> List[Dict[str, Any]]:
 
 
 # ────────────────────────────────────────────────
-# REGISTRY — 80+ tools
+# REGISTRY — same 100 tool references, now schema-correct
 # ────────────────────────────────────────────────
 
 system_agent_tools_registry = [
