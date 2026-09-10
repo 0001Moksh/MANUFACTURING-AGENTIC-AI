@@ -38,18 +38,16 @@ export const VideoMonitoringChatWidget: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeAgent, setActiveAgent] = useState<string>('General Agent');
   const [threadId] = useState<string>(() => `thread_${Math.random().toString(36).substring(2, 9)}`);
-
   const [governance, setGovernance] = useState<GovernanceSettings>({
     autoApproveThreshold: 0.9,
     requireHitlForMutations: true,
     alertAudioEnabled: true,
   });
-
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'bot',
-      text: '👋 Welcome to the Video Monitoring AI Safety Assistant. Powered by a 5-Agent Supervisor Mesh (General, System, Setup, Investigator, Video). Ask me about camera feeds, safety violations, or incident autopsies.',
+      text: 'Welcome to Deva Assistant — your multi-agent video monitoring system. Powered by a 5-agent mesh (General, System, Setup, Investigator, Video). Ask about cameras, safety violations, or incidents.',
       agent: 'General Agent',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
@@ -199,7 +197,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === botMsgId
-              ? { ...msg, text: '⚠️ Unable to connect to backend multi-agent router.' }
+              ? { ...msg, text: 'Deva this Side:⚠️ Unable to connect to your backend ' }
               : msg
           )
         );
@@ -218,104 +216,101 @@ export const VideoMonitoringChatWidget: React.FC = () => {
       {/* Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 rounded-full bg-teal-600 px-4 py-3.5 text-white shadow-lg shadow-teal-600/25 transition-all duration-200 hover:bg-teal-700 hover:shadow-xl hover:scale-[1.02] active:scale-95 border border-teal-500/30"
-        aria-label="Toggle Video Monitoring AI Safety Assistant"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-teal-600 px-3.5 py-3 text-white shadow-lg shadow-teal-600/25 transition-all duration-200 hover:bg-teal-700 hover:shadow-xl hover:scale-[1.02] active:scale-95 border border-teal-500/30"
+        aria-label="Toggle Deva Assistant"
       >
         <div className="relative">
           <Bot className="w-5 h-5" />
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-teal-600" />
+          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border-2 border-teal-600" />
         </div>
-        <span className="font-semibold text-[13px] hidden sm:inline tracking-wide">
-          AI Safety Assistant
-        </span>
       </button>
 
       {/* Floating Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[92vw] sm:w-[440px] h-[620px] max-h-[82vh] bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed bottom-22 right-6 z-50 w-[90vw] sm:w-[400px] h-[560px] max-h-[80vh] bg-white border border-slate-200 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           {/* Header */}
-          <div className="px-4 py-3.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
-                <Bot className="w-5 h-5" />
+          <div className="px-3.5 py-2.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white shrink-0">
+                <Bot className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-[14px] text-slate-900 truncate">
-                    AI Safety Assistant
-                  </h3>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 font-medium border border-teal-100 shrink-0">
-                    5-Agent Mesh
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                    Deva
+                  </span>
+                  <span className="text-[10px] font-medium text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-100">
+                    Assistant
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 truncate">
-                  RTSP · YOLO · Forensic Autopsy
-                </p>
+                <p className="text-[10px] text-slate-500 truncate">Multi-agent video monitoring</p>
               </div>
             </div>
-
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-0.5 shrink-0">
               <button
                 onClick={() => setIsGovernanceOpen(true)}
-                className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors"
                 title="HITL Governance Settings"
               >
                 <Sliders className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Active Agent Banner */}
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[12px] shrink-0">
-            <span className="text-slate-500 font-medium">Active Agent</span>
-            <div
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 ${getAgentBadgeColor(
-                activeAgent
-              )}`}
-            >
-              {getAgentIcon(activeAgent)}
-              <span>{activeAgent}</span>
-            </div>
-          </div>
-
           {/* Messages */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/40">
+          <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-slate-50/50">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {msg.sender === 'bot' && (
-                  <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                )}
 
-                <div className={`max-w-[82%] ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[70%] ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                   {msg.sender === 'bot' && msg.agent && (
-                    <div className="flex items-center gap-1.5 mb-1 px-0.5">
-                      <span className="text-[10px] font-semibold text-slate-500">{msg.agent}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-tl-lg rounded-tr-lg border ${getAgentBadgeColor(
+                          msg.agent
+                        )}`}
+                      >
+                        {getAgentIcon(msg.agent)}
+                        {msg.agent}
+                      </span>
                       <span className="text-[9px] text-slate-400">{msg.timestamp}</span>
                     </div>
                   )}
-
                   <div
-                    className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed ${msg.sender === 'user'
-                        ? 'bg-teal-600 text-white rounded-br-md shadow-sm'
-                        : 'bg-white border border-slate-200 text-slate-800 rounded-bl-md shadow-sm'
+                    className={`px-3 py-2 rounded-xl text-[13px] leading-relaxed ${msg.sender === 'user'
+                        ? 'bg-teal-600 text-white rounded-br-sm shadow-sm'
+                        : 'bg-white border border-slate-200 text-slate-800 rounded-tl shadow-sm'
                       }`}
                   >
                     <p className="whitespace-pre-wrap">
-                      {msg.text || (isStreaming && msg.id.startsWith('bot_') ? 'Thinking…' : '')}
+                      {msg.text ? (
+                        msg.text
+                      ) : isStreaming && msg.id.startsWith("bot_") ? (
+                        <span className="inline-flex items-center gap-1.5 text-gray-500">
+                          <span>Thinking</span>
+                          <span className="flex gap-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:-0.3s]" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:-0.15s]" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" />
+                          </span>
+                        </span>
+                      ) : (
+                        ""
+                      )}
                     </p>
+
+
                     {msg.widget && (
-                      <div className="mt-2.5">
+                      <div className="mt-2">
                         <ChatWidgetRenderer
                           payload={msg.widget}
                           onActionClick={handleActionClick}
@@ -323,65 +318,32 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                       </div>
                     )}
                   </div>
-
                   {msg.sender === 'user' && (
-                    <div className="text-[9px] text-slate-400 text-right mt-1 px-0.5">
+                    <div className="text-[9px] text-slate-400 text-right mt-0.5 px-0.5">
                       {msg.timestamp}
                     </div>
                   )}
                 </div>
-
-                {msg.sender === 'user' && (
-                  <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shrink-0 mt-0.5">
-                    <User className="w-3.5 h-3.5" />
-                  </div>
-                )}
               </div>
             ))}
-
-            {isStreaming && (
-              <div className="flex gap-2 items-center text-[12px] text-teal-600 font-medium">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Agent processing live stream telemetry…</span>
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Prompts */}
-          <div className="px-3 py-2.5 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto text-[11px] shrink-0">
-            {[
-              { label: '📹 List Cameras', prompt: 'List all active cameras and status' },
-              { label: '🔍 Safety Autopsy', prompt: 'Investigate safety violations today' },
-              { label: '🦺 PPE Counts', prompt: 'Show real-time PPE compliance & worker counts' },
-              { label: '⚙️ Modify Rules', prompt: 'Update CAM-02 alert rule threshold' },
-            ].map((chip) => (
-              <button
-                key={chip.label}
-                onClick={() => handleSendMessage(chip.prompt)}
-                disabled={isStreaming}
-                className="px-2.5 py-1.5 rounded-full bg-slate-50 hover:bg-teal-50 text-slate-600 hover:text-teal-700 whitespace-nowrap border border-slate-200 hover:border-teal-200 transition-colors disabled:opacity-50"
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-
           {/* Input */}
-          <div className="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
+          <div className="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-              placeholder="Ask AI Safety Assistant…"
+              placeholder="Ask Deva Assistant…"
               disabled={isStreaming}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition disabled:opacity-60"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition disabled:opacity-60"
             />
             <button
               onClick={() => handleSendMessage()}
               disabled={isStreaming || !input.trim()}
-              className="p-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-xl transition-all disabled:opacity-60"
+              className="p-2 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 text-white disabled:text-slate-400 rounded-lg transition-all disabled:opacity-60"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -392,30 +354,30 @@ export const VideoMonitoringChatWidget: React.FC = () => {
       {/* HITL Governance Drawer */}
       {isGovernanceOpen && (
         <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-md bg-white border-l border-slate-200 h-full p-6 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+          <div className="w-full max-w-sm bg-white border-l border-slate-200 h-full p-5 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
             <div className="flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600">
-                    <ShieldCheck className="w-4.5 h-4.5" />
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-500/10 text-teal-600">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
-                  <h3 className="text-[15px] font-semibold text-slate-900">
-                    HITL Governance Settings
+                  <h3 className="text-[14px] font-semibold text-slate-900">
+                    HITL Governance
                   </h3>
                 </div>
                 <button
                   onClick={() => setIsGovernanceOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
+                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4.5 h-4.5" />
                 </button>
               </div>
 
-              <div className="space-y-6 text-[13px]">
+              <div className="space-y-5 text-[13px]">
                 {/* Threshold */}
                 <div>
-                  <div className="flex justify-between font-medium text-slate-800 mb-2">
-                    <span>Auto-Approve Confidence Threshold</span>
+                  <div className="flex justify-between font-medium text-slate-800 mb-1.5">
+                    <span>Auto-Approve Threshold</span>
                     <span className="font-mono text-teal-600 font-bold">
                       {(governance.autoApproveThreshold * 100).toFixed(0)}%
                     </span>
@@ -432,21 +394,21 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         autoApproveThreshold: parseFloat(e.target.value),
                       })
                     }
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1.5">
-                    Actions below this confidence level require explicit operator approval.
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Actions below this level need operator approval.
                   </p>
                 </div>
 
                 {/* Mutation Controls */}
-                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <div className="pr-3">
-                    <span className="font-semibold text-slate-800 block">
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="pr-2">
+                    <span className="font-semibold text-slate-800 block text-[13px]">
                       Mandatory Mutation Controls
                     </span>
                     <span className="text-[11px] text-slate-500 mt-0.5 block">
-                      Require human sign-off for camera & rule modifications
+                      Require sign-off for camera & rule changes
                     </span>
                   </div>
                   <button
@@ -456,24 +418,24 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         requireHitlForMutations: !governance.requireHitlForMutations,
                       })
                     }
-                    className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 ${governance.requireHitlForMutations ? 'bg-teal-600' : 'bg-slate-300'
+                    className={`w-10 h-5.5 rounded-full p-0.5 transition-colors shrink-0 ${governance.requireHitlForMutations ? 'bg-teal-600' : 'bg-slate-300'
                       }`}
                   >
                     <div
-                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${governance.requireHitlForMutations ? 'translate-x-5' : 'translate-x-0'
+                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${governance.requireHitlForMutations ? 'translate-x-4.5' : 'translate-x-0'
                         }`}
                     />
                   </button>
                 </div>
 
                 {/* Audio Alert */}
-                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <div className="pr-3">
-                    <span className="font-semibold text-slate-800 block">
-                      Critical Alert Audio Siren
+                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="pr-2">
+                    <span className="font-semibold text-slate-800 block text-[13px]">
+                      Critical Alert Audio
                     </span>
                     <span className="text-[11px] text-slate-500 mt-0.5 block">
-                      Play audio chime on critical zone breaches
+                      Play chime on critical zone breaches
                     </span>
                   </div>
                   <button
@@ -483,11 +445,11 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         alertAudioEnabled: !governance.alertAudioEnabled,
                       })
                     }
-                    className={`w-11 h-6 rounded-full p-1 transition-colors shrink-0 ${governance.alertAudioEnabled ? 'bg-teal-600' : 'bg-slate-300'
+                    className={`w-10 h-5.5 rounded-full p-0.5 transition-colors shrink-0 ${governance.alertAudioEnabled ? 'bg-teal-600' : 'bg-slate-300'
                       }`}
                   >
                     <div
-                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${governance.alertAudioEnabled ? 'translate-x-5' : 'translate-x-0'
+                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${governance.alertAudioEnabled ? 'translate-x-4.5' : 'translate-x-0'
                         }`}
                     />
                   </button>
@@ -497,9 +459,9 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
             <button
               onClick={() => setIsGovernanceOpen(false)}
-              className="w-full mt-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl text-[13px] transition-colors shadow-sm"
+              className="w-full mt-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg text-[13px] transition-colors shadow-sm"
             >
-              Save Governance Configuration
+              Save Configuration
             </button>
           </div>
         </div>
