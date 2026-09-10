@@ -17,7 +17,7 @@ logger = logging.getLogger("scheduler")
 
 scheduler = AsyncIOScheduler()
 REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", "IIOT_MANUFACTURING_SECRET_KEY_JWT")
-PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8000").rstrip("/")
+PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8001").rstrip("/")
 
 
 async def _notify_verified_super_admins(approval_key: str, report_url: str, delivery_time: str) -> int:
@@ -96,7 +96,7 @@ async def check_and_run_daily_report():
             # Generate the report. Approval is evaluated after the immutable PDF has been written.
             workflow_result = await run_agent_workflow(settings.prompt, is_approved=False)
             
-            # workflow_result["pdf_url"] is like "http://localhost:8000/reports/filename.pdf"
+            # workflow_result["pdf_url"] is like "http://localhost:8001/reports/filename.pdf"
             # We need the local file path to attach it.
             pdf_filename = ""
             if workflow_result.get("pdf_url"):

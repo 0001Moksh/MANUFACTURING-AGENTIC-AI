@@ -137,7 +137,7 @@ services:
       init-sqlserver: {condition: service_completed_successfully}
     networks: [mai_internal]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=5)"]
       interval: 10s
       timeout: 5s
       retries: 12

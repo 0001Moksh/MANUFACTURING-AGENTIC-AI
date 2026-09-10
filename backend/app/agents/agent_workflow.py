@@ -2718,7 +2718,7 @@ async def run_agent_workflow(query: str, is_approved: bool = False) -> dict:
                 })
 
     pdf_filename = os.path.basename(final_state.get("pdf_path", ""))
-    public_api_url = os.getenv("PUBLIC_API_URL", "http://localhost:8000").rstrip("/")
+    public_api_url = os.getenv("PUBLIC_API_URL", "http://localhost:8001").rstrip("/")
     pdf_url = f"{public_api_url}/reports/{pdf_filename}" if pdf_filename else ""
 
     return {

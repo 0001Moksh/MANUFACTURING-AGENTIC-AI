@@ -14,7 +14,7 @@ class VoiceStreamingWorklet extends AudioWorkletProcessor {
       // Convert Float32 (-1.0 to 1.0) to Int16 (-32768 to 32767)
       for (let i = 0; i < channelData.length; i++) {
         const s = Math.max(-1, Math.min(1, channelData[i]));
-        this.buffer[this.offset] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        this.buffer[this.offset] = s < 0 ? s * 0x8001 : s * 0x7FFF;
         this.offset++;
         
         if (this.offset >= this.bufferSize) {

@@ -2800,7 +2800,7 @@ ALTER TABLE ONLY public.counting_batches
 
 
 --
--- TOC entry 5061 (class 2606 OID 38000)
+-- TOC entry 5061 (class 2606 OID 38001)
 -- Name: counting_configs counting_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 

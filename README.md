@@ -87,7 +87,7 @@ If you prefer to run services individually without Docker:
    ```
 5. Run the FastAPI development server:
    ```bash
-   uvicorn app.main:app --reload --port 8000
+   uvicorn app.main:app --reload --port 8001
    ```
    *Note: On startup, the backend automatically seeds a local SQLite database (`mai_platform.db`) with mock tables and data representing key MES structures.*
 
