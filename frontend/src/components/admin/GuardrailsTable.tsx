@@ -12,7 +12,6 @@ import {
   Search,
   Filter,
   CheckCircle2,
-  XCircle,
   Activity,
   Layers,
 } from 'lucide-react';

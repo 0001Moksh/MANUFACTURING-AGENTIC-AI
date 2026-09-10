@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, X } from 'lucide-react';
 
 export interface WidgetPayload {
   type: 'evidence_gallery' | 'data_table' | 'hitl_actions';
@@ -64,9 +64,10 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
               <img src={selectedImage} alt="Expanded Evidence" className="w-full h-auto rounded-lg" />
               <button
                 onClick={() => setSelectedImage(null)}
-                className="absolute top-4 right-4 bg-slate-800 text-white p-1 rounded-full hover:bg-slate-700"
+                className="absolute top-4 right-4 bg-slate-800/90 text-white p-1.5 rounded-full hover:bg-slate-700 transition-colors cursor-pointer"
+                aria-label="Close modal"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>

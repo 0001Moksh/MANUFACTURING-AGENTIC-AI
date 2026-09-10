@@ -9,8 +9,6 @@ import {
   Boxes,
   Folder,
   UserCog,
-  Pencil,
-  Trash2,
   ShieldAlert,
 } from 'lucide-react';
 import { api } from '../services/api';

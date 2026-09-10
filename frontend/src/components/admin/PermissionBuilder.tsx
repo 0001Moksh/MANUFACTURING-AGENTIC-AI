@@ -8,7 +8,6 @@ import {
   Boxes,
   ShieldCheck,
   ShieldAlert,
-  KeyRound,
   UserCog,
   Folder,
 } from 'lucide-react';

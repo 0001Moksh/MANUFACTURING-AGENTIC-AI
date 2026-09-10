@@ -165,3 +165,6 @@ export const useStore = create<PlatformState>((set) => {
     set({ reportingAgentState: defaultReportingAgentState }),
   };
 });
+
+export const useAppStore = useStore;
+
