@@ -6169,6 +6169,37 @@ def _create_trace_record(agent_name: str, routing_path: str, tool_name: str, arg
     }
 
 
+def _normalize_system_query(query: str) -> str:
+    """Normalize mixed Hindi-English system queries and common operator typos."""
+    normalized = re.sub(r"\s+", " ", (query or "").lower()).strip()
+    for source, target in {
+        "voliation": "violation",
+        "perople": "people",
+        "huwa": "hua",
+        "perople": "people",
+    }.items():
+        normalized = normalized.replace(source, target)
+    return normalized
+
+
+def _is_system_query(query: str) -> bool:
+    normalized = _normalize_system_query(query)
+    direct_system_terms = any(term in normalized for term in [
+        "attendance", "aaj ki attendance", "check in", "check-in", "checkin",
+        "missed check", "employee history", "attendance history", "employee attendance",
+        "alert", "alerts", "violation", "ppe", "safety event", "no helmet", "no vest",
+        "highest risk", "risk zone", "risk zones", "zone risk", "anomaly", "anomalies",
+        "incident list", "last violation", "last hua", "last kab", "kab hua", "kab hua",
+        "ask to system agent", "system agent", "system se", "route to system",
+        "kitne alert",
+    ])
+    hinglish_system_terms = (
+        any(term in normalized for term in ["alert", "alerts", "ppe", "violation", "voliation", "no helmet", "no vest"])
+        and any(term in normalized for term in ["batao", "ke bare", "dikhao", "kitne", "last", "kab"])
+    )
+    return direct_system_terms or hinglish_system_terms
+
+
 def general_agent(state: TeamState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     user_query = ""
@@ -6176,6 +6207,13 @@ def general_agent(state: TeamState) -> Dict[str, Any]:
         if isinstance(msg, HumanMessage) or getattr(msg, "type", "") == "human":
             user_query = getattr(msg, "content", "")
             break
+
+    if _is_system_query(user_query):
+        return {
+            "messages": [AIMessage(content="Please ask the System Agent for database-backed attendance, alert, PPE, or risk data.")],
+            "next_agent": "FINISH",
+            "execution_trace": _create_trace_record("General Agent", "General -> System redirect", "", {}, 0, "redirect", "Operational query redirected to System Agent"),
+        }
 
     sys_prompt = SystemMessage(content="""
     You are the Deva AI Safety Assistant (General Agent) for Industrial & Video Monitoring operations.
@@ -6236,7 +6274,8 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
             user_query = getattr(msg, "content", "")
             break
 
-    query_lower = user_query.lower()
+    query_lower = _normalize_system_query(user_query)
+    specific_system_query = _is_system_query(query_lower)
 
     sys_prompt = SystemMessage(content="""
     You are the System Agent for Video Monitoring & Industrial Safety.
@@ -6254,10 +6293,10 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
 
     elapsed_ms = (time.perf_counter() - start_t) * 1000
 
-    if response and getattr(response, "tool_calls", None):
+    if not specific_system_query and response and getattr(response, "tool_calls", None):
         return {"messages": [response], "next_agent": "FINISH"}
 
-    if response and getattr(response, "content", "") and len(response.content.strip()) > 20 and "processing your query" not in response.content.lower():
+    if not specific_system_query and response and getattr(response, "content", "") and len(response.content.strip()) > 20 and "processing your query" not in response.content.lower():
         trace = _create_trace_record("System Agent", "Supervisor -> System Agent -> LLM Inference", "", {}, elapsed_ms, "success", "System query handled via LLM", 160, 110)
         return {"messages": [response], "next_agent": "FINISH", "execution_trace": trace}
 
@@ -6268,7 +6307,74 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
     content = ""
     summary = ""
 
-    if any(k in query_lower for k in ["camera", "fleet", "how many camera"]):
+    if any(k in query_lower for k in ["attendance history", "employee history", "history for"]):
+        tool_name = "get_employee_attendance_history"
+        name_match = re.search(r"(?:history for|attendance history for|history of)\s+([\w -]+)", query_lower)
+        employee_hint = (name_match.group(1).strip() if name_match else query_lower.split()[-1]).strip(" .?")
+        employee_rows = _safe_select("""
+            SELECT employee_id, employee_name
+            FROM employees
+            WHERE employee_id ILIKE :value OR employee_name ILIKE :value
+            ORDER BY employee_name
+            LIMIT 1
+        """, {"value": f"%{employee_hint}%"})
+        if employee_rows and "error" not in employee_rows[0]:
+            employee_id = employee_rows[0].get("employee_id")
+            history = get_employee_attendance_history.invoke({"employee_id": employee_id, "days": 30})
+            valid_rows = history if isinstance(history, list) and not (history and "error" in history[0]) else []
+            content = f"### Attendance History - {employee_rows[0].get('employee_name', employee_id)}\n\n"
+            if not valid_rows:
+                content += "No attendance history was found for this employee.\n"
+            else:
+                content += "| Check-in | Check-out | Duration (minutes) | Department | Restricted |\n|:---|:---|---:|:---|:---|\n"
+                for row in valid_rows[:50]:
+                    content += f"| {row.get('check_in', 'N/A')} | {row.get('check_out', 'N/A')} | {row.get('duration_minutes', 'N/A')} | {row.get('department_name', 'N/A')} | {row.get('is_restricted', False)} |\n"
+            summary = f"Attendance history retrieved for {employee_rows[0].get('employee_name', employee_id)}"
+            tool_args = {"employee_id": employee_id, "days": 30}
+        else:
+            content = f"### Attendance History\n\nNo employee matching **{employee_hint}** was found.\n"
+            summary = f"Employee not found: {employee_hint}"
+
+    elif any(k in query_lower for k in ["attendance", "aaj ki attendance", "check in", "check-in", "checkin", "employee attendance"]):
+        tool_name = "get_attendance_today"
+        attendance = get_attendance_today.invoke({})
+        valid_rows = attendance if isinstance(attendance, list) and not (attendance and "error" in attendance[0]) else []
+        summary = f"Retrieved {len(valid_rows)} attendance records for today"
+        content = "### Today's Attendance\n\n"
+        if not valid_rows:
+            content += "No attendance records were found for today.\n"
+        else:
+            content += f"Found **{len(valid_rows)}** attendance records.\n\n| Employee | Department | Check-in | Check-out | Status |\n|:---|:---|:---|:---|:---|\n"
+            for row in valid_rows[:50]:
+                content += f"| {row.get('employee_name') or row.get('employee_id', 'N/A')} | {row.get('department_name') or 'N/A'} | {row.get('check_in') or 'N/A'} | {row.get('check_out') or 'Still checked in'} | {'Restricted' if row.get('is_restricted') else 'Present'} |\n"
+
+    elif any(k in query_lower for k in ["highest risk", "risk zone", "risk zones", "zone risk"]):
+        tool_name = "get_highest_risk_zones"
+        zones = get_highest_risk_zones.invoke({"limit": 10})
+        valid_rows = zones if isinstance(zones, list) and not (zones and "error" in zones[0]) else []
+        summary = f"Retrieved {len(valid_rows)} highest-risk zones"
+        content = "### Highest Risk Zones\n\n"
+        if not valid_rows:
+            content += "No zone risk records were found.\n"
+        else:
+            content += "| Zone | Type | Risk Score | Risk Level | Computed At |\n|:---|:---|---:|:---|:---|\n"
+            for row in valid_rows:
+                content += f"| {row.get('name', 'N/A')} | {row.get('zone_type', 'N/A')} | {row.get('risk_score', 'N/A')} | {row.get('risk_level', 'N/A')} | {row.get('computed_at', 'N/A')} |\n"
+
+    elif any(k in query_lower for k in ["anomaly", "anomalies"]):
+        tool_name = "get_critical_anomaly_flags"
+        anomalies = get_critical_anomaly_flags.invoke({})
+        valid_rows = anomalies if isinstance(anomalies, list) and not (anomalies and "error" in anomalies[0]) else []
+        summary = f"Retrieved {len(valid_rows)} critical anomaly flags"
+        content = "### Critical Anomaly Flags\n\n"
+        if not valid_rows:
+            content += "No critical anomaly flags were found.\n"
+        else:
+            content += "| ID | Type | Severity | Description | Created At |\n|:---|:---|:---|:---|:---|\n"
+            for row in valid_rows[:50]:
+                content += f"| {row.get('id', 'N/A')} | {row.get('anomaly_type', 'N/A')} | {row.get('severity', 'N/A')} | {row.get('description', 'N/A')} | {row.get('created_at', 'N/A')} |\n"
+
+    elif any(k in query_lower for k in ["camera", "fleet", "how many camera"]):
         tool_name = "list_all_cameras_with_location"
         try:
             cams = list_all_cameras_with_location.invoke({})
@@ -6292,14 +6398,26 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
             fps = f"{c.get('fps', 30)} FPS" if c.get("fps") is not None else "30 FPS"
             content += f"| {cid} | {cname} | {loc} | **{st}** | {res} | {fps} |\n"
 
+    elif any(k in query_lower for k in ["ppe", "violation", "voliation", "last violation", "last ppe"]):
+        tool_name = "get_latest_ppe_non_compliance"
+        latest = get_latest_ppe_non_compliance.invoke({})
+        valid_latest = latest if isinstance(latest, dict) and "error" not in latest else None
+        summary = "Retrieved latest PPE violation" if valid_latest else "No PPE violation records found"
+        content = "### Latest PPE Violation\n\n"
+        if not valid_latest:
+            content += "No PPE violation records were found.\n"
+        else:
+            content += "| Time | Camera ID | Rule | Snapshot |\n|:---|---:|:---|:---|\n"
+            content += f"| {valid_latest.get('triggered_at', 'N/A')} | {valid_latest.get('camera_id', 'N/A')} | {valid_latest.get('rule_name', 'N/A')} | {valid_latest.get('snapshot_path') or 'N/A'} |\n"
+
     elif any(k in query_lower for k in ["alert", "active alert"]):
         tool_name = "get_open_incidents"
         try:
             alerts = get_open_incidents.invoke({})
         except Exception:
             alerts = []
-        if not isinstance(alerts, list) or not alerts or (alerts and "error" in str(alerts[0]).lower()):
-            alerts = _get_mock_video_data("incidents")
+        if not isinstance(alerts, list) or (alerts and "error" in str(alerts[0]).lower()):
+            alerts = []
         summary = f"Retrieved {len(alerts)} active safety alerts/incidents"
         content = "### Active Safety Alerts / Open Incidents\n\n"
         content += f"Identified **{len(alerts)}** open or high-severity items requiring review:\n\n"
@@ -6319,8 +6437,8 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
             incidents = get_open_incidents.invoke({})
         except Exception:
             incidents = []
-        if not isinstance(incidents, list) or not incidents or (incidents and "error" in str(incidents[0]).lower()):
-            incidents = _get_mock_video_data("incidents")
+        if not isinstance(incidents, list) or (incidents and "error" in str(incidents[0]).lower()):
+            incidents = []
         summary = f"Retrieved {len(incidents)} safety incident records"
         content = "### Safety Incidents Log\n\n"
         content += f"Retrieved **{len(incidents)}** safety incident records:\n\n"
@@ -6774,13 +6892,18 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
             last_human_query = getattr(msg, "content", "")
             break
 
-    input_lower = last_human_query.lower() if isinstance(last_human_query, str) else ""
+    input_lower = _normalize_system_query(last_human_query) if isinstance(last_human_query, str) else ""
     remembered_camera = state.get("current_video_camera") or ""
 
     # A checkpointed Video Agent camera owns relative visual follow-ups such as
     # "what is going on here" even when the latest turn omits the camera name.
     if remembered_camera and _is_relative_camera_followup(input_lower):
         return {"next_agent": "video_agent"}
+
+    # Operational database questions must stay with System Agent, including
+    # Hindi/Hinglish wording and explicit requests to use that agent.
+    if _is_system_query(input_lower):
+        return {"next_agent": "system_agent"}
 
     # Setup Agent: Mutations, creation, updates, configuration, deletion
     if any(k in input_lower for k in [
