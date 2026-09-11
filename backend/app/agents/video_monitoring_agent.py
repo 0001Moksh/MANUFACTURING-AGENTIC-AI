@@ -33,6 +33,7 @@ UPGRADED (merged in from multi_agent_production.ipynb):
 """
 
 import asyncio
+import base64
 import json
 import os
 import re
@@ -49,6 +50,7 @@ from langgraph.graph.message import add_messages
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 from typing_extensions import TypedDict
+from .crypto import build_rtsp_url
 
 import litellm
 
@@ -5047,14 +5049,8 @@ def get_detection_counts_by_class(camera_name: str) -> Dict[str, Any]:
 
 @tool
 def analyze_scene_context(camera_name: str, query: str) -> Dict[str, Any]:
-    """Interrogate a live frame via VLM for worker actions, PPE, hazards, etc."""
-    return _ok(f"VLM analysis on {camera_name}", {
-        "camera_name": camera_name,
-        "query": query,
-        "summary": f"VLM Inspection on {camera_name}: Observed workers with mixed PPE compliance. Hazard Risk: LOW-MODERATE.",
-        "detections": [],
-        "timestamp": datetime.now().isoformat()
-    })
+    """Compatibility alias for the captured-frame VLM pipeline."""
+    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "user_query": query})
 
 
 def _camera_id_for_name(camera_name: str) -> int:
@@ -5062,76 +5058,116 @@ def _camera_id_for_name(camera_name: str) -> int:
     return int(match.group(1)) if match else 1
 
 
-def _mock_live_vlm_response(camera_name: str, user_query: str) -> str:
-    query_lower = user_query.lower()
-    if any(term in query_lower for term in ["how many", "count", "people", "persons", "workers"]):
-        return (
-            f"The current frame from {camera_name} shows 3 visible people. "
-            "Two are wearing helmets and one appears not to be wearing a helmet."
-        )
-    if any(term in query_lower for term in ["helmet", "hardhat", "ppe", "vest"]):
-        return (
-            f"The current frame from {camera_name} shows mixed PPE compliance: "
-            "helmets are visible on most workers, with one possible helmet violation."
-        )
-    return f"The current frame from {camera_name} shows an active industrial work area with no major visible obstruction."
+def _capture_live_frame_bytes(camera_id: int) -> Optional[bytes]:
+    """Capture one current JPEG frame directly from the configured RTSP camera."""
+    if engine is None:
+        return None
+    try:
+        import cv2
+
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT id, name, ip, port, camera_number, user_id, password, rtsp_template
+                FROM cameras
+                WHERE id = :camera_id
+            """), {"camera_id": camera_id}).fetchone()
+        if not row:
+            return None
+        rtsp_url = build_rtsp_url({
+            "camera_number": row[4], "user_id": row[5], "password": row[6],
+            "rtsp_template": row[7], "ip": row[2], "port": row[3],
+        })
+        capture = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        try:
+            if not capture.isOpened():
+                return None
+            capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            ok, frame = capture.read()
+            if not ok or frame is None:
+                return None
+            encoded, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            return buffer.tobytes() if encoded else None
+        finally:
+            capture.release()
+    except Exception as exc:
+        print(f"[Video Agent] Live frame capture failed for camera {camera_id}: {exc}")
+        return None
+
+
+def _vision_failure_data(camera_name: str, camera_id: int, user_query: str, snapshot_url: str, captured_at: str, reason: str) -> Dict[str, Any]:
+    return {
+        "camera_name": camera_name,
+        "camera_id": camera_id,
+        "snapshot_url": snapshot_url,
+        "captured_at": captured_at,
+        "user_query": user_query,
+        "vlm_response": f"Live frame analysis failed: {reason}",
+        "detections": [],
+        "capture_source": "RTSP snapshot unavailable",
+    }
 
 
 @tool
 def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, Any]:
-    """Capture one live frame and analyze it with the configured VLM pipeline.
-
-    The capture URL is backed by the real RTSP snapshot endpoint. The current
-    repository has text-only model adapters, so the isolated fallback below
-    provides a deterministic VLM-shaped response until a vision provider is configured.
-    """
+    """Capture one live frame and answer only from that image with a vision model."""
     camera_id = _camera_id_for_name(camera_name)
     captured_at = datetime.now().isoformat()
     snapshot_url = f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}"
-    capture_result = capture_live_snapshot.invoke({
-        "camera_name": camera_name,
-        "high_res": True,
-    })
-    capture_data = capture_result.get("data", {}) if isinstance(capture_result, dict) else {}
-    snapshot_path = capture_data.get("snapshot_path")
-    captured_at = capture_data.get("captured_at", captured_at)
+    frame_bytes = _capture_live_frame_bytes(camera_id)
+    if not frame_bytes:
+        return {
+            "success": False,
+            "message": f"Could not capture a live frame from {camera_name}.",
+            "data": _vision_failure_data(camera_name, camera_id, user_query, snapshot_url, captured_at, "camera capture is unavailable"),
+        }
 
-    # TODO: replace this isolated fallback with a vision-capable provider call
-    # that sends the captured image bytes plus user_query to the VLM.
-    vlm_response = _mock_live_vlm_response(camera_name, user_query)
+    vision_prompt = (
+        "Answer only what is visible in the provided image. Do not assume industrial PPE, helmets, "
+        "vests, forklifts, or factory context unless clearly visible. If it is an office, describe "
+        "the office reality. If unsure about a count, say so. Never invent detections.\n\n"
+        f"User question: {user_query}"
+    )
+    image_data_url = f"data:image/jpeg;base64,{base64.b64encode(frame_bytes).decode('ascii')}"
+    try:
+        response = gemini_llm.invoke([
+            SystemMessage(content="You are a visual evidence analyst. Ground every statement in the supplied current camera frame."),
+            HumanMessage(content=[
+                {"type": "text", "text": vision_prompt},
+                {"type": "image_url", "image_url": {"url": image_data_url}},
+            ]),
+        ])
+        vlm_response = getattr(response, "content", "")
+        if not isinstance(vlm_response, str) or not vlm_response.strip():
+            raise RuntimeError("vision model returned no text")
+    except Exception as exc:
+        return {
+            "success": False,
+            "message": f"Captured a frame from {camera_name}, but vision analysis failed.",
+            "data": _vision_failure_data(camera_name, camera_id, user_query, snapshot_url, captured_at, str(exc)),
+        }
+
     return _ok(f"Captured and analyzed one live frame from {camera_name}", {
         "camera_name": camera_name,
         "camera_id": camera_id,
         "snapshot_url": snapshot_url,
-        "snapshot_path": snapshot_path,
         "captured_at": captured_at,
         "user_query": user_query,
-        "vlm_response": vlm_response,
+        "vlm_response": vlm_response.strip(),
         "detections": [],
         "capture_source": "RTSP snapshot endpoint",
-        "analysis_mode": "mock_vlm_until_vision_provider_configured",
     })
 
 
 @tool
 def describe_current_scene(camera_name: str) -> Dict[str, Any]:
-    """Generate a natural-language description of the current scene and operational activity."""
-    return _ok(f"Scene description for {camera_name}", {
-        "camera_name": camera_name,
-        "description": "Three workers in yellow vests operating near a conveyor. One forklift stationary. Good lighting, no visible spills."
-    })
+    """Generate a description through the captured-frame VLM pipeline."""
+    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "user_query": "Describe the current scene."})
 
 
 @tool
 def list_observable_hazards(camera_name: str) -> Dict[str, Any]:
-    """Analyze the latest frame and list any observable safety hazards."""
-    return _ok(f"Hazard list for {camera_name}", {
-        "camera_name": camera_name,
-        "hazards": [
-            {"type": "Missing helmet", "person_bbox": [500, 110, 620, 520], "severity": "Medium"},
-            {"type": "Obstructed aisle", "location": "left side", "severity": "Low"}
-        ]
-    })
+    """Analyze the latest captured frame without inventing hazards."""
+    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "user_query": "Identify only clearly visible hazards."})
 
 
 @tool
@@ -6475,6 +6511,13 @@ def _is_live_visual_query(query_lower: str) -> bool:
     ])
 
 
+def _explicit_live_stream_query(query_lower: str) -> bool:
+    return any(term in query_lower for term in [
+        "live stream", "live feed", "stream url", "rtsp", "watch camera",
+        "watch feed", "open stream", "open feed", "show feed", "stream it",
+    ])
+
+
 def video_agent(state: TeamState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     user_query = ""
@@ -6870,7 +6913,7 @@ async def run_video_monitoring_conversation(message: str, thread_id: str = "defa
 def _camera_query(message: str) -> bool:
     """Identify requests whose answer depends on a camera or camera telemetry."""
     return bool(re.search(
-        r"\b(cam(?:era)?[-\s]?\d+|camera|cctv|rtsp|stream|feed|visual|visible|telemetry|fps)\b",
+        r"\b(cam(?:era)?[-\s]?\d+|camera|cctv|rtsp|stream|feed|visual|visible|telemetry|fps|luxsphere|flarehub|assembly|loading dock|warehouse|chemical storage|hazard zone|steel yard|high bay)\b",
         message.lower(),
     ))
 
@@ -6995,7 +7038,6 @@ async def stream_video_monitoring_events(
 
     # Every camera question gets one current frame before agent-specific widgets.
     if camera_query:
-        snapshot_camera_id, snapshot_camera_name = _camera_snapshot_target(message, final_state)
         snapshot_widget = _camera_snapshot_widget(message, final_state)
         yield f"event: widget\ndata: {json.dumps(snapshot_widget)}\n\n"
 
@@ -7013,56 +7055,14 @@ async def stream_video_monitoring_events(
         yield f"event: widget\ndata: {json.dumps(evidence_widget)}\n\n"
 
     # ── Video Agent → Live Stream Player Widget ──────────────────────────────
-    elif active_agent == "video_agent":
-        state_cam = final_state.get("current_video_camera", "")
-        # Resolve which camera to embed in the live player
-        if "CAM-01" in state_cam or any(k in input_lower for k in ["luxsphere", "cam-01", "cam 01", "entrance", "entry gate", "zone a"]):
-            cam_id, cam_display, cam_location = 1, "CAM-01 Luxsphere Entrance Gate", "Zone A Main Entrance"
-            vlm_detections = [
-                {"entity": "Operator #1", "class": "person", "confidence": 0.96, "helmet": True, "vest": True},
-                {"entity": "Operator #2", "class": "person", "confidence": 0.93, "helmet": False, "vest": True},
-                {"entity": "Operator #3", "class": "person", "confidence": 0.89, "helmet": True, "vest": True},
-            ]
-        elif "CAM-02" in state_cam or any(k in input_lower for k in ["flarehub", "cam-02", "cam 02", "assembly", "manufacturing bay"]):
-            cam_id, cam_display, cam_location = 2, "CAM-02 Flarehub Assembly Line", "Manufacturing Bay 2"
-            vlm_detections = [
-                {"entity": "Operator #1", "class": "person", "confidence": 0.95, "helmet": True, "vest": True},
-                {"entity": "Operator #2", "class": "person", "confidence": 0.91, "helmet": True, "vest": True},
-                {"entity": "AGV Cart", "class": "agv", "confidence": 0.88, "helmet": None, "vest": None},
-            ]
-        elif "CAM-03" in state_cam or any(k in input_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
-            cam_id, cam_display, cam_location = 3, "CAM-03 Loading Dock", "Warehouse Sector C"
-            vlm_detections = [
-                {"entity": "Operator #1", "class": "person", "confidence": 0.94, "helmet": True, "vest": True},
-                {"entity": "Forklift #1", "class": "forklift", "confidence": 0.92, "helmet": None, "vest": None},
-            ]
-        elif "CAM-04" in state_cam or any(k in input_lower for k in ["cam-04", "cam 04", "chemical", "hazard"]):
-            cam_id, cam_display, cam_location = 4, "CAM-04 Chemical Storage", "Hazard Zone 4"
-            vlm_detections = [
-                {"entity": "Hazmat Operator", "class": "person", "confidence": 0.97, "helmet": True, "vest": True},
-            ]
-        elif "CAM-05" in state_cam or any(k in input_lower for k in ["cam-05", "cam 05", "steel yard", "crane"]):
-            cam_id, cam_display, cam_location = 5, "CAM-05 High Bay Crane", "Steel Yard North"
-            vlm_detections = [
-                {"entity": "Crane Operator", "class": "person", "confidence": 0.93, "helmet": True, "vest": True},
-            ]
-        else:
-            cam_id, cam_display, cam_location = 1, "CAM-01 Luxsphere Entrance Gate", "Zone A Main Entrance"
-            vlm_detections = [
-                {"entity": "Operator #1", "class": "person", "confidence": 0.96, "helmet": True, "vest": True},
-                {"entity": "Operator #2", "class": "person", "confidence": 0.93, "helmet": False, "vest": True},
-                {"entity": "Operator #3", "class": "person", "confidence": 0.89, "helmet": True, "vest": True},
-            ]
-
+    elif active_agent == "video_agent" and _explicit_live_stream_query(input_lower):
+        cam_id, cam_display = _camera_snapshot_target(message, final_state)
         live_stream_widget = {
             "type": "live_stream_player",
             "title": f"Live Camera Stream — {cam_display}",
             "camera_name": cam_display,
-            "camera_location": cam_location,
+            "camera_location": "Live camera feed",
             "stream_url": f"/api/video-monitoring/stream/{cam_id}",
-            "vlm_detections": vlm_detections,
-            "fps": 25,
-            "resolution": "1080p",
             "status": "STREAMING",
         }
         yield f"event: widget\ndata: {json.dumps(live_stream_widget)}\n\n"
