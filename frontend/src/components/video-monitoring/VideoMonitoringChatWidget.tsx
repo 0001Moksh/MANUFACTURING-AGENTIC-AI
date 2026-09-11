@@ -315,7 +315,13 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                 key={msg.id}
                 className={`flex gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`w-full max-w-[92%] ${msg.sender === 'user' ? 'items-end ml-auto' : 'items-start'}`}>
+                <div
+                  className={
+                    msg.sender === 'user'
+                      ? 'flex flex-col items-end w-fit max-w-[85%] ml-auto'
+                      : 'flex flex-col items-start w-full max-w-[92%]'
+                  }
+                >
                   {msg.sender === 'bot' && msg.agent && (
                     <div className="flex items-center gap-1.5 mb-1">
                       <span
@@ -332,12 +338,12 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
                   <div
                     className={`px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed shadow-md ${msg.sender === 'user'
-                      ? 'bg-teal-600 text-white rounded-br-sm ml-auto max-w-[85%]'
+                      ? 'bg-teal-600 text-white rounded-br-sm w-fit max-w-full'
                       : 'bg-slate-900/95 border border-slate-800 text-slate-100 rounded-tl-sm w-full'
                       }`}
                   >
                     {msg.sender === 'user' ? (
-                      <p className="whitespace-pre-wrap">{msg.text}</p>
+                      <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                     ) : msg.text ? (
                       <div className="prose prose-invert prose-sm max-w-none text-slate-100 text-[13px] leading-relaxed break-words">
                         <ReactMarkdown
@@ -461,46 +467,6 @@ export const VideoMonitoringChatWidget: React.FC = () => {
             ))}
             <div ref={messagesEndRef} />
           </div>
-
-          {/* Quick Action Suggestion Chips */}
-          {/* <div className="px-3 py-2 bg-slate-900 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px] shrink-0 no-scrollbar">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0">Quick:</span>
-            <button
-              onClick={() => handleSendMessage('How many cameras do we have and their status?')}
-              disabled={isStreaming}
-              className="px-2 py-0.5 bg-slate-800 border border-slate-700 hover:border-cyan-500 hover:text-cyan-300 rounded-full text-slate-300 shrink-0 transition-colors cursor-pointer"
-            >
-              Camera Status
-            </button>
-            <button
-              onClick={() => handleSendMessage('Show active safety alerts and PPE compliance by zone')}
-              disabled={isStreaming}
-              className="px-2 py-0.5 bg-slate-800 border border-slate-700 hover:border-cyan-500 hover:text-cyan-300 rounded-full text-slate-300 shrink-0 transition-colors cursor-pointer"
-            >
-              PPE Compliance
-            </button>
-            <button
-              onClick={() => handleSendMessage('Investigate incident INC-8891')}
-              disabled={isStreaming}
-              className="px-2 py-0.5 bg-slate-800 border border-slate-700 hover:border-amber-500 hover:text-amber-300 rounded-full text-slate-300 shrink-0 transition-colors cursor-pointer"
-            >
-              Investigate Incident
-            </button>
-            <button
-              onClick={() => handleSendMessage('Show live feed for Luxsphere')}
-              disabled={isStreaming}
-              className="px-2 py-0.5 bg-slate-800 border border-slate-700 hover:border-cyan-500 hover:text-cyan-300 rounded-full text-slate-300 shrink-0 transition-colors cursor-pointer"
-            >
-              Live Feed Luxsphere
-            </button>
-            <button
-              onClick={() => handleSendMessage('How many persons visible in Luxsphere? Are they wearing helmets?')}
-              disabled={isStreaming}
-              className="px-2 py-0.5 bg-slate-800 border border-slate-700 hover:border-cyan-500 hover:text-cyan-300 rounded-full text-slate-300 shrink-0 transition-colors cursor-pointer"
-            >
-              VLM Scene Check
-            </button>
-          </div> */}
 
           {/* Input Box */}
           <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2 shrink-0">

@@ -50,7 +50,7 @@ from langgraph.graph.message import add_messages
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 from typing_extensions import TypedDict
-from .crypto import build_rtsp_url
+from app.crypto import build_rtsp_url
 
 import litellm
 
@@ -5050,7 +5050,7 @@ def get_detection_counts_by_class(camera_name: str) -> Dict[str, Any]:
 @tool
 def analyze_scene_context(camera_name: str, query: str) -> Dict[str, Any]:
     """Compatibility alias for the captured-frame VLM pipeline."""
-    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "user_query": query})
+    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "vlm_instruction": query, "user_query": query})
 
 
 def _camera_id_for_name(camera_name: str) -> int:
@@ -5094,13 +5094,14 @@ def _capture_live_frame_bytes(camera_id: int) -> Optional[bytes]:
         return None
 
 
-def _vision_failure_data(camera_name: str, camera_id: int, user_query: str, snapshot_url: str, captured_at: str, reason: str) -> Dict[str, Any]:
+def _vision_failure_data(camera_name: str, camera_id: int, user_query: str, vlm_instruction: str, snapshot_url: str, captured_at: str, reason: str) -> Dict[str, Any]:
     return {
         "camera_name": camera_name,
         "camera_id": camera_id,
         "snapshot_url": snapshot_url,
         "captured_at": captured_at,
         "user_query": user_query,
+        "vlm_instruction": vlm_instruction,
         "vlm_response": f"Live frame analysis failed: {reason}",
         "detections": [],
         "capture_source": "RTSP snapshot unavailable",
@@ -5108,8 +5109,13 @@ def _vision_failure_data(camera_name: str, camera_id: int, user_query: str, snap
 
 
 @tool
-def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, Any]:
+def analyze_live_frame_with_vlm(
+    camera_name: str,
+    vlm_instruction: str,
+    user_query: Optional[str] = None,
+) -> Dict[str, Any]:
     """Capture one live frame and answer only from that image with a vision model."""
+    user_query = user_query or vlm_instruction
     camera_id = _camera_id_for_name(camera_name)
     captured_at = datetime.now().isoformat()
     snapshot_url = f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}"
@@ -5118,14 +5124,14 @@ def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, 
         return {
             "success": False,
             "message": f"Could not capture a live frame from {camera_name}.",
-            "data": _vision_failure_data(camera_name, camera_id, user_query, snapshot_url, captured_at, "camera capture is unavailable"),
+            "data": _vision_failure_data(camera_name, camera_id, user_query, vlm_instruction, snapshot_url, captured_at, "camera capture is unavailable"),
         }
 
     vision_prompt = (
         "Answer only what is visible in the provided image. Do not assume industrial PPE, helmets, "
         "vests, forklifts, or factory context unless clearly visible. If it is an office, describe "
         "the office reality. If unsure about a count, say so. Never invent detections.\n\n"
-        f"User question: {user_query}"
+        f"Agent instruction: {vlm_instruction}"
     )
     image_data_url = f"data:image/jpeg;base64,{base64.b64encode(frame_bytes).decode('ascii')}"
     try:
@@ -5143,7 +5149,7 @@ def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, 
         return {
             "success": False,
             "message": f"Captured a frame from {camera_name}, but vision analysis failed.",
-            "data": _vision_failure_data(camera_name, camera_id, user_query, snapshot_url, captured_at, str(exc)),
+            "data": _vision_failure_data(camera_name, camera_id, user_query, vlm_instruction, snapshot_url, captured_at, str(exc)),
         }
 
     return _ok(f"Captured and analyzed one live frame from {camera_name}", {
@@ -5152,6 +5158,7 @@ def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, 
         "snapshot_url": snapshot_url,
         "captured_at": captured_at,
         "user_query": user_query,
+        "vlm_instruction": vlm_instruction,
         "vlm_response": vlm_response.strip(),
         "detections": [],
         "capture_source": "RTSP snapshot endpoint",
@@ -5161,21 +5168,35 @@ def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, 
 @tool
 def describe_current_scene(camera_name: str) -> Dict[str, Any]:
     """Generate a description through the captured-frame VLM pipeline."""
-    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "user_query": "Describe the current scene."})
+    return analyze_live_frame_with_vlm.invoke({
+        "camera_name": camera_name,
+        "vlm_instruction": "Describe only the clearly visible current scene.",
+        "user_query": "Describe the current scene.",
+    })
 
 
 @tool
 def list_observable_hazards(camera_name: str) -> Dict[str, Any]:
     """Analyze the latest captured frame without inventing hazards."""
-    return analyze_live_frame_with_vlm.invoke({"camera_name": camera_name, "user_query": "Identify only clearly visible hazards."})
+    return analyze_live_frame_with_vlm.invoke({
+        "camera_name": camera_name,
+        "vlm_instruction": "Identify only clearly visible hazards; if none are clear, say so.",
+        "user_query": "Identify only clearly visible hazards.",
+    })
 
 
 @tool
 def explain_worker_gathering(camera_name: str, location_hint: Optional[str] = None) -> Dict[str, Any]:
-    """Use VLM to explain why workers are gathered at a particular location."""
-    return _ok(f"Gathering explanation on {camera_name}", {
+    """Describe visible grouping behavior without assigning an ungrounded reason."""
+    hint = f" Location hint: {location_hint}." if location_hint else ""
+    return analyze_live_frame_with_vlm.invoke({
         "camera_name": camera_name,
-        "explanation": "Workers appear to be performing a toolbox talk / shift handover near the emergency exit."
+        "vlm_instruction": (
+            "Describe only visibly observable grouping or interaction in the current frame. "
+            "Do not infer why people gathered or claim a meeting, toolbox talk, or work purpose."
+            + hint
+        ),
+        "user_query": "Describe any visible grouping or interaction.",
     })
 
 
@@ -6502,13 +6523,66 @@ def _resolve_video_target_camera(query_lower: str, previous_camera: str = "") ->
     return "CAM-01 Luxsphere Entrance Gate"
 
 
+def build_vlm_instruction(messages: List[BaseMessage], user_query: str, camera_name: str) -> str:
+    """Build a grounded vision task from recent thread context and the current turn."""
+    context_lines: List[str] = []
+    for message in messages[-10:]:
+        content = getattr(message, "content", "")
+        if isinstance(content, list):
+            content = " ".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+        if not isinstance(content, str) or not content.strip():
+            continue
+        role = "user" if isinstance(message, HumanMessage) or getattr(message, "type", "") == "human" else "assistant"
+        context_lines.append(f"{role}: {content.strip()[:500]}")
+
+    context = "\n".join(context_lines) or "No earlier conversation context is available."
+    combined = f"{context}\nuser: {user_query}".lower()
+    if any(term in combined for term in ["focused on work", "too focused", "looks focused", "which one", "who looks"]):
+        intent = (
+            "Identify which visible person appears most engaged with desk or computer work, if that can be "
+            "reasonably distinguished. Use visible cues such as gaze direction, typing posture, or interaction "
+            "with a screen. This is a visual description, not a productivity, personality, or HR judgment."
+        )
+    elif any(term in combined for term in ["how many", "count", "people", "persons", "workers"]):
+        intent = "Count only people clearly visible in the current frame and state uncertainty if bodies are occluded or ambiguous."
+    elif any(term in combined for term in ["helmet", "hardhat", "vest", "ppe"]):
+        intent = "Describe PPE only if it is clearly visible on identifiable people; otherwise say it cannot be determined from the frame."
+    else:
+        intent = "Answer the user's visual question by describing only relevant, clearly visible evidence in the current frame."
+
+    return (
+        f"Analyze exactly one current frame from {camera_name}.\n"
+        f"Conversation context:\n{context}\n\n"
+        f"Resolved visual task: {intent}\n"
+        f"Current turn: {user_query}\n\n"
+        "Answer only from the supplied image. Do not invent people, counts, identities, helmets, vests, "
+        "forklifts, factory context, or activity. If the scene is an office, describe it as an office. "
+        "If evidence is insufficient, say so. Return a short natural-language answer with no telemetry table, "
+        "no stream URL, and no unsupported safety or performance conclusions."
+    )
+
+
 def _is_live_visual_query(query_lower: str) -> bool:
     return any(term in query_lower for term in [
-        "what is happening", "what do you see", "describe the scene", "scene", "visual",
+        "what is happening", "what is going on", "what do you see", "describe the scene", "scene", "visual",
         "visible", "people", "persons", "workers", "wearing helmet", "wearing hardhat",
         "without helmet", "without hardhat", "wearing vest", "without vest", "ppe",
-        "how many", "count", "activity", "motion", "hazard", "obstruction",
+        "how many", "count", "activity", "motion", "hazard", "obstruction", "which one",
+        "who looks", "looks focused", "focused on work", "too focused", "from the live camera",
     ])
+
+
+def _is_relative_camera_followup(query_lower: str) -> bool:
+    """Recognize visual follow-ups whose camera is supplied by thread memory."""
+    has_relative_reference = any(term in query_lower for term in [
+        "here", "there", "this camera", "this feed", "that camera", "that feed",
+        "same camera", "same feed", "on this", "from this", "in this", "this cam",
+    ])
+    has_visual_request = _is_live_visual_query(query_lower) or any(term in query_lower for term in [
+        "what are they doing", "what are they", "how many", "who is", "who are",
+        "visible", "doing", "men", "people", "persons", "workers",
+    ])
+    return has_relative_reference and has_visual_request
 
 
 def _explicit_live_stream_query(query_lower: str) -> bool:
@@ -6546,8 +6620,13 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
 
     if _is_live_visual_query(query_lower):
         target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        vlm_instruction = build_vlm_instruction(messages, user_query, target_cam)
         tool_name = "analyze_live_frame_with_vlm"
-        tool_args = {"camera_name": target_cam, "user_query": user_query}
+        tool_args = {
+            "camera_name": target_cam,
+            "vlm_instruction": vlm_instruction,
+            "user_query": user_query,
+        }
         pipeline_result = analyze_live_frame_with_vlm.invoke(tool_args)
         snapshot = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
         vlm_response = snapshot.get("vlm_response") or pipeline_result.get("message", "Live frame analysis completed")
@@ -6681,6 +6760,12 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
             break
 
     input_lower = last_human_query.lower() if isinstance(last_human_query, str) else ""
+    remembered_camera = state.get("current_video_camera") or ""
+
+    # A checkpointed Video Agent camera owns relative visual follow-ups such as
+    # "what is going on here" even when the latest turn omits the camera name.
+    if remembered_camera and _is_relative_camera_followup(input_lower):
+        return {"next_agent": "video_agent"}
 
     # Setup Agent: Mutations, creation, updates, configuration, deletion
     if any(k in input_lower for k in [
@@ -6718,8 +6803,10 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
         # Camera-specific view requests
         "show me cam", "show cam", "open cam", "camera feed", "camera view", "camera stream", "camera live",
         "entry gate camera", "manufacturing bay camera", "warehouse camera", "hazard zone camera", "steel yard camera",
-        "what is happening", "what do you see", "describe the scene", "scene description",
+        "what is happening", "what is going on", "what do you see", "describe the scene", "scene description",
         "real-time view", "real time view", "current view", "current feed",
+        "which one", "who looks", "looks focused", "focused on work", "too focused",
+        "what are they doing", "what are they", "visible", "doing",
     ]):
         return {"next_agent": "video_agent"}
 
@@ -6910,12 +6997,14 @@ async def run_video_monitoring_conversation(message: str, thread_id: str = "defa
     return result
 
 
-def _camera_query(message: str) -> bool:
+def _camera_query(message: str, final_state: Optional[Dict[str, Any]] = None) -> bool:
     """Identify requests whose answer depends on a camera or camera telemetry."""
-    return bool(re.search(
+    direct_camera_query = bool(re.search(
         r"\b(cam(?:era)?[-\s]?\d+|camera|cctv|rtsp|stream|feed|visual|visible|telemetry|fps|luxsphere|flarehub|assembly|loading dock|warehouse|chemical storage|hazard zone|steel yard|high bay)\b",
         message.lower(),
     ))
+    remembered_camera = (final_state or {}).get("current_video_camera")
+    return direct_camera_query or bool(remembered_camera and _is_relative_camera_followup(message.lower()))
 
 
 def _camera_snapshot_target(message: str, final_state: Dict[str, Any]) -> Tuple[int, str]:
@@ -6934,7 +7023,7 @@ def _camera_snapshot_target(message: str, final_state: Dict[str, Any]) -> Tuple[
 
 
 def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    if not _camera_query(message):
+    if not _camera_query(message, final_state):
         return None
     camera_id, camera_name = _camera_snapshot_target(message, final_state)
     captured_at = datetime.now().isoformat()
@@ -6953,6 +7042,7 @@ def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Option
         "frame_count": 1,
         "capture_source": snapshot.get("capture_source", "RTSP live frame requested"),
         "user_query": snapshot.get("user_query", message),
+        "vlm_instruction": snapshot.get("vlm_instruction"),
         "vlm_response": snapshot.get("vlm_response"),
         "detections": snapshot.get("detections", []),
     }
@@ -7034,7 +7124,7 @@ async def stream_video_monitoring_events(
     # Contextual Interactive Widgets
     input_lower = message.lower()
 
-    camera_query = _camera_query(message)
+    camera_query = _camera_query(message, final_state)
 
     # Every camera question gets one current frame before agent-specific widgets.
     if camera_query:

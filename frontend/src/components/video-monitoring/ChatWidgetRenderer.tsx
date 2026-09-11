@@ -29,6 +29,7 @@ export interface WidgetPayload {
   frame_count?: number;
   capture_source?: string;
   user_query?: string;
+  vlm_instruction?: string;
   vlm_response?: string;
   detections?: Array<Record<string, unknown>>;
   vlm_detections?: Array<{
