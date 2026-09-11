@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, X } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, Maximize2, X } from 'lucide-react';
 
 export interface WidgetPayload {
   type: 'evidence_gallery' | 'snapshot_evidence_widget' | 'data_table' | 'hitl_actions' | 'live_stream_player';
@@ -55,18 +55,28 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
 
   if (payload.type === 'snapshot_evidence_widget') {
     return (
-      <div className="mt-3 p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
+      <div className="mt-3 w-full max-w-[380px] p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 mb-2.5 text-emerald-400 font-semibold text-xs uppercase tracking-wider">
           <ImageIcon className="w-4 h-4" />
           <span>{payload.title || 'Live Snapshot Evidence'}</span>
           <span className="ml-auto text-[10px] text-slate-400 normal-case">1 frame</span>
         </div>
-        <div className="relative w-full rounded-lg overflow-hidden bg-slate-950 border border-slate-700" style={{ aspectRatio: '16/9' }}>
+        <div className="relative w-full max-w-[360px] max-h-[200px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700">
           <img
             src={payload.snapshot_url}
             alt={`Captured live snapshot — ${payload.camera_name}`}
-            className="w-full h-full object-cover"
+            className="w-full h-full max-w-[360px] max-h-[200px] object-cover rounded-lg cursor-pointer"
+            onClick={() => setSelectedImage(payload.snapshot_url || null)}
           />
+          <button
+            type="button"
+            aria-label="Expand snapshot"
+            title="Expand snapshot"
+            onClick={() => setSelectedImage(payload.snapshot_url || null)}
+            className="absolute right-2 top-2 rounded-md bg-slate-950/80 p-1.5 text-white hover:bg-slate-800 transition-colors"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
           <span className="absolute bottom-2 left-2 px-1.5 py-0.5 text-[10px] font-mono text-white bg-slate-950/80 rounded">
             {payload.camera_name}
           </span>
@@ -80,13 +90,28 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
             {payload.vlm_response}
           </div>
         )}
+        {selectedImage && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+            <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden p-2" onClick={(event) => event.stopPropagation()}>
+              <img src={selectedImage} alt={`Expanded snapshot — ${payload.camera_name}`} className="w-full h-auto max-h-[85vh] object-contain rounded-lg" />
+              <button
+                type="button"
+                onClick={() => setSelectedImage(null)}
+                className="absolute top-4 right-4 bg-slate-800/90 text-white p-1.5 rounded-full hover:bg-slate-700 transition-colors"
+                aria-label="Close snapshot"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   if (payload.type === 'live_stream_player') {
     return (
-      <div className="mt-3 p-3 bg-slate-900/95 border border-cyan-500/30 rounded-xl shadow-xl overflow-hidden">
+      <div className="mt-3 w-full max-w-[380px] p-3 bg-slate-900/95 border border-cyan-500/30 rounded-xl shadow-xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-2 mb-2.5">
           <div className="flex items-center gap-1.5">
@@ -99,12 +124,12 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
         </div>
 
         {/* Live Stream Frame */}
-        <div className="relative w-full rounded-lg overflow-hidden bg-slate-950 border border-slate-700 mb-2.5" style={{ aspectRatio: '16/9' }}>
+        <div className="relative w-full max-w-[360px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700 mb-2.5">
           {!streamError ? (
             <img
               src={payload.stream_url}
               alt={`Live stream — ${payload.camera_name}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-lg"
               onError={() => setStreamError(true)}
             />
           ) : (
@@ -112,7 +137,7 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
             <img
               src={payload.snapshot_url}
               alt={`Snapshot — ${payload.camera_name}`}
-              className="w-full h-full object-cover opacity-80"
+              className="w-full h-full object-cover opacity-80 rounded-lg"
             />
           )}
 

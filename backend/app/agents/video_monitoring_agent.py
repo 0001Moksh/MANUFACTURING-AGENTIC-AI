@@ -6669,14 +6669,29 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
     vlm_raw = analyze_scene_context.invoke(tool_args)
     vlm_data = json.loads(vlm_raw) if isinstance(vlm_raw, str) else vlm_raw
 
-    content = f"### Live Video Stream & Vision Analysis — {target_cam}\n\n"
-    content += f"**Stream URL:** `/api/video-monitoring/stream/{'1' if 'CAM-01' in target_cam else '2' if 'CAM-02' in target_cam else '3' if 'CAM-03' in target_cam else '4' if 'CAM-04' in target_cam else '5'}`\n\n"
-    content += "| Parameter | Telemetry Value | Operational State |\n"
-    content += "|:---|:---|:---|\n"
-    content += f"| **Camera Name** | {target_cam} | **ONLINE** |\n"
-    trace = _create_trace_record("Video Agent", f"Supervisor -> Video Agent -> {tool_name}", tool_name, tool_args, elapsed_ms, "success", f"Live stream & YOLO/VLM telemetry retrieved for {target_cam}", 170, 150)
+    fallback_data = vlm_data.get("data", {}) if isinstance(vlm_data, dict) else {}
+    content = fallback_data.get("vlm_response") or vlm_data.get("message") or (
+        f"Camera context resolved to {target_cam}, but no additional visual answer was returned."
+    )
+    trace = _create_trace_record(
+        "Video Agent",
+        f"Supervisor -> Video Agent -> {tool_name}",
+        tool_name,
+        tool_args,
+        elapsed_ms,
+        "success" if isinstance(vlm_data, dict) and vlm_data.get("success", False) else "error",
+        f"Camera response returned for {target_cam}",
+        170,
+        150,
+    )
     # Persist the camera target in state for conversation context memory
-    return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace, "current_video_camera": target_cam}
+    return {
+        "messages": [AIMessage(content=content)],
+        "next_agent": "FINISH",
+        "execution_trace": trace,
+        "current_video_camera": target_cam,
+        "last_snapshot": fallback_data or None,
+    }
 
 
 # ── RBAC-Aware Tool Executor ───────────────────────────────────────────────────

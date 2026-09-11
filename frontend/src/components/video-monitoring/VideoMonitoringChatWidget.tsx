@@ -319,7 +319,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   className={
                     msg.sender === 'user'
                       ? 'flex flex-col items-end w-fit max-w-[85%] ml-auto'
-                      : 'flex flex-col items-start w-full max-w-[92%]'
+                      : `flex flex-col items-start ${msg.widget ? 'w-fit max-w-[390px]' : 'w-full max-w-[92%]'} ${msg.widget?.type === 'snapshot_evidence_widget' ? 'min-w-0' : ''}`
                   }
                 >
                   {msg.sender === 'bot' && msg.agent && (
@@ -339,12 +339,12 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   <div
                     className={`px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed shadow-md ${msg.sender === 'user'
                       ? 'bg-teal-600 text-white rounded-br-sm w-fit max-w-full'
-                      : 'bg-slate-900/95 border border-slate-800 text-slate-100 rounded-tl-sm w-full'
+                      : `bg-slate-900/95 border border-slate-800 text-slate-100 rounded-tl-sm ${msg.widget ? 'w-fit max-w-full' : 'w-full'}`
                       }`}
                   >
                     {msg.sender === 'user' ? (
                       <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                    ) : msg.text ? (
+                    ) : msg.text && !(msg.widget?.type === 'snapshot_evidence_widget' && msg.widget.vlm_response) ? (
                       <div className="prose prose-invert prose-sm max-w-none text-slate-100 text-[13px] leading-relaxed break-words">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm as any]}
