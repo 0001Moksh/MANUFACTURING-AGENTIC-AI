@@ -6902,7 +6902,6 @@ async def stream_video_monitoring_events(
             "camera_name": cam_display,
             "camera_location": cam_location,
             "stream_url": f"/api/video-monitoring/stream/{cam_id}",
-            "snapshot_url": f"https://images.unsplash.com/photo-1581091012184-7e6c4cce5e33?auto=format&fit=crop&w=800&q=80",
             "vlm_detections": vlm_detections,
             "fps": 25,
             "resolution": "1080p",
