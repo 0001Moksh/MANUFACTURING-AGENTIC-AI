@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, Maximize2, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, Maximize2, Minimize2, X } from 'lucide-react';
 
 export interface WidgetPayload {
   type: 'evidence_gallery' | 'snapshot_evidence_widget' | 'data_table' | 'hitl_actions' | 'live_stream_player';
@@ -52,20 +54,22 @@ interface ChatWidgetRendererProps {
 export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload, onActionClick }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [streamError, setStreamError] = useState(false);
+  const [streamOpen, setStreamOpen] = useState(true);
+  const [streamFullscreen, setStreamFullscreen] = useState(false);
 
   if (payload.type === 'snapshot_evidence_widget') {
     return (
-      <div className="mt-3 w-full max-w-[380px] p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
+      <div className="mt-3 w-full max-w-[430px] p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 mb-2.5 text-emerald-400 font-semibold text-xs uppercase tracking-wider">
           <ImageIcon className="w-4 h-4" />
           <span>{payload.title || 'Live Snapshot Evidence'}</span>
           <span className="ml-auto text-[10px] text-slate-400 normal-case">1 frame</span>
         </div>
-        <div className="relative w-full max-w-[360px] max-h-[200px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700">
+        <div className="relative w-full max-w-[400px] max-h-[225px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700">
           <img
             src={payload.snapshot_url}
             alt={`Captured live snapshot — ${payload.camera_name}`}
-            className="w-full h-full max-w-[360px] max-h-[200px] object-cover rounded-lg cursor-pointer"
+            className="w-full h-full max-w-[400px] max-h-[225px] object-cover rounded-lg cursor-pointer"
             onClick={() => setSelectedImage(payload.snapshot_url || null)}
           />
           <button
@@ -86,8 +90,8 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           <span>{payload.captured_at ? new Date(payload.captured_at).toLocaleTimeString() : 'Just captured'}</span>
         </div>
         {payload.vlm_response && (
-          <div className="mt-2 border-t border-slate-700 pt-2 text-xs leading-relaxed text-slate-200">
-            {payload.vlm_response}
+          <div className="mt-2 border-t border-slate-700 pt-2 prose prose-invert prose-xs max-w-none text-slate-200 leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_strong]:text-emerald-300">
+            <ReactMarkdown remarkPlugins={[remarkGfm as any]}>{payload.vlm_response}</ReactMarkdown>
           </div>
         )}
         {selectedImage && (
@@ -110,8 +114,10 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
   }
 
   if (payload.type === 'live_stream_player') {
+    if (!streamOpen) return null;
+
     return (
-      <div className="mt-3 w-full max-w-[380px] p-3 bg-slate-900/95 border border-cyan-500/30 rounded-xl shadow-xl overflow-hidden">
+      <div className={`mt-3 w-full ${streamFullscreen ? 'fixed inset-0 z-50 max-w-none h-screen p-5 bg-slate-950/95' : 'max-w-[430px] p-3'} border border-cyan-500/30 rounded-xl shadow-xl overflow-hidden`}>
         {/* Header */}
         <div className="flex items-center gap-2 mb-2.5">
           <div className="flex items-center gap-1.5">
@@ -121,10 +127,30 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           <span className="text-cyan-400 font-semibold text-xs uppercase tracking-wider truncate">
             {payload.title || `Live Feed — ${payload.camera_name}`}
           </span>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setStreamFullscreen((value) => !value)}
+              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+              aria-label={streamFullscreen ? 'Exit fullscreen stream' : 'Expand live stream'}
+              title={streamFullscreen ? 'Exit fullscreen' : 'Expand live stream'}
+            >
+              {streamFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStreamOpen(false)}
+              className="p-1.5 text-slate-300 hover:text-red-300 hover:bg-red-950/60 rounded-md transition-colors"
+              aria-label="Close live stream"
+              title="Close live stream"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Live Stream Frame */}
-        <div className="relative w-full max-w-[360px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700 mb-2.5">
+        <div className={`relative w-full ${streamFullscreen ? 'h-[calc(100vh-90px)] max-w-none' : 'max-w-[400px]'} aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700 mb-2.5`}>
           {!streamError ? (
             <img
               src={payload.stream_url}
