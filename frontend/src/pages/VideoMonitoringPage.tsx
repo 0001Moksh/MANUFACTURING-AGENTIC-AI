@@ -117,7 +117,7 @@ export const VideoMonitoringPage: React.FC = () => {
 
   // Live aggregated analytics state
   const [analyticsData, setAnalyticsData] = useState<any>({
-    severityData: { critical: 23, warning: 26, normal: 10, total: 59 },
+    severityData: { critical: 0, warning: 0, normal: 0, total: 0 },
     violationTrends: [
       { day: 'Mon', hardhat: 12, restricted: 8, zoneB: 5, other: 3 },
       { day: 'Tue', hardhat: 7, restricted: 5, zoneB: 3, other: 2 },

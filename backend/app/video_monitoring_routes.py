@@ -8,7 +8,7 @@ import io
 import time
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from .db import get_va_db
 from .crypto import decrypt_value, build_rtsp_url
@@ -888,6 +888,76 @@ async def alert_stream(db: AsyncSession = Depends(get_va_db)):
 
 
 import cv2
+
+
+@router.get("/snapshot/{device_id}")
+async def video_frame_snapshot(device_id: int, db: AsyncSession = Depends(get_va_db)):
+    """Capture exactly one current frame from the camera RTSP stream."""
+    try:
+        res = await _safe_db_execute(
+            db,
+            """
+            SELECT id, name, ip, port, camera_number, user_id, password, rtsp_template, status
+            FROM cameras
+            WHERE id = :cam_id
+            """,
+            {"cam_id": device_id},
+        )
+        cam_row = res.fetchone()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Database connection error: {exc}")
+
+    if not cam_row:
+        raise HTTPException(status_code=404, detail="Camera device not found")
+
+    cam_id, cam_name, cam_ip, cam_port, cam_num, user_id, raw_password, rtsp_template, status = cam_row
+    rtsp_url = build_rtsp_url({
+        "camera_number": cam_num,
+        "user_id": user_id,
+        "password": raw_password,
+        "rtsp_template": rtsp_template,
+        "ip": cam_ip,
+        "port": cam_port,
+    })
+
+    def capture_frame() -> bytes | None:
+        cap = None
+        try:
+            cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+            if not cap.isOpened():
+                return None
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                return None
+            encoded, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            return buffer.tobytes() if encoded else None
+        finally:
+            if cap is not None:
+                cap.release()
+
+    frame_bytes = await asyncio.get_running_loop().run_in_executor(None, capture_frame)
+    capture_source = "RTSP live frame"
+    if frame_bytes is None:
+        capture_source = "RTSP frame unavailable"
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        image = Image.new("RGB", (640, 360), color=(15, 23, 42))
+        draw = ImageDraw.Draw(image)
+        draw.rectangle([(0, 0), (640, 36)], fill=(30, 41, 59))
+        draw.text((14, 10), f"{str(cam_name).upper()} (CAM-{cam_num})", fill=(241, 245, 249))
+        draw.text((205, 170), "RTSP FRAME UNAVAILABLE", fill=(245, 158, 11))
+        draw.text((14, 330), now_str, fill=(203, 213, 225))
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=85)
+        frame_bytes = buffer.getvalue()
+
+    return Response(content=frame_bytes, media_type="image/jpeg", headers={
+        "Cache-Control": "no-store, max-age=0",
+        "X-Snapshot-Captured-At": datetime.now().isoformat(),
+        "X-Camera-Id": str(cam_id),
+        "X-Camera-Status": str(status or "UNKNOWN"),
+        "X-Snapshot-Source": capture_source,
+    })
 
 @router.get("/stream/{device_id}")
 async def video_feed_stream(device_id: int, db: AsyncSession = Depends(get_va_db)):

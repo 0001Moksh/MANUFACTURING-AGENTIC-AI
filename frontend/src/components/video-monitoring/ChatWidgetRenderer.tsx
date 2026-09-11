@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, X } from 'lucide-react';
 
 export interface WidgetPayload {
-  type: 'evidence_gallery' | 'data_table' | 'hitl_actions' | 'live_stream_player';
+  type: 'evidence_gallery' | 'snapshot_evidence_widget' | 'data_table' | 'hitl_actions' | 'live_stream_player';
   title?: string;
   description?: string;
   snapshots?: Array<{
@@ -24,6 +24,9 @@ export interface WidgetPayload {
   camera_location?: string;
   stream_url?: string;
   snapshot_url?: string;
+  captured_at?: string;
+  frame_count?: number;
+  capture_source?: string;
   vlm_detections?: Array<{
     entity: string;
     class: string;
@@ -45,11 +48,33 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [streamError, setStreamError] = useState(false);
 
-  if (payload.type === 'live_stream_player') {
-    const detections = payload.vlm_detections || [];
-    const personCount = detections.filter((d) => d.class === 'person').length;
-    const ppeViolations = detections.filter((d) => d.helmet === false || d.vest === false).length;
+  if (payload.type === 'snapshot_evidence_widget') {
+    return (
+      <div className="mt-3 p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
+        <div className="flex items-center gap-2 mb-2.5 text-emerald-400 font-semibold text-xs uppercase tracking-wider">
+          <ImageIcon className="w-4 h-4" />
+          <span>{payload.title || 'Live Snapshot Evidence'}</span>
+          <span className="ml-auto text-[10px] text-slate-400 normal-case">1 frame</span>
+        </div>
+        <div className="relative w-full rounded-lg overflow-hidden bg-slate-950 border border-slate-700" style={{ aspectRatio: '16/9' }}>
+          <img
+            src={payload.snapshot_url}
+            alt={`Captured live snapshot — ${payload.camera_name}`}
+            className="w-full h-full object-cover"
+          />
+          <span className="absolute bottom-2 left-2 px-1.5 py-0.5 text-[10px] font-mono text-white bg-slate-950/80 rounded">
+            {payload.camera_name}
+          </span>
+        </div>
+        <div className="mt-2 flex justify-between text-[10px] text-slate-400 font-mono">
+          <span>{payload.capture_source || 'RTSP live frame'}</span>
+          <span>{payload.captured_at ? new Date(payload.captured_at).toLocaleTimeString() : 'Just captured'}</span>
+        </div>
+      </div>
+    );
+  }
 
+  if (payload.type === 'live_stream_player') {
     return (
       <div className="mt-3 p-3 bg-slate-900/95 border border-cyan-500/30 rounded-xl shadow-xl overflow-hidden">
         {/* Header */}

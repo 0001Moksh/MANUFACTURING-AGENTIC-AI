@@ -6757,11 +6757,55 @@ async def run_video_monitoring_conversation(message: str, thread_id: str = "defa
     }
 
     _log_agent_trace(thread_id, active_agent, message, response_msg)
-    return {
+    result = {
         "reply": response_msg,
         "thread_id": thread_id,
         "active_agent": active_agent,
         "telemetry": trace,
+    }
+    snapshot_widget = _camera_snapshot_widget(message, final_state)
+    if snapshot_widget:
+        result["widget"] = snapshot_widget
+    return result
+
+
+def _camera_query(message: str) -> bool:
+    """Identify requests whose answer depends on a camera or camera telemetry."""
+    return bool(re.search(
+        r"\b(cam(?:era)?[-\s]?\d+|camera|cctv|rtsp|stream|feed|visual|visible|telemetry|fps)\b",
+        message.lower(),
+    ))
+
+
+def _camera_snapshot_target(message: str, final_state: Dict[str, Any]) -> Tuple[int, str]:
+    input_lower = message.lower()
+    state_cam = final_state.get("current_video_camera", "")
+    camera_targets = [
+        (2, "CAM-02 Flarehub Assembly Line", "CAM-02", ("cam-02", "cam 02", "cam-2", "cam 2", "assembly", "manufacturing bay")),
+        (3, "CAM-03 Loading Dock", "CAM-03", ("cam-03", "cam 03", "cam-3", "cam 3", "loading dock", "warehouse")),
+        (4, "CAM-04 Chemical Storage", "CAM-04", ("cam-04", "cam 04", "cam-4", "cam 4", "chemical", "hazard")),
+        (5, "CAM-05 High Bay Crane", "CAM-05", ("cam-05", "cam 05", "cam-5", "cam 5", "steel yard", "crane")),
+    ]
+    for camera_id, camera_name, state_key, keywords in camera_targets:
+        if state_key in state_cam or any(keyword in input_lower for keyword in keywords):
+            return camera_id, camera_name
+    return 1, "CAM-01 Luxsphere Entrance Gate"
+
+
+def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not _camera_query(message):
+        return None
+    camera_id, camera_name = _camera_snapshot_target(message, final_state)
+    captured_at = datetime.now().isoformat()
+    return {
+        "type": "snapshot_evidence_widget",
+        "title": f"Live Snapshot Evidence — {camera_name}",
+        "camera_id": camera_id,
+        "camera_name": camera_name,
+        "snapshot_url": f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}",
+        "captured_at": captured_at,
+        "frame_count": 1,
+        "capture_source": "RTSP live frame requested",
     }
 
 
@@ -6840,6 +6884,14 @@ async def stream_video_monitoring_events(
 
     # Contextual Interactive Widgets
     input_lower = message.lower()
+
+    camera_query = _camera_query(message)
+
+    # Every camera question gets one current frame before agent-specific widgets.
+    if camera_query:
+        snapshot_camera_id, snapshot_camera_name = _camera_snapshot_target(message, final_state)
+        snapshot_widget = _camera_snapshot_widget(message, final_state)
+        yield f"event: widget\ndata: {json.dumps(snapshot_widget)}\n\n"
 
     # ── Investigator Agent → Forensic Evidence Gallery ──────────────────────
     if active_agent == "investigator_agent" or "investigate" in input_lower or "inc-" in input_lower:
