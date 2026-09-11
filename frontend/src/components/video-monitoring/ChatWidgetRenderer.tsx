@@ -24,9 +24,13 @@ export interface WidgetPayload {
   camera_location?: string;
   stream_url?: string;
   snapshot_url?: string;
+  snapshot_path?: string;
   captured_at?: string;
   frame_count?: number;
   capture_source?: string;
+  user_query?: string;
+  vlm_response?: string;
+  detections?: Array<Record<string, unknown>>;
   vlm_detections?: Array<{
     entity: string;
     class: string;
@@ -70,6 +74,11 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           <span>{payload.capture_source || 'RTSP live frame'}</span>
           <span>{payload.captured_at ? new Date(payload.captured_at).toLocaleTimeString() : 'Just captured'}</span>
         </div>
+        {payload.vlm_response && (
+          <div className="mt-2 border-t border-slate-700 pt-2 text-xs leading-relaxed text-slate-200">
+            {payload.vlm_response}
+          </div>
+        )}
       </div>
     );
   }

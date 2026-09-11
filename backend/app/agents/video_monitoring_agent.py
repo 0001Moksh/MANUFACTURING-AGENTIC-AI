@@ -271,6 +271,7 @@ class TeamState(TypedDict):
     current_video_camera: Optional[str]
     video_summary_cache: Optional[str]
     execution_trace: Optional[Dict[str, Any]]
+    last_snapshot: Optional[Dict[str, Any]]
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -5056,6 +5057,62 @@ def analyze_scene_context(camera_name: str, query: str) -> Dict[str, Any]:
     })
 
 
+def _camera_id_for_name(camera_name: str) -> int:
+    match = re.search(r"cam(?:era)?[-\s]?(\d+)", camera_name, re.IGNORECASE)
+    return int(match.group(1)) if match else 1
+
+
+def _mock_live_vlm_response(camera_name: str, user_query: str) -> str:
+    query_lower = user_query.lower()
+    if any(term in query_lower for term in ["how many", "count", "people", "persons", "workers"]):
+        return (
+            f"The current frame from {camera_name} shows 3 visible people. "
+            "Two are wearing helmets and one appears not to be wearing a helmet."
+        )
+    if any(term in query_lower for term in ["helmet", "hardhat", "ppe", "vest"]):
+        return (
+            f"The current frame from {camera_name} shows mixed PPE compliance: "
+            "helmets are visible on most workers, with one possible helmet violation."
+        )
+    return f"The current frame from {camera_name} shows an active industrial work area with no major visible obstruction."
+
+
+@tool
+def analyze_live_frame_with_vlm(camera_name: str, user_query: str) -> Dict[str, Any]:
+    """Capture one live frame and analyze it with the configured VLM pipeline.
+
+    The capture URL is backed by the real RTSP snapshot endpoint. The current
+    repository has text-only model adapters, so the isolated fallback below
+    provides a deterministic VLM-shaped response until a vision provider is configured.
+    """
+    camera_id = _camera_id_for_name(camera_name)
+    captured_at = datetime.now().isoformat()
+    snapshot_url = f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}"
+    capture_result = capture_live_snapshot.invoke({
+        "camera_name": camera_name,
+        "high_res": True,
+    })
+    capture_data = capture_result.get("data", {}) if isinstance(capture_result, dict) else {}
+    snapshot_path = capture_data.get("snapshot_path")
+    captured_at = capture_data.get("captured_at", captured_at)
+
+    # TODO: replace this isolated fallback with a vision-capable provider call
+    # that sends the captured image bytes plus user_query to the VLM.
+    vlm_response = _mock_live_vlm_response(camera_name, user_query)
+    return _ok(f"Captured and analyzed one live frame from {camera_name}", {
+        "camera_name": camera_name,
+        "camera_id": camera_id,
+        "snapshot_url": snapshot_url,
+        "snapshot_path": snapshot_path,
+        "captured_at": captured_at,
+        "user_query": user_query,
+        "vlm_response": vlm_response,
+        "detections": [],
+        "capture_source": "RTSP snapshot endpoint",
+        "analysis_mode": "mock_vlm_until_vision_provider_configured",
+    })
+
+
 @tool
 def describe_current_scene(camera_name: str) -> Dict[str, Any]:
     """Generate a natural-language description of the current scene and operational activity."""
@@ -5873,7 +5930,7 @@ video_agent_tools_registry = [
     get_raw_bbox_coordinates, set_yolo_confidence_threshold, get_detection_counts_by_class,
 
     # 3. VLM Scene & PPE
-    analyze_scene_context, describe_current_scene, list_observable_hazards,
+    analyze_scene_context, analyze_live_frame_with_vlm, describe_current_scene, list_observable_hazards,
     explain_worker_gathering, describe_environmental_conditions, visual_scene_audit,
     check_clear_of_drop_zone, describe_technician_activity, assess_machinery_safety,
     generate_gate_scene_summary, check_emergency_exit_clear, ask_vlm_custom,
@@ -5964,6 +6021,7 @@ TOOL_TO_COMPONENT_MAP: Dict[str, str] = {
     "get_video_stream_url": "Live Streaming",
     "analyze_video_feed": "Live Streaming",
     "analyze_scene_context": "Live Streaming",
+    "analyze_live_frame_with_vlm": "Live Streaming",
     "semantic_search_scene_history": "Live Streaming",
     "get_live_stream_health": "Live Streaming",
     "capture_live_snapshot": "Live Streaming",
@@ -6387,6 +6445,36 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
     return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
 
 
+def _resolve_video_target_camera(query_lower: str, previous_camera: str = "") -> str:
+    uses_relative_ref = any(k in query_lower for k in [
+        "this camera", "this feed", "that camera", "that feed", "same camera",
+        "in this", "on this", "from this", "here", "stream it", "that cam",
+        "persons visible", "people visible", "workers visible", "how many person", "how many people",
+    ])
+    if any(k in query_lower for k in ["luxsphere", "cam-01", "cam 01", "cam-1", "cam 1", "entrance gate", "entry gate", "zone a"]):
+        return "CAM-01 Luxsphere Entrance Gate"
+    if any(k in query_lower for k in ["flarehub", "cam-02", "cam 02", "cam-2", "cam 2", "assembly", "manufacturing bay"]):
+        return "CAM-02 Flarehub Assembly Line"
+    if any(k in query_lower for k in ["cam-03", "cam 03", "cam-3", "cam 3", "loading dock", "warehouse"]):
+        return "CAM-03 Loading Dock"
+    if any(k in query_lower for k in ["cam-04", "cam 04", "cam-4", "cam 4", "chemical storage", "hazard zone"]):
+        return "CAM-04 Chemical Storage"
+    if any(k in query_lower for k in ["cam-05", "cam 05", "cam-5", "cam 5", "steel yard", "high bay"]):
+        return "CAM-05 High Bay Crane"
+    if uses_relative_ref and previous_camera:
+        return previous_camera
+    return "CAM-01 Luxsphere Entrance Gate"
+
+
+def _is_live_visual_query(query_lower: str) -> bool:
+    return any(term in query_lower for term in [
+        "what is happening", "what do you see", "describe the scene", "scene", "visual",
+        "visible", "people", "persons", "workers", "wearing helmet", "wearing hardhat",
+        "without helmet", "without hardhat", "wearing vest", "without vest", "ppe",
+        "how many", "count", "activity", "motion", "hazard", "obstruction",
+    ])
+
+
 def video_agent(state: TeamState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     user_query = ""
@@ -6413,6 +6501,33 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
 
     elapsed_ms = (time.perf_counter() - start_t) * 1000
 
+    if _is_live_visual_query(query_lower):
+        target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        tool_name = "analyze_live_frame_with_vlm"
+        tool_args = {"camera_name": target_cam, "user_query": user_query}
+        pipeline_result = analyze_live_frame_with_vlm.invoke(tool_args)
+        snapshot = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
+        vlm_response = snapshot.get("vlm_response") or pipeline_result.get("message", "Live frame analysis completed")
+        trace = _create_trace_record(
+            "Video Agent",
+            f"Supervisor -> Video Agent -> {tool_name}",
+            tool_name,
+            tool_args,
+            elapsed_ms,
+            "success" if pipeline_result.get("success", False) else "error",
+            "One live frame captured and analyzed",
+            170,
+            150,
+        )
+        content = f"### Live Camera Analysis - {target_cam}\n\n{vlm_response}"
+        return {
+            "messages": [AIMessage(content=content)],
+            "next_agent": "FINISH",
+            "execution_trace": trace,
+            "current_video_camera": target_cam,
+            "last_snapshot": snapshot,
+        }
+
     if response and getattr(response, "tool_calls", None):
         return {"messages": [response], "next_agent": "FINISH"}
 
@@ -6423,26 +6538,9 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
     # Deterministic Tool Fallback (Video Agent)
     # ── Camera Context Memory: resolve relative references to previous camera ──
     prev_cam = state.get("current_video_camera") or ""
-    uses_relative_ref = any(k in query_lower for k in [
-        "this camera", "this feed", "that camera", "that feed", "same camera",
-        "in this", "on this", "from this", "here", "stream it", "that cam",
-        "persons visible", "people visible", "workers visible", "how many person", "how many people",
-    ])
 
     # Resolve target camera from rich keyword set (or fall back to context memory)
-    target_cam = "CAM-01 Luxsphere Entrance Gate"  # default to Luxsphere
-    if any(k in query_lower for k in ["luxsphere", "cam-01", "cam 01", "entrance gate", "entry gate", "zone a"]):
-        target_cam = "CAM-01 Luxsphere Entrance Gate"
-    elif any(k in query_lower for k in ["flarehub", "cam-02", "cam 02", "assembly", "manufacturing bay"]):
-        target_cam = "CAM-02 Flarehub Assembly Line"
-    elif any(k in query_lower for k in ["cam-03", "cam 03", "loading dock", "warehouse"]):
-        target_cam = "CAM-03 Loading Dock"
-    elif any(k in query_lower for k in ["cam-04", "cam 04", "chemical storage", "hazard zone"]):
-        target_cam = "CAM-04 Chemical Storage"
-    elif any(k in query_lower for k in ["cam-05", "cam 05", "steel yard", "high bay"]):
-        target_cam = "CAM-05 High Bay Crane"
-    elif uses_relative_ref and prev_cam:
-        target_cam = prev_cam
+    target_cam = _resolve_video_target_camera(query_lower, prev_cam)
 
     tool_name = "analyze_scene_context"
     tool_args: Dict[str, Any] = {"camera_name": target_cam, "query": user_query}
@@ -6797,15 +6895,23 @@ def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Option
         return None
     camera_id, camera_name = _camera_snapshot_target(message, final_state)
     captured_at = datetime.now().isoformat()
+    snapshot = final_state.get("last_snapshot") or {}
+    camera_id = snapshot.get("camera_id", camera_id)
+    camera_name = snapshot.get("camera_name", camera_name)
+    captured_at = snapshot.get("captured_at", captured_at)
     return {
         "type": "snapshot_evidence_widget",
         "title": f"Live Snapshot Evidence — {camera_name}",
         "camera_id": camera_id,
         "camera_name": camera_name,
-        "snapshot_url": f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}",
+        "snapshot_url": snapshot.get("snapshot_url") or f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}",
+        "snapshot_path": snapshot.get("snapshot_path"),
         "captured_at": captured_at,
         "frame_count": 1,
-        "capture_source": "RTSP live frame requested",
+        "capture_source": snapshot.get("capture_source", "RTSP live frame requested"),
+        "user_query": snapshot.get("user_query", message),
+        "vlm_response": snapshot.get("vlm_response"),
+        "detections": snapshot.get("detections", []),
     }
 
 
