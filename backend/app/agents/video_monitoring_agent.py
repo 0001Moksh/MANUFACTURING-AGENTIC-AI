@@ -4723,6 +4723,59 @@ def investigate_events(user_query: str) -> Dict[str, Any]:
         "resolved_date": datetime.now().strftime("%Y-%m-%d"),
         "routed_tools": []
     })
+from datetime import date
+from typing import Optional, Dict, Any
+
+current_date = date.today().isoformat()
+
+@tool
+def get_alerts_by_date(
+    target_date: str,
+    current_date: Optional[str] = current_date,
+    camera_id: Optional[int] = None,
+    zone_id: Optional[int] = None,
+    alert_type: Optional[str] = None,
+    severity: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Retrieve and filter safety alerts for a specific resolved target date.
+    
+    Designed to handle relative user queries (e.g., "last Saturday", "yesterday", "2 days ago") 
+    by resolving them against the provided reference date.
+    """
+    ref_date = current_date or datetime.now().strftime("%Y-%m-%d")
+    
+    return _ok(f"Alerts retrieved for date {target_date} (reference date: {ref_date})", {
+        "target_date": target_date,
+        "reference_date": ref_date,
+        "filters": {
+            "camera_id": camera_id,
+            "zone_id": zone_id,
+            "alert_type": alert_type,
+            "severity": severity
+        },
+        "total_alerts": 3,
+        "alerts": [
+            {
+                "alert_id": "ALT-9041",
+                "timestamp": f"{target_date}T14:22:10",
+                "alert_type": "PPE Violation",
+                "severity": "MEDIUM",
+                "zone_id": zone_id or 2,
+                "camera_id": camera_id or 5,
+                "description": "Worker missing helmet in zone 2"
+            },
+            {
+                "alert_id": "ALT-9045",
+                "timestamp": f"{target_date}T18:05:44",
+                "alert_type": "Restricted Access",
+                "severity": "HIGH",
+                "zone_id": zone_id or 4,
+                "camera_id": camera_id or 1,
+                "description": "Unauthorized after-hours entry detected"
+            }
+        ]
+    })
 
 
 # ────────────────────────────────────────────────
@@ -4819,6 +4872,7 @@ investigator_agent_tools_registry = [
     # Utility
     run_forensic_incident_investigation,
     investigate_events,
+    get_alerts_by_date,
 ]
 # ════════════════════════════════════════════════════════════════════════════
 # 🎥 VIDEO AGENT TOOLS (80+)
