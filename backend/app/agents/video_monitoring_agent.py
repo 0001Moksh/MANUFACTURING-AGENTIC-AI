@@ -38,8 +38,9 @@ import json
 import os
 import re
 import time
+from collections import Counter
 from datetime import datetime
-from typing import Annotated, Any, AsyncGenerator, Counter, Dict, List, Literal, Optional, Tuple
+from typing import Annotated, Any, AsyncGenerator, Dict, List, Literal, Optional, Tuple
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -6747,7 +6748,10 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
         )
 
         severity_parts = []
-        severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN"]
+        severity_order = [
+            "CRITICAL", "HIGH", "MAJOR", "SIGNIFICANT", "MEDIUM",
+            "MINOR", "LOW", "INFO", "UNKNOWN",
+        ]
 
         for severity in severity_order:
             count = severity_counts.get(severity, 0)
@@ -6791,10 +6795,9 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
 
             if event_time != "N/A":
                 try:
-                    event_time = datetime.strptime(
-                        str(event_time),
-                        "%Y-%m-%d %H:%M:%S.%f"
-                    ).strftime("%d %b %Y, %I:%M %p").replace("Sep", "Sept")
+                    event_time = datetime.fromisoformat(str(event_time)).strftime(
+                        "%d %b %Y, %I:%M %p"
+                    ).replace("Sep", "Sept")
                 except (ValueError, TypeError):
                     pass
 
