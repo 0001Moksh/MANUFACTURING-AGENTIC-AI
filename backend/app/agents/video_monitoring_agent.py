@@ -51,6 +51,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 from typing_extensions import TypedDict
 from app.crypto import build_rtsp_url
+from app.agents.investigator_tools import get_incidents_by_date, resolve_camera_id, resolve_relative_date
 
 import litellm
 
@@ -4783,6 +4784,9 @@ def get_alerts_by_date(
 # ────────────────────────────────────────────────
 
 investigator_agent_tools_registry = [
+    get_incidents_by_date,
+    resolve_camera_id,
+    resolve_relative_date,
     # 1. Search & Filtering
     search_high_severity_incidents,
     search_events_by_class_and_date,
@@ -6948,6 +6952,19 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
 
     input_lower = _normalize_system_query(last_human_query) if isinstance(last_human_query, str) else ""
     remembered_camera = state.get("current_video_camera") or ""
+
+    # Historical/date-scoped event questions are forensic queries. Keep this
+    # guard before System/Video routing so General cannot intercept them.
+    historical_terms = [
+        "yesterday", "kal", "last saturday", "pichle saturday", "past ",
+        "last week", "historical", "history", "on 13", "from 13",
+        "alert from", "what happened", "kya hua", "date-specific",
+    ]
+    if any(term in input_lower for term in historical_terms) or re.search(
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s+(?:september|october|november|december|january|february|march|april|may|june|july|august)",
+        input_lower,
+    ):
+        return {"next_agent": "investigator_agent"}
 
     # A checkpointed Video Agent camera owns relative visual follow-ups such as
     # "what is going on here" even when the latest turn omits the camera name.
