@@ -350,12 +350,12 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                           remarkPlugins={[remarkGfm as any]}
                           components={{
                             table: ({ node, ...props }) => (
-                              <div className="my-2.5 overflow-x-auto rounded-lg border border-slate-800 shadow-md bg-slate-950">
-                                <table className="w-full text-left text-xs border-collapse bg-slate-950" {...props} />
+                              <div className="my-2.5 max-h-[420px] max-w-full overflow-auto rounded-lg border border-slate-800 shadow-md bg-slate-950">
+                                <table className="w-full min-w-[760px] text-left text-xs border-collapse bg-slate-950" {...props} />
                               </div>
                             ),
                             thead: ({ node, ...props }) => (
-                              <thead className="bg-slate-800/90 text-cyan-400 font-semibold border-b border-slate-700 text-[11px] uppercase tracking-wider" {...props} />
+                              <thead className="sticky top-0 z-10 bg-slate-800 text-cyan-400 font-semibold border-b border-slate-700 text-[11px] uppercase tracking-wider" {...props} />
                             ),
                             th: ({ node, ...props }) => (
                               <th className="py-2 px-2.5 font-bold text-cyan-400" {...props} />

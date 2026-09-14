@@ -6690,7 +6690,11 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
     )
     camera_name = camera_match.group(1).strip(" -") if camera_match else None
     window_match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
-    date_phrase = window_match.group(0) if window_match else normalized
+    calendar_match = re.search(
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+\d{4}\b",
+        normalized,
+    )
+    date_phrase = window_match.group(0) if window_match else calendar_match.group(0) if calendar_match else normalized
     date_range = resolve_relative_date.invoke({"value": date_phrase})
     rows = get_incidents_by_date.invoke({
         "start_date": date_range["start_date"],

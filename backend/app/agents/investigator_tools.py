@@ -29,6 +29,20 @@ def resolve_relative_date(value: str, reference_date: Optional[str] = None) -> D
     match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
     if match:
         return {"start_date": (reference - timedelta(days=int(match.group(1)))).isoformat(), "end_date": reference.isoformat()}
+    calendar_match = re.search(
+        r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})\b",
+        normalized,
+    )
+    if calendar_match:
+        for date_format in ("%d %B %Y", "%d %b %Y"):
+            try:
+                target = datetime.strptime(
+                    f"{calendar_match.group(1)} {calendar_match.group(2)} {calendar_match.group(3)}",
+                    date_format,
+                ).date()
+                return {"start_date": target.isoformat(), "end_date": target.isoformat()}
+            except ValueError:
+                continue
     try:
         target = datetime.strptime(normalized, "%Y-%m-%d").date()
         return {"start_date": target.isoformat(), "end_date": target.isoformat()}
