@@ -274,14 +274,10 @@ export const VideoMonitoringChatWidget: React.FC = () => {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[15px] font-semibold text-slate-100 tracking-tight">
-                    Deva
-                  </span>
-                  <span className="text-[10px] font-semibold text-teal-300 bg-teal-950/80 px-1.5 py-0.5 rounded border border-teal-800/60">
-                    Safety Agent Mesh
+                  <span className="text-[20px] font-semibold text-slate-100 tracking-tight">
+                    Deva Assistant
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">Video Monitoring & Safety Intelligence</p>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -319,9 +315,13 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   className={
                     msg.sender === 'user'
                       ? 'flex flex-col items-end w-fit max-w-[85%] ml-auto'
-                      : `flex flex-col items-start ${msg.widget ? 'w-fit max-w-[390px]' : 'w-full max-w-[92%]'} ${msg.widget?.type === 'snapshot_evidence_widget' ? 'min-w-0' : ''}`
+                      : `flex flex-col items-start ${msg.widget
+                        ? 'w-fit max-w-[95%]'
+                        : 'w-full max-w-[98%]'
+                      } ${msg.widget?.type === 'snapshot_evidence_widget' ? 'min-w-0' : ''}`
                   }
                 >
+
                   {msg.sender === 'bot' && msg.agent && (
                     <div className="flex items-center gap-1.5 mb-1">
                       <span
