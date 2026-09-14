@@ -6682,6 +6682,9 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
 def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -> Dict[str, Any]:
     normalized = _normalize_system_query(user_query)
     camera_match = re.search(
+        r"\b(?:on|at|from)\s+([a-z][\w-]*)\s+camera\b",
+        normalized,
+    ) or re.search(
         r"\b([a-z][\w -]*?)\s+camera\s+(?:pe|on|at|from|mein|in)\b",
         normalized,
     ) or re.search(
@@ -6689,6 +6692,12 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
         normalized,
     )
     camera_name = camera_match.group(1).strip(" -") if camera_match else None
+    if camera_name:
+        camera_name = re.sub(
+            r"^(?:show|list|all|alerts?|generated|on|at|from|the)\s+",
+            "",
+            camera_name,
+        ).strip(" -")
     window_match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
     calendar_match = re.search(
         r"\b\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+\d{4}\b",
@@ -7261,6 +7270,8 @@ async def run_video_monitoring_conversation(message: str, thread_id: str = "defa
 
 def _camera_query(message: str, final_state: Optional[Dict[str, Any]] = None) -> bool:
     """Identify requests whose answer depends on a camera or camera telemetry."""
+    if _is_historical_investigation_query(message.lower()):
+        return False
     direct_camera_query = bool(re.search(
         r"\b(cam(?:era)?[-\s]?\d+|camera|cctv|rtsp|stream|feed|visual|visible|telemetry|fps|luxsphere|flarehub|assembly|loading dock|warehouse|chemical storage|hazard zone|steel yard|high bay)\b",
         message.lower(),
