@@ -39,7 +39,7 @@ import os
 import re
 import time
 from datetime import datetime
-from typing import Annotated, Any, AsyncGenerator, Dict, List, Literal, Optional, Tuple
+from typing import Annotated, Any, AsyncGenerator, Counter, Dict, List, Literal, Optional, Tuple
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
@@ -6711,20 +6711,103 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
         "camera_name": camera_name,
     })
     error = rows[0].get("error") if rows and isinstance(rows[0], dict) else None
-    content = f"### Historical Alert Investigation\n\n**Period:** `{date_range['start_date']}` to `{date_range['end_date']}`\n"
+    content = f"### Historical Alert Investigation — **Period:** {date_range['start_date']} to {date_range['end_date']}"
     if camera_name:
-        content += f"**Camera filter:** `{camera_name}`\n"
+        content += f" — **Camera:** {camera_name}"
     content += "\n"
     if error:
         content += f"Database query could not be completed: {error}\n"
     elif not rows:
         content += "No alerts or incidents were found for the requested period.\n"
     else:
-        content += f"Found **{len(rows)}** alerts/incidents from the video analytics database.\n\n"
-        content += "| Event | Timestamp | Camera | Zone | Detection | Severity | Status |\n|:---|:---|:---|:---|:---|:---|:---|\n"
+        # Summary statistics
+        total_alerts = len(rows)
+
+        # Unique detection/class count
+        detection_counts = Counter(
+            str(row.get("class_name", "Unknown")).strip()
+            for row in rows
+            if row.get("class_name")
+        )
+
+        unique_detections = len(detection_counts)
+
+        # Severity counts
+        severity_counts = Counter(
+            str(row.get("severity", "UNKNOWN")).strip().upper()
+            for row in rows
+        )
+
+        # Beautiful summary
+        content += "### Investigation Summary\n\n"
+        content += (
+            f"| **Total Alerts** | **Unique Detections** | **Severity Breakdown** |\n"
+            f"|:---:|:---:|:---|\n"
+            f"| **{total_alerts}** | **{unique_detections}** | "
+        )
+
+        severity_parts = []
+        severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "UNKNOWN"]
+
+        for severity in severity_order:
+            count = severity_counts.get(severity, 0)
+            if count:
+                severity_parts.append(f"**{severity.title()}: {count}**")
+
+        # Add any unexpected severity values
+        for severity, count in severity_counts.items():
+            if severity not in severity_order:
+                severity_parts.append(f"**{severity.title()}: {count}**")
+
+        content += " · ".join(severity_parts) + " |\n\n"
+
+        content += (
+            f"Found **{total_alerts}** alerts/incidents from the video analytics database.\n\n"
+        )
+
+        # Detection breakdown
+        content += "#### Detection Breakdown\n\n"
+        content += "| Detection | Count |\n|:---|---:|\n"
+
+        for detection, count in detection_counts.most_common():
+            content += f"| {detection} | **{count}** |\n"
+
+        content += "\n"
+
+        # Alerts table
+        content += (
+            "| Event | Date & Time | Camera | Zone | Detection | Severity | Status |\n"
+            "|:---|:---|:---|:---|:---|:---|:---|\n"
+        )
+
         for row in rows[:100]:
-            status = row.get("incident_status") or ("ACKNOWLEDGED" if row.get("is_acknowledged") else "UNACKNOWLEDGED")
-            content += f"| {row.get('event_id', 'N/A')} ({row.get('event_kind', 'event')}) | {row.get('event_time', 'N/A')} | {row.get('camera_name', 'N/A')} | {row.get('zone_id', 'N/A')} | {row.get('class_name', 'N/A')} | {row.get('severity', 'N/A')} | {status} |\n"
+            status = row.get("incident_status") or (
+                "ACKNOWLEDGED"
+                if row.get("is_acknowledged")
+                else "UNACKNOWLEDGED"
+            )
+
+            event_time = row.get("event_time", "N/A")
+
+            if event_time != "N/A":
+                try:
+                    event_time = datetime.strptime(
+                        str(event_time),
+                        "%Y-%m-%d %H:%M:%S.%f"
+                    ).strftime("%d %b %Y, %I:%M %p").replace("Sep", "Sept")
+                except (ValueError, TypeError):
+                    pass
+
+            content += (
+                f"| {row.get('event_id', 'N/A')} "
+                f"| {event_time} "
+                f"| {row.get('camera_name', 'N/A')} "
+                f"| {row.get('zone_id', 'N/A')} "
+                f"| {row.get('class_name', 'N/A')} "
+                f"| {row.get('severity', 'N/A')} "
+                f"| {status} |\n"
+            )
+
     trace = _create_trace_record(
         "Investigator Agent",
         "Supervisor -> Investigator Agent -> get_incidents_by_date",
