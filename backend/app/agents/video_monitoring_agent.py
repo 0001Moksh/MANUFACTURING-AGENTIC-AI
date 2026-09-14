@@ -104,7 +104,7 @@ for attempt in range(1, _DB_MAX_RETRIES + 1):
         if attempt < _DB_MAX_RETRIES:
             time.sleep(_DB_RETRY_DELAY_SECONDS)
         else:
-            print("[Video Monitoring Multi-Agent WARNING] DB unavailable after all retries. Fallback/mock mode active.")
+            print("[Video Monitoring Multi-Agent WARNING] DB unavailable after all retries. Database-backed responses will report the outage.")
 
 # Kept as an alias since some tool bodies below refer to `construction_engine`.
 construction_engine = engine
@@ -135,14 +135,14 @@ def get_db_health() -> Dict[str, Any]:
 # ════════════════════════════════════════════════════════════════════════════
 groq_llm = ChatLiteLLM(
     model="groq/llama-3.1-8b-instant",
-    api_key=os.getenv("GROQ_API_KEY", "mock-groq-key"),
+    api_key=os.getenv("GROQ_API_KEY", ""),
     temperature=0.1,
     max_tokens=1500,
 )
 
 gemini_llm = ChatLiteLLM(
     model="gemini/gemini-3.1-flash-lite",
-    api_key=os.getenv("GEMINI_API_KEY", "mock-gemini-key"),
+    api_key=os.getenv("GEMINI_API_KEY", ""),
     temperature=0.1,
     max_tokens=1500,
 )
@@ -275,33 +275,6 @@ class TeamState(TypedDict):
     video_summary_cache: Optional[str]
     execution_trace: Optional[Dict[str, Any]]
     last_snapshot: Optional[Dict[str, Any]]
-
-
-# ════════════════════════════════════════════════════════════════════════════
-# 🎭 MOCK DATA (used whenever the DB is unavailable / a table doesn't exist yet)
-# ════════════════════════════════════════════════════════════════════════════
-def _get_mock_video_data(query_type: str) -> List[Dict[str, Any]]:
-    if query_type == "cameras":
-        return [
-            {"id": 101, "name": "CAM-01 Entrance Gate", "location": "Zone A Main Entrance", "status": "ONLINE", "fps": 30, "resolution": "1080p", "rtsp_url": "rtsp://demo.stream/cam01"},
-            {"id": 102, "name": "CAM-02 Assembly Line 1", "location": "Manufacturing Bay 2", "status": "ONLINE", "fps": 25, "resolution": "4K", "rtsp_url": "rtsp://demo.stream/cam02"},
-            {"id": 103, "name": "CAM-03 Loading Dock", "location": "Warehouse Sector C", "status": "ONLINE", "fps": 30, "resolution": "1080p", "rtsp_url": "rtsp://demo.stream/cam03"},
-            {"id": 104, "name": "CAM-04 Chemical Storage", "location": "Hazard Zone 4", "status": "ONLINE", "fps": 30, "resolution": "1080p", "rtsp_url": "rtsp://demo.stream/cam04"},
-            {"id": 105, "name": "CAM-05 High Bay Crane", "location": "Steel Yard North", "status": "OFFLINE", "fps": 0, "resolution": "1080p", "rtsp_url": "rtsp://demo.stream/cam05"},
-        ]
-    elif query_type == "incidents":
-        return [
-            {"id": "INC-8891", "timestamp": "2026-09-09 10:14:22", "camera": "CAM-02 Assembly Line 1", "type": "PPE Violation - No Helmet", "severity": "HIGH", "status": "OPEN", "confidence": 0.94, "snapshot_url": "/api/placeholders/evidence1.jpg"},
-            {"id": "INC-8892", "timestamp": "2026-09-09 11:45:01", "camera": "CAM-03 Loading Dock", "type": "Unauthorized Zone Intrusion", "severity": "CRITICAL", "status": "INVESTIGATING", "confidence": 0.98, "snapshot_url": "/api/placeholders/evidence2.jpg"},
-            {"id": "INC-8893", "timestamp": "2026-09-09 13:02:19", "camera": "CAM-04 Chemical Storage", "type": "Fire/Smoke Detected", "severity": "CRITICAL", "status": "RESOLVED", "confidence": 0.91, "snapshot_url": "/api/placeholders/evidence3.jpg"},
-        ]
-    elif query_type == "counts":
-        return [
-            {"zone": "Manufacturing Bay 2", "person_count": 14, "forklift_count": 2, "helmet_compliance": "92%", "vest_compliance": "100%"},
-            {"zone": "Warehouse Sector C", "person_count": 8, "forklift_count": 4, "helmet_compliance": "87.5%", "vest_compliance": "87.5%"},
-            {"zone": "Hazard Zone 4", "person_count": 1, "forklift_count": 0, "helmet_compliance": "100%", "vest_compliance": "100%"},
-        ]
-    return []
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -4878,6 +4851,13 @@ investigator_agent_tools_registry = [
     investigate_events,
     get_alerts_by_date,
 ]
+
+# Only production-backed investigation tools may be exposed to the LLM.
+investigator_agent_tools_registry = [
+    get_incidents_by_date,
+    resolve_camera_id,
+    resolve_relative_date,
+]
 # ════════════════════════════════════════════════════════════════════════════
 # 🎥 VIDEO AGENT TOOLS (80+)
 # Live streaming • YOLO detection • VLM scene/PPE analysis
@@ -6092,6 +6072,12 @@ video_agent_tools_registry = [
     detect_unfastened_chin_straps, show_ppe_compliance_score_map, alert_missing_chemical_ppe,
     get_non_compliant_snapshots, generate_hourly_ppe_summary, get_ppe_trend,
 ]
+
+# Live visual analysis is executed through the grounded frame pipeline; legacy
+# placeholder tools are intentionally not exposed to the LLM.
+video_agent_tools_registry = [
+    analyze_live_frame_with_vlm,
+]
 # ════════════════════════════════════════════════════════════════════════════
 # 📋 MASTER TOOL REGISTRY + RBAC COMPONENT MAP
 # ════════════════════════════════════════════════════════════════════════════
@@ -6234,6 +6220,11 @@ def _normalize_system_query(query: str) -> str:
         "voliation": "violation",
         "perople": "people",
         "huwa": "hua",
+        "systeam": "system",
+        "invesatigation": "investigation",
+        "nhi": "nahi",
+        "pichle": "past",
+        "din": "days",
         "perople": "people",
     }.items():
         normalized = normalized.replace(source, target)
@@ -6256,6 +6247,22 @@ def _is_system_query(query: str) -> bool:
         and any(term in normalized for term in ["batao", "ke bare", "dikhao", "kitne", "last", "kab"])
     )
     return direct_system_terms or hinglish_system_terms
+
+
+def _is_historical_investigation_query(query: str) -> bool:
+    normalized = _normalize_system_query(query)
+    historical_terms = [
+        "yesterday", "kal", "last saturday", "past saturday", "last week",
+        "historical", "history", "what happened", "kya hua", "alert from",
+        "show alerts from", "date-specific", "incident inc-", "investigate incident",
+        "investigation agent", "investigation mein",
+    ]
+    has_relative_window = bool(re.search(r"(?:past|last)\s+\d+\s+days?", normalized))
+    has_calendar_date = bool(re.search(
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s+(?:september|october|november|december|january|february|march|april|may|june|july|august)",
+        normalized,
+    ))
+    return has_relative_window or has_calendar_date or any(term in normalized for term in historical_terms)
 
 
 def general_agent(state: TeamState) -> Dict[str, Any]:
@@ -6359,7 +6366,7 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
         return {"messages": [response], "next_agent": "FINISH", "execution_trace": trace}
 
     # Deterministic Tool Execution Dispatcher (System Agent)
-    # Uses registered tools where available; falls back to mock data on any failure.
+    # Uses registered tools where available; reports database errors without synthetic data.
     tool_name = "list_all_cameras_with_location"
     tool_args: Dict[str, Any] = {}
     content = ""
@@ -6438,8 +6445,8 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
             cams = list_all_cameras_with_location.invoke({})
         except Exception:
             cams = []
-        if not isinstance(cams, list) or not cams or (cams and "error" in str(cams[0]).lower()):
-            cams = _get_mock_video_data("cameras")
+        if not isinstance(cams, list) or (cams and "error" in str(cams[0]).lower()):
+            cams = []
         online_count = sum(1 for c in cams if str(c.get("status", "")).upper() in ("ONLINE", "ACTIVE"))
         offline_count = len(cams) - online_count
         summary = f"Retrieved {len(cams)} cameras ({online_count} Online, {offline_count} Offline)"
@@ -6503,21 +6510,21 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
         content += "| Incident ID | Camera | Classification | Confidence | Severity | Status |\n"
         content += "|:---|:---|:---|:---|:---|:---|\n"
         for inc in incidents[:15]:
-            iid = inc.get("id", "INC-8891")
-            cam = inc.get("camera_name") or inc.get("camera") or "CAM-02"
-            cls = inc.get("class_name") or inc.get("type") or "PPE Violation"
-            conf_raw = inc.get("confidence", 0.94)
+            iid = inc.get("id") or "N/A"
+            cam = inc.get("camera_name") or inc.get("camera") or "N/A"
+            cls = inc.get("class_name") or inc.get("type") or "N/A"
+            conf_raw = inc.get("confidence")
             try:
-                conf = f"{float(conf_raw) * 100:.1f}%"
+                conf = f"{float(conf_raw) * 100:.1f}%" if conf_raw is not None else "N/A"
             except (TypeError, ValueError):
                 conf = str(conf_raw)
-            sev = inc.get("severity") or "HIGH"
-            st = inc.get("status") or ("ACTIVE" if inc.get("is_active") else "RESOLVED")
+            sev = inc.get("severity") or "N/A"
+            st = inc.get("status") or inc.get("escalation_status") or "N/A"
             content += f"| {iid} | {cam} | {cls} | {conf} | **{sev}** | {st} |\n"
 
     elif any(k in query_lower for k in ["count", "compliance", "ppe", "people", "worker", "forklift"]):
-        tool_name = "mock_production_counts"
-        counts = _get_mock_video_data("counts")
+        tool_name = "get_object_count_today"
+        counts = []
         summary = f"Aggregated counts across {len(counts)} production zones"
         content = "### Production Counting & PPE Compliance Telemetry\n\n"
         content += "| Safety Zone | Personnel Detected | Forklifts Active | Hardhat Compliance | Safety Vest Compliance |\n"
@@ -6527,15 +6534,9 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
 
     else:
         tool_name = "list_all_cameras_with_location"
-        cams = _get_mock_video_data("cameras")
-        summary = "Fleet health audit completed"
-        content = "### Video Monitoring System Status\n\n"
-        content += "| Metric | Value | Operational Status |\n"
-        content += "|:---|:---|:---|\n"
-        content += "| Total Active Cameras | 5 Devices | **ONLINE (4) / OFFLINE (1)** |\n"
-        content += "| Average Fleet FPS | 28.5 FPS | **OPTIMAL** |\n"
-        content += "| Unresolved Critical Alerts | 2 Alerts | **ATTENTION REQUIRED** |\n"
-        content += "| Overall PPE Compliance | 93.2% | **COMPLIANT** |\n"
+        tool_name = "list_all_cameras_with_location"
+        summary = "No database-backed video-monitoring records matched the request"
+        content = "### Video Monitoring System Status\n\nNo database-backed video-monitoring data is available for this request.\n"
 
     trace = _create_trace_record("System Agent", f"Supervisor -> System Agent -> {tool_name}", tool_name, tool_args, elapsed_ms, "success", summary, 140, 120)
     return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
@@ -6647,6 +6648,12 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
 
     elapsed_ms = (time.perf_counter() - start_t) * 1000
 
+    if _is_historical_investigation_query(user_query) and any(
+        marker in _normalize_system_query(user_query)
+        for marker in ["alert", "violation", "incident", "history", "happened", "hua"]
+    ):
+        return _render_historical_alert_investigation(user_query, elapsed_ms)
+
     if response and getattr(response, "tool_calls", None):
         return {"messages": [response], "next_agent": "FINISH"}
 
@@ -6654,27 +6661,66 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
         trace = _create_trace_record("Investigator Agent", "Supervisor -> Investigator Agent -> LLM Inference", "", {}, elapsed_ms, "success", "Forensic analysis completed", 210, 160)
         return {"messages": [response], "next_agent": "FINISH", "execution_trace": trace}
 
-    # Deterministic Tool Fallback (Investigator Agent)
-    tool_name = "run_forensic_incident_investigation"
-    tool_args: Dict[str, Any] = {"incident_id": "INC-8891"}
-    investigation_raw = run_forensic_incident_investigation.invoke({"incident_id": "INC-8891"})
-    inv = json.loads(investigation_raw) if isinstance(investigation_raw, str) else investigation_raw
+    trace = _create_trace_record(
+        "Investigator Agent",
+        "Supervisor -> Investigator Agent",
+        "",
+        {},
+        elapsed_ms,
+        "error",
+        "No database-backed investigation response was available",
+        190,
+        180,
+    )
+    return {
+        "messages": [AIMessage(content="No database-backed investigation result is available for this request.")],
+        "next_agent": "FINISH",
+        "execution_trace": trace,
+    }
 
-    content = f"### Forensic Incident Investigation Report - {inv.get('incident_id', 'INC-8891')}\n\n"
-    content += f"**Investigation Timestamp:** `{inv.get('investigation_timestamp', '2026-09-09 10:14:22')}`\n\n"
-    content += f"#### Root Cause Analysis\n"
-    content += f"> {inv.get('root_cause', 'Operator entered active Crane Swing Radius without required Kevlar Helmet & High-Vis Vest.')}\n\n"
-    content += "#### Chronological Forensic Timeline\n\n"
-    content += "| Timestamp | Event Stage | Camera | Detection / Visual Evidence | Status |\n"
-    content += "|:---|:---|:---|:---|:---|\n"
-    content += "| `10:14:12` | Approach Phase (T-10s) | CAM-02 Assembly Line 1 | Worker approached boundary from East walkway | WARNING |\n"
-    content += "| `10:14:22` | Perimeter Breach (T-0s) | CAM-02 Assembly Line 1 | Unauthorized intrusion into Crane Swing Radius | **CRITICAL** |\n"
-    content += "| `10:14:35` | Automated Alarm (T+13s) | CAM-03 Loading Dock | Strobe alarm triggered, safety supervisor paged | ACKNOWLEDGED |\n\n"
-    content += "#### Recommended Corrective Actions\n"
-    for idx, act in enumerate(inv.get("recommended_actions", ["Issue safety retraining for Sector C team", "Deploy automated audio barrier alarm"]), 1):
-        content += f"{idx}. {act}\n"
 
-    trace = _create_trace_record("Investigator Agent", f"Supervisor -> Investigator Agent -> {tool_name}", tool_name, tool_args, elapsed_ms, "success", "Forensic incident investigation & evidence compiled", 190, 180)
+def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -> Dict[str, Any]:
+    normalized = _normalize_system_query(user_query)
+    camera_match = re.search(
+        r"\b([a-z][\w -]*?)\s+camera\s+(?:pe|on|at|from|mein|in)\b",
+        normalized,
+    ) or re.search(
+        r"(?:camera|cam(?:era)?)\s+(?:pe|on|at|from)?\s*([a-z][\w -]*?)(?=\s+(?:pe|mein|in|for|from|past|last|what|kya|alerts?|violations?)\b|\?|$)",
+        normalized,
+    )
+    camera_name = camera_match.group(1).strip(" -") if camera_match else None
+    window_match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
+    date_phrase = window_match.group(0) if window_match else normalized
+    date_range = resolve_relative_date.invoke({"value": date_phrase})
+    rows = get_incidents_by_date.invoke({
+        "start_date": date_range["start_date"],
+        "end_date": date_range["end_date"],
+        "camera_name": camera_name,
+    })
+    error = rows[0].get("error") if rows and isinstance(rows[0], dict) else None
+    content = f"### Historical Alert Investigation\n\n**Period:** `{date_range['start_date']}` to `{date_range['end_date']}`\n"
+    if camera_name:
+        content += f"**Camera filter:** `{camera_name}`\n"
+    content += "\n"
+    if error:
+        content += f"Database query could not be completed: {error}\n"
+    elif not rows:
+        content += "No alerts or incidents were found for the requested period.\n"
+    else:
+        content += f"Found **{len(rows)}** alerts/incidents from the video analytics database.\n\n"
+        content += "| Event | Timestamp | Camera | Zone | Detection | Severity | Status |\n|:---|:---|:---|:---|:---|:---|:---|\n"
+        for row in rows[:100]:
+            status = row.get("incident_status") or ("ACKNOWLEDGED" if row.get("is_acknowledged") else "UNACKNOWLEDGED")
+            content += f"| {row.get('event_id', 'N/A')} ({row.get('event_kind', 'event')}) | {row.get('event_time', 'N/A')} | {row.get('camera_name', 'N/A')} | {row.get('zone_id', 'N/A')} | {row.get('class_name', 'N/A')} | {row.get('severity', 'N/A')} | {status} |\n"
+    trace = _create_trace_record(
+        "Investigator Agent",
+        "Supervisor -> Investigator Agent -> get_incidents_by_date",
+        "get_incidents_by_date",
+        {"start_date": date_range["start_date"], "end_date": date_range["end_date"], "camera_name": camera_name},
+        elapsed_ms,
+        "success" if not error else "error",
+        "Historical alerts retrieved from construction_ai",
+    )
     return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
 
 
@@ -6968,6 +7014,9 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
 
     # A checkpointed Video Agent camera owns relative visual follow-ups such as
     # "what is going on here" even when the latest turn omits the camera name.
+    if _is_historical_investigation_query(input_lower):
+        return {"next_agent": "investigator_agent"}
+
     if remembered_camera and _is_relative_camera_followup(input_lower):
         return {"next_agent": "video_agent"}
 
@@ -7340,21 +7389,8 @@ async def stream_video_monitoring_events(
         snapshot_widget = _camera_snapshot_widget(message, final_state)
         yield f"event: widget\ndata: {json.dumps(snapshot_widget)}\n\n"
 
-    # ── Investigator Agent → Forensic Evidence Gallery ──────────────────────
-    if active_agent == "investigator_agent" or "investigate" in input_lower or "inc-" in input_lower:
-        evidence_widget = {
-            "type": "evidence_gallery",
-            "title": "Incident Forensic Evidence Snapshots",
-            "snapshots": [
-                {"id": 1, "title": "CAM-02 PPE Violation - T-10s", "timestamp": "10:14:12", "url": "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80", "badge": "NO HELMET"},
-                {"id": 2, "title": "CAM-02 Restricted Zone Intrusion", "timestamp": "10:14:22", "url": "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80", "badge": "ZONE BREACH"},
-                {"id": 3, "title": "CAM-03 Automated Alarm Trigger", "timestamp": "10:14:35", "url": "https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=600&q=80", "badge": "ALARM ACTIVE"},
-            ],
-        }
-        yield f"event: widget\ndata: {json.dumps(evidence_widget)}\n\n"
-
     # ── Video Agent → Live Stream Player Widget ──────────────────────────────
-    elif active_agent == "video_agent" and _explicit_live_stream_query(input_lower):
+    if active_agent == "video_agent" and _explicit_live_stream_query(input_lower):
         cam_id, cam_display = _camera_snapshot_target(message, final_state)
         live_stream_widget = {
             "type": "live_stream_player",
