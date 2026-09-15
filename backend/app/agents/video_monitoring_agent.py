@@ -7157,7 +7157,7 @@ Available agents and their responsibilities:
 - "video_agent"        : Live visual queries: real-time RTSP streams, YOLO detections, VLM scene analysis, PPE on live camera, person search on live feeds.
 
 Instruction writing rules:
-- For "investigator_agent": Always extract the camera name (if any), the date/period mentioned, and the type of data requested (alerts, incidents, violations). Write the instruction as a clear tool-calling directive, e.g. "Call get_incidents_by_date with camera_name='Luxsphere', start_date='2026-09-13', end_date='2026-09-13'. Summarize results by detection type and severity."
+- For "investigator_agent": Always extract ONLY the pure camera name (e.g. "Luxsphere" instead of "what happened on the luxsphere"), the date/period mentioned, and the type of data requested (alerts, incidents, violations). Write the instruction as a clear tool-calling directive, e.g. "Call get_incidents_by_date with camera_name='Luxsphere', start_date='2026-09-13', end_date='2026-09-13'. Summarize results by detection type and severity."
 - For date resolution: If the user says "yesterday", "kal", "last saturday", etc., tell the agent to first call resolve_relative_date(value='<phrase>') to get the actual date, then call get_incidents_by_date.
 - For all other agents: Write a concise description of what the user wants.
 - Never output anything except the raw JSON object. No markdown, no explanation.
