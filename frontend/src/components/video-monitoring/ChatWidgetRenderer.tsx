@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, Maximize2, Minimize2, X } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, XCircle, AlertTriangle, Eye, Table as TableIcon, Image as ImageIcon, Maximize2, Minimize2, X, ChevronLeft, ChevronRight, Camera, Clock, Activity } from 'lucide-react';
+
+export interface SnapshotGalleryItem {
+  event_id: number | null;
+  snapshot_url: string;
+  snapshot_path: string;
+  class_name: string;
+  severity: string;
+  event_time: string;
+  camera_name: string;
+  zone_id: number | null;
+  confidence: number;
+  status: string;
+}
 
 export interface WidgetPayload {
-  type: 'evidence_gallery' | 'snapshot_evidence_widget' | 'data_table' | 'hitl_actions' | 'live_stream_player';
+  type: 'evidence_gallery' | 'snapshot_evidence_widget' | 'data_table' | 'hitl_actions' | 'live_stream_player' | 'snapshot_gallery';
   title?: string;
   description?: string;
+  // Snapshot Gallery
+  items?: SnapshotGalleryItem[];
   snapshots?: Array<{
     id: number;
     title: string;
@@ -51,11 +66,207 @@ interface ChatWidgetRendererProps {
   onActionClick?: (actionId: string, label: string) => void;
 }
 
+const SEVERITY_STYLES: Record<string, { badge: string; border: string; dot: string }> = {
+  CRITICAL: { badge: 'bg-red-600/90 text-white',       border: 'border-red-500/50',    dot: 'bg-red-500' },
+  MAJOR:    { badge: 'bg-orange-600/90 text-white',    border: 'border-orange-500/50', dot: 'bg-orange-500' },
+  WARNING:  { badge: 'bg-yellow-600/90 text-white',    border: 'border-yellow-500/50', dot: 'bg-yellow-400' },
+  NORMAL:   { badge: 'bg-slate-600/90 text-slate-200', border: 'border-slate-600/50',  dot: 'bg-slate-400' },
+};
+
 export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload, onActionClick }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<SnapshotGalleryItem | null>(null);
   const [streamError, setStreamError] = useState(false);
   const [streamOpen, setStreamOpen] = useState(true);
   const [streamFullscreen, setStreamFullscreen] = useState(false);
+  const galleryRef = useRef<HTMLDivElement>(null);
+
+  const scrollGallery = (dir: 'left' | 'right') => {
+    if (galleryRef.current) {
+      galleryRef.current.scrollBy({ left: dir === 'left' ? -280 : 280, behavior: 'smooth' });
+    }
+  };
+
+  // ── Snapshot Gallery ────────────────────────────────────────────────────
+  if (payload.type === 'snapshot_gallery') {
+    const items = payload.items || [];
+    if (items.length === 0) return null;
+
+    return (
+      <div className="mt-3 w-full bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-3.5 pt-3 pb-2.5 border-b border-slate-800">
+          <Camera className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="text-amber-400 font-semibold text-xs uppercase tracking-wider truncate">
+            {payload.title || 'Alert Snapshots'}
+          </span>
+          <span className="ml-auto text-[10px] text-slate-500 font-mono shrink-0">
+            {items.length} frames
+          </span>
+        </div>
+
+        {/* Scroll wrapper */}
+        <div className="relative group">
+          {/* Left scroll btn */}
+          <button
+            type="button"
+            aria-label="Scroll left"
+            onClick={() => scrollGallery('left')}
+            className="absolute left-1 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-slate-950/80 text-white border border-slate-700 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-800"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* Horizontal scroll track */}
+          <div
+            ref={galleryRef}
+            className="flex gap-3 px-3.5 py-3 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent scroll-smooth"
+            style={{ scrollSnapType: 'x mandatory' }}
+          >
+            {items.map((item, idx) => {
+              const sev = SEVERITY_STYLES[item.severity?.toUpperCase()] || SEVERITY_STYLES['NORMAL'];
+              return (
+                <div
+                  key={item.event_id ?? idx}
+                  onClick={() => setSelectedItem(item)}
+                  style={{ scrollSnapAlign: 'start', minWidth: '200px', maxWidth: '200px' }}
+                  className={`relative flex-shrink-0 cursor-pointer rounded-xl overflow-hidden border ${sev.border} bg-slate-950 hover:border-amber-400/70 transition-all duration-200 group/card shadow-md hover:shadow-amber-500/10 hover:-translate-y-0.5`}
+                >
+                  {/* Image */}
+                  <div className="relative w-full h-[112px] bg-slate-900 overflow-hidden">
+                    <img
+                      src={item.snapshot_url}
+                      alt={`Alert #${item.event_id} — ${item.class_name}`}
+                      className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22112%22%3E%3Crect fill=%22%231e293b%22 width=%22200%22 height=%22112%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2212%22%3ENo Image%3C/text%3E%3C/svg%3E'; }}
+                    />
+                    {/* Severity badge top-left */}
+                    <span className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-bold rounded ${sev.badge} uppercase tracking-wide`}>
+                      {item.severity}
+                    </span>
+                    {/* Expand icon top-right */}
+                    <div className="absolute top-1.5 right-1.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                      <Maximize2 className="w-3 h-3 text-white drop-shadow" />
+                    </div>
+                    {/* Camera name bottom overlay */}
+                    <div className="absolute bottom-0 inset-x-0 h-6 bg-gradient-to-t from-slate-950/90 to-transparent flex items-end px-2 pb-1">
+                      <span className="text-[9px] font-mono text-slate-300 truncate">{item.camera_name}</span>
+                    </div>
+                  </div>
+
+                  {/* Caption */}
+                  <div className="p-2 space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sev.dot}`} />
+                      <span className="text-[11px] font-semibold text-slate-100 truncate">{item.class_name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[9px] text-slate-500">
+                      <Clock className="w-2.5 h-2.5 shrink-0" />
+                      <span className="truncate">{item.event_time}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] text-slate-500 font-mono">ID #{item.event_id}</span>
+                      <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${
+                        item.status === 'ACKNOWLEDGED' ? 'bg-emerald-900/60 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {item.status === 'ACKNOWLEDGED' ? '✓ ACK' : 'OPEN'}
+                      </span>
+                    </div>
+                    {item.confidence > 0 && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Activity className="w-2.5 h-2.5 text-slate-600 shrink-0" />
+                        <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-amber-500/70 rounded-full"
+                            style={{ width: `${Math.round(item.confidence * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-mono">{Math.round(item.confidence * 100)}%</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Right scroll btn */}
+          <button
+            type="button"
+            aria-label="Scroll right"
+            onClick={() => scrollGallery('right')}
+            className="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center rounded-full bg-slate-950/80 text-white border border-slate-700 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-800"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Expanded Modal */}
+        {selectedItem && (
+          <div
+            className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 backdrop-blur-sm"
+            onClick={() => setSelectedItem(null)}
+          >
+            <div
+              className="relative bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl max-w-lg w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close btn */}
+              <button
+                type="button"
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-3 right-3 z-10 bg-slate-800/90 text-white p-1.5 rounded-full hover:bg-slate-700 transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Image */}
+              <img
+                src={selectedItem.snapshot_url}
+                alt={`Alert #${selectedItem.event_id}`}
+                className="w-full max-h-64 object-cover"
+              />
+
+              {/* Info panel */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${(SEVERITY_STYLES[selectedItem.severity?.toUpperCase()] || SEVERITY_STYLES['NORMAL']).badge}`}>
+                    {selectedItem.severity}
+                  </span>
+                  <span className="text-sm font-semibold text-white">{selectedItem.class_name}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-slate-800/60 rounded-lg p-2.5">
+                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Alert ID</div>
+                    <div className="text-slate-200 font-mono">#{selectedItem.event_id}</div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-lg p-2.5">
+                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Status</div>
+                    <div className={selectedItem.status === 'ACKNOWLEDGED' ? 'text-emerald-400' : 'text-amber-400'}>
+                      {selectedItem.status}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-lg p-2.5">
+                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Camera</div>
+                    <div className="text-slate-200">{selectedItem.camera_name}</div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-lg p-2.5">
+                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Confidence</div>
+                    <div className="text-slate-200 font-mono">{Math.round(selectedItem.confidence * 100)}%</div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-lg p-2.5 col-span-2">
+                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Timestamp</div>
+                    <div className="text-slate-200">{selectedItem.event_time}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (payload.type === 'snapshot_evidence_widget') {
     return (
