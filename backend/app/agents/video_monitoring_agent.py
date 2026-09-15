@@ -276,6 +276,7 @@ class TeamState(TypedDict):
     video_summary_cache: Optional[str]
     execution_trace: Optional[Dict[str, Any]]
     last_snapshot: Optional[Dict[str, Any]]
+    supervisor_instruction: Optional[str]  # LLM-crafted instruction passed from supervisor to specialist agent
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -6633,12 +6634,31 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
             user_query = getattr(msg, "content", "")
             break
 
-    sys_prompt = SystemMessage(content="""
-    You are the Forensic Investigator Agent for Video Monitoring & Industrial Safety.
-    You conduct root cause analysis on safety incidents, analyze timeline snapshots, and compile forensic evidence reports.
-    Highlight key incident timestamps, violating entities, contributing factors, and corrective actions.
-    Never output unicode emojis. Use clean Markdown tables.
-    """)
+    # Supervisor LLM may have crafted a precise instruction for this agent.
+    # Inject it into the system prompt so the investigator LLM knows exactly
+    # which tools to call and with what arguments.
+    supervisor_instruction = state.get("supervisor_instruction") or ""
+    instruction_block = (
+        f"\n\nSupervisor instruction for this request:\n{supervisor_instruction}"
+        if supervisor_instruction
+        else ""
+    )
+
+    sys_prompt = SystemMessage(content=(
+        "You are the Forensic Investigator Agent for Video Monitoring & Industrial Safety.\n"
+        "You conduct historical alert investigations, root cause analysis on safety incidents, "
+        "analyze timeline snapshots, and compile forensic evidence reports.\n"
+        "You have access to the following tools:\n"
+        "  - get_incidents_by_date(start_date, end_date, camera_name): fetch historical alerts/incidents from the database.\n"
+        "  - resolve_relative_date(value): convert relative phrases like 'yesterday', 'last saturday', 'past 7 days' into concrete start_date/end_date.\n"
+        "  - resolve_camera_id(camera_name): resolve a camera name to its database ID.\n\n"
+        "Rules:\n"
+        "1. Always call the appropriate tool(s) to fetch real data — never guess or fabricate incidents.\n"
+        "2. If the user mentions a relative date (yesterday, kal, last week, etc.), call resolve_relative_date first.\n"
+        "3. After fetching data, summarize it with a professional executive insight followed by a Markdown table.\n"
+        "4. Never output unicode emojis. Use clean Markdown tables."
+        + instruction_block
+    ))
 
     start_t = time.perf_counter()
     llm = base_llm.bind_tools(investigator_agent_tools_registry)
@@ -6649,29 +6669,40 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
 
     elapsed_ms = (time.perf_counter() - start_t) * 1000
 
+    # ── LLM made tool calls: let execute_tools_node handle them ────────────
+    if response and getattr(response, "tool_calls", None):
+        trace = _create_trace_record(
+            "Investigator Agent",
+            "Supervisor -> Investigator Agent -> tool_call",
+            response.tool_calls[0].get("name", "") if response.tool_calls else "",
+            response.tool_calls[0].get("args", {}) if response.tool_calls else {},
+            elapsed_ms, "pending", "LLM selected investigation tool", 210, 160,
+        )
+        return {"messages": [response], "next_agent": "investigator_agent", "execution_trace": trace}
+
+    # ── LLM produced a substantive text answer (no tool needed) ────────────
+    if response and getattr(response, "content", "") and len(response.content.strip()) > 20 \
+            and "processing your query" not in response.content.lower():
+        trace = _create_trace_record(
+            "Investigator Agent", "Supervisor -> Investigator Agent -> LLM Inference",
+            "", {}, elapsed_ms, "success", "Forensic analysis completed", 210, 160,
+        )
+        return {"messages": [response], "next_agent": "FINISH", "execution_trace": trace}
+
+    # ── Last-resort deterministic fallback (LLM unavailable / 503) ─────────
+    # Only fires if the LLM call completely failed to produce any output.
     if _is_historical_investigation_query(user_query) and any(
         marker in _normalize_system_query(user_query)
         for marker in ["alert", "violation", "incident", "history", "happened", "hua"]
     ):
         return _render_historical_alert_investigation(user_query, elapsed_ms)
 
-    if response and getattr(response, "tool_calls", None):
-        return {"messages": [response], "next_agent": "FINISH"}
-
-    if response and getattr(response, "content", "") and len(response.content.strip()) > 20 and "processing your query" not in response.content.lower():
-        trace = _create_trace_record("Investigator Agent", "Supervisor -> Investigator Agent -> LLM Inference", "", {}, elapsed_ms, "success", "Forensic analysis completed", 210, 160)
-        return {"messages": [response], "next_agent": "FINISH", "execution_trace": trace}
-
     trace = _create_trace_record(
         "Investigator Agent",
         "Supervisor -> Investigator Agent",
-        "",
-        {},
-        elapsed_ms,
-        "error",
+        "", {}, elapsed_ms, "error",
         "No database-backed investigation response was available",
-        190,
-        180,
+        190, 180,
     )
     return {
         "messages": [AIMessage(content="No database-backed investigation result is available for this request.")],
@@ -7103,6 +7134,112 @@ def execute_tools_node(state: TeamState) -> Dict[str, Any]:
 
 
 # ── Supervisor Node & Routers ──────────────────────────────────────────────────
+
+_SUPERVISOR_ROUTING_PROMPT = """
+You are the Supervisor for a 5-agent Video Monitoring & Industrial Safety AI system.
+Your ONLY job is to understand the user's intent and return a JSON object with two fields:
+  "agent"       - the specialist agent best suited to handle the request
+  "instruction" - a precise, self-contained task description for that agent
+
+Available agents and their responsibilities:
+- "general_agent"      : Greetings, pleasantries, who-are-you, capabilities, profile lookups.
+- "system_agent"       : Read-only live metrics: camera fleet status, current active alerts, PPE compliance rates, zone risk scores, attendance, anomalies.
+- "setup_agent"        : Configuration mutations: create/update/delete cameras, zones, rules, notification recipients, users, AI models (all require HITL approval).
+- "investigator_agent" : Historical forensic queries: alerts, incidents, or violations from a specific date, date range, day-of-week, or relative period (yesterday, last week, past N days). Also root-cause analysis, timeline reconstruction, and incident investigation.
+- "video_agent"        : Live visual queries: real-time RTSP streams, YOLO detections, VLM scene analysis, PPE on live camera, person search on live feeds.
+
+Instruction writing rules:
+- For "investigator_agent": Always extract the camera name (if any), the date/period mentioned, and the type of data requested (alerts, incidents, violations). Write the instruction as a clear tool-calling directive, e.g. "Call get_incidents_by_date with camera_name='Luxsphere', start_date='2026-09-13', end_date='2026-09-13'. Summarize results by detection type and severity."
+- For date resolution: If the user says "yesterday", "kal", "last saturday", etc., tell the agent to first call resolve_relative_date(value='<phrase>') to get the actual date, then call get_incidents_by_date.
+- For all other agents: Write a concise description of what the user wants.
+- Never output anything except the raw JSON object. No markdown, no explanation.
+
+Examples:
+User: "show me the alerts of luxsphere on 13 september 2026"
+Output: {"agent": "investigator_agent", "instruction": "Call get_incidents_by_date with camera_name='luxsphere', start_date='2026-09-13', end_date='2026-09-13'. Summarize the total alerts, unique detection types, and severity breakdown for the Luxsphere camera."}
+
+User: "what happened yesterday on flarehub camera"
+Output: {"agent": "investigator_agent", "instruction": "First call resolve_relative_date(value='yesterday') to get the date. Then call get_incidents_by_date with camera_name='flarehub' and the resolved date for both start_date and end_date. Summarize alerts by detection type and severity."}
+
+User: "how many cameras are online"
+Output: {"agent": "system_agent", "instruction": "Retrieve the camera fleet status and report how many cameras are online vs offline."}
+
+User: "show me live feed of cam-02"
+Output: {"agent": "video_agent", "instruction": "Open the live RTSP stream for CAM-02 Flarehub Assembly Line and report stream status."}
+
+User: "hi"
+Output: {"agent": "general_agent", "instruction": "Respond to the user's greeting professionally."}
+"""
+
+
+def _supervisor_keyword_fallback(input_lower: str, remembered_camera: str) -> Dict[str, Any]:
+    """Deterministic keyword-based routing used when the LLM call fails (503, timeout, etc.)."""
+    historical_terms = [
+        "yesterday", "kal", "last saturday", "pichle saturday", "past ",
+        "last week", "historical", "history", "on 13", "from 13",
+        "alert from", "what happened", "kya hua", "date-specific",
+    ]
+    if any(term in input_lower for term in historical_terms) or re.search(
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s+(?:september|october|november|december|january|february|march|april|may|june|july|august)",
+        input_lower,
+    ):
+        return {"next_agent": "investigator_agent", "supervisor_instruction": ""}
+
+    if _is_historical_investigation_query(input_lower):
+        return {"next_agent": "investigator_agent", "supervisor_instruction": ""}
+
+    if remembered_camera and _is_relative_camera_followup(input_lower):
+        return {"next_agent": "video_agent", "supervisor_instruction": ""}
+
+    if _is_system_query(input_lower):
+        return {"next_agent": "system_agent", "supervisor_instruction": ""}
+
+    if any(k in input_lower for k in [
+        "create camera", "new camera", "add camera", "setup camera", "configure camera", "manage camera",
+        "create zone", "update zone", "delete zone", "add zone", "setup zone",
+        "update rule", "enable rule", "disable rule", "create rule", "delete rule", "modify rule",
+        "configure notification", "add recipient", "remove recipient", "change threshold", "setup",
+        "create user", "manage user", "reset password", "deactivate user",
+        "assign model", "detection assignment", "notification rule", "scheduled report",
+    ]):
+        return {"next_agent": "setup_agent", "supervisor_instruction": ""}
+
+    if any(k in input_lower for k in [
+        "investigate", "investigation", "root cause", "autopsy", "forensic", "incident report",
+        "timeline analysis", "evidence retrieval", "reconstruct", "breach investigation", "inc-",
+    ]):
+        return {"next_agent": "investigator_agent", "supervisor_instruction": ""}
+
+    if any(k in input_lower for k in [
+        "luxsphere", "flarehub", "cam-01", "cam-02", "cam-03", "cam-04", "cam-05",
+        "cam 01", "cam 02", "cam 03", "cam 04", "cam 05",
+        "live feed", "live stream", "rtsp", "stream url", "show feed", "watch camera",
+        "yolo", "vlm", "scene context", "visual inspection", "motion detect", "detect motion",
+        "snapshot", "live snapshot", "find person by", "frame analysis",
+        "how many person", "how many people", "how many worker", "persons visible", "people visible",
+        "wearing helmet", "wearing hardhat", "not wearing", "without helmet", "without hardhat",
+        "wearing vest", "without vest", "ppe check", "ppe on camera",
+        "what is happening", "what is going on", "what do you see", "describe the scene",
+        "real-time view", "real time view", "current view", "current feed",
+        "what are they doing", "what are they", "visible", "doing",
+    ]):
+        return {"next_agent": "video_agent", "supervisor_instruction": ""}
+
+    if any(k in input_lower for k in [
+        "how many camera", "camera count", "camera status", "cameras", "list camera", "fleet health",
+        "active alerts", "safety alerts", "alerts", "alert list", "recent alerts",
+        "incidents", "incident list", "safety violations", "violations",
+        "zones", "zone list", "risk score", "red zones",
+        "ppe compliance", "compliance", "compliance rate", "worker count", "people count",
+        "counting summary", "counting stats", "statistics", "metrics",
+        "roster", "users", "user list", "hse rules", "safety rules",
+        "select ", "sql", "query", "database", "report", "anomal",
+    ]):
+        return {"next_agent": "system_agent", "supervisor_instruction": ""}
+
+    return {"next_agent": "general_agent", "supervisor_instruction": ""}
+
+
 def supervisor_node(state: TeamState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     last_human_query = ""
@@ -7114,118 +7251,33 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
     input_lower = _normalize_system_query(last_human_query) if isinstance(last_human_query, str) else ""
     remembered_camera = state.get("current_video_camera") or ""
 
-    # Historical/date-scoped event questions are forensic queries. Keep this
-    # guard before System/Video routing so General cannot intercept them.
-    historical_terms = [
-        "yesterday", "kal", "last saturday", "pichle saturday", "past ",
-        "last week", "historical", "history", "on 13", "from 13",
-        "alert from", "what happened", "kya hua", "date-specific",
-    ]
-    if any(term in input_lower for term in historical_terms) or re.search(
-        r"\b\d{1,2}(?:st|nd|rd|th)?\s+(?:september|october|november|december|january|february|march|april|may|june|july|august)",
-        input_lower,
-    ):
-        return {"next_agent": "investigator_agent"}
+    # ── LLM-based routing: supervisor understands intent and crafts a precise
+    # instruction for the target specialist agent. ──────────────────────────
+    routing_result: Optional[Dict[str, Any]] = None
+    try:
+        routing_response = base_llm.invoke([
+            SystemMessage(content=_SUPERVISOR_ROUTING_PROMPT),
+            HumanMessage(content=last_human_query),
+        ])
+        raw_content = getattr(routing_response, "content", "") or ""
+        # Strip markdown fences if the LLM wrapped the JSON
+        raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content.strip(), flags=re.IGNORECASE)
+        raw_content = re.sub(r"```$", "", raw_content.strip())
+        parsed = json.loads(raw_content.strip())
+        agent = parsed.get("agent", "")
+        instruction = parsed.get("instruction", "")
+        valid_agents = {"general_agent", "system_agent", "setup_agent", "investigator_agent", "video_agent"}
+        if agent in valid_agents and isinstance(instruction, str):
+            routing_result = {"next_agent": agent, "supervisor_instruction": instruction}
+    except Exception:
+        # LLM call failed (503 / timeout / bad JSON) — fall through to keyword fallback
+        routing_result = None
 
-    # A checkpointed Video Agent camera owns relative visual follow-ups such as
-    # "what is going on here" even when the latest turn omits the camera name.
-    if _is_historical_investigation_query(input_lower):
-        return {"next_agent": "investigator_agent"}
+    # ── Keyword fallback: used when LLM routing is unavailable ─────────────
+    if routing_result is None:
+        routing_result = _supervisor_keyword_fallback(input_lower, remembered_camera)
 
-    if remembered_camera and _is_relative_camera_followup(input_lower):
-        return {"next_agent": "video_agent"}
-
-    # Operational database questions must stay with System Agent, including
-    # Hindi/Hinglish wording and explicit requests to use that agent.
-    if _is_system_query(input_lower):
-        return {"next_agent": "system_agent"}
-
-    # Setup Agent: Mutations, creation, updates, configuration, deletion
-    if any(k in input_lower for k in [
-        "create camera", "new camera", "add camera", "setup camera", "configure camera", "manage camera",
-        "create zone", "update zone", "delete zone", "add zone", "setup zone",
-        "update rule", "enable rule", "disable rule", "create rule", "delete rule", "modify rule", "configure rule",
-        "configure notification", "add recipient", "remove recipient", "change threshold", "setup",
-        "create user", "manage user", "reset password", "deactivate user",
-        "assign model", "detection assignment", "notification rule", "scheduled report"
-    ]):
-        return {"next_agent": "setup_agent"}
-
-    # Investigator Agent: Forensic timeline, root cause, autopsy, incident evidence
-    if any(k in input_lower for k in [
-        "investigate", "investigation", "root cause", "autopsy", "forensic", "incident report",
-        "timeline analysis", "evidence retrieval", "reconstruct", "breach investigation", "inc-"
-    ]):
-        return {"next_agent": "investigator_agent"}
-
-    # Video Agent: Live stream, RTSP, stream URL, YOLO/VLM detections, person/PPE visual queries,
-    # real-time camera scene requests, and any query referencing a specific camera by name/number.
-    if any(k in input_lower for k in [
-        "luxsphere", "flarehub", "cam-01", "cam-02", "cam-03", "cam-04", "cam-05",
-        "cam 01", "cam 02", "cam 03", "cam 04", "cam 05",
-        "live feed", "live stream", "rtsp", "stream url", "show feed", "show camera feed", "watch camera",
-        "yolo", "vlm", "scene context", "what are workers doing", "visual inspection",
-        "motion detect", "detect motion", "snapshot", "live snapshot", "find person by",
-        "interrogate scene", "frame analysis",
-        # Visual presence / counting queries
-        "how many person", "how many people", "how many worker", "persons visible", "people visible",
-        "who is in", "who is on", "workers visible", "visible in", "visible on", "operators",
-        # PPE compliance on live cameras
-        "wearing helmet", "wearing hardhat", "not wearing", "without helmet", "without hardhat",
-        "wearing vest", "without vest", "ppe check", "ppe on camera",
-        # Camera-specific view requests
-        "show me cam", "show cam", "open cam", "camera feed", "camera view", "camera stream", "camera live",
-        "entry gate camera", "manufacturing bay camera", "warehouse camera", "hazard zone camera", "steel yard camera",
-        "what is happening", "what is going on", "what do you see", "describe the scene", "scene description",
-        "real-time view", "real time view", "current view", "current feed",
-        "which one", "who looks", "looks focused", "focused on work", "too focused",
-        "what are they doing", "what are they", "visible", "doing",
-    ]):
-        return {"next_agent": "video_agent"}
-
-    # System Agent: Counts, status, cameras, alerts, incidents, zones, compliance, metrics, live state, ad-hoc SQL
-    if any(k in input_lower for k in [
-        "how many camera", "camera count", "camera status", "cameras", "list camera", "fleet health", "camera fleet",
-        "active alerts", "safety alerts", "alerts", "alert list", "recent alerts",
-        "incidents", "incident list", "safety violations", "violations", "safety events",
-        "zones", "zone list", "risk score", "red zones",
-        "ppe compliance", "compliance", "compliance rate", "worker count", "people count", "forklift count",
-        "counting summary", "counting stats", "statistics", "metrics",
-        "roster", "users", "user list", "operators", "hse rules", "safety rules",
-        "select ", "sql", "query", "database", "report", "anomal"
-    ]):
-        return {"next_agent": "system_agent"}
-
-    # General Agent: Greetings and pure conversational pleasantries ONLY
-    if any(k in input_lower for k in [
-        "hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening",
-        "who are you", "what can you do", "help", "thanks", "thank you", "who am i", "profile", "about you"
-    ]):
-        return {"next_agent": "general_agent"}
-
-    return {"next_agent": "general_agent"}
-
-    # System Agent: Counts, status, cameras, alerts, incidents, zones, compliance, metrics, live state, ad-hoc SQL
-    if any(k in input_lower for k in [
-        "how many camera", "camera count", "camera status", "cameras", "list camera", "fleet health", "camera fleet",
-        "active alerts", "safety alerts", "alerts", "alert list", "recent alerts",
-        "incidents", "incident list", "safety violations", "violations", "safety events",
-        "zones", "zone list", "risk score", "red zones",
-        "ppe compliance", "compliance", "compliance rate", "worker count", "people count", "forklift count",
-        "counting summary", "counting stats", "statistics", "metrics",
-        "roster", "users", "user list", "operators", "hse rules", "safety rules",
-        "select ", "sql", "query", "database", "report", "anomal"
-    ]):
-        return {"next_agent": "system_agent"}
-
-    # General Agent: Greetings and pure conversational pleasantries ONLY
-    if any(k in input_lower for k in [
-        "hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening",
-        "who are you", "what can you do", "help", "thanks", "thank you", "who am i", "profile", "about you"
-    ]):
-        return {"next_agent": "general_agent"}
-
-    return {"next_agent": "general_agent"}
+    return routing_result
 
 
 def supervisor_router(state: TeamState) -> str:
