@@ -67,14 +67,18 @@ def resolve_relative_date(value: str, reference_date: Optional[str] = None) -> D
         return {"start_date": (reference - timedelta(days=int(match.group(1)))).isoformat(), "end_date": reference.isoformat()}
 
     calendar_match = re.search(
-        r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})\b",
+        r"\b(\d{1,2})(?:st|nd|rd|th)?\s*([a-z]+)(?:\s+(\d{4}))?\b",
         normalized_clean,
     )
     if calendar_match:
+        day_str = calendar_match.group(1)
+        month_str = calendar_match.group(2)
+        year_str = calendar_match.group(3) or str(reference.year)
+        
         for date_format in ("%d %B %Y", "%d %b %Y"):
             try:
                 target = datetime.strptime(
-                    f"{calendar_match.group(1)} {calendar_match.group(2)} {calendar_match.group(3)}",
+                    f"{day_str} {month_str} {year_str}",
                     date_format,
                 ).date()
                 return {"start_date": target.isoformat(), "end_date": target.isoformat()}
@@ -101,11 +105,13 @@ def _execute(query: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
 @tool
 def resolve_camera_id(camera_name: str) -> Dict[str, Any]:
     """Resolve a camera display name to its database ID before event queries."""
-    matches = _execute("""
-        SELECT id, name FROM cameras
-        WHERE name ILIKE :camera_name ORDER BY id LIMIT 10
-    """, {"camera_name": f"%{camera_name.strip()}%"})
-    return {"camera_name": camera_name, "matches": matches}
+    all_cams = _execute("SELECT id, name FROM cameras", {})
+    if isinstance(all_cams, list) and len(all_cams) > 0 and "error" not in all_cams[0]:
+        matches = [c for c in all_cams if c["name"].lower() in camera_name.lower()]
+        if not matches:
+            matches = [c for c in all_cams if camera_name.lower() in c["name"].lower()]
+        return {"camera_name": camera_name, "matches": matches[:10]}
+    return {"camera_name": camera_name, "matches": []}
 
 
 @tool
