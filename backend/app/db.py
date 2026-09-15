@@ -156,10 +156,16 @@ if VA_DATABASE_URL:
         async_va_url = async_va_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
     
     try:
+        from sqlalchemy.pool import AsyncAdaptedQueuePool
         va_engine = create_async_engine(
             async_va_url,
             echo=False,
-            poolclass=NullPool,
+            poolclass=AsyncAdaptedQueuePool,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=30,
+            pool_recycle=1800,
+            pool_pre_ping=True,
             connect_args={
                 "timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
                 "command_timeout": DATABASE_CONNECT_TIMEOUT_SECONDS,
@@ -173,7 +179,13 @@ async def get_va_db():
     if not VASessionLocal:
         raise RuntimeError("Video Analytics DB is not configured.")
     async with VASessionLocal() as session:
-        yield session
+        try:
+            yield session
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            await session.rollback()
+            raise
 
 # Sync engine for local DB (used by synchronous tools)
 from sqlalchemy import create_engine as create_sync_engine_sqlite
