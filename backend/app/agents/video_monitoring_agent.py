@@ -6664,7 +6664,9 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
         "1. Always call the appropriate tool(s) to fetch real data — never guess or fabricate incidents.\n"
         "2. If the user mentions a relative date (yesterday, kal, last week, etc.), call resolve_relative_date first.\n"
         "3. After fetching data, summarize it with a professional executive insight followed by a Markdown table.\n"
-        "4. Never output unicode emojis. Use clean Markdown tables."
+        "4. Never output unicode emojis. Use clean Markdown tables.\n"
+        "5. CRITICAL: When passing camera_name to tools, extract ONLY the pure camera name (e.g. 'Luxsphere') "
+        "from the user's message. Never pass the full sentence or conversational text as the camera_name parameter."
         + instruction_block
     ))
 
@@ -6753,6 +6755,19 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
 
     date_phrase = window_match.group(0) if window_match else calendar_match.group(0) if calendar_match else weekday_match.group(0) if weekday_match else normalized
     date_range = resolve_relative_date.invoke({"value": date_phrase})
+
+    # Resolve the camera name against the DB to get clean proper names and camera_id
+    resolved_camera_id = None
+    if camera_name:
+        try:
+            cam_res = resolve_camera_id.invoke({"camera_name": camera_name})
+            matches = cam_res.get("matches", []) if isinstance(cam_res, dict) else []
+            if matches and isinstance(matches[0], dict) and "id" in matches[0]:
+                resolved_camera_id = matches[0]["id"]
+                camera_name = matches[0].get("name", camera_name)  # use clean DB name
+        except Exception:
+            pass
+
     rows = get_incidents_by_date.invoke({
         "start_date": date_range["start_date"],
         "end_date": date_range["end_date"],
