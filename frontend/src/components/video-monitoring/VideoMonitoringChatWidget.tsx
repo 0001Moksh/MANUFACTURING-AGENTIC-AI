@@ -6,7 +6,7 @@ import {
   Send,
   Bot,
   Sparkles,
-  Sliders,
+  System,
   Cpu,
   Video,
   Wrench,
@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Maximize2,
   Minimize2,
+  Table as TableIcon,
 } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { ChatWidgetRenderer } from './ChatWidgetRenderer';
@@ -36,6 +37,81 @@ interface GovernanceSettings {
   alertAudioEnabled: boolean;
 }
 
+/* ───────────────────────────── Markdown Table Component ───────────────────────────── */
+const MarkdownTable: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <>
+      <div className="my-3 max-w-full">
+        <div className="rounded-xl border border-slate-700/60 bg-slate-950/80 overflow-hidden shadow-lg shadow-black/20">
+          {/* Table header bar */}
+          <div className="flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-slate-900 to-slate-900/80 border-b border-slate-700/60">
+            <div className="flex items-center gap-2">
+              <TableIcon className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
+                Alert Log
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsExpanded(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700/50 transition-all"
+              title="Expand table"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>Zoom</span>
+            </button>
+          </div>
+
+          {/* Scrollable area */}
+          <div className="max-h-[340px] overflow-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+            <table className="w-full min-w-[780px] text-left text-xs border-collapse">
+              {children}
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Modal */}
+      {isExpanded && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setIsExpanded(false)}
+        >
+          <div
+            className="relative w-full max-w-6xl h-[88vh] bg-slate-950 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3.5 bg-slate-900 border-b border-slate-700/70 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <TableIcon className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-semibold text-cyan-400">
+                  Alert Log — Expanded View
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              <table className="w-full min-w-[900px] text-left text-sm border-collapse">
+                {children}
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+/* ───────────────────────────── Main Component ───────────────────────────── */
 export const VideoMonitoringChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -45,7 +121,6 @@ export const VideoMonitoringChatWidget: React.FC = () => {
   const [, setActiveAgent] = useState<string>('General Agent');
   const [threadId] = useState<string>(() => `thread_${Math.random().toString(36).substring(2, 9)}`);
 
-  // Traceability toggle sync with global Admin Console
   const explainableLogs = useAppStore((state: any) => state.explainableLogs);
 
   const [governance, setGovernance] = useState<GovernanceSettings>({
@@ -58,7 +133,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
     {
       id: 'welcome',
       sender: 'bot',
-      text: 'Welcome to Deva Assistant — your multi-agent video monitoring system. Powered by a 5-agent specialist mesh (General, System, Setup, Investigator, Video). Ask about cameras, safety violations, or incident forensics.',
+      text: 'Welcome to **Deva Assistant** — your multi-agent video monitoring system. Powered by a 5-agent specialist mesh (General, System, Setup, Investigator, Video). Ask about cameras, safety violations, or incident forensics.',
       agent: 'General Agent',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
@@ -76,11 +151,11 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
   const getAgentBadgeColor = (agentName: string) => {
     const name = agentName.toLowerCase();
-    if (name.includes('video')) return 'bg-cyan-950/90 text-cyan-300 border-cyan-800/60';
-    if (name.includes('investigat')) return 'bg-amber-950/90 text-amber-300 border-amber-800/60';
-    if (name.includes('setup')) return 'bg-purple-950/90 text-purple-300 border-purple-800/60';
-    if (name.includes('system')) return 'bg-emerald-950/90 text-emerald-300 border-emerald-800/60';
-    return 'bg-slate-800/90 text-teal-300 border-slate-700';
+    if (name.includes('video')) return 'bg-cyan-950/80 text-cyan-300 border-cyan-700/50';
+    if (name.includes('investigat')) return 'bg-amber-950/80 text-amber-300 border-amber-700/50';
+    if (name.includes('setup')) return 'bg-purple-950/80 text-purple-300 border-purple-700/50';
+    if (name.includes('system')) return 'bg-emerald-950/80 text-emerald-300 border-emerald-700/50';
+    return 'bg-slate-800/80 text-teal-300 border-slate-600/50';
   };
 
   const getAgentIcon = (agentName: string) => {
@@ -130,9 +205,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
         }),
       });
 
-      if (!response.ok || !response.body) {
-        throw new Error('Streaming failed');
-      }
+      if (!response.ok || !response.body) throw new Error('Streaming failed');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -248,12 +321,12 @@ export const VideoMonitoringChatWidget: React.FC = () => {
       {/* Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-teal-600 px-3.5 py-3 text-white shadow-lg shadow-teal-600/25 transition-all duration-200 hover:bg-teal-700 hover:shadow-xl hover:scale-[1.02] active:scale-95 border border-teal-500/30 cursor-pointer"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-teal-600 px-3.5 py-3 text-white shadow-lg shadow-teal-600/30 transition-all duration-200 hover:bg-teal-500 hover:shadow-xl hover:scale-[1.03] active:scale-95 border border-teal-400/30 cursor-pointer"
         aria-label="Toggle Deva Assistant"
       >
         <div className="relative">
           <Bot className="w-5 h-5" />
-          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border-2 border-teal-600" />
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-teal-600 animate-pulse" />
         </div>
       </button>
 
@@ -263,41 +336,40 @@ export const VideoMonitoringChatWidget: React.FC = () => {
           className={
             isFullscreen
               ? 'fixed inset-0 z-50 w-screen h-screen max-w-none max-h-none bg-slate-950 border-0 rounded-none shadow-none flex flex-col overflow-hidden'
-              : 'fixed bottom-22 right-6 z-50 w-[92vw] sm:w-[500px] h-[660px] max-h-[85vh] bg-slate-950 border border-slate-800 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200'
+              : 'fixed bottom-22 right-6 z-50 w-[92vw] sm:w-[520px] h-[680px] max-h-[88vh] bg-slate-950 border border-slate-800/80 rounded-2xl shadow-2xl shadow-black/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200'
           }
         >
           {/* Header */}
-          <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8.5 w-8.5 items-center justify-center rounded-lg bg-teal-600 text-white shrink-0 shadow-sm">
-                <Bot className="w-4.5 h-4.5" />
+          <div className="px-4 py-3.5 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-900/95 border-b border-slate-800/80 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shrink-0 shadow-md shadow-teal-900/40">
+                <Bot className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[20px] font-semibold text-slate-100 tracking-tight">
-                    Deva Assistant
-                  </span>
-                </div>
+                <span className="text-[18px] font-semibold text-slate-100 tracking-tight block leading-tight">
+                  Deva Assistant
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium">Multi-Agent Safety System</span>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
                 title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Mode'}
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
               <button
                 onClick={() => setIsGovernanceOpen(true)}
-                className="p-1.5 text-slate-400 hover:text-teal-400 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-teal-400 hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
                 title="HITL Governance Settings"
               >
                 <Sliders className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -305,7 +377,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 p-3.5 overflow-y-auto space-y-3.5 bg-slate-950">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-950 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -315,14 +387,14 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   className={
                     msg.sender === 'user'
                       ? 'flex flex-col items-end w-fit max-w-[85%] ml-auto'
-                      : `flex flex-col items-start ${msg.widget ? 'w-fit max-w-[95%]' : 'w-full max-w-[98%]'
-                      } ${msg.widget?.type === 'snapshot_evidence_widget' ? 'min-w-0' : ''}`
+                      : `flex flex-col items-start ${msg.widget ? 'w-fit max-w-[96%]' : 'w-full max-w-[98%]'
+                      }`
                   }
                 >
                   {msg.sender === 'bot' && msg.agent && (
-                    <div className="flex items-center gap-1.5 mb-1">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-t-md border ${getAgentBadgeColor(
+                        className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${getAgentBadgeColor(
                           msg.agent
                         )}`}
                       >
@@ -334,9 +406,9 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   )}
 
                   <div
-                    className={`px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed shadow-md ${msg.sender === 'user'
-                        ? 'bg-teal-600 text-white rounded-br-sm w-fit max-w-full'
-                        : `bg-slate-900/95 border border-slate-800 text-slate-100 rounded-tl-sm ${msg.widget ? 'w-fit max-w-full' : 'w-full'
+                    className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-md ${msg.sender === 'user'
+                        ? 'bg-gradient-to-br from-teal-600 to-teal-700 text-white rounded-br-md'
+                        : `bg-slate-900/90 border border-slate-800/80 text-slate-100 rounded-tl-md ${msg.widget ? 'w-fit max-w-full' : 'w-full'
                         }`
                       }`}
                   >
@@ -348,88 +420,25 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm as any]}
                           components={{
-                            table: ({ node, ...props }) => {
-                              const [isExpanded, setIsExpanded] = React.useState(false);
-
-                              return (
-                                <>
-                                  <div className="my-3 max-w-full">
-                                    <div className="rounded-xl border border-slate-700/80 shadow-lg bg-slate-950 overflow-hidden">
-                                      {/* Header bar with Zoom button */}
-                                      <div className="flex items-center justify-between px-3 py-2 bg-slate-900/90 border-b border-slate-700/70">
-                                        <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
-                                          Alert Log
-                                        </span>
-                                        <button
-                                          type="button"
-                                          onClick={() => setIsExpanded(true)}
-                                          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-                                          title="Expand table"
-                                        >
-                                          <Maximize2 className="w-3.5 h-3.5" />
-                                          <span>Zoom</span>
-                                        </button>
-                                      </div>
-
-                                      {/* Scrollable table area - 340px max height */}
-                                      <div className="max-h-[340px] overflow-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-900">
-                                        <table
-                                          className="w-full min-w-[780px] text-left text-xs border-collapse"
-                                          {...props}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Fullscreen / Zoom Modal */}
-                                  {isExpanded && (
-                                    <div
-                                      className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-                                      onClick={() => setIsExpanded(false)}
-                                    >
-                                      <div
-                                        className="relative w-full max-w-6xl h-[85vh] bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        {/* Modal header */}
-                                        <div className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-700 shrink-0">
-                                          <span className="text-sm font-semibold text-cyan-400">
-                                            Alert Log — Expanded View
-                                          </span>
-                                          <button
-                                            type="button"
-                                            onClick={() => setIsExpanded(false)}
-                                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                                            title="Close"
-                                          >
-                                            <X className="w-5 h-5" />
-                                          </button>
-                                        </div>
-
-                                        {/* Full height scrollable table */}
-                                        <div className="flex-1 overflow-auto">
-                                          <table
-                                            className="w-full min-w-[900px] text-left text-sm border-collapse"
-                                            {...props}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            },
+                            table: ({ children }) => <MarkdownTable>{children}</MarkdownTable>,
 
                             thead: ({ node, ...props }) => (
                               <thead
-                                className="sticky top-0 z-20 bg-slate-800 text-cyan-400 font-semibold border-b border-slate-600 text-[11px] uppercase tracking-wider shadow-md"
+                                className="sticky top-0 z-20 bg-slate-800/95 text-cyan-400 font-semibold border-b border-slate-600 text-[11px] uppercase tracking-wider backdrop-blur-sm"
                                 {...props}
                               />
                             ),
 
                             th: ({ node, ...props }) => (
                               <th
-                                className="py-2.5 px-3 font-bold text-cyan-400 whitespace-nowrap"
+                                className="py-2.5 px-3.5 font-bold text-cyan-400 whitespace-nowrap"
+                                {...props}
+                              />
+                            ),
+
+                            tr: ({ node, ...props }) => (
+                              <tr
+                                className="hover:bg-slate-800/40 transition-colors"
                                 {...props}
                               />
                             ),
@@ -446,8 +455,8 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
                               if (isOnline || isCompliant) {
                                 return (
-                                  <td className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200">
-                                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded-md text-[11px] border border-emerald-800/50">
+                                  <td className="py-2.5 px-3.5 border-t border-slate-800/50 text-slate-200">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded-md text-[11px] border border-emerald-800/40">
                                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                       {props.children}
                                     </span>
@@ -456,8 +465,8 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                               }
                               if (isOffline || isCritical) {
                                 return (
-                                  <td className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200">
-                                    <span className="inline-flex items-center gap-1.5 font-semibold text-red-400 bg-red-950/50 px-2 py-0.5 rounded-md text-[11px] border border-red-800/50">
+                                  <td className="py-2.5 px-3.5 border-t border-slate-800/50 text-slate-200">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-red-400 bg-red-950/40 px-2 py-0.5 rounded-md text-[11px] border border-red-800/40">
                                       {props.children}
                                     </span>
                                   </td>
@@ -465,8 +474,8 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                               }
                               if (isWarning || isMajor) {
                                 return (
-                                  <td className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200">
-                                    <span className="inline-flex items-center gap-1.5 font-semibold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded-md text-[11px] border border-amber-800/50">
+                                  <td className="py-2.5 px-3.5 border-t border-slate-800/50 text-slate-200">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded-md text-[11px] border border-amber-800/40">
                                       {props.children}
                                     </span>
                                   </td>
@@ -474,65 +483,38 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                               }
                               return (
                                 <td
-                                  className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200"
+                                  className="py-2.5 px-3.5 border-t border-slate-800/50 text-slate-200"
                                   {...props}
                                 />
                               );
                             },
 
                             h1: ({ node, ...props }) => (
-                              <h1
-                                className="text-[15px] font-bold text-slate-100 mt-2 mb-1.5 tracking-tight"
-                                {...props}
-                              />
+                              <h1 className="text-[15px] font-bold text-slate-100 mt-2 mb-1.5 tracking-tight" {...props} />
                             ),
                             h2: ({ node, ...props }) => (
-                              <h2
-                                className="text-[14px] font-bold text-slate-100 mt-2 mb-1 tracking-tight"
-                                {...props}
-                              />
+                              <h2 className="text-[14px] font-bold text-slate-100 mt-2 mb-1 tracking-tight" {...props} />
                             ),
                             h3: ({ node, ...props }) => (
-                              <h3
-                                className="text-[13px] font-bold text-slate-100 mt-1.5 mb-1"
-                                {...props}
-                              />
+                              <h3 className="text-[13px] font-bold text-slate-100 mt-1.5 mb-1" {...props} />
                             ),
                             h4: ({ node, ...props }) => (
-                              <h4
-                                className="text-[12px] font-bold text-slate-200 mt-1 mb-0.5"
-                                {...props}
-                              />
+                              <h4 className="text-[12px] font-bold text-slate-200 mt-1 mb-0.5" {...props} />
                             ),
                             ul: ({ node, ...props }) => (
-                              <ul
-                                className="list-disc pl-4 space-y-1 my-1.5 text-slate-300"
-                                {...props}
-                              />
+                              <ul className="list-disc pl-4 space-y-1 my-1.5 text-slate-300" {...props} />
                             ),
                             ol: ({ node, ...props }) => (
-                              <ol
-                                className="list-decimal pl-4 space-y-1 my-1.5 text-slate-300"
-                                {...props}
-                              />
+                              <ol className="list-decimal pl-4 space-y-1 my-1.5 text-slate-300" {...props} />
                             ),
                             blockquote: ({ node, ...props }) => (
-                              <blockquote
-                                className="border-l-3 border-teal-500 bg-slate-900/80 pl-2.5 py-1 my-1.5 text-slate-200 italic rounded-r text-[12px]"
-                                {...props}
-                              />
+                              <blockquote className="border-l-3 border-teal-500 bg-slate-900/60 pl-3 py-1.5 my-2 text-slate-200 italic rounded-r text-[12px]" {...props} />
                             ),
                             code: ({ node, inline, ...props }: any) =>
                               inline ? (
-                                <code
-                                  className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded font-mono text-[11px] border border-slate-700"
-                                  {...props}
-                                />
+                                <code className="bg-slate-800 text-cyan-300 px-1.5 py-0.5 rounded font-mono text-[11px] border border-slate-700" {...props} />
                               ) : (
-                                <code
-                                  className="block bg-slate-950 text-emerald-400 p-2.5 rounded-lg font-mono text-[11px] my-2 overflow-x-auto border border-slate-800"
-                                  {...props}
-                                />
+                                <code className="block bg-slate-950 text-emerald-400 p-3 rounded-xl font-mono text-[11px] my-2 overflow-x-auto border border-slate-800" {...props} />
                               ),
                           }}
                         >
@@ -540,7 +522,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         </ReactMarkdown>
                       </div>
                     ) : isStreaming && msg.id.startsWith('bot_') ? (
-                      <span className="inline-flex items-center gap-2 text-slate-400 text-xs py-1">
+                      <span className="inline-flex items-center gap-2.5 text-slate-400 text-xs py-1">
                         <span className="font-medium text-slate-300">Analyzing safety telemetry</span>
                         <span className="flex gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-bounce [animation-delay:-0.3s]" />
@@ -552,7 +534,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
                     {/* Interactive Widget */}
                     {msg.widget && (
-                      <div className="mt-2.5">
+                      <div className="mt-3">
                         <ChatWidgetRenderer
                           payload={msg.widget}
                           onActionClick={handleActionClick}
@@ -560,7 +542,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Expandable Traceability Telemetry Widget */}
+                    {/* Trace Widget */}
                     {msg.sender === 'bot' &&
                       (explainableLogs || msg.telemetry) &&
                       msg.telemetry && (
@@ -569,7 +551,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   </div>
 
                   {msg.sender === 'user' && (
-                    <div className="text-[10px] text-slate-500 text-right mt-1 px-1">
+                    <div className="text-[10px] text-slate-500 text-right mt-1.5 px-1">
                       {msg.timestamp}
                     </div>
                   )}
@@ -580,20 +562,20 @@ export const VideoMonitoringChatWidget: React.FC = () => {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2 shrink-0">
+          <div className="p-3.5 bg-slate-900/90 border-t border-slate-800/80 flex items-center gap-2.5 shrink-0">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-              placeholder="Ask Deva Assistant about cameras, safety alerts, zones…"
+              placeholder="Ask about cameras, safety alerts, zones…"
               disabled={isStreaming}
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-[13px] text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition disabled:opacity-60"
+              className="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-2.5 text-[13px] text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/70 focus:ring-2 focus:ring-cyan-500/20 transition disabled:opacity-60"
             />
             <button
               onClick={() => handleSendMessage()}
               disabled={isStreaming || !input.trim()}
-              className="p-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 text-white disabled:text-slate-500 rounded-lg transition-all disabled:opacity-60 cursor-pointer shadow-sm shadow-cyan-900/30"
+              className="p-2.5 bg-gradient-to-br from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 disabled:from-slate-800 disabled:to-slate-800 text-white disabled:text-slate-500 rounded-xl transition-all disabled:opacity-60 cursor-pointer shadow-md shadow-cyan-900/20"
               title="Send Query"
             >
               <Send className="w-4 h-4" />
@@ -604,30 +586,29 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
       {/* HITL Governance Drawer */}
       {isGovernanceOpen && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex justify-end">
+        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex justify-end">
           <div className="w-full max-w-sm bg-white border-l border-slate-200 h-full p-5 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
             <div className="flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-5">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-500/10 text-teal-600">
-                    <ShieldCheck className="w-4 h-4" />
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600">
+                    <ShieldCheck className="w-4.5 h-4.5" />
                   </div>
-                  <h3 className="text-[14px] font-semibold text-slate-900">
-                    HITL Governance Settings
+                  <h3 className="text-[15px] font-semibold text-slate-900">
+                    HITL Governance
                   </h3>
                 </div>
                 <button
                   onClick={() => setIsGovernanceOpen(false)}
-                  className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
                 >
-                  <X className="w-4.5 h-4.5" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="space-y-5 text-[13px]">
-                {/* Auto Approve Threshold */}
+              <div className="space-y-6 text-[13px]">
                 <div>
-                  <div className="flex justify-between font-medium text-slate-800 mb-1.5">
+                  <div className="flex justify-between font-medium text-slate-800 mb-2">
                     <span>Auto-Approve Threshold</span>
                     <span className="font-mono text-teal-600 font-bold">
                       {(governance.autoApproveThreshold * 100).toFixed(0)}%
@@ -647,20 +628,18 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                     }
                     className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
                   />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Rule mutations and safety changes below this confidence level require operator
-                    approval.
+                  <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                    Rule mutations and safety changes below this confidence level require operator approval.
                   </p>
                 </div>
 
-                {/* Mandatory Mutation Controls */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="pr-2">
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="pr-3">
                     <span className="font-semibold text-slate-800 block text-[13px]">
                       Mandatory Mutation Controls
                     </span>
                     <span className="text-[11px] text-slate-500 mt-0.5 block">
-                      Require operator confirmation for camera & zone mutations
+                      Require confirmation for camera & zone changes
                     </span>
                   </div>
                   <button
@@ -670,19 +649,18 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         requireHitlForMutations: !governance.requireHitlForMutations,
                       })
                     }
-                    className={`w-10 h-5.5 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${governance.requireHitlForMutations ? 'bg-teal-600' : 'bg-slate-300'
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${governance.requireHitlForMutations ? 'bg-teal-600' : 'bg-slate-300'
                       }`}
                   >
                     <div
-                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${governance.requireHitlForMutations ? 'translate-x-4.5' : 'translate-x-0'
+                      className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${governance.requireHitlForMutations ? 'translate-x-5' : 'translate-x-0'
                         }`}
                     />
                   </button>
                 </div>
 
-                {/* Critical Alert Audio */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="pr-2">
+                <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <div className="pr-3">
                     <span className="font-semibold text-slate-800 block text-[13px]">
                       Critical Alert Audio
                     </span>
@@ -697,11 +675,11 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                         alertAudioEnabled: !governance.alertAudioEnabled,
                       })
                     }
-                    className={`w-10 h-5.5 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${governance.alertAudioEnabled ? 'bg-teal-600' : 'bg-slate-300'
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors shrink-0 cursor-pointer ${governance.alertAudioEnabled ? 'bg-teal-600' : 'bg-slate-300'
                       }`}
                   >
                     <div
-                      className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${governance.alertAudioEnabled ? 'translate-x-4.5' : 'translate-x-0'
+                      className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${governance.alertAudioEnabled ? 'translate-x-5' : 'translate-x-0'
                         }`}
                     />
                   </button>
@@ -711,7 +689,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
             <button
               onClick={() => setIsGovernanceOpen(false)}
-              className="w-full mt-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg text-[13px] transition-colors shadow-sm cursor-pointer"
+              className="w-full mt-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl text-[13px] transition-colors shadow-sm cursor-pointer"
             >
               Save Configuration
             </button>
