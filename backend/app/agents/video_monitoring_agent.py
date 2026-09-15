@@ -6262,12 +6262,13 @@ def _is_historical_investigation_query(query: str) -> bool:
     historical_terms = [
         "yesterday", "kal", "last saturday", "past saturday", "last week",
         "historical", "history", "what happened", "kya hua", "alert from",
-        "show alerts from", "date-specific", "incident inc-", "investigate incident",
-        "investigation agent", "investigation mein",
+        "alert of", "alert for", "alerts from", "alerts of", "alerts for",
+        "today", "aaj", "show alerts from", "date-specific", "incident inc-",
+        "investigate incident", "investigation agent", "investigation mein",
     ]
     has_relative_window = bool(re.search(r"(?:past|last)\s+\d+\s+days?", normalized))
     has_calendar_date = bool(re.search(
-        r"\b\d{1,2}(?:st|nd|rd|th)?\s+(?:september|october|november|december|january|february|march|april|may|june|july|august)",
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s*(?:september|october|november|december|january|february|march|april|may|june|july|august)",
         normalized,
     ))
     return has_relative_window or has_calendar_date or any(term in normalized for term in historical_terms)
@@ -6745,7 +6746,7 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
 
     window_match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
     calendar_match = re.search(
-        r"\b\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+\d{4}\b",
+        r"\b\d{1,2}(?:st|nd|rd|th)?\s*[a-z]+(?:\s+\d{4})?\b",
         normalized,
     )
     weekday_match = re.search(r"\b(?:saturday|sunday|monday|tuesday|wednesday|thursday|friday|yesterday|kal|today|aaj)\b", normalized)
