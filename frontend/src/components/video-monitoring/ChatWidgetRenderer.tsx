@@ -312,8 +312,6 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
       </div>
     );
   }
-    );
-  }
 
   if (payload.type === 'snapshot_evidence_widget') {
     return (
