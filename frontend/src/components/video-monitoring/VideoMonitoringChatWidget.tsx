@@ -6,7 +6,7 @@ import {
   Send,
   Bot,
   Sparkles,
-  System,
+  Sliders,          // ← fixed
   Cpu,
   Video,
   Wrench,
@@ -64,7 +64,7 @@ const MarkdownTable: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </button>
           </div>
 
-          {/* Scrollable area */}
+          {/* Scrollable area - 340px */}
           <div className="max-h-[340px] overflow-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
             <table className="w-full min-w-[780px] text-left text-xs border-collapse">
               {children}
@@ -437,10 +437,7 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                             ),
 
                             tr: ({ node, ...props }) => (
-                              <tr
-                                className="hover:bg-slate-800/40 transition-colors"
-                                {...props}
-                              />
+                              <tr className="hover:bg-slate-800/40 transition-colors" {...props} />
                             ),
 
                             td: ({ node, ...props }) => {
