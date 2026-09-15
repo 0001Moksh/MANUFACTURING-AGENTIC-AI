@@ -52,7 +52,12 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import QueuePool
 from typing_extensions import TypedDict
 from app.crypto import build_rtsp_url
-from app.agents.investigator_tools import get_incidents_by_date, resolve_camera_id, resolve_relative_date
+from app.agents.investigator_tools import (
+    get_incidents_by_date,
+    resolve_camera_id,
+    resolve_relative_date,
+    get_available_alert_dates,
+)
 
 import litellm
 
@@ -4859,6 +4864,7 @@ investigator_agent_tools_registry = [
     get_incidents_by_date,
     resolve_camera_id,
     resolve_relative_date,
+    get_available_alert_dates,
 ]
 # ════════════════════════════════════════════════════════════════════════════
 # 🎥 VIDEO AGENT TOOLS (80+)
@@ -6650,6 +6656,7 @@ def investigator_agent(state: TeamState) -> Dict[str, Any]:
         "analyze timeline snapshots, and compile forensic evidence reports.\n"
         "You have access to the following tools:\n"
         "  - get_incidents_by_date(start_date, end_date, camera_name): fetch historical alerts/incidents from the database.\n"
+        "  - get_available_alert_dates(camera_name): use this if you need to know which dates actually have alert data before querying.\n"
         "  - resolve_relative_date(value): convert relative phrases like 'yesterday', 'last saturday', 'past 7 days' into concrete start_date/end_date.\n"
         "  - resolve_camera_id(camera_name): resolve a camera name to its database ID.\n\n"
         "Rules:\n"
