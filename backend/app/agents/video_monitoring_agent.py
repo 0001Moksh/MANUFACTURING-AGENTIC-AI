@@ -6691,6 +6691,9 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
     ) or re.search(
         r"(?:camera|cam(?:era)?)\s+(?:pe|on|at|from)?\s*([a-z][\w -]*?)(?=\s+(?:pe|mein|in|for|from|past|last|what|kya|alerts?|violations?)\b|\?|$)",
         normalized,
+    ) or re.search(
+        r"\b(?:on|at|from|in)\s+([a-z][\w-]*)\b(?=\s+(?:at|on|for|from|past|last|\d{1,2}|saturday|sunday|monday|tuesday|wednesday|thursday|friday)\b)",
+        normalized,
     )
     camera_name = camera_match.group(1).strip(" -") if camera_match else None
     if camera_name:
@@ -6699,12 +6702,17 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
             "",
             camera_name,
         ).strip(" -")
+        if camera_name in {"saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "yesterday", "today"}:
+            camera_name = None
+
     window_match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
     calendar_match = re.search(
         r"\b\d{1,2}(?:st|nd|rd|th)?\s+[a-z]+\s+\d{4}\b",
         normalized,
     )
-    date_phrase = window_match.group(0) if window_match else calendar_match.group(0) if calendar_match else normalized
+    weekday_match = re.search(r"\b(?:saturday|sunday|monday|tuesday|wednesday|thursday|friday|yesterday|kal|today|aaj)\b", normalized)
+
+    date_phrase = window_match.group(0) if window_match else calendar_match.group(0) if calendar_match else weekday_match.group(0) if weekday_match else normalized
     date_range = resolve_relative_date.invoke({"value": date_phrase})
     rows = get_incidents_by_date.invoke({
         "start_date": date_range["start_date"],
@@ -6712,16 +6720,14 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
         "camera_name": camera_name,
     })
     error = rows[0].get("error") if rows and isinstance(rows[0], dict) else None
-    content = f"### Historical Alert Investigation — **Period:** {date_range['start_date']} to {date_range['end_date']}"
-    if camera_name:
-        content += f" — **Camera:** {camera_name}"
-    content += "\n"
+
     if error:
-        content += f"Database query could not be completed: {error}\n"
+        content = f"Database query could not be completed: {error}\n"
     elif not rows:
-        content += "No alerts or incidents were found for the requested period.\n"
+        period_str = f"{date_range['start_date']} to {date_range['end_date']}" if date_range['start_date'] != date_range['end_date'] else date_range['start_date']
+        cam_str = f" for camera **{camera_name}**" if camera_name else ""
+        content = f"No alerts or incidents were found{cam_str} during the requested period ({period_str}).\n"
     else:
-        # Summary statistics
         total_alerts = len(rows)
 
         # Unique detection/class count
@@ -6730,7 +6736,6 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
             for row in rows
             if row.get("class_name")
         )
-
         unique_detections = len(detection_counts)
 
         # Severity counts
@@ -6739,44 +6744,55 @@ def _render_historical_alert_investigation(user_query: str, elapsed_ms: float) -
             for row in rows
         )
 
-        # Beautiful summary
-        content += "### Investigation Summary\n\n"
-        content += (
-            f"| **Total Alerts** | **Unique Detections** | **Severity Breakdown** |\n"
-            f"|:---:|:---:|:---|\n"
-            f"| **{total_alerts}** | **{unique_detections}** | "
-        )
-
-        severity_parts = []
-        severity_order = [
-            "CRITICAL", "HIGH", "MAJOR", "SIGNIFICANT", "MEDIUM",
-            "MINOR", "LOW", "INFO", "UNKNOWN",
+        det_summary_items = [
+            f"{count} {detection} violations" if "violation" not in detection.lower() else f"{count} {detection}"
+            for detection, count in detection_counts.most_common()
         ]
+        det_summary_str = ", ".join(det_summary_items)
 
-        for severity in severity_order:
-            count = severity_counts.get(severity, 0)
-            if count:
-                severity_parts.append(f"**{severity.title()}: {count}**")
+        severity_order = ["CRITICAL", "HIGH", "MAJOR", "SIGNIFICANT", "MEDIUM", "MINOR", "LOW", "INFO", "UNKNOWN"]
+        sev_summary_items = []
+        for sev in severity_order:
+            if severity_counts.get(sev, 0) > 0:
+                sev_summary_items.append(f"{severity_counts[sev]} {sev.title()}")
+        for sev, count in severity_counts.items():
+            if sev not in severity_order and count > 0:
+                sev_summary_items.append(f"{count} {sev.title()}")
+        sev_summary_str = ", ".join(sev_summary_items)
 
-        # Add any unexpected severity values
-        for severity, count in severity_counts.items():
-            if severity not in severity_order:
-                severity_parts.append(f"**{severity.title()}: {count}**")
+        prompt = f"""You are the Forensic Investigator AI Agent for Video Monitoring & Industrial Safety speaking directly to a manager or supervisor.
+A user asked: "{user_query}"
 
-        content += " · ".join(severity_parts) + " |\n\n"
+Synthesize a polite, professional, and conversational executive insight based on these database statistics:
+- Target Camera: {camera_name or 'All Cameras'}
+- Date Range: {date_range['start_date']} to {date_range['end_date']}
+- Total Alerts/Incidents: {total_alerts}
+- Unique Detections ({unique_detections}): {det_summary_str}
+- Severity Breakdown: {sev_summary_str}
 
-        content += (
-            f"Found **{total_alerts}** alerts/incidents from the video analytics database.\n\n"
-        )
+Guidelines:
+1. Begin with a direct managerial insight starting with something like "I think, sir, ..." or "Sir, based on the incident logs, ..." pointing out safety compliance observations (e.g., helmet, glove, or mask violations).
+2. State the quantitative summary clearly in this format:
+   "A total of {total_alerts} alerts/incidents were found, covering {unique_detections} types of detections: {det_summary_str}. Of these, {sev_summary_str}."
+3. Do NOT output markdown title headings (like '### Historical Alert Investigation'), summary boxes, or unicode emojis. Keep it as 1 to 2 concise conversational paragraphs.
+"""
 
-        # Detection breakdown
-        content += "#### Detection Breakdown\n\n"
-        content += "| Detection | Count |\n|:---|---:|\n"
+        try:
+            llm_response = base_llm.invoke([SystemMessage(content=prompt)])
+            llm_summary = getattr(llm_response, "content", "").strip()
+        except Exception:
+            llm_summary = ""
 
-        for detection, count in detection_counts.most_common():
-            content += f"| {detection} | **{count}** |\n"
+        if not llm_summary:
+            top_det = detection_counts.most_common(1)[0][0] if detection_counts else "safety"
+            llm_summary = (
+                f"I think, sir, some of your employees may have {top_det.lower()} issues, "
+                f"so it might be worth checking their safety compliance.\n"
+                f"A total of {total_alerts} alerts/incidents were found, covering {unique_detections} types of detections: "
+                f"{det_summary_str}. Of these, {sev_summary_str}."
+            )
 
-        content += "\n"
+        content = llm_summary + "\n\n"
 
         # Alerts table
         content += (

@@ -20,18 +20,33 @@ def resolve_relative_date(value: str, reference_date: Optional[str] = None) -> D
     """Resolve common English/Hinglish date expressions to an inclusive ISO date range."""
     reference = datetime.strptime(reference_date, "%Y-%m-%d").date() if reference_date else datetime.now().date()
     normalized = re.sub(r"\s+", " ", (value or "").strip().lower())
-    if normalized in {"yesterday", "kal"}:
+
+    # Normalize common month abbreviations (e.g., 'sept' -> 'sep')
+    normalized_clean = re.sub(r"\bsept\b", "sep", normalized)
+
+    if normalized_clean in {"yesterday", "kal"}:
         target = reference - timedelta(days=1)
         return {"start_date": target.isoformat(), "end_date": target.isoformat()}
-    if "last saturday" in normalized or "pichle saturday" in normalized:
-        target = reference - timedelta(days=((reference.weekday() - 5) % 7 or 7))
-        return {"start_date": target.isoformat(), "end_date": target.isoformat()}
-    match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized)
+    if normalized_clean in {"today", "aaj"}:
+        return {"start_date": reference.isoformat(), "end_date": reference.isoformat()}
+
+    # Day of week matching (e.g. "saturday", "last saturday", "on saturday", "pichle saturday")
+    weekdays = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+    for day_name, day_num in weekdays.items():
+        if day_name in normalized_clean:
+            days_ago = (reference.weekday() - day_num) % 7
+            if days_ago == 0 and ("last" in normalized_clean or "pichle" in normalized_clean):
+                days_ago = 7
+            target = reference - timedelta(days=days_ago)
+            return {"start_date": target.isoformat(), "end_date": target.isoformat()}
+
+    match = re.search(r"(?:past|last)\s+(\d+)\s+days?", normalized_clean)
     if match:
         return {"start_date": (reference - timedelta(days=int(match.group(1)))).isoformat(), "end_date": reference.isoformat()}
+
     calendar_match = re.search(
         r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})\b",
-        normalized,
+        normalized_clean,
     )
     if calendar_match:
         for date_format in ("%d %B %Y", "%d %b %Y"):
@@ -44,7 +59,7 @@ def resolve_relative_date(value: str, reference_date: Optional[str] = None) -> D
             except ValueError:
                 continue
     try:
-        target = datetime.strptime(normalized, "%Y-%m-%d").date()
+        target = datetime.strptime(normalized_clean, "%Y-%m-%d").date()
         return {"start_date": target.isoformat(), "end_date": target.isoformat()}
     except ValueError:
         return {"start_date": reference.isoformat(), "end_date": reference.isoformat()}
@@ -84,11 +99,23 @@ def get_incidents_by_date(
     resolved_dates = resolve_relative_date.invoke({"value": start_date})
     resolved_start = resolved_dates["start_date"]
     end = end_date or resolved_dates["end_date"]
-    if camera_name and camera_id is None:
-        matches = resolve_camera_id.invoke({"camera_name": camera_name})["matches"]
-        if len(matches) != 1:
-            return [{"error": "Camera name did not resolve uniquely.", "matches": matches}]
-        camera_id = matches[0]["id"]
+    
+    search_camera_name = camera_name.strip() if camera_name else None
+    if search_camera_name and camera_id is None:
+        try:
+            matches_res = resolve_camera_id.invoke({"camera_name": search_camera_name})
+            matches = matches_res.get("matches", []) if isinstance(matches_res, dict) else []
+            if isinstance(matches, list) and len(matches) > 0 and not isinstance(matches[0], dict) and "error" in matches[0]:
+                matches = []
+            if matches and isinstance(matches, list):
+                exact = [m for m in matches if isinstance(m, dict) and m.get("name", "").lower() == search_camera_name.lower()]
+                if exact:
+                    camera_id = exact[0]["id"]
+                elif len(matches) > 0 and isinstance(matches[0], dict) and "id" in matches[0]:
+                    camera_id = matches[0]["id"]
+        except Exception:
+            pass
+
     query = """
         SELECT event_id, event_kind, event_time, camera_id, camera_name, zone_id,
                class_name, confidence, severity, snapshot_path, video_path,
@@ -116,11 +143,19 @@ def get_incidents_by_date(
               AND i.started_at < CAST(:end_date AS date) + INTERVAL '1 day'
         ) events
         WHERE (:camera_id IS NULL OR camera_id = :camera_id)
+          AND (:camera_name_param IS NULL OR camera_name ILIKE :camera_name_param)
           AND (:zone_id IS NULL OR zone_id = :zone_id)
           AND (:alert_type IS NULL OR class_name ILIKE :alert_type)
           AND (:severity IS NULL OR severity ILIKE :severity)
         ORDER BY event_time DESC
     """
-    return _execute(query, {"start_date": resolved_start, "end_date": end,
-        "camera_id": camera_id, "zone_id": zone_id,
-        "alert_type": f"%{alert_type}%" if alert_type else None, "severity": severity})
+    cam_param = f"%{search_camera_name}%" if search_camera_name and camera_id is None else None
+    return _execute(query, {
+        "start_date": resolved_start,
+        "end_date": end,
+        "camera_id": camera_id,
+        "camera_name_param": cam_param,
+        "zone_id": zone_id,
+        "alert_type": f"%{alert_type}%" if alert_type else None,
+        "severity": severity,
+    })
