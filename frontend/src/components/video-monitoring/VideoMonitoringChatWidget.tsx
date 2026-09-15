@@ -315,13 +315,10 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                   className={
                     msg.sender === 'user'
                       ? 'flex flex-col items-end w-fit max-w-[85%] ml-auto'
-                      : `flex flex-col items-start ${msg.widget
-                        ? 'w-fit max-w-[95%]'
-                        : 'w-full max-w-[98%]'
+                      : `flex flex-col items-start ${msg.widget ? 'w-fit max-w-[95%]' : 'w-full max-w-[98%]'
                       } ${msg.widget?.type === 'snapshot_evidence_widget' ? 'min-w-0' : ''}`
                   }
                 >
-
                   {msg.sender === 'bot' && msg.agent && (
                     <div className="flex items-center gap-1.5 mb-1">
                       <span
@@ -338,40 +335,119 @@ export const VideoMonitoringChatWidget: React.FC = () => {
 
                   <div
                     className={`px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed shadow-md ${msg.sender === 'user'
-                      ? 'bg-teal-600 text-white rounded-br-sm w-fit max-w-full'
-                      : `bg-slate-900/95 border border-slate-800 text-slate-100 rounded-tl-sm ${msg.widget ? 'w-fit max-w-full' : 'w-full'}`
+                        ? 'bg-teal-600 text-white rounded-br-sm w-fit max-w-full'
+                        : `bg-slate-900/95 border border-slate-800 text-slate-100 rounded-tl-sm ${msg.widget ? 'w-fit max-w-full' : 'w-full'
+                        }`
                       }`}
                   >
                     {msg.sender === 'user' ? (
                       <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                    ) : msg.text && !(msg.widget?.type === 'snapshot_evidence_widget' && msg.widget.vlm_response) ? (
+                    ) : msg.text &&
+                      !(msg.widget?.type === 'snapshot_evidence_widget' && msg.widget.vlm_response) ? (
                       <div className="prose prose-invert prose-sm max-w-none text-slate-100 text-[13px] leading-relaxed break-words">
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm as any]}
                           components={{
-                            table: ({ node, ...props }) => (
-                              <div className="my-2.5 max-h-[300] max-w-full overflow-auto rounded-lg border border-slate-800 shadow-md bg-slate-950">
-                                <table className="w-full min-w-[760px] text-left text-xs border-collapse bg-slate-950" {...props} />
-                              </div>
-                            ),
+                            table: ({ node, ...props }) => {
+                              const [isExpanded, setIsExpanded] = React.useState(false);
+
+                              return (
+                                <>
+                                  <div className="my-3 max-w-full">
+                                    <div className="rounded-xl border border-slate-700/80 shadow-lg bg-slate-950 overflow-hidden">
+                                      {/* Header bar with Zoom button */}
+                                      <div className="flex items-center justify-between px-3 py-2 bg-slate-900/90 border-b border-slate-700/70">
+                                        <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
+                                          Alert Log
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsExpanded(true)}
+                                          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+                                          title="Expand table"
+                                        >
+                                          <Maximize2 className="w-3.5 h-3.5" />
+                                          <span>Zoom</span>
+                                        </button>
+                                      </div>
+
+                                      {/* Scrollable table area - 340px max height */}
+                                      <div className="max-h-[340px] overflow-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-900">
+                                        <table
+                                          className="w-full min-w-[780px] text-left text-xs border-collapse"
+                                          {...props}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Fullscreen / Zoom Modal */}
+                                  {isExpanded && (
+                                    <div
+                                      className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                                      onClick={() => setIsExpanded(false)}
+                                    >
+                                      <div
+                                        className="relative w-full max-w-6xl h-[85vh] bg-slate-950 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {/* Modal header */}
+                                        <div className="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-slate-700 shrink-0">
+                                          <span className="text-sm font-semibold text-cyan-400">
+                                            Alert Log — Expanded View
+                                          </span>
+                                          <button
+                                            type="button"
+                                            onClick={() => setIsExpanded(false)}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                            title="Close"
+                                          >
+                                            <X className="w-5 h-5" />
+                                          </button>
+                                        </div>
+
+                                        {/* Full height scrollable table */}
+                                        <div className="flex-1 overflow-auto">
+                                          <table
+                                            className="w-full min-w-[900px] text-left text-sm border-collapse"
+                                            {...props}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            },
+
                             thead: ({ node, ...props }) => (
-                              <thead className="sticky top-0 z-10 bg-slate-800 text-cyan-400 font-semibold border-b border-slate-700 text-[11px] uppercase tracking-wider" {...props} />
+                              <thead
+                                className="sticky top-0 z-20 bg-slate-800 text-cyan-400 font-semibold border-b border-slate-600 text-[11px] uppercase tracking-wider shadow-md"
+                                {...props}
+                              />
                             ),
+
                             th: ({ node, ...props }) => (
-                              <th className="py-2 px-2.5 font-bold text-cyan-400" {...props} />
+                              <th
+                                className="py-2.5 px-3 font-bold text-cyan-400 whitespace-nowrap"
+                                {...props}
+                              />
                             ),
+
                             td: ({ node, ...props }) => {
                               const childrenStr = String(props.children);
                               const isOnline = childrenStr.includes('ONLINE');
                               const isOffline = childrenStr.includes('OFFLINE');
                               const isCritical = childrenStr.includes('CRITICAL');
                               const isWarning = childrenStr.includes('WARNING');
-                              const isCompliant = childrenStr.includes('COMPLIANT') || childrenStr.includes('YES');
+                              const isMajor = childrenStr.includes('MAJOR');
+                              const isCompliant =
+                                childrenStr.includes('COMPLIANT') || childrenStr.includes('YES');
 
                               if (isOnline || isCompliant) {
                                 return (
-                                  <td className="py-2 px-2.5 border-t border-slate-800/80 text-slate-200">
-                                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded text-[11px] border border-emerald-800/60">
+                                  <td className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded-md text-[11px] border border-emerald-800/50">
                                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                                       {props.children}
                                     </span>
@@ -380,50 +456,83 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                               }
                               if (isOffline || isCritical) {
                                 return (
-                                  <td className="py-2 px-2.5 border-t border-slate-800/80 text-slate-200">
-                                    <span className="inline-flex items-center gap-1 font-semibold text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded text-[11px] border border-red-800/60">
+                                  <td className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-red-400 bg-red-950/50 px-2 py-0.5 rounded-md text-[11px] border border-red-800/50">
                                       {props.children}
                                     </span>
                                   </td>
                                 );
                               }
-                              if (isWarning) {
+                              if (isWarning || isMajor) {
                                 return (
-                                  <td className="py-2 px-2.5 border-t border-slate-800/80 text-slate-200">
-                                    <span className="inline-flex items-center gap-1 font-semibold text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded text-[11px] border border-amber-800/60">
+                                  <td className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded-md text-[11px] border border-amber-800/50">
                                       {props.children}
                                     </span>
                                   </td>
                                 );
                               }
-                              return <td className="py-2 px-2.5 border-t border-slate-800/80 text-slate-200" {...props} />;
+                              return (
+                                <td
+                                  className="py-2.5 px-3 border-t border-slate-800/60 text-slate-200"
+                                  {...props}
+                                />
+                              );
                             },
+
                             h1: ({ node, ...props }) => (
-                              <h1 className="text-[15px] font-bold text-slate-100 mt-2 mb-1.5 tracking-tight" {...props} />
+                              <h1
+                                className="text-[15px] font-bold text-slate-100 mt-2 mb-1.5 tracking-tight"
+                                {...props}
+                              />
                             ),
                             h2: ({ node, ...props }) => (
-                              <h2 className="text-[14px] font-bold text-slate-100 mt-2 mb-1 tracking-tight" {...props} />
+                              <h2
+                                className="text-[14px] font-bold text-slate-100 mt-2 mb-1 tracking-tight"
+                                {...props}
+                              />
                             ),
                             h3: ({ node, ...props }) => (
-                              <h3 className="text-[13px] font-bold text-slate-100 mt-1.5 mb-1" {...props} />
+                              <h3
+                                className="text-[13px] font-bold text-slate-100 mt-1.5 mb-1"
+                                {...props}
+                              />
                             ),
                             h4: ({ node, ...props }) => (
-                              <h4 className="text-[12px] font-bold text-slate-200 mt-1 mb-0.5" {...props} />
+                              <h4
+                                className="text-[12px] font-bold text-slate-200 mt-1 mb-0.5"
+                                {...props}
+                              />
                             ),
                             ul: ({ node, ...props }) => (
-                              <ul className="list-disc pl-4 space-y-1 my-1.5 text-slate-300" {...props} />
+                              <ul
+                                className="list-disc pl-4 space-y-1 my-1.5 text-slate-300"
+                                {...props}
+                              />
                             ),
                             ol: ({ node, ...props }) => (
-                              <ol className="list-decimal pl-4 space-y-1 my-1.5 text-slate-300" {...props} />
+                              <ol
+                                className="list-decimal pl-4 space-y-1 my-1.5 text-slate-300"
+                                {...props}
+                              />
                             ),
                             blockquote: ({ node, ...props }) => (
-                              <blockquote className="border-l-3 border-teal-500 bg-slate-900/80 pl-2.5 py-1 my-1.5 text-slate-200 italic rounded-r text-[12px]" {...props} />
+                              <blockquote
+                                className="border-l-3 border-teal-500 bg-slate-900/80 pl-2.5 py-1 my-1.5 text-slate-200 italic rounded-r text-[12px]"
+                                {...props}
+                              />
                             ),
                             code: ({ node, inline, ...props }: any) =>
                               inline ? (
-                                <code className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded font-mono text-[11px] border border-slate-700" {...props} />
+                                <code
+                                  className="bg-slate-800 text-cyan-300 px-1 py-0.5 rounded font-mono text-[11px] border border-slate-700"
+                                  {...props}
+                                />
                               ) : (
-                                <code className="block bg-slate-950 text-emerald-400 p-2.5 rounded-lg font-mono text-[11px] my-2 overflow-x-auto border border-slate-800" {...props} />
+                                <code
+                                  className="block bg-slate-950 text-emerald-400 p-2.5 rounded-lg font-mono text-[11px] my-2 overflow-x-auto border border-slate-800"
+                                  {...props}
+                                />
                               ),
                           }}
                         >
@@ -452,9 +561,11 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                     )}
 
                     {/* Expandable Traceability Telemetry Widget */}
-                    {msg.sender === 'bot' && (explainableLogs || msg.telemetry) && msg.telemetry && (
-                      <ExecutionTraceWidget trace={msg.telemetry} />
-                    )}
+                    {msg.sender === 'bot' &&
+                      (explainableLogs || msg.telemetry) &&
+                      msg.telemetry && (
+                        <ExecutionTraceWidget trace={msg.telemetry} />
+                      )}
                   </div>
 
                   {msg.sender === 'user' && (
@@ -537,7 +648,8 @@ export const VideoMonitoringChatWidget: React.FC = () => {
                     className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-teal-600"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
-                    Rule mutations and safety changes below this confidence level require operator approval.
+                    Rule mutations and safety changes below this confidence level require operator
+                    approval.
                   </p>
                 </div>
 

@@ -6915,7 +6915,7 @@ Guidelines:
                 
             gallery_items.append({
                 "event_id": row.get("event_id"),
-                "snapshot_url": f"/api/media/snapshot?path={snap}",
+                "snapshot_url": f"/api/video-monitoring/alert-image/{row.get('event_id')}",
                 "snapshot_path": snap,
                 "class_name": class_name,
                 "severity": row.get("severity", "NORMAL"),

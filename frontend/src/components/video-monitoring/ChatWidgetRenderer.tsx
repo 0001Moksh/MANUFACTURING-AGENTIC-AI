@@ -125,6 +125,7 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           >
             {items.map((item, idx) => {
               const sev = SEVERITY_STYLES[item.severity?.toUpperCase()] || SEVERITY_STYLES['NORMAL'];
+              const cardImgUrl = item.snapshot_url || (item.event_id ? `/api/video-monitoring/alert-image/${item.event_id}` : '');
               return (
                 <div
                   key={item.event_id ?? idx}
@@ -135,10 +136,14 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
                   {/* Image */}
                   <div className="relative w-full h-[112px] bg-slate-900 overflow-hidden">
                     <img
-                      src={item.snapshot_url}
+                      src={cardImgUrl}
                       alt={`Alert #${item.event_id} — ${item.class_name}`}
                       className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-300"
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22112%22%3E%3Crect fill=%22%231e293b%22 width=%22200%22 height=%22112%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2212%22%3ENo Image%3C/text%3E%3C/svg%3E'; }}
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        img.onerror = null;
+                        img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22112%22%3E%3Crect fill=%22%231e293b%22 width=%22200%22 height=%22112%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2212%22%3ENo Image%3C/text%3E%3C/svg%3E';
+                      }}
                     />
                     {/* Severity badge top-left */}
                     <span className={`absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[9px] font-bold rounded ${sev.badge} uppercase tracking-wide`}>
@@ -166,9 +171,8 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] text-slate-500 font-mono">ID #{item.event_id}</span>
-                      <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${
-                        item.status === 'ACKNOWLEDGED' ? 'bg-emerald-900/60 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                      }`}>
+                      <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${item.status === 'ACKNOWLEDGED' ? 'bg-emerald-900/60 text-emerald-400' : 'bg-slate-800 text-slate-400'
+                        }`}>
                         {item.status === 'ACKNOWLEDGED' ? '✓ ACK' : 'OPEN'}
                       </span>
                     </div>
@@ -201,70 +205,113 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           </button>
         </div>
 
-        {/* Expanded Modal */}
-        {selectedItem && (
-          <div
-            className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 backdrop-blur-sm"
-            onClick={() => setSelectedItem(null)}
-          >
+        {/* Expanded Modal (Visual Evidence) */}
+        {selectedItem && (() => {
+          const mSev = SEVERITY_STYLES[selectedItem.severity?.toUpperCase()] || SEVERITY_STYLES['NORMAL'];
+          const mImgUrl = selectedItem.snapshot_url || (selectedItem.event_id ? `/api/video-monitoring/alert-image/${selectedItem.event_id}` : '');
+          return (
             <div
-              className="relative bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl max-w-lg w-full"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 backdrop-blur-sm"
+              onClick={() => setSelectedItem(null)}
             >
-              {/* Close btn */}
-              <button
-                type="button"
-                onClick={() => setSelectedItem(null)}
-                className="absolute top-3 right-3 z-10 bg-slate-800/90 text-white p-1.5 rounded-full hover:bg-slate-700 transition-colors"
-                aria-label="Close"
+              <div
+                className="relative bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl max-w-2xl w-full flex flex-col max-h-[90vh]"
+                onClick={(e) => e.stopPropagation()}
               >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* Image */}
-              <img
-                src={selectedItem.snapshot_url}
-                alt={`Alert #${selectedItem.event_id}`}
-                className="w-full max-h-64 object-cover"
-              />
-
-              {/* Info panel */}
-              <div className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${(SEVERITY_STYLES[selectedItem.severity?.toUpperCase()] || SEVERITY_STYLES['NORMAL']).badge}`}>
-                    {selectedItem.severity}
-                  </span>
-                  <span className="text-sm font-semibold text-white">{selectedItem.class_name}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-slate-800/60 rounded-lg p-2.5">
-                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Alert ID</div>
-                    <div className="text-slate-200 font-mono">#{selectedItem.event_id}</div>
-                  </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2.5">
-                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Status</div>
-                    <div className={selectedItem.status === 'ACKNOWLEDGED' ? 'text-emerald-400' : 'text-amber-400'}>
-                      {selectedItem.status}
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-950/70">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-2.5 h-2.5 rounded-full ${mSev.dot}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white tracking-tight">Visual Evidence</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${mSev.badge} uppercase tracking-wider`}>
+                          {selectedItem.severity}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">
+                        <span className="text-slate-300 font-mono">#{selectedItem.event_id}</span>
+                        <span className="mx-1.5 text-slate-600">·</span>
+                        <span className="text-amber-400">{selectedItem.camera_name}</span>
+                        <span className="mx-1.5 text-slate-600">·</span>
+                        <span>{selectedItem.event_time}</span>
+                      </p>
                     </div>
                   </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2.5">
-                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Camera</div>
-                    <div className="text-slate-200">{selectedItem.camera_name}</div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItem(null)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Main Snapshot Image */}
+                <div className="relative bg-black flex items-center justify-center overflow-hidden min-h-[260px] max-h-[50vh]">
+                  <img
+                    src={mImgUrl}
+                    alt={`Evidence for Alert #${selectedItem.event_id}`}
+                    className="max-w-full max-h-[50vh] object-contain"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      img.onerror = null;
+                      img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22240%22%3E%3Crect fill=%22%231e293b%22 width=%22400%22 height=%22240%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2214%22%3EImage not available on disk%3C/text%3E%3C/svg%3E';
+                    }}
+                  />
+                </div>
+
+                {/* Footer details & Action buttons */}
+                <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 text-xs">
+                    <div className="bg-slate-800/80 px-2.5 py-1 rounded-md text-slate-300">
+                      <span className="text-slate-500 mr-1.5">Violation:</span>
+                      <strong className="text-white">{selectedItem.class_name}</strong>
+                    </div>
+                    {selectedItem.confidence > 0 && (
+                      <div className="bg-slate-800/80 px-2.5 py-1 rounded-md text-slate-300 font-mono">
+                        <span className="text-slate-500 mr-1.5">Conf:</span>
+                        {Math.round(selectedItem.confidence * 100)}%
+                      </div>
+                    )}
+                    <div className="bg-slate-800/80 px-2.5 py-1 rounded-md">
+                      <span className={selectedItem.status === 'ACKNOWLEDGED' ? 'text-emerald-400' : 'text-amber-400'}>
+                        {selectedItem.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2.5">
-                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Confidence</div>
-                    <div className="text-slate-200 font-mono">{Math.round(selectedItem.confidence * 100)}%</div>
-                  </div>
-                  <div className="bg-slate-800/60 rounded-lg p-2.5 col-span-2">
-                    <div className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">Timestamp</div>
-                    <div className="text-slate-200">{selectedItem.event_time}</div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (mImgUrl) {
+                          navigator.clipboard?.writeText(window.location.origin + mImgUrl);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                    >
+                      Copy Link
+                    </button>
+                    <a
+                      href={mImgUrl}
+                      download={`alert_${selectedItem.event_id}.jpg`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                    >
+                      Download
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
+    );
+  }
     );
   }
 
