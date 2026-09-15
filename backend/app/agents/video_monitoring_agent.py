@@ -6894,34 +6894,44 @@ Guidelines:
     # ── Build snapshot gallery widget for alerts that have a snapshot_path ──
     generated_outputs: List[Dict[str, Any]] = []
     if rows and not error:
+        seen_classes = set()
         gallery_items = []
+        
         for row in rows:
             snap = row.get("snapshot_path")
-            if snap:
-                event_time = row.get("event_time", "")
-                try:
-                    event_time_str = datetime.fromisoformat(str(event_time)).strftime("%d %b %Y, %I:%M %p")
-                except Exception:
-                    event_time_str = str(event_time)
-                gallery_items.append({
-                    "event_id": row.get("event_id"),
-                    "snapshot_url": f"/api/media/snapshot?path={snap}",
-                    "snapshot_path": snap,
-                    "class_name": row.get("class_name", "Unknown"),
-                    "severity": row.get("severity", "NORMAL"),
-                    "event_time": event_time_str,
-                    "camera_name": row.get("camera_name", camera_name or "Unknown"),
-                    "zone_id": row.get("zone_id"),
-                    "confidence": round(float(row.get("confidence") or 0), 2),
-                    "status": row.get("incident_status", "UNACKNOWLEDGED"),
-                })
+            class_name = str(row.get("class_name", "Unknown")).strip()
+            
+            # Skip if no snapshot OR this class already has a snapshot
+            if not snap or class_name in seen_classes:
+                continue
+                
+            seen_classes.add(class_name)
+            
+            event_time = row.get("event_time", "")
+            try:
+                event_time_str = datetime.fromisoformat(str(event_time)).strftime("%d %b %Y, %I:%M %p")
+            except Exception:
+                event_time_str = str(event_time)
+                
+            gallery_items.append({
+                "event_id": row.get("event_id"),
+                "snapshot_url": f"/api/media/snapshot?path={snap}",
+                "snapshot_path": snap,
+                "class_name": class_name,
+                "severity": row.get("severity", "NORMAL"),
+                "event_time": event_time_str,
+                "camera_name": row.get("camera_name", camera_name or "Unknown"),
+                "zone_id": row.get("zone_id"),
+                "confidence": round(float(row.get("confidence") or 0), 2),
+                "status": row.get("incident_status", "UNACKNOWLEDGED"),
+            })
+        
         if gallery_items:
             generated_outputs = [{
                 "type": "snapshot_gallery",
                 "title": f"Alert Snapshots — {camera_name or 'All Cameras'} ({date_range['start_date']})",
                 "items": gallery_items,
             }]
-
     return {
         "messages": [AIMessage(content=content)],
         "next_agent": "FINISH",
