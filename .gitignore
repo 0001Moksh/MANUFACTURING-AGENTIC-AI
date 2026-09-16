@@ -88,3 +88,4 @@ cover/
 # Misc
 *.tmp
 *.temp
+docs/iot_info/influxdb_backup.json

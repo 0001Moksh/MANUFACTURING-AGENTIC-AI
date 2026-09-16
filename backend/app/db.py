@@ -500,6 +500,12 @@ class IntegrationConfig(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    server_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    api_token: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    org_id: Mapped[Optional[int]] = mapped_column(Integer, default=1, nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(50), default="UNTESTED", nullable=True)
+    last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class ChartSummary(Base):
@@ -765,6 +771,12 @@ async def init_db():
             "ALTER TABLE rbac_permissions ADD COLUMN IF NOT EXISTS resource_key VARCHAR(150) DEFAULT '*';",
             "ALTER TABLE rbac_permissions ADD COLUMN IF NOT EXISTS access_types JSON;",
             "ALTER TABLE rbac_permissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+            "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS server_url VARCHAR(255);",
+            "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS api_token VARCHAR(255);",
+            "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS org_id INTEGER DEFAULT 1;",
+            "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'UNTESTED';",
+            "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP;",
+            "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS details TEXT;",
         ]
         for statement in migration_statements:
             try:
@@ -776,13 +788,34 @@ async def init_db():
     async with AsyncSessionLocal() as session:
         await seed_data(session)
         # Check and seed integrations
-        result = await session.execute(select(IntegrationConfig).limit(1))
-        if not result.scalars().first():
-            integrations = [
-                IntegrationConfig(name="MES", is_enabled=True),
-                IntegrationConfig(name="Video Analytics", is_enabled=True),
-            ]
-            session.add_all(integrations)
+        result = await session.execute(select(IntegrationConfig))
+        existing_integrations = result.scalars().all()
+        existing_names = {i.name for i in existing_integrations}
+
+        grafana_default_ip = os.getenv("IIIOT_IP", "192.168.10.130")
+        grafana_default_token = os.getenv("INFLUXDB_TOKEN", "")
+
+        needed_integrations = [
+            ("MES", True, None, None, 1, "UNTESTED"),
+            ("Video Analytics", True, None, None, 1, "UNTESTED"),
+            ("Grafana IoT Application", True, f"http://{grafana_default_ip}:3000", grafana_default_token, 1, "UNTESTED"),
+        ]
+
+        added = False
+        for name, is_en, url, token, org, status in needed_integrations:
+            if name not in existing_names:
+                session.add(
+                    IntegrationConfig(
+                        name=name,
+                        is_enabled=is_en,
+                        server_url=url,
+                        api_token=token,
+                        org_id=org,
+                        status=status,
+                    )
+                )
+                added = True
+        if added:
             await session.commit()
 
         # Check and seed global governance settings

@@ -839,6 +839,13 @@ def get_unacknowledged_safety_alerts(date_filter: str = "today") -> List[Dict[st
 
 
 @tool
+def get_grafana_health_status() -> Dict[str, Any]:
+    """Query the Grafana IoT Application connection, server health, and telemetry link status."""
+    from app.integrations_service import get_grafana_health_status_sync
+    return get_grafana_health_status_sync()
+
+
+@tool
 def get_hse_event_snapshot(event_id: int) -> Dict[str, Any]:
     """Show the snapshot path for a specific HSE rule event ID."""
     rows = _safe_select("""
@@ -2074,6 +2081,7 @@ system_agent_tools_registry = [
     query_system_data,
     schema_lookup,
     list_entities,
+    get_grafana_health_status,
 ]
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -6541,8 +6549,24 @@ def system_agent(state: TeamState) -> Dict[str, Any]:
         for c in counts:
             content += f"| **{c.get('zone', 'Zone')}** | {c.get('person_count', 0)} workers | {c.get('forklift_count', 0)} units | {c.get('helmet_compliance', '95%')} | {c.get('vest_compliance', '100%')} |\n"
 
+    elif any(k in query_lower for k in ["grafana", "iot dashboard", "telemetry link", "grafana health", "grafana status"]):
+        tool_name = "get_grafana_health_status"
+        g_status = get_grafana_health_status.invoke({})
+        st = g_status.get("status", "UNTESTED")
+        is_ok = g_status.get("dashboards_active", False)
+        summary = f"Grafana IoT status: {st} (Latency: {g_status.get('latency_ms', 0)}ms)"
+        content = "### Grafana IoT Application Telemetry & Health Status\n\n"
+        content += f"| Property | Value |\n|:---|:---|\n"
+        content += f"| **Integration Name** | {g_status.get('integration', 'Grafana IoT Application')} |\n"
+        content += f"| **Connection Status** | **{st}** |\n"
+        content += f"| **Enabled** | {'Yes' if g_status.get('is_enabled') else 'No'} |\n"
+        content += f"| **Server URL** | `{g_status.get('server_url', 'N/A')}` |\n"
+        content += f"| **Latency** | {g_status.get('latency_ms', 0)} ms |\n"
+        content += f"| **Dashboards Active** | {'Operational' if is_ok else 'Inactive / Offline'} |\n"
+        content += f"| **Alert Stream** | {'Streaming Live' if is_ok else 'Disconnected'} |\n"
+        content += f"| **Message** | {g_status.get('message', 'N/A')} |\n"
+
     else:
-        tool_name = "list_all_cameras_with_location"
         tool_name = "list_all_cameras_with_location"
         summary = "No database-backed video-monitoring records matched the request"
         content = "### Video Monitoring System Status\n\nNo database-backed video-monitoring data is available for this request.\n"

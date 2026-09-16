@@ -43,6 +43,12 @@ from app.agents.video_monitoring_agent import (
     stream_video_monitoring_events,
 )
 from app.email_service import send_pdf_report_email, send_text_email, send_html_email
+from app.integrations_service import (
+    IntegrationTestRequest,
+    IntegrationSaveRequest,
+    test_grafana_connection,
+    get_grafana_health_status_sync,
+)
 from app.voice.manager import VoiceConversationManager
 from app.license_control import (
     get_active_license_path,
@@ -1324,6 +1330,7 @@ async def get_telemetry(db: AsyncSession = Depends(get_db)):
     # Dynamically re-verify DB connections if disconnected or cached timer expired
     current_mes_status = test_mes_connection()
     current_va_status = test_video_analytics_connection()
+    current_grafana_status = get_grafana_health_status_sync()
     
     # Calculate live stats
     # OEE avg, total active work orders, total alerts
@@ -1352,22 +1359,171 @@ async def get_telemetry(db: AsyncSession = Depends(get_db)):
         "running_machines": running_machines,
         "total_machines": len(machines),
         "mes_db_status": current_mes_status,
-        "video_analytics_db_status": current_va_status
+        "video_analytics_db_status": current_va_status,
+        "grafana_status": current_grafana_status,
     }
 
 # --- INTEGRATIONS ---
 
 @router.get("/api/admin/integrations")
+@router.get("/api/v1/admin/integrations")
 async def get_integrations(db: AsyncSession = Depends(get_db)):
     from app.db import IntegrationConfig
-    result = await db.execute(select(IntegrationConfig))
+    result = await db.execute(select(IntegrationConfig).order_by(IntegrationConfig.id))
     integrations = result.scalars().all()
-    return [{"name": i.name, "is_enabled": i.is_enabled} for i in integrations]
+
+    # If Grafana is missing, seed dynamically
+    names = {i.name for i in integrations}
+    if "Grafana IoT Application" not in names and "Grafana" not in names:
+        default_ip = os.getenv("IIIOT_IP", "192.168.10.130")
+        default_token = os.getenv("INFLUXDB_TOKEN", "")
+        new_grafana = IntegrationConfig(
+            name="Grafana IoT Application",
+            is_enabled=True,
+            server_url=f"http://{default_ip}:3000",
+            api_token=default_token,
+            org_id=1,
+            status="UNTESTED"
+        )
+        db.add(new_grafana)
+        await db.commit()
+        result = await db.execute(select(IntegrationConfig).order_by(IntegrationConfig.id))
+        integrations = result.scalars().all()
+
+    return [
+        {
+            "id": i.id,
+            "name": i.name,
+            "is_enabled": i.is_enabled,
+            "server_url": i.server_url,
+            "api_token": i.api_token,
+            "org_id": i.org_id or 1,
+            "status": i.status or "UNTESTED",
+            "last_checked_at": i.last_checked_at.isoformat() if i.last_checked_at else None,
+            "details": i.details,
+        }
+        for i in integrations
+    ]
+
+@router.post("/api/admin/integrations/test")
+@router.post("/api/v1/admin/integrations/test")
+async def test_integration_endpoint(req: IntegrationTestRequest, db: AsyncSession = Depends(get_db)):
+    from app.db import IntegrationConfig
+    itype = (req.integration_type or "grafana").lower().strip()
+    
+    if itype in ("grafana", "grafana iot application", "grafana_iot"):
+        server_url = req.server_url
+        api_token = req.api_token or req.service_account_token
+        org_id = req.org_id or 1
+        
+        # If server_url not provided, fetch from DB
+        if not server_url:
+            res = await db.execute(
+                select(IntegrationConfig).where(IntegrationConfig.name.ilike("%Grafana%"))
+            )
+            g_row = res.scalars().first()
+            if g_row:
+                server_url = g_row.server_url
+                api_token = api_token or g_row.api_token
+                org_id = org_id or g_row.org_id or 1
+        
+        if not server_url:
+            default_ip = os.getenv("IIIOT_IP", "192.168.10.130")
+            server_url = f"http://{default_ip}:3000"
+            api_token = api_token or os.getenv("INFLUXDB_TOKEN", "")
+
+        test_res = await test_grafana_connection(
+            server_url=server_url,
+            api_token=api_token,
+            org_id=org_id,
+            timeout=5.0
+        )
+        
+        # Persist test result to DB if matching record found
+        try:
+            res = await db.execute(
+                select(IntegrationConfig).where(IntegrationConfig.name.ilike("%Grafana%"))
+            )
+            g_row = res.scalars().first()
+            if g_row:
+                g_row.status = test_res.get("status", "DISCONNECTED")
+                g_row.last_checked_at = datetime.utcnow()
+                g_row.details = test_res.get("message", "")
+                await db.commit()
+        except Exception as e:
+            logging.getLogger("mai.integrations").warning(f"Could not persist Grafana test status to DB: {e}")
+            
+        return test_res
+
+    elif itype in ("mes", "sql server"):
+        mes_status = test_mes_connection(force=True)
+        connected = bool(mes_status.get("connected", False))
+        return {
+            "success": connected,
+            "status": "CONNECTED" if connected else "DISCONNECTED",
+            "message": mes_status.get("details", "MES Connection checked."),
+            "latency_ms": 12 if connected else 5000,
+            "details": mes_status,
+        }
+
+    elif itype in ("video_analytics", "video analytics", "construction_db"):
+        va_status = test_video_analytics_connection(force=True)
+        connected = bool(va_status.get("connected", False))
+        return {
+            "success": connected,
+            "status": "CONNECTED" if connected else "DISCONNECTED",
+            "message": va_status.get("details", "Video Analytics DB Connection checked."),
+            "latency_ms": 15 if connected else 5000,
+            "details": va_status,
+        }
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported integration type '{req.integration_type}'")
+
+@router.post("/api/admin/integrations/save")
+@router.post("/api/v1/admin/integrations/save")
+async def save_integration_endpoint(req: IntegrationSaveRequest, db: AsyncSession = Depends(get_db)):
+    from app.db import IntegrationConfig
+    res = await db.execute(
+        select(IntegrationConfig).where(IntegrationConfig.name.ilike(f"%{req.name}%"))
+    )
+    integration = res.scalars().first()
+    if not integration:
+        integration = IntegrationConfig(name=req.name)
+        db.add(integration)
+
+    if req.is_enabled is not None:
+        integration.is_enabled = req.is_enabled
+    if req.server_url is not None:
+        integration.server_url = req.server_url
+    if req.api_token is not None:
+        integration.api_token = req.api_token
+    if req.org_id is not None:
+        integration.org_id = req.org_id
+
+    await db.commit()
+    await db.refresh(integration)
+    return {
+        "status": "success",
+        "message": f"Configuration for '{integration.name}' saved successfully.",
+        "integration": {
+            "id": integration.id,
+            "name": integration.name,
+            "is_enabled": integration.is_enabled,
+            "server_url": integration.server_url,
+            "api_token": integration.api_token,
+            "org_id": integration.org_id,
+            "status": integration.status,
+            "last_checked_at": integration.last_checked_at.isoformat() if integration.last_checked_at else None,
+            "details": integration.details,
+        }
+    }
 
 @router.post("/api/admin/integrations/toggle")
+@router.post("/api/v1/admin/integrations/toggle")
 async def toggle_integration(req: IntegrationToggleRequest, db: AsyncSession = Depends(get_db)):
     from app.db import IntegrationConfig
-    result = await db.execute(select(IntegrationConfig).where(IntegrationConfig.name == req.name))
+    result = await db.execute(select(IntegrationConfig).where(IntegrationConfig.name.ilike(f"%{req.name}%")))
     integration = result.scalars().first()
     if integration:
         integration.is_enabled = req.enabled

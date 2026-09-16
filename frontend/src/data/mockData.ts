@@ -170,7 +170,7 @@ export const connectors = [
 ];
 
 // Maps each agent name to the integration key it requires (null = no external dependency)
-export const AGENT_INTEGRATION_DEPENDENCY: Record<string, 'MES' | 'Video Analytics' | null> = {
+export const AGENT_INTEGRATION_DEPENDENCY: Record<string, 'MES' | 'Video Analytics' | 'Grafana IoT Application' | 'Grafana' | null> = {
   "Operations Agent":                    "MES",
   "Maintenance Agent":                   "MES",
   "Reporting Agent":                     "MES",
