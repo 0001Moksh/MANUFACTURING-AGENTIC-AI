@@ -1374,13 +1374,16 @@ async def get_integrations(db: AsyncSession = Depends(get_db)):
 
     # If Grafana is missing, seed dynamically
     names = {i.name for i in integrations}
+    default_ip = os.getenv("IIIOT_IP", "192.168.10.130")
+    default_port = os.getenv("IIIOT_PORT", "8086")
+    default_token = os.getenv("INFLUXDB_TOKEN", "")
+    correct_url = f"http://{default_ip}:{default_port}"
+
     if "Grafana IoT Application" not in names and "Grafana" not in names:
-        default_ip = os.getenv("IIIOT_IP", "192.168.10.130")
-        default_token = os.getenv("INFLUXDB_TOKEN", "")
         new_grafana = IntegrationConfig(
             name="Grafana IoT Application",
             is_enabled=True,
-            server_url=f"http://{default_ip}:3000",
+            server_url=correct_url,
             api_token=default_token,
             org_id=1,
             status="UNTESTED"
@@ -1389,6 +1392,17 @@ async def get_integrations(db: AsyncSession = Depends(get_db)):
         await db.commit()
         result = await db.execute(select(IntegrationConfig).order_by(IntegrationConfig.id))
         integrations = result.scalars().all()
+    else:
+        # One-time migration: fix any existing row that was seeded with wrong :3000 URL
+        for i in integrations:
+            if i.name and "grafana" in i.name.lower():
+                if i.server_url and ":3000" in i.server_url:
+                    i.server_url = correct_url
+                    if not i.api_token and default_token:
+                        i.api_token = default_token
+                    await db.commit()
+                    logger.info("Migrated Grafana server_url from :3000 → %s", correct_url)
+                break
 
     return [
         {

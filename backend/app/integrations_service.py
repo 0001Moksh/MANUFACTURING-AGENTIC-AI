@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import time
 import urllib.error
 import urllib.parse
@@ -11,6 +12,9 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("mai.integrations")
+
+# Cache TTL in seconds — avoids blocking /api/telemetry every 30s
+_CACHE_TTL_SECONDS = 60
 
 
 class GrafanaConfig(BaseModel):
@@ -53,6 +57,91 @@ def _clean_url(url: str) -> str:
     return trimmed.rstrip("/")
 
 
+def _sync_ping_influxdb(
+    server_url: str,
+    api_token: Optional[str] = None,
+    timeout: float = 5.0,
+) -> Dict[str, Any]:
+    """
+    Ping InfluxDB 2.x at GET /ping (returns 204 No Content when healthy).
+    Falls back to GET /health (returns {"status": "pass"} on 200).
+    """
+    cleaned_url = _clean_url(server_url)
+    start_time = time.perf_counter()
+
+    headers: Dict[str, str] = {
+        "User-Agent": "MAI-Platform-IntegrationEngine/1.0",
+        "Accept": "application/json",
+    }
+    token = (api_token or "").strip()
+    if token:
+        headers["Authorization"] = f"Token {token}"  # InfluxDB uses 'Token' not 'Bearer'
+
+    for probe_path in ("/ping", "/health"):
+        probe_url = f"{cleaned_url}{probe_path}"
+        try:
+            req = urllib.request.Request(probe_url, headers=headers, method="GET")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+                status_code = resp.status
+                # /ping → 204 (no body), /health → 200 {"status":"pass"}
+                if status_code in (200, 204):
+                    body_text = resp.read().decode("utf-8", errors="replace")
+                    try:
+                        payload = json.loads(body_text) if body_text.strip() else {}
+                    except Exception:
+                        payload = {}
+                    db_ok = payload.get("status") in ("pass", "ok") if payload else True
+                    if db_ok or status_code == 204:
+                        return {
+                            "success": True,
+                            "status": "CONNECTED",
+                            "message": f"InfluxDB reachable at {cleaned_url} ({probe_path}, HTTP {status_code}).",
+                            "latency_ms": elapsed_ms,
+                            "details": payload or {"http_code": status_code},
+                        }
+        except urllib.error.HTTPError as he:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            if he.code in (401, 403):
+                return {
+                    "success": False,
+                    "status": "DISCONNECTED",
+                    "message": f"InfluxDB auth failed (HTTP {he.code}): check INFLUXDB_TOKEN.",
+                    "latency_ms": elapsed_ms,
+                    "details": {"http_code": he.code, "reason": str(he.reason)},
+                }
+            # Other HTTP errors — try next probe path
+            logger.debug("InfluxDB %s returned HTTP %s — trying next probe.", probe_path, he.code)
+        except (urllib.error.URLError, TimeoutError, OSError) as ue:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            err_str = str(ue.reason) if hasattr(ue, "reason") else str(ue)
+            return {
+                "success": False,
+                "status": "DISCONNECTED",
+                "message": f"Could not reach InfluxDB at {cleaned_url}: {err_str}",
+                "latency_ms": elapsed_ms,
+                "details": {"error": err_str},
+            }
+        except Exception as exc:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            return {
+                "success": False,
+                "status": "DISCONNECTED",
+                "message": f"Unexpected error pinging InfluxDB: {exc}",
+                "latency_ms": elapsed_ms,
+                "details": {"error": str(exc)},
+            }
+
+    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+    return {
+        "success": False,
+        "status": "DISCONNECTED",
+        "message": f"InfluxDB did not respond on any probe path at {cleaned_url}.",
+        "latency_ms": elapsed_ms,
+        "details": {},
+    }
+
+
 def _sync_ping_grafana(
     server_url: str,
     api_token: Optional[str] = None,
@@ -60,20 +149,27 @@ def _sync_ping_grafana(
     timeout: float = 5.0,
 ) -> Dict[str, Any]:
     """
-    Synchronously ping Grafana endpoint (GET /api/health or GET /api/org).
-    Max timeout enforced at 5.0 seconds.
+    Ping Grafana (port 3000) via GET /api/health,
+    or InfluxDB (any other port) via GET /ping.
+    Auto-detects based on the URL port.
     """
     cleaned_url = _clean_url(server_url)
-    start_time = time.perf_counter()
 
-    # Try health check endpoint first (/api/health)
+    # Auto-detect: if the URL contains :3000 treat it as Grafana UI;
+    # everything else (8086, etc.) is an InfluxDB / time-series backend.
+    parsed = urllib.parse.urlparse(cleaned_url)
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if port != 3000:
+        return _sync_ping_influxdb(cleaned_url, api_token, timeout=timeout)
+
+    # --- Grafana /api/health path ---
+    start_time = time.perf_counter()
     health_url = f"{cleaned_url}/api/health"
-    headers = {
+    headers: Dict[str, str] = {
         "User-Agent": "MAI-Platform-IntegrationEngine/1.0",
         "Accept": "application/json",
         "X-Grafana-Org-Id": str(org_id or 1),
     }
-
     token = (api_token or "").strip()
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -83,25 +179,13 @@ def _sync_ping_grafana(
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             status_code = resp.status
-            body_bytes = resp.read()
-            body_text = body_bytes.decode("utf-8", errors="replace")
-
+            body_text = resp.read().decode("utf-8", errors="replace")
             try:
                 payload = json.loads(body_text) if body_text else {}
             except Exception:
                 payload = {"raw": body_text}
 
-            # If /api/health returns 200 and database is ok or valid payload
-            is_ok = status_code == 200 and (
-                isinstance(payload, dict) and (
-                    payload.get("database") in ("ok", "OK", True)
-                    or payload.get("commit") is not None
-                    or payload.get("version") is not None
-                    or status_code == 200
-                )
-            )
-
-            if is_ok:
+            if status_code == 200:
                 return {
                     "success": True,
                     "status": "CONNECTED",
@@ -109,95 +193,49 @@ def _sync_ping_grafana(
                     "latency_ms": elapsed_ms,
                     "details": payload,
                 }
-
     except urllib.error.HTTPError as he:
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-        # If /api/health required auth (401/403) and token was given or try /api/org
         if he.code in (401, 403):
-            if not token:
-                return {
-                    "success": False,
-                    "status": "DISCONNECTED",
-                    "message": "Authentication required: Please provide a valid Grafana API or Service Account Token.",
-                    "latency_ms": elapsed_ms,
-                    "details": {"http_code": he.code, "reason": he.reason},
-                }
             return {
                 "success": False,
                 "status": "DISCONNECTED",
-                "message": f"Authentication failed (HTTP {he.code}): Invalid or expired Grafana Token.",
-                "latency_ms": elapsed_ms,
-                "details": {"http_code": he.code, "reason": he.reason},
-            }
-        elif he.code == 404:
-            # Fallback check: try GET /api/org or root /api
-            try:
-                org_url = f"{cleaned_url}/api/org"
-                req2 = urllib.request.Request(org_url, headers=headers, method="GET")
-                with urllib.request.urlopen(req2, timeout=max(1.0, timeout - (time.perf_counter() - start_time))) as resp2:
-                    elapsed_ms2 = int((time.perf_counter() - start_time) * 1000)
-                    if resp2.status == 200:
-                        return {
-                            "success": True,
-                            "status": "CONNECTED",
-                            "message": "Successfully connected to Grafana IoT Application (Organization API).",
-                            "latency_ms": elapsed_ms2,
-                            "details": {"http_code": 200},
-                        }
-            except Exception:
-                pass
-
-            return {
-                "success": False,
-                "status": "DISCONNECTED",
-                "message": f"Grafana server endpoint not found (HTTP 404) at {cleaned_url}.",
-                "latency_ms": elapsed_ms,
-                "details": {"http_code": 404},
-            }
-        else:
-            return {
-                "success": False,
-                "status": "DISCONNECTED",
-                "message": f"Grafana server returned HTTP error {he.code}: {he.reason}",
+                "message": f"Grafana auth failed (HTTP {he.code}): check API token.",
                 "latency_ms": elapsed_ms,
                 "details": {"http_code": he.code, "reason": str(he.reason)},
             }
-
-    except urllib.error.URLError as ue:
+        return {
+            "success": False,
+            "status": "DISCONNECTED",
+            "message": f"Grafana returned HTTP {he.code}: {he.reason}",
+            "latency_ms": elapsed_ms,
+            "details": {"http_code": he.code},
+        }
+    except (urllib.error.URLError, TimeoutError, OSError) as ue:
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
         err_str = str(ue.reason) if hasattr(ue, "reason") else str(ue)
         return {
             "success": False,
             "status": "DISCONNECTED",
-            "message": f"Could not reach Grafana server at {cleaned_url}: {err_str}",
+            "message": f"Could not reach Grafana at {cleaned_url}: {err_str}",
             "latency_ms": elapsed_ms,
             "details": {"error": err_str},
         }
-
-    except TimeoutError:
-        return {
-            "success": False,
-            "status": "DISCONNECTED",
-            "message": f"Connection timed out after {int(timeout * 1000)}ms while contacting {cleaned_url}.",
-            "latency_ms": int(timeout * 1000),
-            "details": {"error": "Timeout"},
-        }
-
     except Exception as exc:
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
         return {
             "success": False,
             "status": "DISCONNECTED",
-            "message": f"Connection failed: {str(exc)}",
+            "message": f"Grafana connection error: {exc}",
             "latency_ms": elapsed_ms,
             "details": {"error": str(exc)},
         }
 
+    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
     return {
         "success": False,
         "status": "DISCONNECTED",
         "message": f"Unexpected response from Grafana at {cleaned_url}.",
-        "latency_ms": int((time.perf_counter() - start_time) * 1000),
+        "latency_ms": elapsed_ms,
     }
 
 
@@ -263,6 +301,7 @@ _cached_grafana_status: Dict[str, Any] = {
     "alert_stream_active": False,
     "checked_at": None,
 }
+_grafana_last_probe_time: float = 0.0  # epoch seconds of last live probe
 
 
 def update_cached_grafana_status(status_dict: Dict[str, Any]) -> None:
@@ -270,18 +309,26 @@ def update_cached_grafana_status(status_dict: Dict[str, Any]) -> None:
     _cached_grafana_status.update(status_dict)
 
 
+def _build_iot_url() -> str:
+    """Construct the IoT backend URL from environment variables.
+    Uses IIIOT_PORT (8086 = InfluxDB) by default.
+    """
+    ip = os.getenv("IIIOT_IP", "192.168.10.130")
+    port = os.getenv("IIIOT_PORT", "8086")
+    return f"http://{ip}:{port}"
+
+
 def get_grafana_health_status_sync() -> Dict[str, Any]:
     """
-    Synchronous helper to retrieve cached/live Grafana status for agents and telemetry.
+    Return cached Grafana/InfluxDB status for agents and telemetry.
+    Live probe runs at most once every _CACHE_TTL_SECONDS (60 s) to avoid
+    blocking the /api/telemetry endpoint on every frontend poll.
     """
-    global _cached_grafana_status
-    import os
+    global _cached_grafana_status, _grafana_last_probe_time
 
-    server_url = _cached_grafana_status.get("server_url")
-    if not server_url:
-        ip = os.getenv("IIIOT_IP", "192.168.10.130")
-        server_url = f"http://{ip}:3000"
-        _cached_grafana_status["server_url"] = server_url
+    # Resolve server_url from env if not yet set
+    server_url = _cached_grafana_status.get("server_url") or _build_iot_url()
+    _cached_grafana_status["server_url"] = server_url
 
     api_token = os.getenv("INFLUXDB_TOKEN", "")
 
@@ -298,16 +345,37 @@ def get_grafana_health_status_sync() -> Dict[str, Any]:
             "checked_at": _cached_grafana_status.get("checked_at"),
         }
 
-    # Fast probe (2.0s timeout)
+    now = time.monotonic()
+    cache_age = now - _grafana_last_probe_time
+    cached_status = _cached_grafana_status.get("status", "UNTESTED")
+
+    # Skip live probe if we have a recent successful result
+    if cache_age < _CACHE_TTL_SECONDS and cached_status not in ("UNTESTED", None):
+        logger.debug(
+            "Grafana health: returning cached result (%s, age=%.0fs)", cached_status, cache_age
+        )
+        return dict(_cached_grafana_status)
+
+    # Live probe (3 s timeout — firm cap to not stall telemetry)
+    logger.info("Grafana health: running live probe → %s", server_url)
     try:
-        ping_result = _sync_ping_grafana(server_url, api_token, org_id=1, timeout=2.0)
-        _cached_grafana_status["status"] = ping_result.get("status", "DISCONNECTED")
-        _cached_grafana_status["latency_ms"] = ping_result.get("latency_ms", 0)
-        _cached_grafana_status["message"] = ping_result.get("message", "")
-        _cached_grafana_status["dashboards_active"] = ping_result.get("success", False)
-        _cached_grafana_status["alert_stream_active"] = ping_result.get("success", False)
-        _cached_grafana_status["checked_at"] = datetime.utcnow().isoformat()
+        ping_result = _sync_ping_grafana(server_url, api_token, org_id=1, timeout=3.0)
+        _cached_grafana_status.update({
+            "status": ping_result.get("status", "DISCONNECTED"),
+            "latency_ms": ping_result.get("latency_ms", 0),
+            "message": ping_result.get("message", ""),
+            "dashboards_active": ping_result.get("success", False),
+            "alert_stream_active": ping_result.get("success", False),
+            "checked_at": datetime.utcnow().isoformat(),
+        })
+        _grafana_last_probe_time = now
+        logger.info(
+            "Grafana health probe result: %s (%dms)",
+            ping_result.get("status"),
+            ping_result.get("latency_ms", 0),
+        )
     except Exception as e:
+        logger.warning("Grafana health probe exception: %s", e)
         _cached_grafana_status["status"] = "DISCONNECTED"
         _cached_grafana_status["message"] = str(e)
 
