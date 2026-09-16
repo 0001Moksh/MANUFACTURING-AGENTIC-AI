@@ -73,6 +73,7 @@ function App() {
             <Route path="use-cases/executive-insights" element={<ExecutiveInsightsPage />} />
             <Route path="use-cases/safety-site-intelligence" element={<SafetySiteIntelligencePage />} />
             <Route path="use-cases/video-monitoring" element={<VideoMonitoringPage />} />
+            <Route path="use-cases/machine-monitoring" element={<MachineMonitoringPage />} />
             <Route path="machine-monitoring" element={<MachineMonitoringPage />} />
             <Route path="machine-monitoring/:id" element={<MachineDetailPage />} />
             <Route path="use-cases/:id" element={<UseCaseDetailPage />} />

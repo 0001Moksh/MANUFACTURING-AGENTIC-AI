@@ -92,18 +92,25 @@ export const HealthRing: React.FC<{ score: number; status: MachineStatus; size?:
   const circ = 2 * Math.PI * r;
   const pct = status === 'Offline' ? 0 : score / 100;
   const color = HEALTH_COLOR(score, status);
+  const gradId = `ring-grad-${size}-${status}`;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E3E7F0" strokeWidth={4} />
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.6" />
+          <stop offset="100%" stopColor={color} stopOpacity="1" />
+        </linearGradient>
+      </defs>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EBEEF4" strokeWidth={4} />
       <circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={4} strokeLinecap="round"
+        stroke={`url(#${gradId})`} strokeWidth={4} strokeLinecap="round"
         strokeDasharray={circ}
         strokeDashoffset={circ * (1 - pct)}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
         style={{ transition: 'stroke-dashoffset 0.8s ease' }}
       />
-      <text x={size / 2} y={size / 2 + 4} textAnchor="middle" fontSize={10} fontWeight={700} fill={color} fontFamily="'Manrope',sans-serif">
+      <text x={size / 2} y={size / 2 + 4} textAnchor="middle" fontSize={10} fontWeight={800} fill={color} fontFamily="'Manrope',sans-serif">
         {status === 'Offline' ? '—' : `${score}%`}
       </text>
     </svg>
@@ -135,40 +142,45 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay }}
-      whileHover={{ y: -3, boxShadow: '0 12px 28px -6px rgba(11,15,25,0.12)' }}
+      transition={{ duration: 0.4, delay, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ y: -5, boxShadow: '0 20px 40px -12px rgba(11,15,25,0.18)' }}
       onClick={() => navigate(`/machine-monitoring/${machine.id}`)}
-      className="bg-panel border border-border rounded-[14px] p-[18px] flex flex-col justify-between cursor-pointer transition-all relative overflow-hidden group hover:border-teal/50"
+      className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[18px] p-[18px] flex flex-col justify-between cursor-pointer transition-all relative overflow-hidden group hover:border-teal/50 shadow-[0_4px_16px_-8px_rgba(15,23,42,0.1)]"
     >
-      {/* Status indicator banner strip */}
+      {/* Status indicator banner strip — gradient */}
       <div
         className="absolute top-0 left-0 right-0 h-[3px]"
-        style={{ background: statusColor }}
+        style={{ background: `linear-gradient(90deg, ${statusColor}, ${statusColor}55, transparent)` }}
+      />
+      {/* Subtle corner glow on hover */}
+      <div
+        className="pointer-events-none absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"
+        style={{ background: `${statusColor}25` }}
       />
 
       {/* Top Header */}
-      <div>
-        <div className="flex items-start justify-between gap-[10px] mb-[12px]">
+      <div className="relative">
+        <div className="flex items-start justify-between gap-[10px] mb-[14px]">
           <div className="flex items-center gap-[10px]">
-            <HealthRing score={machine.healthScore} status={machine.status} size={48} />
+            <HealthRing score={machine.healthScore} status={machine.status} size={50} />
             <div>
               <div className="flex items-center gap-[6px]">
                 <h3 className="font-head text-[15px] font-bold text-ink group-hover:text-teal transition-colors">
                   {machine.name}
                 </h3>
-                <span className="font-mono text-[10.5px] px-[6px] py-[1px] bg-[#F1F4F9] text-muted rounded-[4px]">
+                <span className="font-mono text-[10.5px] px-[6px] py-[1px] bg-slate-100 text-muted rounded-[5px] border border-slate-200/60">
                   {machine.code}
                 </span>
               </div>
-              <p className="text-[11.5px] text-muted font-medium mt-[1px]">
+              <p className="text-[11.5px] text-muted font-medium mt-[2px]">
                 {machine.plant} • {machine.line}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-[4px]">
+          <div className="flex flex-col items-end gap-[5px]">
             <span
-              className="text-[11px] font-bold px-[8px] py-[2.5px] rounded-[20px] flex items-center gap-[5px]"
+              className="text-[11px] font-bold px-[9px] py-[3px] rounded-[20px] flex items-center gap-[5px] shadow-sm"
               style={{ background: STATUS_BG[machine.status], color: statusColor }}
             >
               <span className="w-[6px] h-[6px] rounded-full" style={{ background: statusColor }} />
@@ -182,16 +194,16 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
         </div>
 
         {/* Live Metrics Grid */}
-        <div className="grid grid-cols-3 gap-[6px] my-[12px]">
+        <div className="grid grid-cols-3 gap-[7px] my-[14px]">
           {machine.liveMetrics.slice(0, 3).map((m: LiveMetric) => {
             const IconComp = METRIC_ICONS[m.key] || Activity;
             const mColor = METRIC_STATUS_COLOR[m.status] || '#1FA971';
             return (
               <div
                 key={m.key}
-                className="bg-[#F8FAFC] border border-border/60 rounded-[8px] p-[8px] flex flex-col justify-between"
+                className="bg-gradient-to-br from-slate-50 to-white border border-slate-200/70 rounded-[10px] p-[9px] flex flex-col justify-between shadow-sm"
               >
-                <div className="flex items-center justify-between text-muted mb-[2px]">
+                <div className="flex items-center justify-between text-muted mb-[3px]">
                   <span className="text-[10px] font-bold uppercase tracking-[0.3px] truncate">{m.label}</span>
                   <IconComp className="w-[11px] h-[11px] shrink-0 opacity-70" />
                 </div>
@@ -206,24 +218,24 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
 
         {/* Active Issues Banner */}
         {machine.activeIssues > 0 ? (
-          <div className="bg-[#FFFBEB] border border-[#FCD34D] rounded-[8px] p-[8px_10px] flex items-center justify-between mb-[12px]">
+          <div className="bg-gradient-to-r from-amber-50 to-amber-50/40 border border-amber-200 rounded-[10px] p-[9px_11px] flex items-center justify-between mb-[14px]">
             <div className="flex items-center gap-[6px]">
               <AlertTriangle className="w-[13px] h-[13px] text-amber-600 shrink-0" />
               <span className="text-[11.5px] font-medium text-amber-900 truncate max-w-[200px]">
                 {machine.lastIssueText || `${machine.activeIssues} active alert(s)`}
               </span>
             </div>
-            <span className="text-[10.5px] font-bold font-mono text-amber-700 bg-amber-200/60 px-[6px] py-[1px] rounded-[4px] shrink-0">
+            <span className="text-[10.5px] font-bold font-mono text-amber-700 bg-amber-200/60 px-[6px] py-[2px] rounded-[5px] shrink-0">
               {machine.activeIssues} Active
             </span>
           </div>
         ) : machine.status === 'Offline' ? (
-          <div className="bg-[#F1F5F9] border border-border rounded-[8px] p-[8px_10px] flex items-center gap-[6px] mb-[12px] text-slate-500 text-[11.5px]">
+          <div className="bg-gradient-to-r from-slate-50 to-white border border-slate-200 rounded-[10px] p-[9px_11px] flex items-center gap-[6px] mb-[14px] text-slate-500 text-[11.5px]">
             <WifiOff className="w-[13px] h-[13px]" />
             <span>Machine is currently powered off / non-communicating</span>
           </div>
         ) : (
-          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-[8px] p-[8px_10px] flex items-center gap-[6px] mb-[12px] text-emerald-800 text-[11.5px]">
+          <div className="bg-gradient-to-r from-emerald-50 to-emerald-50/30 border border-emerald-200 rounded-[10px] p-[9px_11px] flex items-center gap-[6px] mb-[14px] text-emerald-800 text-[11.5px]">
             <div className="w-[6px] h-[6px] rounded-full bg-emerald-500 animate-pulse" />
             <span>Telemetry baseline nominal • 0 anomalies detected</span>
           </div>
@@ -231,10 +243,10 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
       </div>
 
       {/* Footer bar */}
-      <div className="pt-[10px] border-t border-border flex items-center justify-between mt-auto">
-        <div className="flex items-center gap-[6px]">
+      <div className="relative pt-[11px] border-t border-slate-100 flex items-center justify-between mt-auto">
+        <div className="flex items-center gap-[7px]">
           <span
-            className="w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0"
+            className="w-[24px] h-[24px] rounded-full flex items-center justify-center shrink-0 shadow-inner"
             style={{ background: agentStyle.bg }}
           >
             <Bot className="w-[12px] h-[12px]" style={{ color: agentStyle.text }} />

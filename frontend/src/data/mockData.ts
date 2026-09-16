@@ -106,6 +106,10 @@ export const useCases: UseCase[] = [
    desc:"Real-time dashboard for live streaming site cameras, tracking safety incidents, and rendering violation logs with snapshot evidence directly from the construction AI backend.",
    impact:"Instant safety intervention; accurate historical logs of compliance violations.",
    poweredBy:["Safety & Quality Agent","PPE & Behavior Vision Agent","Insights Summary Agent"]},
+  {id:25,pillar:"sustain",title:"Continuous Machine Monitoring",tags:["IOT","AGENTIC","ML"],status:"live",
+   desc:"Real-time equipment health monitoring, InfluxDB time-series telemetry streams, and automated agent root-cause analysis for plant machinery.",
+   impact:"Zero unplanned machine downtime; automated LLM agent root-cause investigation & predictive maintenance alerts.",
+   poweredBy:["Maintenance Agent","Operations Agent","Reporting Agent"]},
 ];
 
 export const pillarMeta: Record<string, { label: string }> = {
