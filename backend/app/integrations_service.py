@@ -252,44 +252,40 @@ async def test_grafana_connection(
         }
 
 
+_cached_grafana_status: Dict[str, Any] = {
+    "integration": "Grafana IoT Application",
+    "status": "UNTESTED",
+    "is_enabled": True,
+    "server_url": None,
+    "latency_ms": 0,
+    "message": "Initialized",
+    "dashboards_active": False,
+    "alert_stream_active": False,
+    "checked_at": None,
+}
+
+
+def update_cached_grafana_status(status_dict: Dict[str, Any]) -> None:
+    global _cached_grafana_status
+    _cached_grafana_status.update(status_dict)
+
+
 def get_grafana_health_status_sync() -> Dict[str, Any]:
     """
-    Synchronous helper to retrieve cached/live Grafana status for agents.
+    Synchronous helper to retrieve cached/live Grafana status for agents and telemetry.
     """
+    global _cached_grafana_status
     import os
-    from app.db import sync_engine
-    from sqlalchemy import text
 
-    server_url = None
-    api_token = None
-    org_id = 1
-    status = "UNTESTED"
-    is_enabled = False
-
-    try:
-        with sync_engine.connect() as conn:
-            row = conn.execute(
-                text(
-                    "SELECT server_url, api_token, org_id, status, is_enabled, last_checked_at "
-                    "FROM \"IntegrationConfig\" "
-                    "WHERE name ILIKE '%Grafana%' LIMIT 1"
-                )
-            ).mappings().first()
-            if row:
-                server_url = row.get("server_url")
-                api_token = row.get("api_token")
-                org_id = row.get("org_id") or 1
-                status = row.get("status") or "UNTESTED"
-                is_enabled = bool(row.get("is_enabled"))
-    except Exception as e:
-        logger.warning(f"Could not query IntegrationConfig for Grafana: {e}")
-
-    # Fallback to environment variables if not configured in DB
+    server_url = _cached_grafana_status.get("server_url")
     if not server_url:
         ip = os.getenv("IIIOT_IP", "192.168.10.130")
         server_url = f"http://{ip}:3000"
-        api_token = os.getenv("INFLUXDB_TOKEN")
+        _cached_grafana_status["server_url"] = server_url
 
+    api_token = os.getenv("INFLUXDB_TOKEN", "")
+
+    is_enabled = _cached_grafana_status.get("is_enabled", True)
     if not is_enabled:
         return {
             "integration": "Grafana IoT Application",
@@ -299,19 +295,21 @@ def get_grafana_health_status_sync() -> Dict[str, Any]:
             "message": "Grafana IoT integration is disabled in Admin Console → Integrations.",
             "dashboards_active": False,
             "alert_stream_active": False,
+            "checked_at": _cached_grafana_status.get("checked_at"),
         }
 
-    # Ping Grafana with a fast 2.5s probe
-    ping_result = _sync_ping_grafana(server_url, api_token, org_id, timeout=2.5)
+    # Fast probe (2.0s timeout)
+    try:
+        ping_result = _sync_ping_grafana(server_url, api_token, org_id=1, timeout=2.0)
+        _cached_grafana_status["status"] = ping_result.get("status", "DISCONNECTED")
+        _cached_grafana_status["latency_ms"] = ping_result.get("latency_ms", 0)
+        _cached_grafana_status["message"] = ping_result.get("message", "")
+        _cached_grafana_status["dashboards_active"] = ping_result.get("success", False)
+        _cached_grafana_status["alert_stream_active"] = ping_result.get("success", False)
+        _cached_grafana_status["checked_at"] = datetime.utcnow().isoformat()
+    except Exception as e:
+        _cached_grafana_status["status"] = "DISCONNECTED"
+        _cached_grafana_status["message"] = str(e)
 
-    return {
-        "integration": "Grafana IoT Application",
-        "status": ping_result.get("status", "DISCONNECTED"),
-        "is_enabled": True,
-        "server_url": server_url,
-        "latency_ms": ping_result.get("latency_ms", 0),
-        "message": ping_result.get("message", ""),
-        "dashboards_active": ping_result.get("success", False),
-        "alert_stream_active": ping_result.get("success", False),
-        "checked_at": datetime.utcnow().isoformat(),
-    }
+    return dict(_cached_grafana_status)
+
