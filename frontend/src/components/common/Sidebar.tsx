@@ -21,7 +21,7 @@ export const Sidebar: React.FC = () => {
         <button
           onClick={() => setCollapsed(value => !value)}
           title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-className={`${collapsed ? 'absolute top-[58px] left-11' : 'ml-auto absolute top-[62px] left-55'} w-[28px] h-[28px] rounded-full bg-white border-2 border-black border-r-[6px] hover:border-l-2 hover:border-r-[6px] text-black hover:bg-gray-100 flex items-center justify-center transition-all`}        >
+          className={`${collapsed ? 'absolute top-[58px] left-11' : 'ml-auto absolute top-[62px] left-55'} w-[28px] h-[28px] rounded-full bg-white border-2 border-black border-r-[6px] hover:border-l-2 hover:border-r-[6px] text-black hover:bg-gray-100 flex items-center justify-center transition-all`}        >
           {collapsed ? (
             <ChevronRight className="w-5 h-5" />
           ) : (
@@ -45,7 +45,7 @@ className={`${collapsed ? 'absolute top-[58px] left-11' : 'ml-auto absolute top-
           )}
         </NavLink>
 
-        <NavLink to="/machine-monitoring" title={collapsed ? 'Machine Monitoring' : undefined} className={({ isActive }) => `flex items-center gap-[11px] py-[9px] px-[11px] rounded-[8px] mb-[2px] text-[13.5px] font-medium cursor-pointer border border-transparent transition-colors relative ${collapsed ? 'justify-center px-0 gap-0' : ''} ${isActive ? 'bg-teal/15 text-white border-teal/30' : 'text-[#C7D2EA] hover:bg-white/5 hover:text-white'}`}>
+        {/* <NavLink to="/machine-monitoring" title={collapsed ? 'Machine Monitoring' : undefined} className={({ isActive }) => `flex items-center gap-[11px] py-[9px] px-[11px] rounded-[8px] mb-[2px] text-[13.5px] font-medium cursor-pointer border border-transparent transition-colors relative ${collapsed ? 'justify-center px-0 gap-0' : ''} ${isActive ? 'bg-teal/15 text-white border-teal/30' : 'text-[#C7D2EA] hover:bg-white/5 hover:text-white'}`}>
           {({ isActive }) => (
             <>
               {isActive && <div className="absolute left-[-12px] top-[8px] bottom-[8px] w-[3px] rounded-[3px] bg-teal" />}
@@ -53,7 +53,7 @@ className={`${collapsed ? 'absolute top-[58px] left-11' : 'ml-auto absolute top-
               {!collapsed && <><span>Machine Monitoring</span><span className="ml-auto font-mono text-[10.5px] text-[#2DD4BF] bg-teal/20 border border-teal/30 px-[6px] py-[1px] rounded-[20px]">Live</span></>}
             </>
           )}
-        </NavLink>
+        </NavLink> */}
 
         <NavLink to="/use-cases" title={collapsed ? 'Use-Case Library' : undefined} className={({ isActive }) => `flex items-center gap-[11px] py-[9px] px-[11px] rounded-[8px] mb-[2px] text-[13.5px] font-medium cursor-pointer border border-transparent transition-colors relative ${collapsed ? 'justify-center px-0 gap-0' : ''} ${isActive ? 'bg-teal/15 text-white border-teal/30' : 'text-[#C7D2EA] hover:bg-white/5 hover:text-white'}`}>
           {({ isActive }) => (
