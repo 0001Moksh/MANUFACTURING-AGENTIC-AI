@@ -25,6 +25,8 @@ import { UserDetailPage } from './pages/UserDetailPage';
 import { UserEditPage } from './pages/UserEditPage';
 import { RoleDetailPage } from './pages/RoleDetailPage';
 import { RoleEditPage } from './pages/RoleEditPage';
+import { MachineMonitoringPage } from './pages/MachineMonitoringPage';
+import { MachineDetailPage } from './pages/MachineDetailPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
@@ -71,6 +73,8 @@ function App() {
             <Route path="use-cases/executive-insights" element={<ExecutiveInsightsPage />} />
             <Route path="use-cases/safety-site-intelligence" element={<SafetySiteIntelligencePage />} />
             <Route path="use-cases/video-monitoring" element={<VideoMonitoringPage />} />
+            <Route path="machine-monitoring" element={<MachineMonitoringPage />} />
+            <Route path="machine-monitoring/:id" element={<MachineDetailPage />} />
             <Route path="use-cases/:id" element={<UseCaseDetailPage />} />
             <Route path="agents" element={<AgentsPage />} />
             <Route path="agents/reporting" element={<ReportingAgentPage />} />

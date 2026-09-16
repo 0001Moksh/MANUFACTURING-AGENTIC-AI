@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Bot, Settings2, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Bot, Activity, Settings2, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../../store';
 
 export const Sidebar: React.FC = () => {
@@ -41,6 +41,16 @@ className={`${collapsed ? 'absolute top-[58px] left-11' : 'ml-auto absolute top-
               {isActive && <div className="absolute left-[-12px] top-[8px] bottom-[8px] w-[3px] rounded-[3px] bg-teal" />}
               <LayoutDashboard className="w-[17px] h-[17px] shrink-0 opacity-85" />
               {!collapsed && 'Overview'}
+            </>
+          )}
+        </NavLink>
+
+        <NavLink to="/machine-monitoring" title={collapsed ? 'Machine Monitoring' : undefined} className={({ isActive }) => `flex items-center gap-[11px] py-[9px] px-[11px] rounded-[8px] mb-[2px] text-[13.5px] font-medium cursor-pointer border border-transparent transition-colors relative ${collapsed ? 'justify-center px-0 gap-0' : ''} ${isActive ? 'bg-teal/15 text-white border-teal/30' : 'text-[#C7D2EA] hover:bg-white/5 hover:text-white'}`}>
+          {({ isActive }) => (
+            <>
+              {isActive && <div className="absolute left-[-12px] top-[8px] bottom-[8px] w-[3px] rounded-[3px] bg-teal" />}
+              <Activity className="w-[17px] h-[17px] shrink-0 opacity-85 text-teal" />
+              {!collapsed && <><span>Machine Monitoring</span><span className="ml-auto font-mono text-[10.5px] text-[#2DD4BF] bg-teal/20 border border-teal/30 px-[6px] py-[1px] rounded-[20px]">Live</span></>}
             </>
           )}
         </NavLink>
