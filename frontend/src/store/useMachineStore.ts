@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { MOCK_MACHINES, Machine, MachineStatus, LiveMetric } from '../data/machineMonitoringData';
+import { MOCK_MACHINES } from '../data/machineMonitoringData';
+import type { Machine, MachineStatus, LiveMetric } from '../data/machineMonitoringData';
 
 interface MachineState {
   machines: Machine[];
@@ -57,9 +58,9 @@ export const useMachineStore = create<MachineState>((set, get) => ({
       const machines = state.machines.map((m) => {
         if (m.id !== machineId) return m;
 
-        const updatedMetrics = m.liveMetrics.map((lm) => {
+        const updatedMetrics: LiveMetric[] = m.liveMetrics.map((lm) => {
           if (lm.key !== metricKey) return lm;
-          const status = newValue >= lm.criticalThreshold ? 'critical' : newValue >= lm.warningThreshold ? 'warning' : 'normal';
+          const status: 'normal' | 'warning' | 'critical' = newValue >= lm.criticalThreshold ? 'critical' : newValue >= lm.warningThreshold ? 'warning' : 'normal';
           const newSpark = [...lm.spark.slice(1), { t: lm.spark.length, v: newValue }];
           return { ...lm, value: newValue, status, spark: newSpark };
         });
@@ -85,13 +86,13 @@ export const useMachineStore = create<MachineState>((set, get) => ({
       const machines = state.machines.map((m) => {
         if (m.status === 'Offline') return m;
 
-        const updatedMetrics = m.liveMetrics.map((lm) => {
+        const updatedMetrics: LiveMetric[] = m.liveMetrics.map((lm) => {
           const span = lm.normalRange[1] - lm.normalRange[0];
           // small realistic jitter (~ ±2% of normal span around current value)
           const jitter = (Math.random() - 0.49) * span * 0.05;
           const raw = lm.value + jitter;
           const newValue = Math.round(Math.max(0, raw) * 10) / 10;
-          const status = newValue >= lm.criticalThreshold ? 'critical' : newValue >= lm.warningThreshold ? 'warning' : 'normal';
+          const status: 'normal' | 'warning' | 'critical' = newValue >= lm.criticalThreshold ? 'critical' : newValue >= lm.warningThreshold ? 'warning' : 'normal';
           const newSpark = [...lm.spark.slice(1), { t: lm.spark.length, v: newValue }];
           return { ...lm, value: newValue, status, spark: newSpark };
         });

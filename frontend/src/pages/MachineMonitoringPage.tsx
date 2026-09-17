@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, Bot, AlertTriangle, CheckCircle2, WifiOff,
   Search, Filter, LayoutGrid, List, RefreshCw, ChevronDown, Cpu
 } from 'lucide-react';
-import { MOCK_MACHINES, getMachineSummary, PLANTS } from '../data/machineMonitoringData';
+import { getMachineSummary, PLANTS } from '../data/machineMonitoringData';
 import type { MachineStatus } from '../data/machineMonitoringData';
 import { MachineCard } from '../components/machine-monitoring/MachineCard';
 import { MachineTable } from '../components/machine-monitoring/MachineTable';
