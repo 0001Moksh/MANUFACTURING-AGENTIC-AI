@@ -3,8 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea
 } from 'recharts';
-import { generateTimeSeriesData } from '../../data/machineMonitoringData';
-import type { TimeSeriesPoint } from '../../data/machineMonitoringData';
+import type { SparkPoint, TimeSeriesPoint } from '../../data/machineMonitoringData';
 
 interface TelemetryChartProps {
   machineId: string;
@@ -14,8 +13,8 @@ interface TelemetryChartProps {
   normalRange: [number, number];
   warningThreshold: number;
   criticalThreshold: number;
-  /** Actual live value of the metric to center initial time series around */
-  initialValue?: number;
+  /** Historical points returned by InfluxDB for this metric */
+  initialSeries?: SparkPoint[];
   /** Fires whenever the chart's own live value updates, so parent UI (KPI cards) can stay in sync */
   onLatestValue?: (value: number) => void;
 }
@@ -28,50 +27,23 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   normalRange,
   warningThreshold,
   criticalThreshold,
-  initialValue,
+  initialSeries = [],
   onLatestValue,
 }) => {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
   const [data, setData] = useState<TimeSeriesPoint[]>([]);
-  const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Track initialValue without triggering re-generation loops
-  const initialValueRef = React.useRef(initialValue);
   useEffect(() => {
-    initialValueRef.current = initialValue;
-  }, [initialValue]);
-
-  // Generate initial data centered around true metric starting value ONLY when metric or timeRange changes
-  useEffect(() => {
-    const pointsCount = timeRange === '1h' ? 30 : timeRange === '6h' ? 60 : timeRange === '24h' ? 90 : 120;
-    const baseVal = initialValueRef.current ?? (normalRange[0] + normalRange[1]) / 2;
-    const variance = Math.max((normalRange[1] - normalRange[0]) * 0.08, baseVal * 0.03);
-    const hasSpike = (metricKey === 'vibration' || metricKey === 'temperature') && baseVal < warningThreshold;
-
-    const generated = generateTimeSeriesData(pointsCount, baseVal, variance, hasSpike);
-    setData(generated);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [machineId, metricKey, timeRange]);
-
-  // Real-time live data point pushing every 3 seconds
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const interval = setInterval(() => {
-      setData((prev) => {
-        if (prev.length === 0) return prev;
-        const last = prev[prev.length - 1];
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const delta = (Math.random() - 0.48) * (normalRange[1] - normalRange[0]) * 0.15;
-        let newValue = Math.max(0, Number((last.value + delta).toFixed(2)));
-
-        const pointStatus: 'normal' | 'warning' | 'critical' = newValue > criticalThreshold ? 'critical' : newValue > warningThreshold ? 'warning' : 'normal';
-        return [...prev.slice(1), { timestamp: timeStr, value: newValue, status: pointStatus }];
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [autoRefresh, normalRange, warningThreshold, criticalThreshold]);
+    const pointStatus = (value: number): 'normal' | 'warning' | 'critical' => (
+      value > criticalThreshold ? 'critical' : value > warningThreshold ? 'warning' : 'normal'
+    );
+    const points = initialSeries.map((point) => ({
+      timestamp: point.t,
+      value: point.v,
+      status: pointStatus(point.v),
+    }));
+    setData(points);
+  }, [initialSeries, criticalThreshold, warningThreshold, timeRange]);
 
   const latestVal = data.length > 0 ? data[data.length - 1].value : 0;
 
@@ -125,16 +97,9 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
         <div className="flex items-center gap-3">
           {/* Realtime pulse button */}
-          <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold flex items-center gap-1.5 border transition-colors ${
-              autoRefresh
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                : 'bg-slate-100 text-slate-600 border-slate-300'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`} />
-            {autoRefresh ? 'LIVE STREAMING' : 'PAUSED'}
+          <button className="px-2.5 py-1 rounded-md text-xs font-mono font-semibold flex items-center gap-1.5 border bg-emerald-50 text-emerald-700 border-emerald-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            INFLUXDB SOURCE
           </button>
 
           {/* Time range selector */}

@@ -1,56 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Settings, FileText, CheckCircle2, ChevronRight, Activity, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const MOCK_MACHINES = [
-  {
-    id: 'm1',
-    name: 'Train-3 Regenerator',
-    zone: 'Zone 4',
-    risk: 'Critical',
-    issue: 'High vibration detected in bearing assembly. Predictive failure within 72h.',
-    guideRef: 'SOP-TR3-08: Bearing Maintenance',
-    steps: [
-      'Isolate Train-3 from the main power grid and apply LOTO (Lockout/Tagout).',
-      'Remove the outer housing of the regenerator unit.',
-      'Inspect the primary bearing assembly for visible wear or thermal damage.',
-      'Replace the bearing cartridge using specialized alignment tool (Tool #442).',
-      'Re-grease the assembly, restore power, and run the 15-minute diagnostic test.'
-    ]
-  },
-  {
-    id: 'm2',
-    name: 'Compressor B',
-    zone: 'Zone 1',
-    risk: 'High',
-    issue: 'Coolant pressure dropping steadily. Possible seal leak.',
-    guideRef: 'SOP-CMP-12: Seal Inspection',
-    steps: [
-      'Bypass Compressor B to redundant Compressor C.',
-      'Drain residual coolant from the primary loop.',
-      'Inspect the mechanical seals on the intake valve for degradation.',
-      'Replace faulty O-rings and re-pressurize the system to 120 PSI.',
-      'Monitor for 30 minutes to ensure pressure holds steady.'
-    ]
-  },
-  {
-    id: 'm3',
-    name: 'Conveyor Drive Motor',
-    zone: 'Packaging',
-    risk: 'Medium',
-    issue: 'Temperature running 15% above normal baseline.',
-    guideRef: 'SOP-MOT-02: Motor Thermal Management',
-    steps: [
-      'Check external cooling fans for blockages.',
-      'Verify motor load is within specified parameters.',
-      'Clean cooling fins and ensure adequate ambient airflow.',
-      'If temperature remains high, schedule planned downtime for internal coil inspection.'
-    ]
-  }
-];
+import { useMachineStore } from '../../store/useMachineStore';
 
 export const MaintenanceAgentConsole: React.FC = () => {
-  const [selectedMachine, setSelectedMachine] = useState(MOCK_MACHINES[0]);
+  const machines = useMachineStore((state) => state.machines);
+  const loadMachines = useMachineStore((state) => state.loadMachines);
+  const [selectedMachineId, setSelectedMachineId] = useState<string>();
+
+  useEffect(() => {
+    if (machines.length === 0) loadMachines();
+  }, [machines.length, loadMachines]);
+
+  const selectedSource = machines.find((machine) => machine.id === selectedMachineId) || machines[0];
+  if (!selectedSource) {
+    return <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Live InfluxDB telemetry is not available.</div>;
+  }
+
+  const selectedMachine = {
+    id: selectedSource.id,
+    name: selectedSource.name,
+    zone: selectedSource.location,
+    risk: selectedSource.status,
+    issue: selectedSource.lastIssueText || `Live telemetry status: ${selectedSource.status}`,
+    guideRef: 'No maintenance guide configured',
+    steps: [] as string[],
+  };
 
   return (
     <div className="bg-panel border border-border-color rounded-[14px] p-0 mt-6 shadow-sm overflow-hidden flex flex-col md:flex-row min-h-[500px]">
@@ -70,10 +45,10 @@ export const MaintenanceAgentConsole: React.FC = () => {
         </div>
         
         <div className="flex-1 overflow-y-auto">
-          {MOCK_MACHINES.map(machine => (
+          {machines.map(machine => (
             <button
               key={machine.id}
-              onClick={() => setSelectedMachine(machine)}
+              onClick={() => setSelectedMachineId(machine.id)}
               className={`w-full text-left p-4 border-b border-border-color border-opacity-50 hover:bg-white transition-colors cursor-pointer flex items-start gap-3 relative ${
                 selectedMachine.id === machine.id ? 'bg-white shadow-sm' : ''
               }`}
@@ -83,21 +58,21 @@ export const MaintenanceAgentConsole: React.FC = () => {
               )}
               
               <div className={`mt-0.5 w-[10px] h-[10px] rounded-full shrink-0 ${
-                machine.risk === 'Critical' ? 'bg-red shadow-[0_0_0_3px_var(--color-red-tint)]' :
-                machine.risk === 'High' ? 'bg-amber shadow-[0_0_0_3px_var(--color-amber-tint)]' :
+                machine.status === 'Critical' ? 'bg-red shadow-[0_0_0_3px_var(--color-red-tint)]' :
+                machine.status === 'Warning' ? 'bg-amber shadow-[0_0_0_3px_var(--color-amber-tint)]' :
                 'bg-blue text-white shadow-[0_0_0_3px_var(--color-blue-tint)]'
               }`} />
               
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-[13.5px] text-ink truncate mb-0.5">{machine.name}</div>
-                <div className="text-[11.5px] text-muted mb-2">{machine.zone}</div>
+                <div className="text-[11.5px] text-muted mb-2">{machine.location}</div>
                 
                 <div className={`text-[10.5px] font-bold inline-block px-2 py-0.5 rounded-full ${
-                  machine.risk === 'Critical' ? 'bg-red-tint text-red' :
-                  machine.risk === 'High' ? 'bg-amber-tint text-[#9A6400]' :
+                  machine.status === 'Critical' ? 'bg-red-tint text-red' :
+                  machine.status === 'Warning' ? 'bg-amber-tint text-[#9A6400]' :
                   'bg-blue-tint text-[#2258b0]'
                 }`}>
-                  {machine.risk} Risk
+                  {machine.status} Risk
                 </div>
               </div>
               

@@ -68,6 +68,10 @@ export const telemetryService = {
   getStats: async () => {
     const res = await api.get('/telemetry');
     return res.data;
+  },
+  getMachineMonitoring: async () => {
+    const res = await api.get('/machine-monitoring/telemetry');
+    return res.data;
   }
 };
 

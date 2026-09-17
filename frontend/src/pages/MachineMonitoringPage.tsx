@@ -59,7 +59,9 @@ const SummaryTile: React.FC<SummaryTileProps> = ({
 
 export const MachineMonitoringPage: React.FC = () => {
   const machines = useMachineStore((state) => state.machines);
-  const tickAllMachines = useMachineStore((state) => state.tickAllMachines);
+  const loading = useMachineStore((state) => state.loading);
+  const error = useMachineStore((state) => state.error);
+  const loadMachines = useMachineStore((state) => state.loadMachines);
   const [view, setView] = useState<'grid' | 'table'>('grid');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<MachineStatus | 'All'>('All');
@@ -67,13 +69,11 @@ export const MachineMonitoringPage: React.FC = () => {
   const [issueFilter, setIssueFilter] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Background real-time telemetry stream tick across all 13 machines
   useEffect(() => {
-    const interval = setInterval(() => {
-      tickAllMachines();
-    }, 2500);
+    loadMachines();
+    const interval = setInterval(loadMachines, 10000);
     return () => clearInterval(interval);
-  }, [tickAllMachines]);
+  }, [loadMachines]);
 
   const summary = useMemo(() => getMachineSummary(machines), [machines]);
 
@@ -89,10 +89,7 @@ export const MachineMonitoringPage: React.FC = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    tickAllMachines();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 600);
+    loadMachines().finally(() => setRefreshing(false));
   };
 
   const hasActiveFilters = search || statusFilter !== 'All' || plantFilter !== 'All Plants' || issueFilter;
@@ -104,6 +101,16 @@ export const MachineMonitoringPage: React.FC = () => {
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       className="p-6 flex flex-col gap-6 bg-gradient-to-b from-[#F7F8FA] to-[#EEF1F5] min-h-screen"
     >
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          Live InfluxDB telemetry unavailable: {error}
+        </div>
+      )}
+      {loading && machines.length === 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+          Loading live telemetry from InfluxDB...
+        </div>
+      )}
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

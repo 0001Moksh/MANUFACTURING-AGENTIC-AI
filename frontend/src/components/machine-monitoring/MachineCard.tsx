@@ -29,7 +29,7 @@ export const HEALTH_COLOR = (score: number, status: MachineStatus) => {
   return '#E24C4C';
 };
 
-const METRIC_ICONS: Record<string, React.FC<{ className?: string }>> = {
+const METRIC_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
   temperature: Thermometer,
   vibration: Activity,
   current: Zap,
@@ -110,8 +110,7 @@ interface GaugeDialProps {
 
 export const GaugeDial: React.FC<GaugeDialProps> = ({ metric, size = 128 }) => {
   const zones = getZones(metric);
-  const numericValue =
-    typeof metric.value === 'number' ? metric.value : parseFloat(String(metric.value)) || 0;
+  const numericValue = typeof metric.value === 'number' ? metric.value : 0;
   const color = METRIC_STATUS_COLOR[metric.status] || '#1FA971';
   const Icon = METRIC_ICONS[metric.key] || Activity;
 
@@ -182,7 +181,7 @@ export const GaugeDial: React.FC<GaugeDialProps> = ({ metric, size = 128 }) => {
           fill={color}
           fontFamily="'Manrope', sans-serif"
         >
-          {metric.value}
+          {metric.value === null ? 'N/A' : metric.value}
           <tspan fontSize={9} fontWeight={600} fill="#94A3B8"> {metric.unit}</tspan>
         </text>
       </svg>

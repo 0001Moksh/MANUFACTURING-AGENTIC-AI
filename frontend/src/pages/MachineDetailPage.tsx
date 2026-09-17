@@ -173,14 +173,22 @@ export const MachineDetailPage: React.FC = () => {
   const updateMachineMetric = useMachineStore((state) => state.updateMachineMetric);
 
   const machine = useMemo(() => {
-    return storeMachines.find((m) => m.id === id) || storeMachines[0];
+    return storeMachines.find((m) => m.id === id);
   }, [id, storeMachines]);
 
   const [activeTab, setActiveTab] = useState<'telemetry' | 'agent' | 'mes' | 'maintenance'>('telemetry');
   const [selectedMetric, setSelectedMetric] = useState<string>('vibration');
 
+  if (!machine) {
+    return <div className="p-6 text-sm text-slate-500">Live InfluxDB telemetry is not available.</div>;
+  }
+
   const statusColor = STATUS_COLOR[machine.status];
   const currentMetricObj = machine.liveMetrics.find((m) => m.key === selectedMetric) || machine.liveMetrics[0];
+
+  if (!currentMetricObj) {
+    return <div className="p-6 text-sm text-slate-500">No telemetry signals are configured in InfluxDB.</div>;
+  }
 
   const TABS: TabItem[] = [
     { key: 'telemetry', label: 'Live Telemetry & Signals', icon: Activity },
@@ -324,7 +332,7 @@ export const MachineDetailPage: React.FC = () => {
               <div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {machine.liveMetrics.map((m) => {
-                    const liveVal = m.value;
+                    const liveVal = m.value ?? 0;
                     const liveStatus = m.status;
                     const isSelected = selectedMetric === m.key;
                     const theme = METRIC_THEME[m.key] ?? DEFAULT_THEME;
@@ -373,7 +381,7 @@ export const MachineDetailPage: React.FC = () => {
                         />
 
                         <div className="font-mono font-extrabold text-lg mt-1" style={{ color: '#000000' }}>
-                          {liveVal} <span className="text-[20px] font-semibold opacity-70">{m.unit}</span>
+                          {m.value === null ? 'N/A' : liveVal} <span className="text-[20px] font-semibold opacity-70">{m.unit}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-bold capitalize" style={{ color: statusColorDot }}>
@@ -400,7 +408,7 @@ export const MachineDetailPage: React.FC = () => {
                   normalRange={currentMetricObj.normalRange}
                   warningThreshold={currentMetricObj.warningThreshold}
                   criticalThreshold={currentMetricObj.criticalThreshold}
-                  initialValue={currentMetricObj.value}
+                  initialSeries={currentMetricObj.spark}
                   onLatestValue={(val) => {
                     updateMachineMetric(machine.id, currentMetricObj.key, val);
                   }}

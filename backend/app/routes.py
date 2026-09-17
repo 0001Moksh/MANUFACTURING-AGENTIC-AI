@@ -26,6 +26,7 @@ from app.db import (
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
+from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.insights_summary_agent import generate_chart_summary as agent_generate_chart_summary
@@ -1324,6 +1325,13 @@ async def confirm_password_reset(req: PasswordResetConfirmRequest, request: Requ
     return {"status": "success"}
 
 # --- TELEMETRY & STATS ---
+
+@router.get("/api/machine-monitoring/telemetry")
+async def get_machine_monitoring_telemetry():
+    try:
+        return {"source": "InfluxDB", "machines": [get_machine_telemetry()]}
+    except InfluxTelemetryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 @router.get("/api/telemetry")
 async def get_telemetry(db: AsyncSession = Depends(get_db)):
