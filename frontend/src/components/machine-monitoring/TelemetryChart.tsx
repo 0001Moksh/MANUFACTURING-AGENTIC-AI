@@ -14,6 +14,8 @@ interface TelemetryChartProps {
   normalRange: [number, number];
   warningThreshold: number;
   criticalThreshold: number;
+  /** Actual live value of the metric to center initial time series around */
+  initialValue?: number;
   /** Fires whenever the chart's own live value updates, so parent UI (KPI cards) can stay in sync */
   onLatestValue?: (value: number) => void;
 }
@@ -26,22 +28,23 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   normalRange,
   warningThreshold,
   criticalThreshold,
+  initialValue,
   onLatestValue,
 }) => {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
   const [data, setData] = useState<TimeSeriesPoint[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Generate initial data
+  // Generate initial data centered around the true initialValue
   useEffect(() => {
     const pointsCount = timeRange === '1h' ? 30 : timeRange === '6h' ? 60 : timeRange === '24h' ? 90 : 120;
-    const baseVal = (normalRange[0] + normalRange[1]) / 2;
-    const variance = (normalRange[1] - normalRange[0]) * 0.4;
-    const hasSpike = metricKey === 'vibration' || metricKey === 'temperature';
+    const baseVal = initialValue ?? (normalRange[0] + normalRange[1]) / 2;
+    const variance = Math.max((normalRange[1] - normalRange[0]) * 0.08, baseVal * 0.03);
+    const hasSpike = (metricKey === 'vibration' || metricKey === 'temperature') && baseVal < warningThreshold;
 
     const generated = generateTimeSeriesData(pointsCount, baseVal, variance, hasSpike);
     setData(generated);
-  }, [machineId, metricKey, timeRange, normalRange]);
+  }, [machineId, metricKey, timeRange, initialValue, normalRange, warningThreshold, criticalThreshold]);
 
   // Real-time live data point pushing every 3 seconds
   useEffect(() => {

@@ -8,6 +8,7 @@ import { MOCK_MACHINES, getMachineSummary, PLANTS } from '../data/machineMonitor
 import type { MachineStatus } from '../data/machineMonitoringData';
 import { MachineCard } from '../components/machine-monitoring/MachineCard';
 import { MachineTable } from '../components/machine-monitoring/MachineTable';
+import { useMachineStore } from '../store/useMachineStore';
 
 // ─── Summary Tile ─────────────────────────────────────────────────────────────
 
@@ -57,13 +58,22 @@ const SummaryTile: React.FC<SummaryTileProps> = ({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export const MachineMonitoringPage: React.FC = () => {
-  const [machines] = useState(MOCK_MACHINES);
+  const machines = useMachineStore((state) => state.machines);
+  const tickAllMachines = useMachineStore((state) => state.tickAllMachines);
   const [view, setView] = useState<'grid' | 'table'>('grid');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<MachineStatus | 'All'>('All');
   const [plantFilter, setPlantFilter] = useState('All Plants');
   const [issueFilter, setIssueFilter] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Background real-time telemetry stream tick across all 13 machines
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tickAllMachines();
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [tickAllMachines]);
 
   const summary = useMemo(() => getMachineSummary(machines), [machines]);
 
@@ -79,6 +89,7 @@ export const MachineMonitoringPage: React.FC = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    tickAllMachines();
     setTimeout(() => {
       setRefreshing(false);
     }, 600);

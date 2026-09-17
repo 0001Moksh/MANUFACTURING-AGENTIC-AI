@@ -8,6 +8,7 @@ import {
 import { MOCK_MACHINES, STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
 import { HealthRing, STATUS_COLOR, STATUS_BG } from '../components/machine-monitoring/MachineCard';
+import { useMachineStore } from '../store/useMachineStore';
 
 /* ------------------------------------------------------------------ */
 /*  Per-metric visual theme (matches the colored KPI cards in mockup)  */
@@ -105,112 +106,22 @@ const GaugeDial: React.FC<{
   );
 };
 
-/* ------------------------------------------------------------------ */
-/*  Dynamic "heat" color: cool blue (low) → green (normal) → yellow    */
-/*  (warning) → red (critical) → deep red (way past critical)          */
-/* ------------------------------------------------------------------ */
-type RGB = [number, number, number];
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-const lerpColor = (c1: RGB, c2: RGB, t: number): RGB => [
-  lerp(c1[0], c2[0], t),
-  lerp(c1[1], c2[1], t),
-  lerp(c1[2], c2[2], t),
-];
-const rgbToCss = (c: RGB, alpha = 1) => `rgba(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])}, ${alpha})`;
-
-const COOL: RGB = [59, 130, 246]; // blue-500  (well below normal)
-const GOOD: RGB = [34, 197, 94]; // green-500 (normal)
-const WARN: RGB = [234, 179, 8]; // amber-500 (warning)
-const CRIT: RGB = [220, 38, 38]; // red-600   (critical)
-const DEEP: RGB = [127, 29, 29]; // red-900   (way past critical)
-
-function getHeatColor(value: number, m: typeof MOCK_MACHINES[0]['liveMetrics'][0]) {
-  const [normLo, normHi] = m.normalRange;
-  const warn = m.warningThreshold ?? normHi * 1.15;
-  const crit = m.criticalThreshold ?? warn * 1.1;
-  const deepEnd = crit + (crit - warn || crit * 0.15);
-
-  let rgb: RGB;
-  if (value < normLo) {
-    // below normal → cool blue, colder the further below
-    const span = normLo - (normLo - (warn - normHi || normLo * 0.3));
-    const t = Math.min(1, Math.max(0, (normLo - value) / (span || 1)));
-    rgb = lerpColor(GOOD, COOL, t);
-  } else if (value <= normHi) {
-    rgb = GOOD;
-  } else if (value <= warn) {
-    const t = (value - normHi) / ((warn - normHi) || 1);
-    rgb = lerpColor(GOOD, WARN, t);
-  } else if (value <= crit) {
-    const t = (value - warn) / ((crit - warn) || 1);
-    rgb = lerpColor(WARN, CRIT, t);
-  } else {
-    const t = Math.min(1, (value - crit) / ((deepEnd - crit) || 1));
-    rgb = lerpColor(CRIT, DEEP, t);
-  }
-  return rgb;
-}
-
 export const MachineDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const storeMachines = useMachineStore((state) => state.machines);
+  const updateMachineMetric = useMachineStore((state) => state.updateMachineMetric);
+
   const machine = useMemo(() => {
-    return MOCK_MACHINES.find((m) => m.id === id) || MOCK_MACHINES[0];
-  }, [id]);
+    return storeMachines.find((m) => m.id === id) || storeMachines[0];
+  }, [id, storeMachines]);
 
   const [activeTab, setActiveTab] = useState<'telemetry' | 'agent' | 'mes' | 'maintenance'>('telemetry');
   const [selectedMetric, setSelectedMetric] = useState<string>('vibration');
 
-  // ── Live values for KPI cards (simulate real-time stream) ──
-  // NOTE: this is now the single source of truth for "current value" —
-  // both the gauge cards AND the TelemetryChart badge/latest-point read from here,
-  // so they never disagree with each other.
-  const [liveValues, setLiveValues] = useState<Record<string, number>>(() =>
-    Object.fromEntries(machine.liveMetrics.map((m) => [m.key, m.value]))
-  );
-
-  useEffect(() => {
-    // Reset when machine changes
-    setLiveValues(Object.fromEntries(machine.liveMetrics.map((m) => [m.key, m.value])));
-  }, [machine.id]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveValues((prev) => {
-        const next = { ...prev };
-        machine.liveMetrics.forEach((m) => {
-          // Selected metric live value is driven by TelemetryChart stream
-          if (m.key === selectedMetric) return;
-          const span = m.normalRange[1] - m.normalRange[0];
-          // small realistic noise (~ ±4% of normal span)
-          const noise = (Math.random() - 0.5) * span * 0.08;
-          const raw = m.value + noise;
-          // keep one decimal for most metrics
-          next[m.key] = Math.round(raw * 10) / 10;
-        });
-        return next;
-      });
-    }, 900); // ~ same cadence as a typical telemetry stream
-    return () => clearInterval(interval);
-  }, [machine, selectedMetric]);
-
-  // Helper: derive status from a live value
-  const getLiveStatus = (m: typeof machine.liveMetrics[0], liveVal: number) => {
-    if (m.criticalThreshold != null && liveVal >= m.criticalThreshold) return 'critical';
-    if (m.warningThreshold != null && liveVal >= m.warningThreshold) return 'warning';
-    if (liveVal < m.normalRange[0]) {
-      if (m.criticalThreshold != null && liveVal <= m.normalRange[0] - (m.criticalThreshold - m.normalRange[1])) {
-        return 'critical';
-      }
-      return 'warning';
-    }
-    return 'normal';
-  };
-
   const statusColor = STATUS_COLOR[machine.status];
   const currentMetricObj = machine.liveMetrics.find((m) => m.key === selectedMetric) || machine.liveMetrics[0];
-  const currentLiveValue = liveValues[currentMetricObj.key] ?? currentMetricObj.value;
 
   const TABS = [
     { key: 'telemetry', label: 'Live Telemetry & Signals', icon: Activity },
@@ -355,8 +266,8 @@ export const MachineDetailPage: React.FC = () => {
               <div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {machine.liveMetrics.map((m) => {
-                    const liveVal = liveValues[m.key] ?? m.value;
-                    const liveStatus = getLiveStatus(m, liveVal);
+                    const liveVal = m.value;
+                    const liveStatus = m.status;
                     const isSelected = selectedMetric === m.key;
                     const theme = METRIC_THEME[m.key] ?? DEFAULT_THEME;
                     const Icon = theme.icon;
@@ -431,8 +342,9 @@ export const MachineDetailPage: React.FC = () => {
                   normalRange={currentMetricObj.normalRange}
                   warningThreshold={currentMetricObj.warningThreshold}
                   criticalThreshold={currentMetricObj.criticalThreshold}
+                  initialValue={currentMetricObj.value}
                   onLatestValue={(val) => {
-                    setLiveValues((prev) => (prev[currentMetricObj.key] === val ? prev : { ...prev, [currentMetricObj.key]: val }));
+                    updateMachineMetric(machine.id, currentMetricObj.key, val);
                   }}
                 />
               </div>
