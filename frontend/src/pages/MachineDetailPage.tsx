@@ -75,16 +75,16 @@ const GaugeDial: React.FC<{
   const needleTip = point(needleAngle, r - 14);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+    <svg viewBox={`0 0 ${W} ${H + 20}`} className="w-full h-auto">
       {/* track base */}
       <path d={arcPath(180, 0, r)} fill="none" stroke="#e7dcc0" strokeWidth="12" strokeLinecap="round" />
       {/* green (normal) */}
       {span > 0 && (
         <>
-          <path d={arcPath(aStart, aNormalEnd, r)} fill="none" stroke="#1FA971" strokeWidth="12" strokeLinecap="round" />
+          <path d={arcPath(aStart, aNormalEnd, r)} fill="none" stroke="#00c475" strokeWidth="12" strokeLinecap="round" />
           {/* amber (warning) */}
           {aWarnEnd !== aNormalEnd && (
-            <path d={arcPath(aNormalEnd, aWarnEnd, r)} fill="none" stroke="#D9A441" strokeWidth="12" strokeLinecap="round" />
+            <path d={arcPath(aNormalEnd, aWarnEnd, r)} fill="none" stroke="#D9A441" strokeWidth="12" />
           )}
           {/* red (critical) */}
           {aCriticalEnd !== aWarnEnd && (
@@ -93,7 +93,6 @@ const GaugeDial: React.FC<{
               fill="none"
               stroke="#B4342A"
               strokeWidth="12"
-              strokeLinecap="round"
             />
           )}
 
@@ -102,7 +101,7 @@ const GaugeDial: React.FC<{
             <path
               d={arcPath(aCriticalEnd, aEnd, r)}
               fill="none"
-              stroke="#e7dcc0"
+              stroke="#B4342A"
               strokeWidth="12"
               strokeLinecap="round"
             />
@@ -111,14 +110,50 @@ const GaugeDial: React.FC<{
       )}
       {/* needle */}
       <line x1={cx} y1={cy} x2={needleTip[0]} y2={needleTip[1]} stroke="#1a1a1a" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx={cx} cy={cy} r="5" fill="#B8860B" stroke="#1a1a1a" strokeWidth="1" />
-      {/* min/max labels — anchored outward so they never collide with the arc ends */}
-      <text x={point(180, r + 6)[0]} y={point(180, r + 6)[1] + 4} fontSize="9" fill="#8a7752" textAnchor="start">
-        {fmt(min)}
-      </text>
-      <text x={point(0, r + 6)[0]} y={point(0, r + 6)[1] + 4} fontSize="9" fill="#8a7752" textAnchor="end">
-        {fmt(max)}
-      </text>
+      <circle cx={cx} cy={cy} r="5" fill="#ffffff00" stroke="#000000" strokeWidth="2" />
+      {/* Min Tag */}
+      <g>
+        <rect
+          x={point(180, r + 18)[0]}
+          y={point(180, r + 18)[1]}
+          width="38"
+          height="18"
+          rx="9"
+          fill="#000000"
+        />
+        <text
+          x={point(180, r + 22)[0] + 21}
+          y={point(180, r + 30)[1] + 12}
+          fontSize="9"
+          fill="#ffffff"
+          textAnchor="middle"
+          fontWeight="600"
+        >
+          {fmt(min)}
+        </text>
+      </g>
+
+      {/* Max Tag */}
+      <g>
+        <rect
+          x={point(0, r + 18)[0] - 42}
+          y={point(0, r + 18)[1]}
+          width="42"
+          height="18"
+          rx="9"
+          fill="#000000"
+        />
+        <text
+          x={point(0, r + 18)[0] - 21}
+          y={point(0, r + 18)[1] + 12}
+          fontSize="9"
+          fill="#ffffff"
+          textAnchor="middle"
+          fontWeight="600"
+        >
+          {fmt(max)}
+        </text>
+      </g>
     </svg>
   );
 };
@@ -316,7 +351,7 @@ export const MachineDetailPage: React.FC = () => {
                         className="relative rounded-2xl p-4 border-2 flex flex-col items-center text-center cursor-pointer transition-shadow"
                         style={{
                           borderColor: isSelected ? '#000000' : '#000000',
-                          background: 'linear-gradient(160deg, #ffffff 0%, #ffffff 100%)',
+                          background: 'linear-gradient(160deg, #dfdfdf 0%, #ffffff 100%)',
                           boxShadow: isSelected
                             ? '0 0 0 3px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(184,134,11,0.25)'
                             : 'inset 0 0 0 1px rgba(184,134,11,0.25)',
@@ -337,8 +372,8 @@ export const MachineDetailPage: React.FC = () => {
                           criticalThreshold={m.criticalThreshold}
                         />
 
-                        <div className="font-mono font-extrabold text-lg mt-1" style={{ color: '#4a3a12' }}>
-                          {liveVal} <span className="text-[10px] font-semibold opacity-70">{m.unit}</span>
+                        <div className="font-mono font-extrabold text-lg mt-1" style={{ color: '#000000' }}>
+                          {liveVal} <span className="text-[20px] font-semibold opacity-70">{m.unit}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-bold capitalize" style={{ color: statusColorDot }}>
