@@ -1,14 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Bot, ArrowRight, Cpu } from 'lucide-react';
 import { KpiTile } from '../components/dashboard/KpiTile';
 import { OeeAreaChart } from '../components/dashboard/OeeAreaChart';
 import { LiveFeedStream } from '../components/dashboard/LiveFeedStream';
 import { ExecutiveSummaryCard } from '../components/dashboard/ExecutiveSummaryCard';
 
 export const OverviewPage: React.FC = () => {
-  const navigate = useNavigate();
 
   return (
     <motion.div

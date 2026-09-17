@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Bot, MapPin, Wrench, Shield, FileText, Sparkles, Activity,
-  Thermometer, Zap, Plug, Gauge as RpmIcon, X
+  Thermometer, Zap, Plug, Gauge as RpmIcon
 } from 'lucide-react';
-import { MOCK_MACHINES, STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
+import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
 import { HealthRing, STATUS_COLOR, STATUS_BG } from '../components/machine-monitoring/MachineCard';
 import { useMachineStore } from '../store/useMachineStore';
@@ -18,10 +18,10 @@ const METRIC_THEME: Record<
   { icon: React.ElementType; from: string; to: string; ring: string; text: string }
 > = {
   temperature: { icon: Thermometer, from: '#FFD6CE', to: '#FFF1EE', ring: '#F4785A', text: '#B5432A' },
-  vibration:   { icon: Activity,    from: '#F0D9FF', to: '#FAF1FF', ring: '#B76BF2', text: '#7C3AAB' },
-  current:     { icon: Zap,         from: '#CFE3FF', to: '#EFF5FF', ring: '#4C86F0', text: '#2A5DBB' },
-  power:       { icon: Plug,        from: '#FFE9BE', to: '#FFF7E8', ring: '#E7A93A', text: '#9C6A11' },
-  rpm:         { icon: RpmIcon,     from: '#C9F2E4', to: '#EFFCF8', ring: '#1FA971', text: '#0F7A54' },
+  vibration: { icon: Activity, from: '#F0D9FF', to: '#FAF1FF', ring: '#B76BF2', text: '#7C3AAB' },
+  current: { icon: Zap, from: '#CFE3FF', to: '#EFF5FF', ring: '#4C86F0', text: '#2A5DBB' },
+  power: { icon: Plug, from: '#FFE9BE', to: '#FFF7E8', ring: '#E7A93A', text: '#9C6A11' },
+  rpm: { icon: RpmIcon, from: '#C9F2E4', to: '#EFFCF8', ring: '#1FA971', text: '#0F7A54' },
 };
 
 const DEFAULT_THEME = METRIC_THEME.rpm;
@@ -64,13 +64,13 @@ const GaugeDial: React.FC<{
   };
 
   const warn = warningThreshold ?? normalRange[1];
-  const crit = criticalThreshold ?? warn;
+  const critical = criticalThreshold ?? warn;
 
   const aStart = angleFor(min);
   const aNormalEnd = angleFor(normalRange[1]);
   const aWarnEnd = angleFor(warn);
+  const aCriticalEnd = angleFor(critical);
   const aEnd = angleFor(max);
-
   const needleAngle = angleFor(value);
   const needleTip = point(needleAngle, r - 14);
 
@@ -87,8 +87,25 @@ const GaugeDial: React.FC<{
             <path d={arcPath(aNormalEnd, aWarnEnd, r)} fill="none" stroke="#D9A441" strokeWidth="12" strokeLinecap="round" />
           )}
           {/* red (critical) */}
-          {aEnd !== aWarnEnd && (
-            <path d={arcPath(aWarnEnd, aEnd, r)} fill="none" stroke="#B4342A" strokeWidth="12" strokeLinecap="round" />
+          {aCriticalEnd !== aWarnEnd && (
+            <path
+              d={arcPath(aWarnEnd, aCriticalEnd, r)}
+              fill="none"
+              stroke="#B4342A"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
+          )}
+
+          {/* remaining range after critical threshold */}
+          {aEnd !== aCriticalEnd && (
+            <path
+              d={arcPath(aCriticalEnd, aEnd, r)}
+              fill="none"
+              stroke="#e7dcc0"
+              strokeWidth="12"
+              strokeLinecap="round"
+            />
           )}
         </>
       )}
@@ -105,6 +122,13 @@ const GaugeDial: React.FC<{
     </svg>
   );
 };
+
+interface TabItem {
+  key: 'telemetry' | 'agent' | 'mes' | 'maintenance';
+  label: string;
+  icon: React.ElementType;
+  alert?: boolean;
+}
 
 export const MachineDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -123,12 +147,12 @@ export const MachineDetailPage: React.FC = () => {
   const statusColor = STATUS_COLOR[machine.status];
   const currentMetricObj = machine.liveMetrics.find((m) => m.key === selectedMetric) || machine.liveMetrics[0];
 
-  const TABS = [
+  const TABS: TabItem[] = [
     { key: 'telemetry', label: 'Live Telemetry & Signals', icon: Activity },
     { key: 'agent', label: 'AI Agent Root-Cause Analysis', icon: Bot, alert: machine.activeIssues > 0 },
     { key: 'mes', label: 'MES Work Orders & Operator', icon: FileText },
     { key: 'maintenance', label: 'Maintenance & Service History', icon: Wrench },
-  ] as const;
+  ];
 
   return (
     <motion.div
@@ -229,9 +253,8 @@ export const MachineDetailPage: React.FC = () => {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`relative px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
-                  isActive ? 'text-navy-950' : 'text-muted hover:text-ink'
-                }`}
+                className={`relative px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${isActive ? 'text-navy-950' : 'text-muted hover:text-ink'
+                  }`}
               >
                 {isActive && (
                   <motion.div
@@ -277,8 +300,8 @@ export const MachineDetailPage: React.FC = () => {
                     const axisMax = hasCritical
                       ? (m.criticalThreshold as number) * 1.08
                       : hasWarning
-                      ? (m.warningThreshold as number) * 1.15
-                      : m.normalRange[1] * 1.2;
+                        ? (m.warningThreshold as number) * 1.15
+                        : m.normalRange[1] * 1.2;
                     const axisMin = Math.min(m.normalRange[0], 0);
 
                     const statusColorDot =

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Bot, Activity, Settings2, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Bot, Settings2, BarChart3, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../../store';
 
 export const Sidebar: React.FC = () => {

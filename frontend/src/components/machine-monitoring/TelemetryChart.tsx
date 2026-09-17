@@ -35,16 +35,23 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const [data, setData] = useState<TimeSeriesPoint[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Generate initial data centered around the true initialValue
+  // Track initialValue without triggering re-generation loops
+  const initialValueRef = React.useRef(initialValue);
+  useEffect(() => {
+    initialValueRef.current = initialValue;
+  }, [initialValue]);
+
+  // Generate initial data centered around true metric starting value ONLY when metric or timeRange changes
   useEffect(() => {
     const pointsCount = timeRange === '1h' ? 30 : timeRange === '6h' ? 60 : timeRange === '24h' ? 90 : 120;
-    const baseVal = initialValue ?? (normalRange[0] + normalRange[1]) / 2;
+    const baseVal = initialValueRef.current ?? (normalRange[0] + normalRange[1]) / 2;
     const variance = Math.max((normalRange[1] - normalRange[0]) * 0.08, baseVal * 0.03);
     const hasSpike = (metricKey === 'vibration' || metricKey === 'temperature') && baseVal < warningThreshold;
 
     const generated = generateTimeSeriesData(pointsCount, baseVal, variance, hasSpike);
     setData(generated);
-  }, [machineId, metricKey, timeRange, initialValue, normalRange, warningThreshold, criticalThreshold]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machineId, metricKey, timeRange]);
 
   // Real-time live data point pushing every 3 seconds
   useEffect(() => {
@@ -73,10 +80,21 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
     onLatestValueRef.current = onLatestValue;
   }, [onLatestValue]);
 
+  const lastReportedValRef = React.useRef<number | null>(null);
+
+  // Reset lastReportedValRef when machine or metric changes
+  useEffect(() => {
+    lastReportedValRef.current = null;
+  }, [machineId, metricKey]);
+
   // Report the latest value to parent whenever telemetry data updates
   useEffect(() => {
     if (data.length > 0) {
-      onLatestValueRef.current?.(data[data.length - 1].value);
+      const latest = data[data.length - 1].value;
+      if (lastReportedValRef.current !== latest) {
+        lastReportedValRef.current = latest;
+        onLatestValueRef.current?.(latest);
+      }
     }
   }, [data]);
 

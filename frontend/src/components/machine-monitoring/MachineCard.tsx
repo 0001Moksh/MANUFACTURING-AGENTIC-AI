@@ -29,7 +29,7 @@ export const HEALTH_COLOR = (score: number, status: MachineStatus) => {
   return '#E24C4C';
 };
 
-const METRIC_ICONS: Record<string, React.FC<{ className?: string }>> = {
+const METRIC_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   temperature: Thermometer,
   vibration: Activity,
   current: Zap,
