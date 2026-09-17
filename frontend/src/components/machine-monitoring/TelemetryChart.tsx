@@ -56,9 +56,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
         let newValue = Math.max(0, Number((last.value + delta).toFixed(2)));
 
         const pointStatus: 'normal' | 'warning' | 'critical' = newValue > criticalThreshold ? 'critical' : newValue > warningThreshold ? 'warning' : 'normal';
-        const updated: TimeSeriesPoint[] = [...prev.slice(1), { timestamp: timeStr, value: newValue, status: pointStatus }];
-        onLatestValue?.(newValue);
-        return updated;
+        return [...prev.slice(1), { timestamp: timeStr, value: newValue, status: pointStatus }];
       });
     }, 3000);
 
@@ -67,10 +65,16 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
   const latestVal = data.length > 0 ? data[data.length - 1].value : 0;
 
-  // Report the initial/regenerated latest value too (e.g. after switching metric or time range)
+  const onLatestValueRef = React.useRef(onLatestValue);
   useEffect(() => {
-    if (data.length > 0) onLatestValue?.(data[data.length - 1].value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    onLatestValueRef.current = onLatestValue;
+  }, [onLatestValue]);
+
+  // Report the latest value to parent whenever telemetry data updates
+  useEffect(() => {
+    if (data.length > 0) {
+      onLatestValueRef.current?.(data[data.length - 1].value);
+    }
   }, [data]);
 
   const chartColor = latestVal > criticalThreshold ? '#DC2626' : latestVal > warningThreshold ? '#D97706' : '#0D9488';

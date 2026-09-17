@@ -180,6 +180,8 @@ export const MachineDetailPage: React.FC = () => {
       setLiveValues((prev) => {
         const next = { ...prev };
         machine.liveMetrics.forEach((m) => {
+          // Selected metric live value is driven by TelemetryChart stream
+          if (m.key === selectedMetric) return;
           const span = m.normalRange[1] - m.normalRange[0];
           // small realistic noise (~ ±4% of normal span)
           const noise = (Math.random() - 0.5) * span * 0.08;
@@ -191,7 +193,7 @@ export const MachineDetailPage: React.FC = () => {
       });
     }, 900); // ~ same cadence as a typical telemetry stream
     return () => clearInterval(interval);
-  }, [machine]);
+  }, [machine, selectedMetric]);
 
   // Helper: derive status from a live value
   const getLiveStatus = (m: typeof machine.liveMetrics[0], liveVal: number) => {
@@ -429,7 +431,9 @@ export const MachineDetailPage: React.FC = () => {
                   normalRange={currentMetricObj.normalRange}
                   warningThreshold={currentMetricObj.warningThreshold}
                   criticalThreshold={currentMetricObj.criticalThreshold}
-                  liveValue={currentLiveValue}
+                  onLatestValue={(val) => {
+                    setLiveValues((prev) => (prev[currentMetricObj.key] === val ? prev : { ...prev, [currentMetricObj.key]: val }));
+                  }}
                 />
               </div>
             </div>
