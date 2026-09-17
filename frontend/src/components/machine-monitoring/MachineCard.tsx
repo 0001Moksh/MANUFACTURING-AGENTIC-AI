@@ -29,7 +29,7 @@ export const HEALTH_COLOR = (score: number, status: MachineStatus) => {
   return '#E24C4C';
 };
 
-const METRIC_ICONS: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
+const METRIC_ICONS: Record<string, React.FC<{ className?: string }>> = {
   temperature: Thermometer,
   vibration: Activity,
   current: Zap,
@@ -48,6 +48,153 @@ const AGENT_STATUS_COLOR: Record<string, { bg: string; text: string }> = {
   Investigating: { bg: 'rgba(245,158,11,0.12)', text: '#F59E0B' },
   'Issue Generated': { bg: 'rgba(226,76,76,0.12)', text: '#E24C4C' },
   Monitoring: { bg: 'rgba(0,169,174,0.12)', text: '#00A9AE' },
+};
+
+// ─── Gauge zone defaults ──────────────────────────────────────────────────────
+// Used whenever a LiveMetric doesn't carry its own min/max/warningAt/criticalAt.
+// Numbers mirror typical shop-floor thresholds (temp °C, vibration mm/s, current A).
+interface GaugeZones {
+  min: number;
+  max: number;
+  warningAt: number;
+  criticalAt: number;
+}
+
+const DEFAULT_ZONES: Record<string, GaugeZones> = {
+  temperature: { min: 0, max: 120, warningAt: 75, criticalAt: 88 },
+  vibration: { min: 0, max: 10, warningAt: 3.5, criticalAt: 5.0 },
+  current: { min: 0, max: 220, warningAt: 160, criticalAt: 180 },
+  power: { min: 0, max: 100, warningAt: 80, criticalAt: 92 },
+  rpm: { min: 0, max: 4000, warningAt: 3200, criticalAt: 3600 },
+};
+
+const getZones = (m: LiveMetric): GaugeZones => {
+  const anyM = m as unknown as Partial<GaugeZones>;
+  const base = DEFAULT_ZONES[m.key] || { min: 0, max: 100, warningAt: 70, criticalAt: 90 };
+  return {
+    min: anyM.min ?? base.min,
+    max: anyM.max ?? base.max,
+    warningAt: anyM.warningAt ?? base.warningAt,
+    criticalAt: anyM.criticalAt ?? base.criticalAt,
+  };
+};
+
+// ─── Polar helpers for the gauge arcs ─────────────────────────────────────────
+const GAUGE_START = -125; // degrees, 0 = 12 o'clock, clockwise-positive
+const GAUGE_END = 125;
+const GAUGE_SWEEP = GAUGE_END - GAUGE_START;
+
+const polarToCartesian = (cx: number, cy: number, r: number, angleDeg: number) => {
+  const a = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+};
+
+const arcPath = (cx: number, cy: number, r: number, startAngle: number, endAngle: number) => {
+  if (endAngle <= startAngle) return '';
+  const start = polarToCartesian(cx, cy, r, startAngle);
+  const end = polarToCartesian(cx, cy, r, endAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+};
+
+const valueToAngle = (value: number, min: number, max: number) => {
+  const pct = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  return GAUGE_START + pct * GAUGE_SWEEP;
+};
+
+// ─── Gauge Dial ────────────────────────────────────────────────────────────────
+interface GaugeDialProps {
+  metric: LiveMetric;
+  size?: number;
+}
+
+export const GaugeDial: React.FC<GaugeDialProps> = ({ metric, size = 128 }) => {
+  const zones = getZones(metric);
+  const numericValue =
+    typeof metric.value === 'number' ? metric.value : parseFloat(String(metric.value)) || 0;
+  const color = METRIC_STATUS_COLOR[metric.status] || '#1FA971';
+  const Icon = METRIC_ICONS[metric.key] || Activity;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 14;
+  const trackWidth = 8;
+
+  const warnAngle = valueToAngle(zones.warningAt, zones.min, zones.max);
+  const critAngle = valueToAngle(zones.criticalAt, zones.min, zones.max);
+  const needleAngle = valueToAngle(numericValue, zones.min, zones.max);
+  const needleTip = polarToCartesian(cx, cy, r - trackWidth / 2 - 2, needleAngle);
+  const needleBase1 = polarToCartesian(cx, cy, 6, needleAngle + 90);
+  const needleBase2 = polarToCartesian(cx, cy, 6, needleAngle - 90);
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+        {/* Background track */}
+        <path
+          d={arcPath(cx, cy, r, GAUGE_START, GAUGE_END)}
+          fill="none"
+          stroke="#E8ECF2"
+          strokeWidth={trackWidth}
+          strokeLinecap="round"
+        />
+        {/* Colored zones */}
+        <path
+          d={arcPath(cx, cy, r, GAUGE_START, warnAngle)}
+          fill="none"
+          stroke="#1FA971"
+          strokeWidth={trackWidth}
+          strokeLinecap="round"
+        />
+        <path
+          d={arcPath(cx, cy, r, warnAngle, critAngle)}
+          fill="none"
+          stroke="#F59E0B"
+          strokeWidth={trackWidth}
+        />
+        <path
+          d={arcPath(cx, cy, r, critAngle, GAUGE_END)}
+          fill="none"
+          stroke="#E24C4C"
+          strokeWidth={trackWidth}
+          strokeLinecap="round"
+        />
+        {/* Needle */}
+        <polygon
+          points={`${needleBase1.x},${needleBase1.y} ${needleBase2.x},${needleBase2.y} ${needleTip.x},${needleTip.y}`}
+          fill={color}
+          style={{ transition: 'all 0.6s ease' }}
+        />
+        <circle cx={cx} cy={cy} r={7} fill="#fff" stroke={color} strokeWidth={2.5} />
+
+        {/* Icon */}
+        <foreignObject x={cx - 9} y={cy - r * 0.42} width={18} height={18}>
+          <Icon className="w-[18px] h-[18px]" style={{ color: '#94A3B8' } as React.CSSProperties} />
+        </foreignObject>
+
+        {/* Value readout */}
+        <text
+          x={cx}
+          y={cy + r * 0.52}
+          textAnchor="middle"
+          fontSize={15}
+          fontWeight={800}
+          fill={color}
+          fontFamily="'Manrope', sans-serif"
+        >
+          {metric.value}
+          <tspan fontSize={9} fontWeight={600} fill="#94A3B8"> {metric.unit}</tspan>
+        </text>
+      </svg>
+
+      <span className="text-[11px] font-bold text-ink -mt-1">{metric.label}</span>
+      <div className="flex items-center gap-2 mt-0.5 text-[9.5px] font-medium text-slate-400">
+        <span>Normal: {zones.min}-{zones.warningAt}</span>
+        <span className="text-slate-300">·</span>
+        <span>Warn: {zones.warningAt}+</span>
+      </div>
+    </div>
+  );
 };
 
 // ─── Health Ring ──────────────────────────────────────────────────────────────
@@ -118,6 +265,9 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
     return () => clearInterval(interval);
   }, [machine.status]);
 
+  const gaugeMetrics = machine.liveMetrics.slice(0, 2);
+  const chipMetrics = machine.liveMetrics.slice(2, 5);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -180,30 +330,39 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
           </div>
         </div>
 
-        {/* ── Live Metrics (3 chips) ── */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {machine.liveMetrics.slice(0, 3).map((m: LiveMetric) => {
-            const IconComp = METRIC_ICONS[m.key] || Activity;
-            const mColor = METRIC_STATUS_COLOR[m.status] || '#1FA971';
-            return (
-              <div
-                key={m.key}
-                className="rounded-xl px-2.5 py-2 flex flex-col gap-1 bg-slate-50/80 border border-slate-200/70"
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[9.5px] font-bold uppercase tracking-wide text-slate-400 truncate">
-                    {m.label.slice(0, 7)}
-                  </span>
-                  <IconComp className="w-3 h-3 shrink-0 opacity-70" style={{ color: mColor }} />
-                </div>
-                <div className="font-mono text-[13px] font-bold leading-none" style={{ color: mColor }}>
-                  {m.value}
-                  <span className="text-[9px] font-medium text-slate-400 ml-0.5">{m.unit}</span>
-                </div>
-              </div>
-            );
-          })}
+        {/* ── Gauge Dials (primary 2 metrics, e.g. vibration + temperature) ── */}
+        <div className="grid grid-cols-2 gap-2 mb-3 rounded-xl bg-slate-50/70 border border-slate-200/70 py-3">
+          {gaugeMetrics.map((m: LiveMetric) => (
+            <GaugeDial key={m.key} metric={m} size={116} />
+          ))}
         </div>
+
+        {/* ── Secondary metric chips ── */}
+        {chipMetrics.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            {chipMetrics.map((m: LiveMetric) => {
+              const IconComp = METRIC_ICONS[m.key] || Activity;
+              const mColor = METRIC_STATUS_COLOR[m.status] || '#1FA971';
+              return (
+                <div
+                  key={m.key}
+                  className="rounded-xl px-2.5 py-2 flex flex-col gap-1 bg-slate-50/80 border border-slate-200/70"
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wide text-slate-400 truncate">
+                      {m.label.slice(0, 7)}
+                    </span>
+                    <IconComp className="w-3 h-3 shrink-0 opacity-70" style={{ color: mColor }} />
+                  </div>
+                  <div className="font-mono text-[13px] font-bold leading-none" style={{ color: mColor }}>
+                    {m.value}
+                    <span className="text-[9px] font-medium text-slate-400 ml-0.5">{m.unit}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── Issue / Status Banner ── */}
         {machine.activeIssues > 0 ? (
