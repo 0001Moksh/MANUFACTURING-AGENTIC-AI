@@ -101,6 +101,11 @@ def _state_from_snapshot(snapshot: Dict[str, Any]) -> str:
 
 
 def _parse_agent_result(text: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    text = str(text or "").strip()
+    if text.startswith("```json") and text.endswith("```"):
+        text = text[7:-3].strip()
+    elif text.startswith("```") and text.endswith("```"):
+        text = text[3:-3].strip()
     try:
         parsed = json.loads(text)
         if isinstance(parsed, dict):
@@ -126,28 +131,53 @@ def _parse_agent_result(text: str, context: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _response_text(response: Dict[str, Any]) -> str:
+    content = response.get("text", "")
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("text"), str):
+                parts.append(item["text"])
+        return "\n".join(parts).strip()
+    return str(content or "").strip()
+
+
 async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
     machine_code = telemetry["code"]
     existing = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
-    if existing:
+    if existing and not existing.summary_text.startswith("[LLM Response Not Available]"):
         return
     prompt = json.dumps({"machine": telemetry, "baseline": snapshot}, default=str)
     response = await execute_completion([
         {"role": "system", "content": "Create a concise machine monitoring baseline summary from the supplied telemetry. Do not invent history. Return JSON with summary_text and baseline_observations."},
         {"role": "user", "content": prompt},
     ], temperature=0.1)
-    parsed = _parse_agent_result(response.get("text", ""), {"snapshot": snapshot})
-    summary_text = parsed.get("summary_text") or (
-        f"[LLM Response Not Available]{telemetry.get('name', machine_code)} is monitored from InfluxDB over a {MONITORING_WINDOW_MINUTES}-minute configured window. "
-        "Baseline observations are limited to the available telemetry samples and configured threshold context."
-    )
-    session.add(MachineAISummary(
-        machine_code=machine_code,
-        summary_text=str(summary_text),
-        baseline_context=snapshot,
-        model_name=response.get("model_used"),
-    ))
-    logger.info("Created initial machine AI summary for %s", machine_code)
+    response_text = _response_text(response)
+    parsed = _parse_agent_result(response_text, {"snapshot": snapshot})
+    summary_text = parsed.get("summary_text") or (response_text if response_text else "")
+    if not summary_text or summary_text == "Agent output was unavailable or not valid structured JSON.":
+        summary_text = (
+            f"[LLM Response Not Available]\n{telemetry.get('name', machine_code)} is monitored from InfluxDB over a {MONITORING_WINDOW_MINUTES}-minute configured window. "
+            "Baseline observations are limited to the available telemetry samples and configured threshold context."
+        )
+        logger.warning("LLM returned no usable machine summary for %s; stored deterministic baseline", machine_code)
+    summary_data = {
+        "summary_text": str(summary_text),
+        "baseline_context": snapshot,
+        "model_name": response.get("model_used"),
+    }
+    if existing:
+        existing.summary_text = summary_data["summary_text"]
+        existing.baseline_context = summary_data["baseline_context"]
+        existing.model_name = summary_data["model_name"]
+        existing.generated_at = _now()
+    else:
+        session.add(MachineAISummary(machine_code=machine_code, **summary_data))
+    logger.info("Stored machine AI summary for %s (response_chars=%d, model=%s)", machine_code, len(response_text), response.get("model_used", "unknown"))
 
 
 async def _get_active_issue(session: AsyncSession, machine_code: str) -> Optional[MachineIssue]:
@@ -194,7 +224,7 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
         {"role": "system", "content": "You are a machine monitoring agent. Analyze only supplied evidence. Return valid JSON with issue_title, issue_summary, affected_parameters, detected_condition, possible_causes, root_cause_confidence, risk_level, recommended_actions, immediate_actions, corrective_actions, preventive_actions, evidence, reasoning_summary, operator_instructions, monitoring_requirements."},
         {"role": "user", "content": json.dumps(context, default=str)},
     ], temperature=0.1, response_format={"type": "json_object"})
-    result = _parse_agent_result(response.get("text", ""), context)
+    result = _parse_agent_result(_response_text(response), context)
     issue.analysis = result
     issue.status = "RECOMMENDATION"
     investigation = MachineAgentInvestigation(machine_code=issue.machine_code, issue_id=issue.id, context=context, result=result, model_name=response.get("model_used"), status="COMPLETED")

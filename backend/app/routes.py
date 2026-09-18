@@ -1350,7 +1350,8 @@ async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, An
     if telemetry.get("code") != machine_id:
         raise HTTPException(status_code=404, detail=f"Machine {machine_id} is not available from the configured telemetry source")
     payload = await get_machine_ai_payload(db, machine_id)
-    if payload["state"] is None:
+    summary_text = (payload.get("summary") or {}).get("text", "")
+    if payload["state"] is None or not summary_text or summary_text.startswith("[LLM Response Not Available]"):
         await monitor_machine(db, telemetry)
         payload = await get_machine_ai_payload(db, machine_id)
     return payload
