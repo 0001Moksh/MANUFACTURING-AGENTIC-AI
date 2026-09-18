@@ -305,7 +305,7 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
                 </span>
               </div>
               <p className="text-[11.5px] text-muted font-medium mt-0.5 truncate">
-                {machine.plant} · {machine.line}
+                {/* {machine.plant} · {machine.line} */}
               </p>
             </div>
           </div>
@@ -319,12 +319,24 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
                 border: `1px solid ${statusColor}33`,
               }}
             >
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: statusColor }} />
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: statusColor }}
+              />
               {machine.status}
             </span>
+
             <span className="text-[10.5px] text-muted flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {machine.lastUpdated}
+              {new Date(machine.lastUpdated).toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                // second: "2-digit",
+                hour12: true,
+              })}
             </span>
           </div>
         </div>

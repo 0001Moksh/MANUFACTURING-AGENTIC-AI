@@ -309,7 +309,7 @@ export const MachineMonitoringPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4"
           >
             {filtered.map((machine, idx) => (
               <MachineCard key={machine.id} machine={machine} delay={idx * 0.04} />
