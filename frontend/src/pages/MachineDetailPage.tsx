@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Bot, MapPin, Wrench, Shield, FileText, Sparkles, Activity,
-  Thermometer, Zap, Plug, Gauge as RpmIcon
+  Thermometer, Zap, Plug, Gauge as RpmIcon, ArrowDown
 } from 'lucide-react';
 import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
@@ -214,6 +214,25 @@ export const MachineDetailPage: React.FC = () => {
   const [actionSaving, setActionSaving] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
 
+  // ---- NEW: scroll the chart into view whenever the user picks a metric ----
+  // We only want this to fire on a deliberate click, not on first mount, so we
+  // track it with a ref rather than running the scroll on every render.
+  const chartSectionRef = useRef<HTMLDivElement | null>(null);
+  const hasUserSelectedRef = useRef(false);
+
+  const handleSelectMetric = (key: string) => {
+    hasUserSelectedRef.current = true;
+    setSelectedMetric(key);
+  };
+
+  useEffect(() => {
+    if (!hasUserSelectedRef.current) return;
+    // Let the tab-switch/animation settle for a frame before scrolling.
+    requestAnimationFrame(() => {
+      chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [selectedMetric]);
+
   useEffect(() => {
     let cancelled = false;
     if (!id) return undefined;
@@ -395,6 +414,17 @@ export const MachineDetailPage: React.FC = () => {
             <div className="flex flex-col gap-6">
               {/* Signal Cards Selector – gold/black gauge dial style */}
               <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-muted">Tap a signal to load it in the chart below.</p>
+                  {/* NEW: explicit jump-to-chart affordance, in case someone doesn't want to wait for auto-scroll */}
+                  <button
+                    onClick={() => chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    className="flex items-center gap-1.5 text-xs font-bold text-teal hover:text-teal-deep transition-colors"
+                  >
+                    Jump to chart
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {machine.liveMetrics.map((m) => {
                     const liveVal = m.value ?? 0;
@@ -419,7 +449,7 @@ export const MachineDetailPage: React.FC = () => {
                     return (
                       <motion.div
                         key={m.key}
-                        onClick={() => setSelectedMetric(m.key)}
+                        onClick={() => handleSelectMetric(m.key)}
                         whileHover={{ y: -3 }}
                         whileTap={{ scale: 0.98 }}
                         className="relative rounded-2xl p-4 border-2 flex flex-col items-center text-center cursor-pointer transition-shadow"
@@ -464,8 +494,24 @@ export const MachineDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Detailed TimeSeries Chart */}
-              <div className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[20px] shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] overflow-hidden">
+              {/* Detailed TimeSeries Chart — now with a scroll anchor + sticky mini header */}
+              <div
+                ref={chartSectionRef}
+                className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[20px] shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] overflow-hidden scroll-mt-6"
+              >
+                {/* Sticky context strip so it's obvious which signal is being charted, even once the
+                    person has scrolled past the cards. This does not replace TelemetryChart's own
+                    header — it sits above it. */}
+                <div className="sticky top-0 z-10 flex items-center gap-2.5 px-5 py-3 border-b border-slate-100 bg-white/95 backdrop-blur">
+                  {(() => {
+                    const theme = METRIC_THEME[currentMetricObj.key] ?? DEFAULT_THEME;
+                    const Icon = theme.icon;
+                    return <Icon className="w-4 h-4" style={{ color: theme.text }} />;
+                  })()}
+                  <span className="text-sm font-bold text-ink">{currentMetricObj.label}</span>
+                  <span className="text-[11px] text-muted">live InfluxDB signal</span>
+                </div>
+
                 {currentMetricObj.normalRange && currentMetricObj.warningThreshold != null && currentMetricObj.criticalThreshold != null ? (
                   <TelemetryChart
                     machineId={machine.id}

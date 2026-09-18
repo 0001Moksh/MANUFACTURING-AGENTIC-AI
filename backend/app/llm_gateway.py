@@ -7,14 +7,14 @@ import litellm
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("llm_gateway")
 
-# Ensure API keys are loaded
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# Provider configuration is loaded by app.main before routes are imported.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini/gemini-2.5-flash")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/llama-3.1-8b-instant")
 
 # Provider cost dictionary for usage tracking
 MODEL_COSTS = {
-    "gemini/gemini-3.5-flash-lite": {"input": 0.000000075, "output": 0.0000003},
-    "groq/llama-3.3-70b-versatile": {"input": 0.00000059, "output": 0.00000079},
+    "gemini/gemini-2.5-flash": {"input": 0.0000003, "output": 0.0000025},
+    "groq/llama-3.1-8b-instant": {"input": 0.00000005, "output": 0.00000008},
 }
 
 # Audit log in memory for tracking costs during runtime
@@ -22,7 +22,7 @@ usage_audit_log: List[Dict[str, Any]] = []
 
 async def execute_completion(
     messages: List[Dict[str, str]],
-    model: str = "gemini/gemini-3.5-flash-lite",
+    model: str = "auto",
     temperature: float = 0.2,
     response_format: Any = None,
     **kwargs
@@ -30,8 +30,7 @@ async def execute_completion(
     """
     Executes completion using litellm with automated fallbacks and cost tracking.
     Models supported:
-      - gemini-3.5-flash-lite / gemini/gemini-3.5-flash-lite  -> gemini/gemini-3.5-flash-lite
-      - groq/llama-3.3-70b-versatile                -> groq/llama-3.3-70b-versatile
+    - Gemini and Groq only. OpenAI is not required.
     """
     has_gemini = bool(os.getenv("GEMINI_API_KEY", "").strip())
     has_groq = bool(os.getenv("GROQ_API_KEY", "").strip())
@@ -43,20 +42,21 @@ async def execute_completion(
 
     # Normalize model names to correct litellm provider strings
     model_lower = model.lower().strip()
-    if "gemini" in model_lower:
-        model = "gemini/gemini-3.5-flash-lite"
-    elif "llama-3.3-70b" in model_lower or model_lower == "groq/llama-3.3-70b-versatile":
-        model = "groq/llama-3.3-70b-versatile"
+    if model_lower in {"", "auto"}:
+        model = GEMINI_MODEL if has_gemini else GROQ_MODEL
+    elif "gemini" in model_lower:
+        model = GEMINI_MODEL
+    elif "llama" in model_lower or "groq" in model_lower:
+        model = GROQ_MODEL
     else:
-        # Default to gemini if key available, otherwise groq
-        model = "gemini/gemini-3.5-flash-lite" if has_gemini else "groq/llama-3.3-70b-versatile"
+        model = GEMINI_MODEL if has_gemini else GROQ_MODEL
 
     # Build fallback list — always cross-provider
     fallbacks = []
-    if model == "gemini/gemini-3.5-flash-lite" and has_groq:
-        fallbacks = ["groq/llama-3.3-70b-versatile"]
-    elif model == "groq/llama-3.3-70b-versatile" and has_gemini:
-        fallbacks = ["gemini/gemini-3.5-flash-lite"]
+    if model == GEMINI_MODEL and has_groq:
+        fallbacks = [GROQ_MODEL]
+    elif model == GROQ_MODEL and has_gemini:
+        fallbacks = [GEMINI_MODEL]
 
     litellm.success_callback = []
     litellm.failure_callback = []
@@ -74,14 +74,14 @@ async def execute_completion(
                     model=current_model,
                     messages=messages,
                     temperature=temperature,
-                    timeout=5.0,
+                    timeout=float(os.getenv("LLM_TIMEOUT", "30")),
                     **kwargs
                 )
                 break
             except Exception as e:
                 last_err = e
                 # Suppress the stack trace; just log a clean warning
-                logger.warning(f"Model {current_model} failed (e.g. Rate Limit). Attempting fallback if available...")
+                logger.warning("LLM model %s failed; attempting configured fallback", current_model)
                 continue
                 
         if not response:
@@ -114,7 +114,7 @@ async def execute_completion(
         }
 
     except Exception as e:
-        logger.error(f"LiteLLM completion failed for model {model} and all fallbacks: {e}")
+        logger.error("No LLM response generated after configured Gemini/Groq attempts: %s", e)
         usage_audit_log.append({
             "model": model,
             "error": str(e),
