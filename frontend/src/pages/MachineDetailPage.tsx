@@ -199,14 +199,13 @@ export const MachineDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const storeMachines = useMachineStore((state) => state.machines);
-  const updateMachineMetric = useMachineStore((state) => state.updateMachineMetric);
 
   const machine = useMemo(() => {
     return storeMachines.find((m) => m.id === id);
   }, [id, storeMachines]);
 
   const [activeTab, setActiveTab] = useState<'telemetry' | 'agent' | 'mes' | 'maintenance'>('telemetry');
-  const [selectedMetric, setSelectedMetric] = useState<string>('vibration');
+  const [selectedMetric, setSelectedMetric] = useState<string>('Temperature');
   const [aiData, setAiData] = useState<MachineAiPayload | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [actionText, setActionText] = useState('');
@@ -396,15 +395,16 @@ export const MachineDetailPage: React.FC = () => {
 
                     const hasCritical = m.criticalThreshold != null;
                     const hasWarning = m.warningThreshold != null;
+                    const configuredRange = m.normalRange;
                     const axisMax = hasCritical
                       ? (m.criticalThreshold as number) * 1.08
                       : hasWarning
                         ? (m.warningThreshold as number) * 1.15
-                        : m.normalRange[1] * 1.2;
-                    const axisMin = Math.min(m.normalRange[0], 0);
+                        : configuredRange ? configuredRange[1] * 1.2 : Math.max(Math.abs(liveVal) * 1.2, 1);
+                      const axisMin = configuredRange ? Math.min(configuredRange[0], 0) : 0;
 
                     const statusColorDot =
-                      liveStatus === 'critical' ? '#B4342A' : liveStatus === 'warning' ? '#D9A441' : '#1FA971';
+                      liveStatus === 'critical' ? '#B4342A' : liveStatus === 'warning' ? '#D9A441' : liveStatus === 'unavailable' ? '#64748B' : '#1FA971';
 
                     return (
                       <motion.div
@@ -427,14 +427,20 @@ export const MachineDetailPage: React.FC = () => {
                           <span className="text-[10px] font-semibold opacity-70">({m.unit})</span>
                         </div>
 
-                        <GaugeDial
-                          min={axisMin}
-                          max={axisMax}
-                          value={liveVal}
-                          normalRange={m.normalRange}
-                          warningThreshold={m.warningThreshold}
-                          criticalThreshold={m.criticalThreshold}
-                        />
+                        {configuredRange ? (
+                          <GaugeDial
+                            min={axisMin}
+                            max={axisMax}
+                            value={liveVal}
+                            normalRange={configuredRange}
+                            warningThreshold={m.warningThreshold ?? undefined}
+                            criticalThreshold={m.criticalThreshold ?? undefined}
+                          />
+                        ) : (
+                          <div className="h-[132px] flex items-center justify-center text-3xl font-mono font-extrabold text-slate-700">
+                            {m.value === null ? 'N/A' : liveVal}
+                          </div>
+                        )}
 
                         <div className="font-mono font-extrabold text-lg mt-1" style={{ color: '#000000' }}>
                           {m.value === null ? 'N/A' : liveVal} <span className="text-[20px] font-semibold opacity-70">{m.unit}</span>
@@ -446,7 +452,7 @@ export const MachineDetailPage: React.FC = () => {
                         </div>
 
                         <div className="text-[10px] mt-1 opacity-70" style={{ color: '#5a4a1e' }}>
-                          Normal: {m.normalRange[0]}{'\u2013'}{m.normalRange[1]}
+                          {configuredRange ? `Normal: ${configuredRange[0]}-${configuredRange[1]}` : 'No threshold configured'}
                         </div>
                       </motion.div>
                     );
@@ -456,19 +462,22 @@ export const MachineDetailPage: React.FC = () => {
 
               {/* Detailed TimeSeries Chart */}
               <div className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[20px] shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] overflow-hidden">
-                <TelemetryChart
-                  machineId={machine.id}
-                  metricKey={currentMetricObj.key as any}
-                  metricLabel={currentMetricObj.label}
-                  unit={currentMetricObj.unit}
-                  normalRange={currentMetricObj.normalRange}
-                  warningThreshold={currentMetricObj.warningThreshold}
-                  criticalThreshold={currentMetricObj.criticalThreshold}
-                  initialSeries={currentMetricObj.spark}
-                  onLatestValue={(val) => {
-                    updateMachineMetric(machine.id, currentMetricObj.key, val);
-                  }}
-                />
+                {currentMetricObj.normalRange && currentMetricObj.warningThreshold != null && currentMetricObj.criticalThreshold != null ? (
+                  <TelemetryChart
+                    machineId={machine.id}
+                    metricKey={currentMetricObj.key as any}
+                    metricLabel={currentMetricObj.label}
+                    unit={currentMetricObj.unit}
+                    normalRange={currentMetricObj.normalRange}
+                    warningThreshold={currentMetricObj.warningThreshold}
+                    criticalThreshold={currentMetricObj.criticalThreshold}
+                    initialSeries={currentMetricObj.spark}
+                  />
+                ) : (
+                  <div className="p-6 text-sm text-slate-600">
+                    {currentMetricObj.label} has {currentMetricObj.spark.length} real InfluxDB samples. No configured threshold chart is available for this field.
+                  </div>
+                )}
               </div>
             </div>
           )}

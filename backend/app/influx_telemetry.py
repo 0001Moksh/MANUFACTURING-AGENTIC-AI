@@ -6,54 +6,42 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+import logging
+
+
+logger = logging.getLogger("influx_telemetry")
+
+CANONICAL_MEASUREMENT = "electrical_params"
+REAL_FIELDS = {
+    "BN_V": {"label": "BN Voltage", "unit": "V"},
+    "BR_V": {"label": "BR Voltage", "unit": "V"},
+    "B_Current": {"label": "B Current", "unit": "A"},
+    "Cumulative_Cycles": {"label": "Cumulative Cycles", "unit": "cycles"},
+    "Current_AVG": {"label": "Average Current", "unit": "A", "normal": [0, 160], "warning": 185, "critical": 210},
+    "Dry_Status": {"label": "Dry Status", "unit": "status"},
+    "Proxy_Count": {"label": "Proxy Count", "unit": "count"},
+    "RN_V": {"label": "RN Voltage", "unit": "V"},
+    "RY_V": {"label": "RY Voltage", "unit": "V"},
+    "R_Current": {"label": "R Current", "unit": "A"},
+    "Temperature": {"label": "Temperature", "unit": "°C", "normal": [0, 75], "warning": 85, "critical": 98},
+    "V_AVG": {"label": "Average Voltage", "unit": "V"},
+    "YB_V": {"label": "YB Voltage", "unit": "V"},
+    "YN_V": {"label": "YN Voltage", "unit": "V"},
+    "Y_Current": {"label": "Y Current", "unit": "A"},
+}
 
 
 METRIC_CONFIG = {
-    "temperature": {
-        "label": "Temperature",
-        "unit": "°C",
-        "measurement": os.getenv("INFLUX_TEMPERATURE_MEASUREMENT", "Drive Thermal"),
-        "bucket": os.getenv("INFLUX_TEMPERATURE_BUCKET", os.getenv("INFLUXDB_BUCKET", "ECE2")),
-        "normal": [0, 75],
-        "warning": 85,
-        "critical": 98,
-    },
-    "vibration": {
-        "label": "Vibration",
-        "unit": "mm/s",
-        "measurement": os.getenv("INFLUX_VIBRATION_MEASUREMENT", "Vibration Sensor"),
-        "bucket": os.getenv("INFLUX_VIBRATION_BUCKET", os.getenv("INFLUXDB_BUCKET", "ECE2")),
-        "normal": [0, 3.5],
-        "warning": 5,
-        "critical": 7.5,
-    },
-    "current": {
-        "label": "Current",
-        "unit": "A",
-        "measurement": os.getenv("INFLUX_CURRENT_MEASUREMENT", "Current"),
-        "bucket": os.getenv("INFLUX_CURRENT_BUCKET", os.getenv("INFLUXDB_BUCKET", "ECE2")),
-        "normal": [0, 160],
-        "warning": 185,
-        "critical": 210,
-    },
-    "power": {
-        "label": "Power",
-        "unit": "kW",
-        "measurement": os.getenv("INFLUX_POWER_MEASUREMENT", "Motor Power"),
-        "bucket": os.getenv("INFLUX_POWER_BUCKET", os.getenv("INFLUXDB_BUCKET", "ECE2")),
-        "normal": [0, 2500],
-        "warning": 2650,
-        "critical": 2780,
-    },
-    "rpm": {
-        "label": "RPM",
-        "unit": "rpm",
-        "measurement": os.getenv("INFLUX_RPM_MEASUREMENT", "RPM"),
-        "bucket": os.getenv("INFLUX_RPM_BUCKET", os.getenv("INFLUXDB_BUCKET", "ECE2")),
-        "normal": [0, 18],
-        "warning": 18.8,
-        "critical": 19.5,
-    },
+    field: {
+        **definition,
+        "measurement": CANONICAL_MEASUREMENT,
+        "field": field,
+        "bucket": os.getenv("INFLUXDB_BUCKET", "ECE2"),
+        "normal": definition.get("normal"),
+        "warning": definition.get("warning"),
+        "critical": definition.get("critical"),
+    }
+    for field, definition in REAL_FIELDS.items()
 }
 
 
@@ -103,99 +91,120 @@ def _query_flux(query: str) -> List[Dict[str, str]]:
     return rows
 
 
-def _metric_rows(config: Dict[str, Any], range_window: str) -> List[Dict[str, str]]:
+def _metric_rows(metric_key: str, config: Dict[str, Any], range_window: str) -> List[Dict[str, str]]:
     bucket = config["bucket"].replace('"', '\\"')
     measurement = config["measurement"].replace('"', '\\"')
+    field = config["field"].replace('"', '\\"')
+    device_id = os.getenv("INFLUX_DEVICE_ID", "").strip().replace('"', '\\"')
+    device_filter = f' and r.device_id == "{device_id}"' if device_id else ""
     flux = f'''from(bucket: "{bucket}")
   |> range(start: -{range_window})
-  |> filter(fn: (r) => r._measurement == "{measurement}" and r._field == "value")
+    |> filter(fn: (r) => r._measurement == "{measurement}" and r._field == "{field}"{device_filter})
   |> aggregateWindow(every: 1m, fn: last, createEmpty: false)
   |> sort(columns: ["_time"])
   |> tail(n: 120)'''
-    return _query_flux(flux)
+    rows = _query_flux(flux)
+    if rows or (measurement == CANONICAL_MEASUREMENT and field in REAL_FIELDS):
+        return rows
+
+    canonical_field = metric_key if metric_key in REAL_FIELDS else None
+    if not canonical_field:
+        return rows
+
+    logger.warning(
+        "No Influx rows for configured metric %s (%s/%s); retrying canonical schema %s/%s",
+        metric_key,
+        measurement,
+        field,
+        CANONICAL_MEASUREMENT,
+        canonical_field,
+    )
+    config["measurement"] = CANONICAL_MEASUREMENT
+    config["field"] = canonical_field
+    canonical_config = dict(config)
+    return _metric_rows(metric_key, canonical_config, range_window)
 
 
 def _status(value: float | None, config: Dict[str, Any]) -> str:
     if value is None:
-        return "normal"
-    if value >= config["critical"]:
+        return "unavailable"
+    if config.get("critical") is not None and value >= config["critical"]:
         return "critical"
-    if value >= config["warning"]:
+    if config.get("warning") is not None and value >= config["warning"]:
         return "warning"
     return "normal"
 
 
-def get_machine_telemetry() -> Dict[str, Any]:
-    metrics: List[Dict[str, Any]] = []
-    has_any_data = False
-
+def get_machine_telemetry() -> List[Dict[str, Any]]:
+    device_metrics: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+    range_window = os.getenv("INFLUX_TELEMETRY_RANGE", "24h")
     for key, config in METRIC_CONFIG.items():
-        rows = _metric_rows(config, os.getenv("INFLUX_TELEMETRY_RANGE", "24h"))
-        points = []
-        for row in rows:
+        for row in _metric_rows(key, config, range_window):
+            device_id = row.get("device_id")
+            if not device_id:
+                continue
             try:
                 value = float(row["_value"])
             except (KeyError, TypeError, ValueError):
                 continue
-            points.append({"t": row.get("_time", ""), "v": value})
+            device_metrics.setdefault(device_id, {}).setdefault(key, []).append({
+                "t": row.get("_time", ""),
+                "v": value,
+                "deviceId": device_id,
+            })
 
-        latest = points[-1]["v"] if points else None
-        has_any_data = has_any_data or latest is not None
-        metrics.append({
-            "key": key,
-            "label": config["label"],
-            "value": latest,
-            "unit": config["unit"],
-            "min": config["normal"][0],
-            "max": config["critical"] * 1.1,
-            "threshold": config["warning"],
-            "normalRange": config["normal"],
-            "warningThreshold": config["warning"],
-            "criticalThreshold": config["critical"],
-            "status": _status(latest, config),
-            "spark": points,
-            "dataAvailable": latest is not None,
-            "source": {"bucket": config["bucket"], "measurement": config["measurement"]},
-        })
-
-    if not has_any_data:
+    if not device_metrics:
         raise InfluxTelemetryError("InfluxDB returned no configured machine telemetry")
 
-    available_values = [m["value"] for m in metrics if m["value"] is not None]
-    has_critical = any(m["status"] == "critical" for m in metrics)
-    has_warning = any(m["status"] == "warning" for m in metrics)
-    status = "Critical" if has_critical else "Warning" if has_warning else "Healthy"
-    health_score = max(0, min(100, round(100 - sum(
-        35 if m["status"] == "critical" else 15 if m["status"] == "warning" else 0
-        for m in metrics
-    ))))
-
-    machine_name = os.getenv("INFLUX_MACHINE_NAME", "Live InfluxDB Equipment")
-    machine_code = os.getenv("INFLUX_MACHINE_CODE", "INFLUX-01")
-    return {
-        "id": machine_code,
-        "code": machine_code,
-        "name": machine_name,
-        "type": "InfluxDB telemetry stream",
-        "location": "Configured InfluxDB source",
-        "plant": "Configured InfluxDB source",
-        "line": "Configured InfluxDB source",
-        "healthScore": health_score,
-        "status": status,
-        "activeIssues": int(has_critical or has_warning),
-        "lastAnomalyAt": datetime.now(timezone.utc).isoformat() if has_critical or has_warning else None,
-        "lastUpdated": datetime.now(timezone.utc).isoformat(),
-        "operator": "Not configured",
-        "installDate": "Not configured",
-        "lastMaintenance": "Not configured",
-        "agentStatus": "Monitoring",
-        "metrics": metrics,
-        "liveMetrics": metrics,
-        "anomalies": [],
-        "issues": [],
-        "useCases": [],
-        "recommendations": [],
-        "specs": [],
-        "source": "InfluxDB",
-        "availableMetricCount": len(available_values),
-    }
+    machines = []
+    for device_id, fields in sorted(device_metrics.items()):
+        metrics = []
+        for key, config in METRIC_CONFIG.items():
+            points = sorted(fields.get(key, []), key=lambda point: point["t"])
+            latest = points[-1]["v"] if points else None
+            normal = config.get("normal")
+            metrics.append({
+                "key": key,
+                "label": config["label"],
+                "value": latest,
+                "unit": config["unit"],
+                "min": normal[0] if normal else None,
+                "max": config["critical"] * 1.1 if config.get("critical") else None,
+                "threshold": config.get("warning"),
+                "normalRange": normal,
+                "warningThreshold": config.get("warning"),
+                "criticalThreshold": config.get("critical"),
+                "status": _status(latest, config),
+                "spark": points,
+                "dataAvailable": latest is not None,
+                "source": {"bucket": config["bucket"], "measurement": config["measurement"], "field": config["field"], "deviceId": device_id},
+            })
+        monitored = [metric for metric in metrics if metric["value"] is not None]
+        has_critical = any(metric["status"] == "critical" for metric in monitored)
+        has_warning = any(metric["status"] == "warning" for metric in monitored)
+        status = "Critical" if has_critical else "Warning" if has_warning else "Healthy"
+        health_score = max(0, min(100, round(100 - sum(35 if metric["status"] == "critical" else 15 if metric["status"] == "warning" else 0 for metric in monitored))))
+        machines.append({
+            "id": device_id,
+            "code": device_id,
+            "name": f"InfluxDB Machine {device_id}",
+            "type": "InfluxDB electrical_params device",
+            "location": "Configured InfluxDB source",
+            "plant": "Configured InfluxDB source",
+            "line": "Configured InfluxDB source",
+            "healthScore": health_score,
+            "status": status,
+            "activeIssues": int(has_critical or has_warning),
+            "lastAnomalyAt": datetime.now(timezone.utc).isoformat() if has_critical or has_warning else None,
+            "lastUpdated": datetime.now(timezone.utc).isoformat(),
+            "operator": "Not configured",
+            "installDate": "Not configured",
+            "lastMaintenance": "Not configured",
+            "agentStatus": "Monitoring",
+            "metrics": metrics,
+            "liveMetrics": metrics,
+            "anomalies": [], "issues": [], "useCases": [], "recommendations": [], "specs": [],
+            "source": "InfluxDB",
+            "availableMetricCount": len(monitored),
+        })
+    return machines

@@ -1340,14 +1340,18 @@ async def confirm_password_reset(req: PasswordResetConfirmRequest, request: Requ
 @router.get("/api/machine-monitoring/telemetry")
 async def get_machine_monitoring_telemetry():
     try:
-        return {"source": "InfluxDB", "machines": [get_machine_telemetry()]}
+        return {"source": "InfluxDB", "machines": get_machine_telemetry()}
     except InfluxTelemetryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, Any]:
-    telemetry = await asyncio.to_thread(get_machine_telemetry)
-    if telemetry.get("code") != machine_id:
+    try:
+        telemetry_list = await asyncio.to_thread(get_machine_telemetry)
+    except InfluxTelemetryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    telemetry = next((machine for machine in telemetry_list if machine.get("id") == machine_id or machine.get("code") == machine_id), None)
+    if telemetry is None:
         raise HTTPException(status_code=404, detail=f"Machine {machine_id} is not available from the configured telemetry source")
     payload = await get_machine_ai_payload(db, machine_id)
     summary_text = (payload.get("summary") or {}).get("text", "")

@@ -3,20 +3,20 @@ export type AgentStatus = 'Idle' | 'Investigating' | 'Issue Generated' | 'Resolv
 export type AnomalySeverity = 'High' | 'Medium' | 'Low';
 export type UseCaseStatus = 'Active' | 'Triggered' | 'Disabled';
 
-export interface SparkPoint { t: string; v: number; }
+export interface SparkPoint { t: string; v: number; deviceId?: string; }
 
 export interface LiveMetric {
   key: string;
   label: string;
   value: number | null;
   unit: string;
-  min: number;
-  max: number;
-  threshold: number;
-  normalRange: [number, number];
-  warningThreshold: number;
-  criticalThreshold: number;
-  status: 'normal' | 'warning' | 'critical';
+  min: number | null;
+  max: number | null;
+  threshold: number | null;
+  normalRange: [number, number] | null;
+  warningThreshold: number | null;
+  criticalThreshold: number | null;
+  status: 'normal' | 'warning' | 'critical' | 'unavailable';
   spark: SparkPoint[];
   dataAvailable?: boolean;
   source?: { bucket: string; measurement: string };

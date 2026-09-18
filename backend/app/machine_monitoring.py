@@ -300,7 +300,7 @@ async def monitor_machine(session: AsyncSession, telemetry: Dict[str, Any]) -> N
 
 async def run_machine_monitoring_cycle() -> None:
     try:
-        telemetry = await asyncio.to_thread(get_machine_telemetry)
+        telemetry_list = await asyncio.to_thread(get_machine_telemetry)
     except InfluxTelemetryError as exc:
         logger.warning("Machine monitoring skipped because InfluxDB is unavailable: %s", exc)
         return
@@ -309,10 +309,11 @@ async def run_machine_monitoring_cycle() -> None:
         return
     async with AsyncSessionLocal() as session:
         try:
-            await monitor_machine(session, telemetry)
+            for telemetry in telemetry_list:
+                await monitor_machine(session, telemetry)
         except Exception:
             await session.rollback()
-            logger.exception("Machine monitoring cycle failed for %s", telemetry.get("code"))
+            logger.exception("Machine monitoring cycle failed")
 
 
 async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Dict[str, Any]:
