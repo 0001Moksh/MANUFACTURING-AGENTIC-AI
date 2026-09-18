@@ -138,7 +138,7 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
     ], temperature=0.1)
     parsed = _parse_agent_result(response.get("text", ""), {"snapshot": snapshot})
     summary_text = parsed.get("summary_text") or (
-        f"{telemetry.get('name', machine_code)} is monitored from InfluxDB over a {MONITORING_WINDOW_MINUTES}-minute configured window. "
+        f"[LLM Response Not Available]{telemetry.get('name', machine_code)} is monitored from InfluxDB over a {MONITORING_WINDOW_MINUTES}-minute configured window. "
         "Baseline observations are limited to the available telemetry samples and configured threshold context."
     )
     session.add(MachineAISummary(
