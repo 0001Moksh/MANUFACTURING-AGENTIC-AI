@@ -483,6 +483,15 @@ class MachineMaster(Base):
     IsActive: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class MachineThresholdConfig(Base):
+    __tablename__ = "mai_thresholds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    parameters: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class MachineAISummary(Base):
     __tablename__ = "machine_ai_summaries"
 

@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger("influx_telemetry")
 
 CANONICAL_MEASUREMENT = "electrical_params"
-REAL_FIELDS = {
+FIELD_METADATA = {
     "BN_V": {"label": "BN Voltage", "unit": "V"},
     "BR_V": {"label": "BR Voltage", "unit": "V"},
     "B_Current": {"label": "B Current", "unit": "A"},
@@ -28,20 +28,6 @@ REAL_FIELDS = {
     "YB_V": {"label": "YB Voltage", "unit": "V"},
     "YN_V": {"label": "YN Voltage", "unit": "V"},
     "Y_Current": {"label": "Y Current", "unit": "A"},
-}
-
-
-METRIC_CONFIG = {
-    field: {
-        **definition,
-        "measurement": CANONICAL_MEASUREMENT,
-        "field": field,
-        "bucket": os.getenv("INFLUXDB_BUCKET", "ECE2"),
-        "normal": definition.get("normal"),
-        "warning": definition.get("warning"),
-        "critical": definition.get("critical"),
-    }
-    for field, definition in REAL_FIELDS.items()
 }
 
 
@@ -83,12 +69,40 @@ def _query_flux(query: str) -> List[Dict[str, str]]:
     for record in csv.reader(line for line in io.StringIO(payload) if not line.startswith("#")):
         if not record:
             continue
-        if "_time" in record:
+        if any(column in record for column in ("_time", "_value", "_field")):
             header = record
             continue
         if header and len(record) == len(header):
             rows.append(dict(zip(header, record)))
     return rows
+
+
+def _discover_fields() -> List[str]:
+    bucket = os.getenv("INFLUXDB_BUCKET", "ECE2").replace('"', '\\"')
+    measurement = CANONICAL_MEASUREMENT.replace('"', '\\"')
+    flux = f'''import "influxdata/influxdb/schema"
+schema.fieldKeys(
+  bucket: "{bucket}",
+  predicate: (r) => r._measurement == "{measurement}",
+  start: -30d
+)'''
+    fields = {row.get("_value", "").strip() for row in _query_flux(flux) if row.get("_value", "").strip()}
+    return sorted(fields)
+
+
+def _metric_config(field: str) -> Dict[str, Any]:
+    metadata = FIELD_METADATA.get(field, {})
+    return {
+        **metadata,
+        "label": metadata.get("label", field.replace("_", " ").strip()),
+        "unit": metadata.get("unit", ""),
+        "measurement": CANONICAL_MEASUREMENT,
+        "field": field,
+        "bucket": os.getenv("INFLUXDB_BUCKET", "ECE2"),
+        "normal": metadata.get("normal"),
+        "warning": metadata.get("warning"),
+        "critical": metadata.get("critical"),
+    }
 
 
 def _metric_rows(metric_key: str, config: Dict[str, Any], range_window: str) -> List[Dict[str, str]]:
@@ -104,10 +118,10 @@ def _metric_rows(metric_key: str, config: Dict[str, Any], range_window: str) -> 
   |> sort(columns: ["_time"])
   |> tail(n: 120)'''
     rows = _query_flux(flux)
-    if rows or (measurement == CANONICAL_MEASUREMENT and field in REAL_FIELDS):
+    if rows or (measurement == CANONICAL_MEASUREMENT and field in FIELD_METADATA):
         return rows
 
-    canonical_field = metric_key if metric_key in REAL_FIELDS else None
+    canonical_field = metric_key if metric_key in FIELD_METADATA else None
     if not canonical_field:
         return rows
 
@@ -138,7 +152,11 @@ def _status(value: float | None, config: Dict[str, Any]) -> str:
 def get_machine_telemetry() -> List[Dict[str, Any]]:
     device_metrics: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
     range_window = os.getenv("INFLUX_TELEMETRY_RANGE", "24h")
-    for key, config in METRIC_CONFIG.items():
+    discovered_fields = _discover_fields()
+    if not discovered_fields:
+        raise InfluxTelemetryError("InfluxDB returned no fields for electrical_params")
+    for key in discovered_fields:
+        config = _metric_config(key)
         for row in _metric_rows(key, config, range_window):
             device_id = row.get("device_id")
             if not device_id:
@@ -159,7 +177,8 @@ def get_machine_telemetry() -> List[Dict[str, Any]]:
     machines = []
     for device_id, fields in sorted(device_metrics.items()):
         metrics = []
-        for key, config in METRIC_CONFIG.items():
+        for key in discovered_fields:
+            config = _metric_config(key)
             points = sorted(fields.get(key, []), key=lambda point: point["t"])
             latest = points[-1]["v"] if points else None
             normal = config.get("normal")

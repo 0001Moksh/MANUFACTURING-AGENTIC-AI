@@ -10,6 +10,7 @@ import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart'
 import { HealthRing, STATUS_COLOR, STATUS_BG } from '../components/machine-monitoring/MachineCard';
 import { useMachineStore } from '../store/useMachineStore';
 import { machineMonitoringService } from '../services/api';
+import { ThresholdManagerDrawer } from '../components/machine-monitoring/ThresholdManagerDrawer';
 
 interface MachineAiIssue {
   id: number;
@@ -199,6 +200,7 @@ export const MachineDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const storeMachines = useMachineStore((state) => state.machines);
+  const loadMachinesForDetail = useMachineStore((state) => state.loadMachines);
 
   const machine = useMemo(() => {
     return storeMachines.find((m) => m.id === id);
@@ -210,6 +212,7 @@ export const MachineDetailPage: React.FC = () => {
   const [aiError, setAiError] = useState<string | null>(null);
   const [actionText, setActionText] = useState('');
   const [actionSaving, setActionSaving] = useState(false);
+  const [thresholdsOpen, setThresholdsOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,6 +236,8 @@ export const MachineDetailPage: React.FC = () => {
   if (!machine) {
     return <div className="p-6 text-sm text-slate-500">Live InfluxDB telemetry is not available.</div>;
   }
+
+  const sanitizedMachineName = machine.name.replace(/^InfluxDB\s+Machine\s*/i, '').trim() || machine.code;
 
   const statusColor = STATUS_COLOR[machine.status];
   const currentMetricObj = machine.liveMetrics.find((m) => m.key === selectedMetric) || machine.liveMetrics[0];
@@ -270,7 +275,7 @@ export const MachineDetailPage: React.FC = () => {
             <span>Back to Machine Monitoring</span>
           </button>
           <span className="opacity-40">/</span>
-          <span className="text-ink font-semibold">{machine.name}</span>
+          <span className="text-ink font-semibold">{sanitizedMachineName}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -301,7 +306,7 @@ export const MachineDetailPage: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="font-head text-[26px] font-extrabold text-ink tracking-tight">{machine.name}</h1>
+              <h1 className="font-head text-[26px] font-extrabold text-ink tracking-tight">{sanitizedMachineName}</h1>
               <span className="text-[11px] px-2.5 py-1 rounded-md bg-gradient-to-r from-teal/15 to-teal/5 text-teal border border-teal/25 font-mono font-bold tracking-wide">
                 {machine.type}
               </span>
@@ -370,7 +375,12 @@ export const MachineDetailPage: React.FC = () => {
             );
           })}
         </div>
+        <button onClick={() => setThresholdsOpen(true)} className="rounded-xl border border-teal/30 bg-white px-4 py-2.5 text-xs font-bold text-teal shadow-sm hover:bg-teal/5">
+          Set Thresholds / थ्रेशहोल्ड सेट करें
+        </button>
       </div>
+
+      {thresholdsOpen && <ThresholdManagerDrawer machineId={machine.id} metrics={machine.liveMetrics} onClose={() => setThresholdsOpen(false)} onSaved={() => { setThresholdsOpen(false); void loadMachinesForDetail(); }} />}
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
@@ -396,12 +406,12 @@ export const MachineDetailPage: React.FC = () => {
                     const hasCritical = m.criticalThreshold != null;
                     const hasWarning = m.warningThreshold != null;
                     const configuredRange = m.normalRange;
+                    const displayRange: [number, number] = configuredRange ?? [0, Math.max(Math.abs(liveVal) * 1.2, 1)];
                     const axisMax = hasCritical
                       ? (m.criticalThreshold as number) * 1.08
                       : hasWarning
                         ? (m.warningThreshold as number) * 1.15
                         : configuredRange ? configuredRange[1] * 1.2 : Math.max(Math.abs(liveVal) * 1.2, 1);
-                      const axisMin = configuredRange ? Math.min(configuredRange[0], 0) : 0;
 
                     const statusColorDot =
                       liveStatus === 'critical' ? '#B4342A' : liveStatus === 'warning' ? '#D9A441' : liveStatus === 'unavailable' ? '#64748B' : '#1FA971';
@@ -427,20 +437,14 @@ export const MachineDetailPage: React.FC = () => {
                           <span className="text-[10px] font-semibold opacity-70">({m.unit})</span>
                         </div>
 
-                        {configuredRange ? (
-                          <GaugeDial
-                            min={axisMin}
-                            max={axisMax}
-                            value={liveVal}
-                            normalRange={configuredRange}
-                            warningThreshold={m.warningThreshold ?? undefined}
-                            criticalThreshold={m.criticalThreshold ?? undefined}
-                          />
-                        ) : (
-                          <div className="h-[132px] flex items-center justify-center text-3xl font-mono font-extrabold text-slate-700">
-                            {m.value === null ? 'N/A' : liveVal}
-                          </div>
-                        )}
+                        <GaugeDial
+                          min={displayRange[0]}
+                          max={axisMax || displayRange[1]}
+                          value={liveVal}
+                          normalRange={displayRange}
+                          warningThreshold={m.warningThreshold ?? undefined}
+                          criticalThreshold={m.criticalThreshold ?? undefined}
+                        />
 
                         <div className="font-mono font-extrabold text-lg mt-1" style={{ color: '#000000' }}>
                           {m.value === null ? 'N/A' : liveVal} <span className="text-[20px] font-semibold opacity-70">{m.unit}</span>

@@ -71,11 +71,12 @@ const DEFAULT_ZONES: Record<string, GaugeZones> = {
 const getZones = (m: LiveMetric): GaugeZones => {
   const anyM = m as unknown as Partial<GaugeZones>;
   const base = DEFAULT_ZONES[m.key] || { min: 0, max: 100, warningAt: 70, criticalAt: 90 };
+  const observedMax = typeof m.value === 'number' ? Math.max(Math.abs(m.value) * 1.2, 1) : base.max;
   return {
-    min: anyM.min ?? base.min,
-    max: anyM.max ?? base.max,
-    warningAt: anyM.warningAt ?? base.warningAt,
-    criticalAt: anyM.criticalAt ?? base.criticalAt,
+    min: m.min ?? anyM.min ?? 0,
+    max: m.max ?? anyM.max ?? observedMax,
+    warningAt: m.warningThreshold ?? anyM.warningAt ?? observedMax,
+    criticalAt: m.criticalThreshold ?? anyM.criticalAt ?? observedMax,
   };
 };
 
@@ -254,6 +255,7 @@ interface MachineCardProps {
 
 export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) => {
   const navigate = useNavigate();
+  const sanitizedMachineName = machine.name.replace(/^InfluxDB\s+Machine\s*/i, '').trim();
   const statusColor = STATUS_COLOR[machine.status];
   const agentStyle = AGENT_STATUS_COLOR[machine.agentStatus] || AGENT_STATUS_COLOR.Idle;
   const [, setTick] = useState(0);
@@ -264,8 +266,8 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
     return () => clearInterval(interval);
   }, [machine.status]);
 
-  const gaugeMetrics = machine.liveMetrics.slice(0, 2);
-  const chipMetrics = machine.liveMetrics.slice(2, 5);
+  const gaugeMetrics = machine.liveMetrics;
+  const chipMetrics: LiveMetric[] = [];
 
   return (
     <motion.div
@@ -298,7 +300,7 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-head text-[15px] font-bold text-ink leading-tight truncate group-hover:text-teal transition-colors">
-                  {machine.name}
+                  {sanitizedMachineName || machine.code}
                 </h3>
                 <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0">
                   {machine.code}
@@ -342,7 +344,7 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
         </div>
 
         {/* ── Gauge Dials (primary 2 metrics, e.g. vibration + temperature) ── */}
-        <div className="grid grid-cols-2 gap-2 mb-3 rounded-xl bg-slate-50/70 border border-slate-200/70 py-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3 rounded-xl bg-slate-50/70 border border-slate-200/70 py-3">
           {gaugeMetrics.map((m: LiveMetric) => (
             <GaugeDial key={m.key} metric={m} size={116} />
           ))}

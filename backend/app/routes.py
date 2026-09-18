@@ -21,7 +21,7 @@ from app.db import (
     mes_db_status, video_analytics_db_status, test_mes_connection, test_video_analytics_connection,
     AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
-    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site
+    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig
 )
 from app.db import MachineRecommendation, MachineIssue
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
@@ -88,6 +88,10 @@ class MachineOperatorActionRequest(BaseModel):
 class MachineVerificationRequest(BaseModel):
     outcome: str
     notes: Optional[str] = None
+
+
+class MachineThresholdRequest(BaseModel):
+    parameters: Dict[str, Dict[str, Optional[float]]]
 
 class QueryRequest(BaseModel):
     query: str
@@ -1338,11 +1342,54 @@ async def confirm_password_reset(req: PasswordResetConfirmRequest, request: Requ
 # --- TELEMETRY & STATS ---
 
 @router.get("/api/machine-monitoring/telemetry")
-async def get_machine_monitoring_telemetry():
+async def get_machine_monitoring_telemetry(db: AsyncSession = Depends(get_db)):
     try:
-        return {"source": "InfluxDB", "machines": get_machine_telemetry()}
+        machines = get_machine_telemetry()
+        threshold_rows = (await db.execute(select(MachineThresholdConfig))).scalars().all()
+        threshold_map = {row.machine_code: row.parameters for row in threshold_rows}
+        for machine in machines:
+            parameters = threshold_map.get(machine["id"], {})
+            for metric in machine["liveMetrics"]:
+                threshold = parameters.get(metric["key"], {})
+                if threshold:
+                    metric["min"] = threshold.get("min")
+                    metric["max"] = threshold.get("max")
+                    metric["normalRange"] = [threshold["min"], threshold["max"]] if threshold.get("min") is not None and threshold.get("max") is not None else None
+                    metric["warningThreshold"] = threshold.get("warning_high")
+                    metric["criticalThreshold"] = threshold.get("critical_high")
+                    metric["threshold"] = threshold.get("warning_high")
+                    value = metric.get("value")
+                    metric["status"] = (
+                        "critical" if value is not None and threshold.get("critical_high") is not None and value >= threshold["critical_high"]
+                        else "warning" if value is not None and threshold.get("warning_high") is not None and value >= threshold["warning_high"]
+                        else "normal" if value is not None else "unavailable"
+                    )
+            monitored = [metric for metric in machine["liveMetrics"] if metric.get("value") is not None]
+            machine["status"] = "Critical" if any(metric["status"] == "critical" for metric in monitored) else "Warning" if any(metric["status"] == "warning" for metric in monitored) else "Healthy"
+            machine["healthScore"] = max(0, min(100, round(100 - sum(35 if metric["status"] == "critical" else 15 if metric["status"] == "warning" else 0 for metric in monitored))))
+        return {"source": "InfluxDB", "machines": machines}
     except InfluxTelemetryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/api/v1/mai/thresholds/{machine_id}")
+async def get_machine_thresholds(machine_id: str, db: AsyncSession = Depends(get_db)):
+    row = (await db.execute(select(MachineThresholdConfig).where(MachineThresholdConfig.machine_code == machine_id))).scalars().first()
+    return {"machine_id": machine_id, "parameters": row.parameters if row else {}, "updated_at": row.updated_at.isoformat() if row else None}
+
+
+@router.post("/api/v1/mai/thresholds/{machine_id}")
+async def save_machine_thresholds(machine_id: str, request: MachineThresholdRequest, db: AsyncSession = Depends(get_db)):
+    row = (await db.execute(select(MachineThresholdConfig).where(MachineThresholdConfig.machine_code == machine_id))).scalars().first()
+    if row:
+        row.parameters = request.parameters
+        row.updated_at = datetime.utcnow()
+    else:
+        row = MachineThresholdConfig(machine_code=machine_id, parameters=request.parameters)
+        db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return {"machine_id": machine_id, "parameters": row.parameters, "updated_at": row.updated_at.isoformat()}
 
 
 async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, Any]:

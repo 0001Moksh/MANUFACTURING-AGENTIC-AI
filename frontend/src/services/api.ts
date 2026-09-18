@@ -84,6 +84,14 @@ export const machineMonitoringService = {
     const res = await api.post(`/machines/${encodeURIComponent(machineId)}/issues/${issueId}/operator-action`, { action });
     return res.data;
   },
+  getThresholds: async (machineId: string) => {
+    const res = await api.get(`/v1/mai/thresholds/${encodeURIComponent(machineId)}`);
+    return res.data;
+  },
+  saveThresholds: async (machineId: string, parameters: Record<string, Record<string, number | null>>) => {
+    const res = await api.post(`/v1/mai/thresholds/${encodeURIComponent(machineId)}`, { parameters });
+    return res.data;
+  },
 };
 
 export const licenseService = {
