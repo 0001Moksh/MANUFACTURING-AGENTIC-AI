@@ -376,7 +376,7 @@ export const MachineDetailPage: React.FC = () => {
           })}
         </div>
         <button onClick={() => setThresholdsOpen(true)} className="rounded-xl border border-teal/30 bg-white px-4 py-2.5 text-xs font-bold text-teal shadow-sm hover:bg-teal/5">
-          Set Thresholds / थ्रेशहोल्ड सेट करें
+          Set Thresholds
         </button>
       </div>
 
