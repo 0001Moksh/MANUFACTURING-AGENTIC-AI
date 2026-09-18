@@ -75,6 +75,17 @@ export const telemetryService = {
   }
 };
 
+export const machineMonitoringService = {
+  getAi: async (machineId: string) => {
+    const res = await api.get(`/machines/${encodeURIComponent(machineId)}/ai`);
+    return res.data;
+  },
+  recordOperatorAction: async (machineId: string, issueId: number, action: string) => {
+    const res = await api.post(`/machines/${encodeURIComponent(machineId)}/issues/${issueId}/operator-action`, { action });
+    return res.data;
+  },
+};
+
 export const licenseService = {
   getStatus: async () => {
     const res = await api.get('/license/status');

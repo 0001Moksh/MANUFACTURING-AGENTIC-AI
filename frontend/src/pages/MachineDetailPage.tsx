@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -9,6 +9,35 @@ import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
 import { HealthRing, STATUS_COLOR, STATUS_BG } from '../components/machine-monitoring/MachineCard';
 import { useMachineStore } from '../store/useMachineStore';
+import { machineMonitoringService } from '../services/api';
+
+interface MachineAiIssue {
+  id: number;
+  title: string;
+  severity: string;
+  status: string;
+  affected_parameters: string[];
+  detected_at: string;
+  persistence_seconds: number;
+  analysis?: {
+    issue_summary?: string;
+    possible_causes?: string[];
+    evidence?: Record<string, unknown>;
+    reasoning_summary?: string;
+    root_cause_confidence?: number;
+    immediate_actions?: string[];
+    corrective_actions?: string[];
+    preventive_actions?: string[];
+  } | null;
+}
+
+interface MachineAiPayload {
+  summary: { text: string; generated_at: string; baseline?: Record<string, unknown> } | null;
+  state: { operational_state: string; agent_state: string; last_checked_at: string } | null;
+  active_issue: MachineAiIssue | null;
+  issues: MachineAiIssue[];
+  recommendations: Array<{ id: number; issue_id: number; action: string; category: string; status: string; generated_at: string }>;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Per-metric visual theme (matches the colored KPI cards in mockup)  */
@@ -178,6 +207,29 @@ export const MachineDetailPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'telemetry' | 'agent' | 'mes' | 'maintenance'>('telemetry');
   const [selectedMetric, setSelectedMetric] = useState<string>('vibration');
+  const [aiData, setAiData] = useState<MachineAiPayload | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [actionText, setActionText] = useState('');
+  const [actionSaving, setActionSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!id) return undefined;
+    machineMonitoringService.getAi(id)
+      .then((payload: MachineAiPayload) => {
+        if (!cancelled) {
+          setAiData(payload);
+          setAiError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Machine AI state is unavailable';
+          setAiError(message);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [id]);
 
   if (!machine) {
     return <div className="p-6 text-sm text-slate-500">Live InfluxDB telemetry is not available.</div>;
@@ -190,9 +242,13 @@ export const MachineDetailPage: React.FC = () => {
     return <div className="p-6 text-sm text-slate-500">No telemetry signals are configured in InfluxDB.</div>;
   }
 
+  const agentStatus = aiData?.state?.agent_state?.replaceAll('_', ' ') || 'LOADING';
+  const activeIssue = aiData?.active_issue;
+  const activeIssueCount = aiData ? aiData.issues.filter((issue) => issue.status !== 'RESOLVED').length : machine.activeIssues;
+
   const TABS: TabItem[] = [
     { key: 'telemetry', label: 'Live Telemetry & Signals', icon: Activity },
-    { key: 'agent', label: 'AI Agent Root-Cause Analysis', icon: Bot, alert: machine.activeIssues > 0 },
+    { key: 'agent', label: 'AI Agent Root-Cause Analysis', icon: Bot, alert: activeIssueCount > 0 },
     { key: 'mes', label: 'MES Work Orders & Operator', icon: FileText },
     { key: 'maintenance', label: 'Maintenance & Service History', icon: Wrench },
   ];
@@ -273,15 +329,15 @@ export const MachineDetailPage: React.FC = () => {
 
         {/* Quick KPI stats */}
         <div className="relative flex items-center gap-5 lg:border-l lg:border-slate-200 lg:pl-7 shrink-0 pt-5 lg:pt-0 border-t lg:border-t-0">
-          <KPI label="Active Issues" value={machine.activeIssues} accent={machine.activeIssues > 0 ? '#E24C4C' : '#059669'} />
+          <KPI label="Active Issues" value={activeIssueCount} accent={activeIssueCount > 0 ? '#E24C4C' : '#059669'} />
           <Divider />
-          <KPI label="OEE Impact" value="91.4%" accent="#0F172A" />
+          <KPI label="OEE Impact" value="N/A" accent="#0F172A" />
           <Divider />
           <div className="text-center">
             <div className="text-[10px] text-muted uppercase font-bold tracking-wider">Agent Status</div>
             <div className="font-mono text-xs font-bold text-teal mt-1.5 flex items-center gap-1.5 justify-center bg-teal/10 px-2.5 py-1 rounded-full border border-teal/20">
               <Bot className="w-3.5 h-3.5" />
-              {machine.agentStatus}
+              {agentStatus}
             </div>
           </div>
         </div>
@@ -425,67 +481,65 @@ export const MachineDetailPage: React.FC = () => {
                     <Bot className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-head font-bold text-lg text-ink">Autonomous Agent Investigation Trace</h3>
+                    <h3 className="font-head font-bold text-lg text-ink">Machine Intelligence</h3>
                     <p className="text-xs text-muted">
-                      Continuous LLM signal monitoring, anomaly classification & proactive resolution recommendation.
+                      Backend monitoring state, evidence, and operator recommendations.
                     </p>
                   </div>
                 </div>
                 <span className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-teal/15 to-teal/5 text-teal border border-teal/30 text-xs font-mono font-bold shadow-sm">
-                  Status: {machine.agentStatus}
+                  Status: {agentStatus}
                 </span>
               </div>
 
-              <div className="flex flex-col gap-4">
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 text-white font-mono text-xs border border-slate-700/60 flex flex-col gap-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                  <div className="text-teal font-bold flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-teal animate-ping" />
-                    [AGENT TELEMETRY INGESTION ENGINE]
-                  </div>
-                  <div className="text-slate-300">
-                    &gt; Machine ID: <span className="text-amber-400">{machine.code}</span> ({machine.name})
-                  </div>
-                  <div className="text-slate-300">
-                    &gt; Signal Vectors Analyzed: Temperature, Vibration, Current, Voltage, RPM, Hydraulic Line Pressure.
-                  </div>
-                  {machine.activeIssues > 0 ? (
-                    <div className="text-rose-400 font-semibold">
-                      &gt; [ANOMALY DETECTED] Vibration waveform exceedance threshold (+38% vs baseline variance).
-                    </div>
-                  ) : (
-                    <div className="text-emerald-400">
-                      &gt; Baseline validation complete. All FFT harmonic frequency peaks within ±2% tolerance.
-                    </div>
-                  )}
-                </div>
-
+              {aiError && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">{aiError}</div>}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="border border-slate-200 rounded-2xl p-6 bg-gradient-to-br from-slate-50 to-white shadow-sm">
                   <h4 className="font-head font-bold text-ink text-sm mb-3 flex items-center gap-2">
                     <Shield className="w-4 h-4 text-teal" />
-                    AI Root Cause Diagnostics Summary
+                    Machine AI Summary
                   </h4>
                   <p className="text-xs text-slate-700 leading-relaxed mb-5">
-                    {machine.activeIssues > 0
-                      ? `Agent detected sustained mechanical vibration in drive shaft bearing assembly. FFT spectral analysis indicates potential early-stage inner raceway pitting on Drive Shaft B.`
-                      : `Machine telemetry is operating normally within engineered specifications. Preventive maintenance is schedule-locked in MES.`}
+                    {aiData?.summary?.text || 'The initial monitoring window has not produced a summary yet.'}
                   </p>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => navigate('/agents/maintenance')}
-                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal to-teal-deep text-white font-bold text-xs hover:shadow-[0_8px_20px_-6px_rgba(31,169,113,0.6)] transition-all flex items-center gap-2 shadow-md"
-                    >
-                      <Wrench className="w-4 h-4" />
-                      <span>Launch Predictive Maintenance Agent</span>
-                    </button>
-                    <button
-                      onClick={() => navigate('/agents/incident-investigation')}
-                      className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-ink font-bold text-xs hover:border-teal hover:shadow-md transition-all flex items-center gap-2"
-                    >
-                      <FileText className="w-4 h-4 text-teal" />
-                      <span>View Deep Incident Report</span>
-                    </button>
+                  <div className="text-[11px] text-muted">Generated: {aiData?.summary ? new Date(aiData.summary.generated_at).toLocaleString() : 'Pending'}</div>
+                </div>
+                <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
+                  <h4 className="font-head font-bold text-ink text-sm mb-3">Current AI State</h4>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div><span className="text-muted">Operational</span><div className="font-bold text-ink mt-1">{aiData?.state?.operational_state || 'PENDING'}</div></div>
+                    <div><span className="text-muted">Agent</span><div className="font-bold text-teal mt-1">{agentStatus}</div></div>
+                    <div><span className="text-muted">Last checked</span><div className="font-mono text-ink mt-1">{aiData?.state ? new Date(aiData.state.last_checked_at).toLocaleString() : 'Pending'}</div></div>
+                    <div><span className="text-muted">Active issue</span><div className="font-bold text-ink mt-1">{activeIssue ? activeIssue.status : 'None'}</div></div>
                   </div>
+                </div>
+              </div>
+
+              <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
+                <h4 className="font-head font-bold text-ink text-sm mb-3">Active Issue and Root-Cause Analysis</h4>
+                {!activeIssue ? <p className="text-xs text-muted">No active application issue has been recorded.</p> : (
+                  <div className="flex flex-col gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2"><strong className="text-ink">{activeIssue.title}</strong><span className="px-2 py-1 rounded bg-rose-50 text-rose-700 font-bold">{activeIssue.severity}</span><span className="text-muted">{activeIssue.status}</span></div>
+                    <div className="text-muted">Affected: {activeIssue.affected_parameters.join(', ') || 'Not available'} | Persistence: {Math.round(activeIssue.persistence_seconds)}s</div>
+                    <p className="text-slate-700">{activeIssue.analysis?.issue_summary || 'Investigation is pending persistence and structured agent analysis.'}</p>
+                    {activeIssue.analysis?.possible_causes?.length ? <div><strong>Possible causes:</strong> {activeIssue.analysis.possible_causes.join('; ')}</div> : null}
+                    {activeIssue.analysis?.reasoning_summary ? <div><strong>Reasoning:</strong> {activeIssue.analysis.reasoning_summary}</div> : null}
+                    {activeIssue.analysis?.root_cause_confidence != null ? <div><strong>Confidence:</strong> {Math.round(activeIssue.analysis.root_cause_confidence * 100)}%</div> : null}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
+                  <h4 className="font-head font-bold text-ink text-sm mb-3">Recommendations</h4>
+                  {aiData?.recommendations.length ? <div className="flex flex-col gap-2">{aiData.recommendations.slice(0, 8).map((recommendation) => <div key={recommendation.id} className="text-xs border-b border-slate-100 pb-2"><span className="font-bold text-teal mr-2">{recommendation.category}</span>{recommendation.action}</div>)}</div> : <p className="text-xs text-muted">No recommendations are pending.</p>}
+                </div>
+                <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
+                  <h4 className="font-head font-bold text-ink text-sm mb-3">Operator Action</h4>
+                  {activeIssue ? <>
+                    <textarea value={actionText} onChange={(event) => setActionText(event.target.value)} placeholder="Record the action taken" className="w-full min-h-20 rounded-xl border border-slate-200 p-3 text-xs resize-y" />
+                    <button disabled={!actionText.trim() || actionSaving} onClick={async () => { setActionSaving(true); try { await machineMonitoringService.recordOperatorAction(machine.id, activeIssue.id, actionText.trim()); setActionText(''); const payload = await machineMonitoringService.getAi(machine.id); setAiData(payload); } finally { setActionSaving(false); } }} className="mt-3 px-4 py-2 rounded-xl bg-teal text-white font-bold text-xs disabled:opacity-50">{actionSaving ? 'Recording...' : 'Record action'}</button>
+                  </> : <p className="text-xs text-muted">Operator actions become available when an issue is recorded.</p>}
                 </div>
               </div>
             </div>

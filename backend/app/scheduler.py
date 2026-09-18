@@ -11,6 +11,7 @@ from app.db import (
 )
 from app.agents.agent_workflow import run_agent_workflow
 from app.email_service import send_pdf_report_email, send_html_email
+from app.machine_monitoring import run_machine_monitoring_cycle
 import secrets
 
 logger = logging.getLogger("scheduler")
@@ -189,8 +190,9 @@ async def check_and_run_daily_report():
 def start_scheduler():
     # Run check_and_run_daily_report every minute to see if time matches
     scheduler.add_job(check_and_run_daily_report, "interval", minutes=1, id="daily_report_job", replace_existing=True)
+    scheduler.add_job(run_machine_monitoring_cycle, "interval", seconds=30, id="machine_monitoring_job", replace_existing=True, max_instances=1, coalesce=True)
     scheduler.start()
-    logger.info("APScheduler started for automated daily reporting.")
+    logger.info("APScheduler started for automated reporting and machine monitoring.")
 
 def stop_scheduler():
     scheduler.shutdown()

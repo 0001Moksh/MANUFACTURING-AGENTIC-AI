@@ -482,6 +482,75 @@ class MachineMaster(Base):
     Status: Mapped[str] = mapped_column(String(20), default="Running") # Running, Idle, Maintenance, Offline
     IsActive: Mapped[bool] = mapped_column(Boolean, default=True)
 
+
+class MachineAISummary(Base):
+    __tablename__ = "machine_ai_summaries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    summary_text: Mapped[str] = mapped_column(Text, nullable=False)
+    baseline_context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    model_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+
+
+class MachineMonitoringState(Base):
+    __tablename__ = "machine_monitoring_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    operational_state: Mapped[str] = mapped_column(String(40), default="UNKNOWN", nullable=False)
+    agent_state: Mapped[str] = mapped_column(String(60), default="MONITORING", nullable=False)
+    parameter_states: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    last_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    anomaly_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    recovery_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_checked_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class MachineIssue(Base):
+    __tablename__ = "machine_issues"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    severity: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="OPEN", nullable=False)
+    affected_parameters: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    persistence_seconds: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    analysis: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class MachineRecommendation(Base):
+    __tablename__ = "machine_recommendations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    issue_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(30), default="IMMEDIATE", nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    operator_action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    operator_action_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    verification: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class MachineAgentInvestigation(Base):
+    __tablename__ = "machine_agent_investigations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    issue_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    model_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
 class InventoryByLot(Base):
     __tablename__ = "InventoryByLot"
     

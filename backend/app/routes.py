@@ -23,10 +23,12 @@ from app.db import (
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
     Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site
 )
+from app.db import MachineRecommendation, MachineIssue
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
+from app.machine_monitoring import get_machine_ai_payload, monitor_machine
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.insights_summary_agent import generate_chart_summary as agent_generate_chart_summary
@@ -77,6 +79,15 @@ class TokenResponse(BaseModel):
     token_type: str
     role: str
     site: str
+
+
+class MachineOperatorActionRequest(BaseModel):
+    action: str
+
+
+class MachineVerificationRequest(BaseModel):
+    outcome: str
+    notes: Optional[str] = None
 
 class QueryRequest(BaseModel):
     query: str
@@ -1332,6 +1343,85 @@ async def get_machine_monitoring_telemetry():
         return {"source": "InfluxDB", "machines": [get_machine_telemetry()]}
     except InfluxTelemetryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, Any]:
+    telemetry = await asyncio.to_thread(get_machine_telemetry)
+    if telemetry.get("code") != machine_id:
+        raise HTTPException(status_code=404, detail=f"Machine {machine_id} is not available from the configured telemetry source")
+    payload = await get_machine_ai_payload(db, machine_id)
+    if payload["state"] is None:
+        await monitor_machine(db, telemetry)
+        payload = await get_machine_ai_payload(db, machine_id)
+    return payload
+
+
+@router.get("/api/machines/{machine_id}/ai-summary")
+async def get_machine_ai_summary(machine_id: str, db: AsyncSession = Depends(get_db)):
+    payload = await _machine_ai_payload(machine_id, db)
+    return {"machine_code": machine_id, "summary": payload["summary"]}
+
+
+@router.get("/api/machines/{machine_id}/ai-state")
+async def get_machine_ai_state(machine_id: str, db: AsyncSession = Depends(get_db)):
+    payload = await _machine_ai_payload(machine_id, db)
+    return {"machine_code": machine_id, "state": payload["state"]}
+
+
+@router.get("/api/machines/{machine_id}/issues")
+async def get_machine_issues(machine_id: str, db: AsyncSession = Depends(get_db)):
+    payload = await _machine_ai_payload(machine_id, db)
+    return {"machine_code": machine_id, "issues": payload["issues"]}
+
+
+@router.get("/api/machines/{machine_id}/recommendations")
+async def get_machine_recommendations(machine_id: str, db: AsyncSession = Depends(get_db)):
+    payload = await _machine_ai_payload(machine_id, db)
+    return {"machine_code": machine_id, "recommendations": payload["recommendations"]}
+
+
+@router.get("/api/machines/{machine_id}/agent-history")
+async def get_machine_agent_history(machine_id: str, db: AsyncSession = Depends(get_db)):
+    payload = await _machine_ai_payload(machine_id, db)
+    return {"machine_code": machine_id, "agent_history": payload["agent_history"]}
+
+
+@router.get("/api/machines/{machine_id}/ai")
+async def get_machine_ai(machine_id: str, db: AsyncSession = Depends(get_db)):
+    return await _machine_ai_payload(machine_id, db)
+
+
+@router.post("/api/machines/{machine_id}/issues/{issue_id}/operator-action")
+async def record_machine_operator_action(machine_id: str, issue_id: int, request: MachineOperatorActionRequest, db: AsyncSession = Depends(get_db)):
+    issue = (await db.execute(select(MachineIssue).where(MachineIssue.id == issue_id, MachineIssue.machine_code == machine_id))).scalars().first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Machine issue not found")
+    recommendations = (await db.execute(select(MachineRecommendation).where(MachineRecommendation.issue_id == issue_id))).scalars().all()
+    action_time = datetime.utcnow()
+    for recommendation in recommendations:
+        recommendation.operator_action = request.action
+        recommendation.operator_action_at = action_time
+        recommendation.status = "ACTION_RECORDED"
+    issue.status = "VERIFYING"
+    await db.commit()
+    return {"status": "recorded", "issue_id": issue_id, "action_at": action_time.isoformat()}
+
+
+@router.post("/api/machines/{machine_id}/issues/{issue_id}/verify")
+async def verify_machine_issue(machine_id: str, issue_id: int, request: MachineVerificationRequest, db: AsyncSession = Depends(get_db)):
+    issue = (await db.execute(select(MachineIssue).where(MachineIssue.id == issue_id, MachineIssue.machine_code == machine_id))).scalars().first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Machine issue not found")
+    verification = {"outcome": request.outcome, "notes": request.notes, "verified_at": datetime.utcnow().isoformat()}
+    recommendations = (await db.execute(select(MachineRecommendation).where(MachineRecommendation.issue_id == issue_id))).scalars().all()
+    for recommendation in recommendations:
+        recommendation.verification = verification
+        recommendation.status = "VERIFIED" if request.outcome.lower() == "recovered" else "STILL_ABNORMAL"
+    issue.status = "RESOLVED" if request.outcome.lower() == "recovered" else "RE_OCCURRENCE"
+    if issue.status == "RESOLVED":
+        issue.resolved_at = datetime.utcnow()
+    await db.commit()
+    return {"status": issue.status, "issue_id": issue_id}
 
 @router.get("/api/telemetry")
 async def get_telemetry(db: AsyncSession = Depends(get_db)):
