@@ -16,6 +16,7 @@ from app.db import (
     MachineIssue,
     MachineMonitoringState,
     MachineRecommendation,
+    MachineThresholdConfig,
 )
 from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
 from app.llm_gateway import execute_completion
@@ -77,6 +78,59 @@ def _snapshot(telemetry: Dict[str, Any]) -> Dict[str, Any]:
         "window_minutes": MONITORING_WINDOW_MINUTES,
         "metrics": metrics,
         "captured_at": _now().isoformat(),
+    }
+
+
+async def _apply_machine_thresholds(session: AsyncSession, telemetry: Dict[str, Any]) -> Dict[str, Any]:
+    machine_code = telemetry.get("code")
+    row = (await session.execute(
+        select(MachineThresholdConfig).where(MachineThresholdConfig.machine_code == machine_code)
+    )).scalars().first()
+    if not row or not isinstance(row.parameters, dict):
+        return telemetry
+
+    for metric in telemetry.get("liveMetrics", []):
+        threshold = row.parameters.get(metric.get("key"), {})
+        if not isinstance(threshold, dict) or not threshold:
+            continue
+        minimum = threshold.get("min")
+        maximum = threshold.get("max")
+        warning = threshold.get("warning_high")
+        critical = threshold.get("critical_high")
+        metric["min"] = minimum
+        metric["max"] = maximum
+        metric["normalRange"] = [minimum, maximum] if minimum is not None and maximum is not None else None
+        metric["warningThreshold"] = warning
+        metric["criticalThreshold"] = critical
+        metric["threshold"] = warning
+        value = metric.get("value")
+        metric["status"] = (
+            "critical" if value is not None and critical is not None and value >= critical
+            else "warning" if value is not None and warning is not None and value >= warning
+            else "normal" if value is not None else "unavailable"
+        )
+
+    monitored = [metric for metric in telemetry.get("liveMetrics", []) if metric.get("value") is not None]
+    telemetry["status"] = (
+        "Critical" if any(metric["status"] == "critical" for metric in monitored)
+        else "Warning" if any(metric["status"] == "warning" for metric in monitored)
+        else "Healthy"
+    )
+    telemetry["healthScore"] = max(0, min(100, round(100 - sum(
+        35 if metric["status"] == "critical" else 15 if metric["status"] == "warning" else 0
+        for metric in monitored
+    ))))
+    return telemetry
+
+
+def _threshold_context(snapshot: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    return {
+        key: {
+            "normal_range": value.get("normal_range"),
+            "warning_threshold": value.get("warning_threshold"),
+            "critical_threshold": value.get("critical_threshold"),
+        }
+        for key, value in snapshot.get("metrics", {}).items()
     }
 
 
@@ -156,6 +210,7 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
         and existing.snapshot_context is not None
         and existing.baseline_context is not None
         and existing.llm_trace is not None
+        and _threshold_context(existing.baseline_context) == _threshold_context(snapshot)
     ):
         return
     prompt = json.dumps({"machine": telemetry, "baseline": snapshot}, default=str)
@@ -253,6 +308,7 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
 async def monitor_machine(session: AsyncSession, telemetry: Dict[str, Any]) -> None:
     machine_code = telemetry["code"]
     now = _now()
+    telemetry = await _apply_machine_thresholds(session, telemetry)
     snapshot = _snapshot(telemetry)
     operational_state = _operational_state(snapshot)
     condition = _state_from_snapshot(snapshot)
