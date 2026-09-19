@@ -56,6 +56,14 @@ const METRIC_THEME: Record<
 
 const DEFAULT_THEME = METRIC_THEME.rpm;
 
+const signalGroupFor = (metric: { key: string; label: string; unit: string }) => {
+  const descriptor = `${metric.key} ${metric.label}`.toLowerCase();
+  const unit = metric.unit.trim().toLowerCase();
+  if (unit === 'v' || unit === 'kv' || descriptor.includes('voltage')) return 'Voltage';
+  if (unit === 'a' || unit === 'ka' || descriptor.includes('current') || descriptor.includes('amp')) return 'Current';
+  return 'Other signals';
+};
+
 /* ------------------------------------------------------------------ */
 /*  Semicircle gauge dial — gold/black theme, used in Thresholds panel */
 /* ------------------------------------------------------------------ */
@@ -266,6 +274,14 @@ export const MachineDetailPage: React.FC = () => {
   const statusColor = STATUS_COLOR[machine.status];
   const currentMetricObj = machine.liveMetrics.find((m) => m.key === selectedMetric) || machine.liveMetrics[0];
 
+  const metricGroups = machine.liveMetrics.reduce<Array<{ label: string; metrics: typeof machine.liveMetrics }>>((groups, metric) => {
+    const label = signalGroupFor(metric);
+    const group = groups.find((item) => item.label === label);
+    if (group) group.metrics.push(metric);
+    else groups.push({ label, metrics: [metric] });
+    return groups;
+  }, []);
+
   if (!currentMetricObj) {
     return <div className="p-6 text-sm text-slate-500">No telemetry signals are configured in InfluxDB.</div>;
   }
@@ -432,8 +448,15 @@ export const MachineDetailPage: React.FC = () => {
                     <ArrowDown className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                  {machine.liveMetrics.map((m) => {
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                  {metricGroups.map((group) => (
+                    <section key={group.label} className="rounded-2xl border border-slate-200/90 bg-white/70 p-3 shadow-[0_4px_18px_-12px_rgba(15,23,42,0.35)]">
+                      <div className="mb-2 flex items-center justify-between border-b border-slate-100 px-1 pb-2">
+                        <h3 className="font-head text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">{group.label}</h3>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500">{group.metrics.length}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                      {group.metrics.map((m) => {
                     const liveVal = m.value ?? 0;
                     const liveStatus = m.status;
                     const isSelected = selectedMetric === m.key;
@@ -459,7 +482,7 @@ export const MachineDetailPage: React.FC = () => {
                         onClick={() => handleSelectMetric(m.key)}
                         whileHover={{ y: -3 }}
                         whileTap={{ scale: 0.98 }}
-                        className="relative rounded-xl p-3 border flex flex-col items-center text-center cursor-pointer transition-shadow"
+                        className="relative min-w-0 rounded-xl border p-2.5 flex flex-col items-center text-center cursor-pointer transition-all"
                         style={{
                           borderColor: isSelected ? '#159b78' : '#cbd5d1',
                           background: 'linear-gradient(160deg, #f6faf8 0%, #ffffff 100%)',
@@ -492,12 +515,15 @@ export const MachineDetailPage: React.FC = () => {
                           {liveStatus}
                         </div>
 
-                        <div className="text-[9px] mt-1 opacity-70" style={{ color: '#64748b' }}>
+                        <div className="truncate text-[9px] mt-1 opacity-70" style={{ color: '#64748b' }}>
                           {configuredRange ? `Normal: ${configuredRange[0]}-${configuredRange[1]}` : 'No threshold configured'}
                         </div>
                       </motion.div>
-                    );
-                  })}
+                      );
+                    })}
+                      </div>
+                    </section>
+                  ))}
                 </div>
               </div>
 
