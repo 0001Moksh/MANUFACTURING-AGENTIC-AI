@@ -164,10 +164,10 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
       {/* Header: code + type / status badge */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-baseline gap-2 min-w-0">
-          <span className="font-mono text-[17px] font-extrabold tracking-tight text-ink">{machine.code}</span>
+          {/* <span className="font-mono text-[17px] font-extrabold tracking-tight text-ink">{machine.code}</span> */}
           {machine.type && (
-            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-teal">
-              {machine.type}
+            <span className="truncate text-[20px] font-bold uppercase tracking-wider text-teal">
+{sanitizedMachineName}
             </span>
           )}
         </div>
@@ -181,7 +181,6 @@ export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) 
 
       {/* Name + gateway */}
       <div className="min-w-0">
-        <h3 className="truncate font-head text-[14px] font-bold leading-tight text-ink">{sanitizedMachineName}</h3>
         {gateway && <p className="mt-0.5 truncate text-[10px] text-slate-400">Gateway: {gateway}</p>}
       </div>
 

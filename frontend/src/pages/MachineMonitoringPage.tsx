@@ -106,11 +106,6 @@ export const MachineMonitoringPage: React.FC = () => {
           Live InfluxDB telemetry unavailable: {error}
         </div>
       )}
-      {loading && machines.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
-          Loading live telemetry from InfluxDB...
-        </div>
-      )}
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
