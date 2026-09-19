@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  Thermometer, Zap, Activity, Gauge, RotateCw,
-  AlertTriangle, WifiOff, Bot, ChevronRight, Clock, MoreHorizontal
-} from 'lucide-react';
+import { Thermometer, Zap, Activity, AlertTriangle } from 'lucide-react';
 import type { Machine, MachineStatus, LiveMetric } from '../../data/machineMonitoringData';
 
-// ─── Status helpers ───────────────────────────────────────────────────────────
+// ─── Status helpers (imported by MachineDetailPage) ───────────────────────────
 export const STATUS_COLOR: Record<MachineStatus, string> = {
   Healthy: '#1FA971',
   Warning: '#F59E0B',
@@ -29,28 +26,7 @@ export const HEALTH_COLOR = (score: number, status: MachineStatus) => {
   return '#E24C4C';
 };
 
-const METRIC_ICONS: Record<string, React.FC<{ className?: string; style?: React.CSSProperties }>> = {
-  temperature: Thermometer,
-  vibration: Activity,
-  current: Zap,
-  power: Gauge,
-  rpm: RotateCw,
-};
-
-const METRIC_STATUS_COLOR: Record<string, string> = {
-  normal: '#1FA971',
-  warning: '#F59E0B',
-  critical: '#E24C4C',
-};
-
-const AGENT_STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  Idle: { bg: 'rgba(31,169,113,0.12)', text: '#1FA971' },
-  Investigating: { bg: 'rgba(245,158,11,0.12)', text: '#F59E0B' },
-  'Issue Generated': { bg: 'rgba(226,76,76,0.12)', text: '#E24C4C' },
-  Monitoring: { bg: 'rgba(0,169,174,0.12)', text: '#00A9AE' },
-};
-
-// ─── Health Ring ──────────────────────────────────────────────────────────────
+// ─── Health Ring (still used by MachineDetailPage) ────────────────────────────
 export const HealthRing: React.FC<{ score: number; status: MachineStatus; size?: number }> = ({
   score,
   status,
@@ -99,31 +75,56 @@ export const HealthRing: React.FC<{ score: number; status: MachineStatus; size?:
   );
 };
 
-// ─── Compact Metric Tile ──────────────────────────────────────────────────────
-const MetricTile: React.FC<{ metric: LiveMetric }> = ({ metric }) => {
-  const Icon = METRIC_ICONS[metric.key] || Activity;
-  const color = METRIC_STATUS_COLOR[metric.status] || '#1FA971';
-
-  return (
-    <div
-      className="rounded-xl px-2.5 py-2 flex flex-col gap-1.5 bg-slate-50/80 border border-slate-200/70 hover:border-slate-300 transition-colors"
-      style={{ borderLeft: `3px solid ${color}` }}
-    >
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-[9.5px] font-bold uppercase tracking-wide text-slate-400 truncate">
-          {metric.label}
-        </span>
-        <Icon className="w-3 h-3 shrink-0 opacity-70" style={{ color }} />
-      </div>
-      <div className="font-mono text-[13px] font-bold leading-none" style={{ color }}>
-        {metric.value === null ? 'N/A' : metric.value}
-        <span className="text-[9px] font-medium text-slate-400 ml-0.5">{metric.unit}</span>
-      </div>
-    </div>
+// ─── Metric picking ───────────────────────────────────────────────────────────
+const tokensOf = (m: LiveMetric) =>
+  new Set(
+    `${m.key} ${m.label}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(' ')
   );
+
+const isAvg = (t: Set<string>) => t.has('avg') || t.has('average');
+
+const pickMetric = (
+  metrics: LiveMetric[],
+  base: string[],
+  prefer: (t: Set<string>) => boolean
+): LiveMetric | undefined => {
+  const info = metrics.map((m) => ({ m, t: tokensOf(m) }));
+  const candidates = info.filter(({ t }) => base.some((b) => t.has(b)));
+  return (candidates.find(({ t }) => prefer(t)) ?? candidates[0])?.m;
 };
 
-// ─── Machine Card (Light Theme) ───────────────────────────────────────────────
+const fmt = (v: number | null | undefined) =>
+  v === null || v === undefined ? 'N/A' : String(Math.round(v * 10) / 10);
+
+// ─── Small stat tile ──────────────────────────────────────────────────────────
+const StatTile: React.FC<{
+  label: string;
+  icon: React.ElementType;
+  iconColor: string;
+  valueColor: string;
+  metric?: LiveMetric;
+  caption: string;
+}> = ({ label, icon: Icon, iconColor, valueColor, metric, caption }) => (
+  <div className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-2">
+    <div className="flex items-center gap-1">
+      <Icon className="h-3 w-3 shrink-0" style={{ color: iconColor }} />
+      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
+    </div>
+    <div className="font-mono text-[15px] font-extrabold leading-none" style={{ color: valueColor }}>
+      {fmt(metric?.value)}
+      {metric && metric.value !== null && (
+        <span className="ml-0.5 text-[10px] font-semibold text-slate-500">{metric.unit}</span>
+      )}
+    </div>
+    <span className="text-[9px] text-slate-400">{caption}</span>
+  </div>
+);
+
+// ─── Machine Card ─────────────────────────────────────────────────────────────
 interface MachineCardProps {
   machine: Machine;
   delay?: number;
@@ -132,156 +133,94 @@ interface MachineCardProps {
 
 export const MachineCard: React.FC<MachineCardProps> = ({ machine, delay = 0 }) => {
   const navigate = useNavigate();
-  const sanitizedMachineName = machine.name.replace(/^InfluxDB\s+Machine\s*/i, '').trim();
+  const sanitizedMachineName = machine.name.replace(/^InfluxDB\s+Machine\s*/i, '').trim() || machine.code;
   const statusColor = STATUS_COLOR[machine.status];
-  const agentStyle = AGENT_STATUS_COLOR[machine.agentStatus] || AGENT_STATUS_COLOR.Idle;
-  const [, setTick] = useState(0);
 
-  useEffect(() => {
-    if (machine.status === 'Offline') return;
-    const interval = setInterval(() => setTick((t) => t + 1), 3000);
-    return () => clearInterval(interval);
-  }, [machine.status]);
+  // Optional fields — adjust to your Machine type if they are named differently
+  const extra = machine as Machine & { gateway?: string; operationalState?: string };
+  const gateway = extra.gateway;
+  const badgeText = (extra.operationalState || machine.status).toString().toUpperCase();
 
-  // Show first 8 metrics to keep the card reasonable height
-  const MAX_VISIBLE = 8;
-  const visibleMetrics = machine.liveMetrics.slice(0, MAX_VISIBLE);
-  const remainingCount = Math.max(0, machine.liveMetrics.length - MAX_VISIBLE);
+  const voltage = pickMetric(machine.liveMetrics, ['voltage'], isAvg);
+  const current = pickMetric(machine.liveMetrics, ['current'], isAvg);
+  const temp = pickMetric(
+    machine.liveMetrics,
+    ['temperature', 'temp'],
+    (t) => t.has('motor')
+  );
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -5, boxShadow: `0 20px 40px -12px ${statusColor}40` }}
+      whileHover={{ y: -4, boxShadow: `0 16px 32px -12px ${statusColor}40` }}
       onClick={() => navigate(`/machine-monitoring/${machine.id}`)}
-      className="relative flex flex-col justify-between cursor-pointer overflow-hidden rounded-[20px] p-[18px] group bg-white border border-slate-200/90 shadow-[0_4px_20px_-8px_rgba(15,23,42,0.1)] hover:border-slate-300 transition-colors"
+      className="relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 pl-5 shadow-[0_4px_16px_-8px_rgba(15,23,42,0.12)] transition-colors hover:border-slate-300"
     >
-      {/* Top status accent line */}
-      <div
-        className="absolute inset-x-0 top-0 h-[3px]"
-        style={{
-          background: `linear-gradient(90deg, ${statusColor}, ${statusColor}55, transparent)`,
-        }}
-      />
+      {/* Left accent bar */}
+      <div className="absolute inset-y-0 left-0 w-1" style={{ background: statusColor }} />
 
-      {/* Soft corner glow on hover */}
-      <div
-        className="pointer-events-none absolute -top-12 -right-12 w-36 h-36 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"
-        style={{ background: `${statusColor}22` }}
-      />
-
-      {/* ── Header ── */}
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <HealthRing score={machine.healthScore} status={machine.status} size={52} />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-head text-[15px] font-bold text-ink leading-tight truncate group-hover:text-teal transition-colors">
-                  {sanitizedMachineName || machine.code}
-                </h3>
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 border border-slate-200/80 shrink-0">
-                  {machine.code}
-                </span>
-              </div>
-              <p className="text-[11.5px] text-muted font-medium mt-0.5 truncate">
-                {/* {machine.plant} · {machine.line} */}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span
-              className="text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm"
-              style={{
-                background: STATUS_BG[machine.status],
-                color: statusColor,
-                border: `1px solid ${statusColor}33`,
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: statusColor }}
-              />
-              {machine.status}
+      {/* Header: code + type / status badge */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <span className="font-mono text-[17px] font-extrabold tracking-tight text-ink">{machine.code}</span>
+          {machine.type && (
+            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-teal">
+              {machine.type}
             </span>
-
-            <span className="text-[10.5px] text-muted flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {new Date(machine.lastUpdated).toLocaleString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true,
-              })}
-            </span>
-          </div>
+          )}
         </div>
-
-        {/* ── Compact Metrics Grid ── */}
-        {visibleMetrics.length > 0 && (
-          <div className="mb-3">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {visibleMetrics.map((m) => (
-                <MetricTile key={m.key} metric={m} />
-              ))}
-            </div>
-
-            {remainingCount > 0 && (
-              <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-400">
-                <MoreHorizontal className="w-3.5 h-3.5" />
-                <span>+{remainingCount} more sensors</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Issue / Status Banner ── */}
-        {machine.activeIssues > 0 ? (
-          <div className="rounded-xl px-3 py-2.5 flex items-center justify-between gap-2 mb-1 bg-gradient-to-r from-rose-50 to-rose-50/40 border border-rose-200/80">
-            <div className="flex items-center gap-2 min-w-0">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-              <span className="text-[11.5px] font-medium text-rose-800/90 truncate">
-                {machine.lastIssueText || `${machine.activeIssues} active alert(s)`}
-              </span>
-            </div>
-            <span className="text-[10.5px] font-bold font-mono text-rose-600 bg-rose-100 px-2 py-0.5 rounded-md shrink-0 border border-rose-200">
-              {machine.activeIssues} Active
-            </span>
-          </div>
-        ) : machine.status === 'Offline' ? (
-          <div className="rounded-xl px-3 py-2.5 flex items-center gap-2 mb-1 bg-slate-50 border border-slate-200 text-slate-500 text-[11.5px]">
-            <WifiOff className="w-3.5 h-3.5 shrink-0" />
-            <span>Machine offline / non-communicating</span>
-          </div>
-        ) : (
-          <div className="rounded-xl px-3 py-2.5 flex items-center gap-2 mb-1 bg-gradient-to-r from-emerald-50 to-emerald-50/30 border border-emerald-200/80 text-emerald-800 text-[11.5px]">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            <span>Telemetry baseline nominal · 0 anomalies</span>
-          </div>
-        )}
+        <span
+          className="shrink-0 rounded px-2 py-0.5 text-[10px] font-extrabold tracking-wide"
+          style={{ background: STATUS_BG[machine.status], color: statusColor, border: `1px solid ${statusColor}40` }}
+        >
+          {badgeText}
+        </span>
       </div>
 
-      {/* ── Footer ── */}
-      <div className="relative mt-4 pt-3.5 flex items-center justify-between border-t border-slate-100">
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: agentStyle.bg }}
-          >
-            <Bot className="w-3 h-3" style={{ color: agentStyle.text }} />
-          </span>
-          <span className="text-[11px] font-medium text-muted truncate">{machine.agentStatus}</span>
-        </div>
-
-        <div className="flex items-center gap-1 text-[12px] font-bold text-teal group-hover:translate-x-1 transition-transform">
-          <span>Details & Telemetry</span>
-          <ChevronRight className="w-3.5 h-3.5" />
-        </div>
+      {/* Name + gateway */}
+      <div className="min-w-0">
+        <h3 className="truncate font-head text-[14px] font-bold leading-tight text-ink">{sanitizedMachineName}</h3>
+        {gateway && <p className="mt-0.5 truncate text-[10px] text-slate-400">Gateway: {gateway}</p>}
       </div>
+
+      {/* Stat tiles */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatTile
+          label="Voltage"
+          icon={Zap}
+          iconColor="#E7A93A"
+          valueColor="#D9822B"
+          metric={voltage}
+          caption="Average"
+        />
+        <StatTile
+          label="Current"
+          icon={Activity}
+          iconColor="#4C86F0"
+          valueColor="#2A5DBB"
+          metric={current}
+          caption="Average"
+        />
+        <StatTile
+          label="Temp"
+          icon={Thermometer}
+          iconColor="#F4785A"
+          valueColor="#0F7A54"
+          metric={temp}
+          caption="Motor"
+        />
+      </div>
+
+      {/* Active issues chip (only when there are any) */}
+      {machine.activeIssues > 0 && (
+        <div className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-medium text-rose-700">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">{machine.lastIssueText || 'Active alert'}</span>
+          <span className="ml-auto shrink-0 font-mono font-bold">{machine.activeIssues} active</span>
+        </div>
+      )}
     </motion.div>
   );
 };

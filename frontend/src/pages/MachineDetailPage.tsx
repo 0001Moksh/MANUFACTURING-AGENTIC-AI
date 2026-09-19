@@ -354,8 +354,6 @@ export const MachineDetailPage: React.FC = () => {
         <div className="relative flex items-center gap-5 lg:border-l lg:border-slate-200 lg:pl-7 shrink-0 pt-5 lg:pt-0 border-t lg:border-t-0">
           <KPI label="Active Issues" value={activeIssueCount} accent={activeIssueCount > 0 ? '#E24C4C' : '#059669'} />
           <Divider />
-          <KPI label="OEE Impact" value="N/A" accent="#0F172A" />
-          <Divider />
           <div className="text-center">
             <div className="text-[10px] text-muted uppercase font-bold tracking-wider">Agent Status</div>
             <div className="font-mono text-xs font-bold text-teal mt-1.5 flex items-center gap-1.5 justify-center bg-teal/10 px-2.5 py-1 rounded-full border border-teal/20">
