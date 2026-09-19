@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Bot, MapPin, Wrench, Shield, FileText, Sparkles, Activity,
-  Thermometer, Zap, Plug, Gauge as RpmIcon, ArrowDown
+  Thermometer, Zap, Plug, Gauge as RpmIcon
 } from 'lucide-react';
 import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
@@ -55,14 +55,6 @@ const METRIC_THEME: Record<
 };
 
 const DEFAULT_THEME = METRIC_THEME.rpm;
-
-const signalGroupFor = (metric: { key: string; label: string; unit: string }) => {
-  const descriptor = `${metric.key} ${metric.label}`.toLowerCase();
-  const unit = metric.unit.trim().toLowerCase();
-  if (unit === 'v' || unit === 'kv' || descriptor.includes('voltage')) return 'Voltage';
-  if (unit === 'a' || unit === 'ka' || descriptor.includes('current') || descriptor.includes('amp')) return 'Current';
-  return 'Other signals';
-};
 
 /* ------------------------------------------------------------------ */
 /*  Semicircle gauge dial — gold/black theme, used in Thresholds panel */
@@ -215,12 +207,7 @@ export const MachineDetailPage: React.FC = () => {
   }, [id, storeMachines]);
 
   const [activeTab, setActiveTab] = useState<'telemetry' | 'agent' | 'mes' | 'maintenance'>('telemetry');
-  const [selectedMetric, setSelectedMetric] = useState<string>('Temperature');
-    useEffect(() => {
-      if (machine?.liveMetrics.length && !machine.liveMetrics.some((metric) => metric.key === selectedMetric)) {
-        setSelectedMetric(machine.liveMetrics[0].key);
-      }
-    }, [machine, selectedMetric]);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const [aiData, setAiData] = useState<MachineAiPayload | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [actionText, setActionText] = useState('');
@@ -230,21 +217,6 @@ export const MachineDetailPage: React.FC = () => {
   // ---- NEW: scroll the chart into view whenever the user picks a metric ----
   // We only want this to fire on a deliberate click, not on first mount, so we
   // track it with a ref rather than running the scroll on every render.
-  const chartSectionRef = useRef<HTMLDivElement | null>(null);
-  const hasUserSelectedRef = useRef(false);
-
-  const handleSelectMetric = (key: string) => {
-    hasUserSelectedRef.current = true;
-    setSelectedMetric(key);
-  };
-
-  useEffect(() => {
-    if (!hasUserSelectedRef.current) return;
-    // Let the tab-switch/animation settle for a frame before scrolling.
-    requestAnimationFrame(() => {
-      chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, [selectedMetric]);
 
   useEffect(() => {
     let cancelled = false;
@@ -272,19 +244,21 @@ export const MachineDetailPage: React.FC = () => {
   const sanitizedMachineName = machine.name.replace(/^InfluxDB\s+Machine\s*/i, '').trim() || machine.code;
 
   const statusColor = STATUS_COLOR[machine.status];
-  const currentMetricObj = machine.liveMetrics.find((m) => m.key === selectedMetric) || machine.liveMetrics[0];
-
-  const metricGroups = machine.liveMetrics.reduce<Array<{ label: string; metrics: typeof machine.liveMetrics }>>((groups, metric) => {
-    const label = signalGroupFor(metric);
-    const group = groups.find((item) => item.label === label);
-    if (group) group.metrics.push(metric);
-    else groups.push({ label, metrics: [metric] });
-    return groups;
-  }, []);
-
-  if (!currentMetricObj) {
+  const firstMetric = machine.liveMetrics[0];
+  if (!firstMetric) {
     return <div className="p-6 text-sm text-slate-500">No telemetry signals are configured in InfluxDB.</div>;
   }
+  const selectedKeys = selectedMetrics.filter((key) => machine.liveMetrics.some((metric) => metric.key === key));
+  const plottedKeys = selectedKeys.length ? selectedKeys : [firstMetric.key];
+  const MAX_SELECTED = 8;
+  const toggleMetric = (key: string) => {
+    if (plottedKeys.includes(key)) {
+      if (plottedKeys.length === 1) return;
+      setSelectedMetrics(plottedKeys.filter((item) => item !== key));
+      return;
+    }
+    if (plottedKeys.length < MAX_SELECTED) setSelectedMetrics([...plottedKeys, key]);
+  };
 
   const agentStatus = aiData?.state?.agent_state?.replaceAll('_', ' ') || 'LOADING';
   const activeIssue = aiData?.active_issue;
@@ -438,28 +412,14 @@ export const MachineDetailPage: React.FC = () => {
               {/* Signal Cards Selector – gold/black gauge dial style */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-muted">Tap a signal to load it in the chart below.</p>
+                  <p className="text-xs text-muted">Click cards or use the signal list to compare multiple signals on one chart.</p>
                   {/* NEW: explicit jump-to-chart affordance, in case someone doesn't want to wait for auto-scroll */}
-                  <button
-                    onClick={() => chartSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                    className="flex items-center gap-1.5 text-xs font-bold text-teal hover:text-teal-deep transition-colors"
-                  >
-                    Jump to chart
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </button>
                 </div>
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-                  {metricGroups.map((group) => (
-                    <section key={group.label} className="rounded-2xl border border-slate-200/90 bg-white/70 p-3 shadow-[0_4px_18px_-12px_rgba(15,23,42,0.35)]">
-                      <div className="mb-2 flex items-center justify-between border-b border-slate-100 px-1 pb-2">
-                        <h3 className="font-head text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">{group.label}</h3>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500">{group.metrics.length}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                      {group.metrics.map((m) => {
+                  {machine.liveMetrics.map((m) => {
                     const liveVal = m.value ?? 0;
                     const liveStatus = m.status;
-                    const isSelected = selectedMetric === m.key;
+                    const isSelected = plottedKeys.includes(m.key);
                     const theme = METRIC_THEME[m.key] ?? DEFAULT_THEME;
                     const Icon = theme.icon;
 
@@ -479,7 +439,7 @@ export const MachineDetailPage: React.FC = () => {
                     return (
                       <motion.div
                         key={m.key}
-                        onClick={() => handleSelectMetric(m.key)}
+                        onClick={() => toggleMetric(m.key)}
                         whileHover={{ y: -3 }}
                         whileTap={{ scale: 0.98 }}
                         className="relative min-w-0 rounded-xl border p-2.5 flex flex-col items-center text-center cursor-pointer transition-all"
@@ -521,9 +481,6 @@ export const MachineDetailPage: React.FC = () => {
                       </motion.div>
                       );
                     })}
-                      </div>
-                    </section>
-                  ))}
                 </div>
               </div>
 
@@ -536,7 +493,7 @@ export const MachineDetailPage: React.FC = () => {
                   <div className="mb-2 grid grid-cols-[1fr_70px_70px] px-3 text-[10px] font-bold uppercase tracking-wide text-slate-400"><span>Metric</span><span>Value</span><span>Status</span></div>
                   <div className="flex flex-col gap-2">
                     {machine.liveMetrics.slice(0, 6).map((metric) => (
-                      <button key={metric.key} type="button" onClick={() => handleSelectMetric(metric.key)} className="grid grid-cols-[1fr_70px_70px] items-center rounded-xl border border-slate-200 bg-gradient-to-r from-[#f2fbf8] to-white px-3 py-2 text-left hover:border-teal/40">
+                      <button key={metric.key} type="button" onClick={() => toggleMetric(metric.key)} className="grid grid-cols-[1fr_70px_70px] items-center rounded-xl border border-slate-200 bg-gradient-to-r from-[#f2fbf8] to-white px-3 py-2 text-left hover:border-teal/40">
                         <span className="truncate text-[11px] font-semibold text-slate-700">{metric.label} <span className="font-normal text-slate-400">({metric.unit})</span></span>
                         <span className="font-mono text-xs font-extrabold text-slate-800">{metric.value ?? 'N/A'}</span>
                         <span className="flex items-center gap-1 text-[10px] font-bold capitalize text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{metric.status}</span>
@@ -545,43 +502,12 @@ export const MachineDetailPage: React.FC = () => {
                   </div>
                 </div>
 
-              {/* Detailed TimeSeries Chart */}
-              <div
-                ref={chartSectionRef}
-                className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[20px] shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] overflow-hidden scroll-mt-6"
-              >
-                {/* Sticky context strip so it's obvious which signal is being charted, even once the
-                    person has scrolled past the cards. This does not replace TelemetryChart's own
-                    header — it sits above it. */}
-                <div className="sticky top-0 z-10 flex items-center gap-2.5 px-5 py-3 border-b border-slate-100 bg-white/95 backdrop-blur">
-                  {(() => {
-                    const theme = METRIC_THEME[currentMetricObj.key] ?? DEFAULT_THEME;
-                    const Icon = theme.icon;
-                    return <Icon className="w-4 h-4" style={{ color: theme.text }} />;
-                  })()}
-                  <span className="text-sm font-bold text-ink">{currentMetricObj.label}</span>
-                  <span className="text-[11px] text-muted">live InfluxDB signal</span>
-                </div>
-
-                {currentMetricObj.normalRange && currentMetricObj.warningThreshold != null && currentMetricObj.criticalThreshold != null ? (
-                  <TelemetryChart
-                    machineId={machine.id}
-                    metricKey={currentMetricObj.key as any}
-                    metricLabel={currentMetricObj.label}
-                    unit={currentMetricObj.unit}
-                    normalRange={currentMetricObj.normalRange}
-                    warningThreshold={currentMetricObj.warningThreshold}
-                    criticalThreshold={currentMetricObj.criticalThreshold}
-                    initialSeries={currentMetricObj.spark}
-                    availableSignals={machine.liveMetrics}
-                    onSelectSignal={handleSelectMetric}
-                  />
-                ) : (
-                  <div className="p-6 text-sm text-slate-600">
-                    {currentMetricObj.label} has {currentMetricObj.spark.length} real InfluxDB samples. No configured threshold chart is available for this field.
-                  </div>
-                )}
-              </div>
+              <TelemetryChart
+                signals={machine.liveMetrics}
+                selectedKeys={plottedKeys}
+                onToggleSignal={toggleMetric}
+                maxSelected={MAX_SELECTED}
+              />
               </div>
             </div>
           )}

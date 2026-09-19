@@ -1,321 +1,85 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, ReferenceArea
-} from 'recharts';
-import type { LiveMetric, SparkPoint } from '../../data/machineMonitoringData';
+import React, { useMemo, useState } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts';
+import type { LiveMetric } from '../../data/machineMonitoringData';
 
 interface TelemetryChartProps {
-  machineId: string;
-  metricKey: 'temperature' | 'vibration' | 'current' | 'power' | 'rpm';
-  metricLabel: string;
-  unit: string;
-  normalRange: [number, number];
-  warningThreshold: number;
-  criticalThreshold: number;
-  /** Historical points returned by InfluxDB for this metric */
-  initialSeries?: SparkPoint[];
-  availableSignals?: LiveMetric[];
-  onSelectSignal?: (metricKey: string) => void;
-  /** Fires whenever the chart's own live value updates, so parent UI (KPI cards) can stay in sync */
-  onLatestValue?: (value: number) => void;
+  signals: LiveMetric[];
+  selectedKeys: string[];
+  onToggleSignal: (key: string) => void;
+  maxSelected?: number;
 }
 
-const RANGE_MS: Record<'1h' | '6h' | '24h' | '7d', number> = {
-  '1h': 60 * 60 * 1000,
-  '6h': 6 * 60 * 60 * 1000,
-  '24h': 24 * 60 * 60 * 1000,
-  '7d': 7 * 24 * 60 * 60 * 1000,
+type RangeKey = '1h' | '6h' | '24h' | '7d';
+type ScaleMode = 'auto' | 'actual' | 'percent';
+type Series = { key: string; label: string; unit: string; color: string; warning: number | null; critical: number | null; range: [number, number] | null; denominator: number; latest: number | null };
+type Row = { timestamp: number; [key: string]: number };
+
+const RANGE_MS: Record<RangeKey, number> = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '7d': 604800000 };
+const PALETTE = ['#0D9488', '#2563EB', '#D97706', '#9333EA', '#DC2626', '#059669', '#DB2777', '#475569'];
+const STATUS_HEX = { critical: '#DC2626', warning: '#D97706', normal: '#059669' } as const;
+const STATUS_PILL = { critical: 'bg-red-50 text-red-700 border-red-200', warning: 'bg-amber-50 text-amber-700 border-amber-200', normal: 'bg-emerald-50 text-emerald-700 border-emerald-200' } as const;
+
+const formatTick = (value: number | string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
+const numberOrNull = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
+const safeId = (key: string) => key.replace(/[^a-zA-Z0-9_-]/g, '_');
+const statusOf = (value: number | null, warning: number | null, critical: number | null) => value !== null && critical !== null && value > critical ? 'critical' : value !== null && warning !== null && value > warning ? 'warning' : 'normal';
 
-const formatTick = (ts: number | string) => {
-  const d = new Date(ts);
-  if (isNaN(d.getTime())) return String(ts);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-};
+export const TelemetryChart: React.FC<TelemetryChartProps> = ({ signals, selectedKeys, onToggleSignal, maxSelected = 8 }) => {
+  const [timeRange, setTimeRange] = useState<RangeKey>('1h');
+  const [scaleMode, setScaleMode] = useState<ScaleMode>('auto');
 
-export const TelemetryChart: React.FC<TelemetryChartProps> = ({
-  machineId,
-  metricKey,
-  metricLabel,
-  unit,
-  normalRange,
-  warningThreshold,
-  criticalThreshold,
-  initialSeries = [],
-  availableSignals = [],
-  onSelectSignal,
-  onLatestValue,
-}) => {
-  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
+  const series = useMemo<Series[]>(() => selectedKeys.flatMap((key) => {
+    const index = signals.findIndex((signal) => signal.key === key);
+    if (index < 0) return [];
+    const signal = signals[index];
+    const points = signal.spark.map((point) => ({ t: typeof point.t === 'number' ? point.t : new Date(point.t).getTime(), v: Number(point.v) })).filter((point) => Number.isFinite(point.t) && Number.isFinite(point.v));
+    const warning = numberOrNull(signal.warningThreshold);
+    const critical = numberOrNull(signal.criticalThreshold);
+    const max = points.length ? Math.max(...points.map((point) => point.v)) : 0;
+    return [{ key, label: signal.label || key, unit: signal.unit || '', color: PALETTE[index % PALETTE.length], warning, critical, range: Array.isArray(signal.normalRange) && signal.normalRange.length > 1 ? [Number(signal.normalRange[0]), Number(signal.normalRange[1])] : null, denominator: critical ?? warning ?? (max || 1), latest: numberOrNull(signal.value) ?? (points.length ? points[points.length - 1].v : null) }];
+  }), [signals, selectedKeys]);
 
-  // ── Build + filter series ───────────────────────────────────────────────────
-  const data = useMemo(() => {
-    const pointStatus = (value: number): 'normal' | 'warning' | 'critical' =>
-      value > criticalThreshold ? 'critical' : value > warningThreshold ? 'warning' : 'normal';
+  const isMulti = series.length > 1;
+  const unitsDiffer = new Set(series.map((item) => item.unit)).size > 1;
+  const percentMode = isMulti && (scaleMode === 'percent' || (scaleMode === 'auto' && unitsDiffer));
 
-    if (!initialSeries.length) return [];
+  const data = useMemo<Row[]>(() => {
+    const points = selectedKeys.flatMap((key) => {
+      const signal = signals.find((item) => item.key === key);
+      return signal?.spark.map((point) => ({ key, t: typeof point.t === 'number' ? point.t : new Date(point.t).getTime(), v: Number(point.v) })) ?? [];
+    }).filter((point) => Number.isFinite(point.t) && Number.isFinite(point.v));
+    if (!points.length) return [];
+    const cutoff = Math.max(...points.map((point) => point.t)) - RANGE_MS[timeRange];
+    const rows = new Map<number, Row>();
+    points.forEach((point) => {
+      if (point.t < cutoff) return;
+      const timestamp = Math.round(point.t / 1000) * 1000;
+      const row = rows.get(timestamp) ?? { timestamp };
+      const info = series.find((item) => item.key === point.key);
+      row[point.key] = percentMode ? (point.v / (info?.denominator ?? 1)) * 100 : point.v;
+      row[`${point.key}__raw`] = point.v;
+      rows.set(timestamp, row);
+    });
+    return [...rows.values()].sort((left, right) => left.timestamp - right.timestamp);
+  }, [signals, selectedKeys, series, timeRange, percentMode]);
 
-    // Convert to numeric timestamps for reliable filtering
-    const parsed = initialSeries
-      .map((p) => {
-        const t = typeof p.t === 'number' ? p.t : new Date(p.t).getTime();
-        return { raw: p, t, v: p.v };
-      })
-      .filter((p) => !isNaN(p.t));
+  const single = series.length === 1 ? series[0] : null;
+  const dataMax = data.length ? Math.max(0, ...data.flatMap((row) => series.map((item) => typeof row[item.key] === 'number' ? row[item.key] : 0))) : 0;
+  const yMax = percentMode ? Math.max(120, Math.ceil(dataMax * 1.05)) : single?.critical !== null && single?.critical !== undefined ? Math.min(Math.max(single.critical * 1.15, dataMax * 1.08), single.critical * 1.6) : dataMax > 0 ? dataMax * 1.1 : 1;
+  const singleStatus = single ? statusOf(single.latest, single.warning, single.critical) : 'normal';
+  const lineColor = (item: Series) => single ? STATUS_HEX[singleStatus] : item.color;
 
-    if (!parsed.length) return [];
-
-    const newest = Math.max(...parsed.map((p) => p.t));
-    const cutoff = newest - RANGE_MS[timeRange];
-
-    return parsed
-      .filter((p) => p.t >= cutoff)
-      .map((p) => ({
-        timestamp: p.t,
-        value: p.v,
-        status: pointStatus(p.v),
-      }));
-  }, [initialSeries, criticalThreshold, warningThreshold, timeRange]);
-
-  // ── Live value reporting ────────────────────────────────────────────────────
-  const latestVal = data.length > 0 ? data[data.length - 1].value : 0;
-  const onLatestValueRef = useRef(onLatestValue);
-  const lastReportedValRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    onLatestValueRef.current = onLatestValue;
-  }, [onLatestValue]);
-
-  useEffect(() => {
-    lastReportedValRef.current = null;
-  }, [machineId, metricKey]);
-
-  useEffect(() => {
-    if (data.length > 0) {
-      const latest = data[data.length - 1].value;
-      if (lastReportedValRef.current !== latest) {
-        lastReportedValRef.current = latest;
-        onLatestValueRef.current?.(latest);
-      }
-    }
-  }, [data]);
-
-  // ── Colors & domains ────────────────────────────────────────────────────────
-  const isCritical = latestVal > criticalThreshold;
-  const isWarning = latestVal > warningThreshold;
-  const chartColor = isCritical ? '#DC2626' : isWarning ? '#D97706' : '#0D9488';
-  const statusLabel = isCritical ? 'Critical' : isWarning ? 'Warning' : 'Normal';
-  const statusBg = isCritical
-    ? 'bg-red-50 text-red-700 border-red-200'
-    : isWarning
-    ? 'bg-amber-50 text-amber-700 border-amber-200'
-    : 'bg-emerald-50 text-emerald-700 border-emerald-200';
-
-  const dataMax = data.length ? Math.max(...data.map((d) => d.value)) : criticalThreshold;
-  const reasonableCeiling = criticalThreshold * 1.6;
-  const yMax = Math.min(Math.max(criticalThreshold * 1.15, dataMax * 1.08), reasonableCeiling);
-  const yMin = 0;
-
-  return (
-    <div className="bg-white border border-slate-200/90 rounded-[18px] shadow-[0_4px_24px_-8px_rgba(15,23,42,0.08)] overflow-hidden">
-      {/* ── Header ── */}
-      <div className="px-5 pt-4 pb-3 border-b border-slate-100">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h4 className="font-head font-bold text-slate-800 text-[16px] tracking-tight">
-                {metricLabel}
-              </h4>
-              <span
-                className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${statusBg}`}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: chartColor }}
-                />
-                {statusLabel}
-              </span>
-            </div>
-
-            <div className="flex items-baseline gap-2 mt-1.5">
-              <span className="font-mono text-[22px] font-bold tracking-tight" style={{ color: chartColor }}>
-                {latestVal}
-              </span>
-              <span className="text-sm font-medium text-slate-400">{unit}</span>
-            </div>
-
-            <p className="text-[11.5px] text-slate-500 mt-1.5 leading-relaxed">
-              Normal {normalRange[0]}–{normalRange[1]} {unit}
-              <span className="mx-1.5 text-slate-300">·</span>
-              Warn &gt; {warningThreshold}
-              <span className="mx-1.5 text-slate-300">·</span>
-              Crit &gt; {criticalThreshold}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Source badge */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              INFLUXDB
-            </div>
-
-            {/* Time range segmented control */}
-            <div className="flex items-center bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/80 text-[12px] font-medium">
-              {(['1h', '6h', '24h', '7d'] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setTimeRange(r)}
-                  className={`px-3 py-1.5 rounded-lg transition-all duration-200 ${
-                    timeRange === r
-                      ? 'bg-white text-slate-800 font-bold shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[190px_minmax(0,1fr)]">
-        <aside className="border-b lg:border-b-0 lg:border-r border-slate-100 p-4">
-          <div className="mb-3 text-[11px] font-extrabold uppercase tracking-wide text-slate-700">Signal list</div>
-          <div className="flex flex-col gap-1.5">
-            {availableSignals.map((signal) => {
-              const selected = signal.key === metricKey;
-              return (
-                <button
-                  key={signal.key}
-                  type="button"
-                  onClick={() => onSelectSignal?.(signal.key)}
-                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors ${selected ? 'bg-teal/10 text-teal-deep font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-                >
-                  <span className={`flex h-3.5 w-3.5 items-center justify-center rounded border text-[9px] ${selected ? 'border-teal bg-teal text-white' : 'border-slate-300 bg-white'}`}>{selected ? '✓' : ''}</span>
-                  <span className="truncate">{signal.label} ({signal.unit})</span>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
-
-        {/* ── Chart ── */}
-        <div className="px-2 sm:px-4 pb-4 pt-3">
-        <div className="h-[285px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 12, right: 12, left: -12, bottom: 4 }}>
-              <defs>
-                <linearGradient id={`grad-${metricKey}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={chartColor} stopOpacity={0.22} />
-                  <stop offset="95%" stopColor={chartColor} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-
-              {/* Soft zone bands */}
-              <ReferenceArea y1={yMin} y2={normalRange[1]} fill="#059669" fillOpacity={0.05} strokeWidth={0} />
-              <ReferenceArea y1={normalRange[1]} y2={warningThreshold} fill="#D97706" fillOpacity={0.06} strokeWidth={0} />
-              <ReferenceArea y1={warningThreshold} y2={yMax} fill="#DC2626" fillOpacity={0.07} strokeWidth={0} />
-
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-
-              <XAxis
-                dataKey="timestamp"
-                tickFormatter={formatTick}
-                tick={{ fontSize: 11, fill: '#64748B' }}
-                tickLine={false}
-                axisLine={{ stroke: '#CBD5E1' }}
-                minTickGap={40}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: '#64748B' }}
-                tickLine={false}
-                axisLine={{ stroke: '#CBD5E1' }}
-                domain={[yMin, yMax]}
-                width={42}
-              />
-
-              <Tooltip
-                content={({ active, payload, label }) => {
-                  if (!active || !payload?.length) return null;
-                  const val = payload[0].value as number;
-                  const status =
-                    val > criticalThreshold ? 'Critical' : val > warningThreshold ? 'Warning' : 'Normal';
-                  const stColor =
-                    val > criticalThreshold ? '#DC2626' : val > warningThreshold ? '#D97706' : '#059669';
-
-                  return (
-                    <div className="bg-white/95 backdrop-blur-sm text-slate-800 px-3.5 py-2.5 rounded-xl shadow-xl text-xs border border-slate-200/80">
-                      <div className="text-slate-400 mb-1.5 font-medium">
-                        {formatTick(label as number)}
-                      </div>
-                      <div className="flex items-center justify-between gap-6">
-                        <span className="font-medium text-slate-600">{metricLabel}</span>
-                        <span className="font-mono font-bold text-[13px]" style={{ color: stColor }}>
-                          {val} {unit}
-                        </span>
-                      </div>
-                      <div className="mt-1.5 text-[10.5px] font-bold uppercase tracking-wide" style={{ color: stColor }}>
-                        {status}
-                      </div>
-                    </div>
-                  );
-                }}
-              />
-
-              {/* Threshold lines */}
-              <ReferenceLine
-                y={warningThreshold}
-                stroke="#D97706"
-                strokeDasharray="5 4"
-                strokeWidth={1.5}
-                label={{
-                  value: `Warn ${warningThreshold}`,
-                  fill: '#D97706',
-                  fontSize: 10,
-                  position: 'insideTopRight',
-                  fontWeight: 600,
-                }}
-              />
-              <ReferenceLine
-                y={criticalThreshold}
-                stroke="#DC2626"
-                strokeDasharray="5 4"
-                strokeWidth={1.5}
-                label={{
-                  value: `Crit ${criticalThreshold}`,
-                  fill: '#DC2626',
-                  fontSize: 10,
-                  position: 'insideTopRight',
-                  fontWeight: 600,
-                }}
-              />
-
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={chartColor}
-                strokeWidth={2.5}
-                fill={`url(#grad-${metricKey})`}
-                dot={false}
-                activeDot={{
-                  r: 5,
-                  fill: chartColor,
-                  stroke: '#fff',
-                  strokeWidth: 2.5,
-                }}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        </div>
-      </div>
+  return <div className="overflow-hidden rounded-[18px] border border-slate-200/90 bg-white shadow-[0_4px_24px_-8px_rgba(15,23,42,0.08)]">
+    <div className="border-b border-slate-100 px-5 pb-3 pt-4"><div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+      <div className="min-w-0">{single ? <><div className="flex flex-wrap items-center gap-2.5"><h4 className="font-head text-[16px] font-bold tracking-tight text-slate-800">{single.label}</h4><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${STATUS_PILL[singleStatus]}`}><span className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_HEX[singleStatus] }} />{singleStatus}</span></div><div className="mt-1.5 flex items-baseline gap-2"><span className="font-mono text-[22px] font-bold" style={{ color: STATUS_HEX[singleStatus] }}>{single.latest ?? 'N/A'}</span><span className="text-sm text-slate-400">{single.unit}</span></div><p className="mt-1.5 text-[11.5px] text-slate-500">{single.range ? `Normal ${single.range[0]}-${single.range[1]} ${single.unit}` : 'No normal range configured'}{single.warning !== null && <> <span className="mx-1.5 text-slate-300">·</span>Warn &gt; {single.warning}</>}{single.critical !== null && <> <span className="mx-1.5 text-slate-300">·</span>Crit &gt; {single.critical}</>}</p></> : <><h4 className="font-head text-[16px] font-bold tracking-tight text-slate-800">Comparing {series.length} signals</h4><div className="mt-2 flex flex-wrap gap-1.5">{series.map((item) => { const status = statusOf(item.latest, item.warning, item.critical); return <span key={item.key} className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px]"><span className="h-2 w-2 rounded-full" style={{ background: item.color }} />{item.label}<b style={{ color: STATUS_HEX[status] }}>{item.latest ?? 'N/A'} {item.unit}</b></span>; })}</div>{percentMode && <p className="mt-2 text-[11px] text-slate-500">Showing % of critical limit. 100% equals the critical threshold.</p>}</>}</div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2.5"><span className="hidden items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 font-mono text-[11px] font-semibold text-emerald-700 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500" />INFLUXDB</span>{isMulti && <div className="flex items-center rounded-xl border border-slate-200/80 bg-slate-100/80 p-0.5 text-[12px]">{(['auto', 'actual', 'percent'] as const).map((mode) => <button key={mode} onClick={() => setScaleMode(mode)} className={`rounded-lg px-3 py-1.5 ${scaleMode === mode ? 'bg-white font-bold text-slate-800 shadow-sm' : 'text-slate-500'}`}>{mode === 'percent' ? '% of limit' : mode[0].toUpperCase() + mode.slice(1)}</button>)}</div>}<div className="flex items-center rounded-xl border border-slate-200/80 bg-slate-100/80 p-0.5 text-[12px]">{(['1h', '6h', '24h', '7d'] as const).map((range) => <button key={range} onClick={() => setTimeRange(range)} className={`rounded-lg px-3 py-1.5 ${timeRange === range ? 'bg-white font-bold text-slate-800 shadow-sm' : 'text-slate-500'}`}>{range}</button>)}</div></div>
+    </div></div>
+    <div className="grid grid-cols-1 lg:grid-cols-[210px_minmax(0,1fr)]">
+      <aside className="border-b border-slate-100 p-4 lg:border-b-0 lg:border-r"><div className="mb-3 flex items-center justify-between"><span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-700">Signal list</span><span className="text-[10px] font-semibold text-slate-400">{selectedKeys.length}/{maxSelected}</span></div><div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto pr-1">{signals.map((signal, index) => { const selected = selectedKeys.includes(signal.key); const disabled = !selected && selectedKeys.length >= maxSelected; const color = PALETTE[index % PALETTE.length]; return <button key={signal.key} type="button" disabled={disabled} onClick={() => onToggleSignal(signal.key)} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] ${selected ? 'bg-slate-100 font-bold text-slate-800' : 'text-slate-600 hover:bg-slate-50'} ${disabled ? 'cursor-not-allowed opacity-40' : ''}`}><span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[9px] text-white" style={selected ? { background: color, borderColor: color } : { background: '#fff', borderColor: '#cbd5e1' }}>{selected ? '✓' : ''}</span><span className="truncate">{signal.label} ({signal.unit})</span></button>; })}</div></aside>
+      <div className="px-2 pb-4 pt-3 sm:px-4">{!series.length || !data.length ? <div className="flex h-[320px] items-center justify-center text-sm text-slate-500">{!series.length ? 'Select at least one signal to plot.' : 'No samples in this time range.'}</div> : <div className="h-[320px] w-full"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{ top: 12, right: 16, left: -8, bottom: 4 }}><defs>{series.map((item) => <linearGradient key={item.key} id={`grad-${safeId(item.key)}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={lineColor(item)} stopOpacity={single ? 0.22 : 0.12} /><stop offset="95%" stopColor={lineColor(item)} stopOpacity={0.02} /></linearGradient>)}</defs>{single && !percentMode && single.range && single.warning !== null && <><ReferenceArea y1={0} y2={single.range[1]} fill="#059669" fillOpacity={0.05} /><ReferenceArea y1={single.range[1]} y2={single.warning} fill="#D97706" fillOpacity={0.06} /><ReferenceArea y1={single.warning} y2={yMax} fill="#DC2626" fillOpacity={0.07} /></>}<CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} /><XAxis dataKey="timestamp" tickFormatter={formatTick} tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#CBD5E1' }} minTickGap={40} /><YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={{ stroke: '#CBD5E1' }} domain={[0, yMax]} width={46} tickFormatter={(value: number) => percentMode ? `${Math.round(value)}%` : String(Math.round(value * 10) / 10)} /><Tooltip content={({ active, payload, label }) => { if (!active || !payload?.length) return null; const row = payload[0].payload as Row; return <div className="min-w-[180px] rounded-xl border border-slate-200/80 bg-white/95 px-3.5 py-2.5 text-xs text-slate-800 shadow-xl"><div className="mb-1.5 text-slate-400">{formatTick(label as number)}</div>{series.map((item) => { const raw = row[`${item.key}__raw`]; if (typeof raw !== 'number') return null; const status = statusOf(raw, item.warning, item.critical); return <div key={item.key} className="flex items-center justify-between gap-5"><span className="flex items-center gap-1.5 text-slate-600"><span className="h-2 w-2 rounded-full" style={{ background: lineColor(item) }} />{item.label}</span><span className="font-mono font-bold" style={{ color: STATUS_HEX[status] }}>{Math.round(raw * 100) / 100} {item.unit}</span></div>; })}</div>; }} />{single && !percentMode && single.warning !== null && <ReferenceLine y={single.warning} stroke="#D97706" strokeDasharray="5 4" label={{ value: `Warn ${single.warning}`, fill: '#D97706', fontSize: 10, position: 'insideTopRight' }} />}{single && !percentMode && single.critical !== null && <ReferenceLine y={single.critical} stroke="#DC2626" strokeDasharray="5 4" label={{ value: `Crit ${single.critical}`, fill: '#DC2626', fontSize: 10, position: 'insideTopRight' }} />}{percentMode && <ReferenceLine y={100} stroke="#DC2626" strokeDasharray="5 4" label={{ value: 'Critical limit (100%)', fill: '#DC2626', fontSize: 10, position: 'insideTopRight' }} />}{series.map((item) => <Area key={item.key} type="monotone" dataKey={item.key} stroke={lineColor(item)} strokeWidth={single ? 2.5 : 2} fill={`url(#grad-${safeId(item.key)})`} dot={false} connectNulls activeDot={{ r: 5, fill: lineColor(item), stroke: '#fff', strokeWidth: 2.5 }} isAnimationActive={false} />)}</AreaChart></ResponsiveContainer></div>}</div>
     </div>
-  );
+  </div>;
 };
