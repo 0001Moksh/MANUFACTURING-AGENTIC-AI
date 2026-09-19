@@ -20,10 +20,11 @@ interface MachineAiIssue {
   affected_parameters: string[];
   detected_at: string;
   persistence_seconds: number;
+  context?: { metrics?: Record<string, MachineEvidenceMetric> } | null;
   analysis?: {
     issue_summary?: string;
     possible_causes?: string[];
-    evidence?: Record<string, unknown>;
+    evidence?: { metrics?: Record<string, MachineEvidenceMetric> } | null;
     reasoning_summary?: string;
     root_cause_confidence?: number;
     immediate_actions?: string[];
@@ -32,12 +33,25 @@ interface MachineAiIssue {
   } | null;
 }
 
+interface MachineEvidenceMetric {
+  value?: number | null;
+  unit?: string | null;
+  status?: string | null;
+  minimum?: number | null;
+  maximum?: number | null;
+  average?: number | null;
+  trend?: string | null;
+  samples?: number | null;
+  warning_threshold?: number | null;
+  critical_threshold?: number | null;
+}
+
 interface MachineAiPayload {
   summary: { text: string; generated_at: string; model_name?: string; snapshot?: Record<string, unknown>; baseline?: Record<string, unknown>; llm_trace?: Record<string, unknown> } | null;
-  state: { operational_state: string; agent_state: string; last_checked_at: string } | null;
+  state: { operational_state: string; agent_state: string; last_checked_at: string; parameter_states?: Record<string, string> } | null;
   active_issue: MachineAiIssue | null;
   issues: MachineAiIssue[];
-  recommendations: Array<{ id: number; issue_id: number; action: string; category: string; status: string; generated_at: string }>;
+  recommendations: Array<{ id: number; issue_id: number; action: string; category: string; status: string; generated_at: string; operator_action?: string | null }>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -212,6 +226,7 @@ export const MachineDetailPage: React.FC = () => {
   const [aiError, setAiError] = useState<string | null>(null);
   const [actionText, setActionText] = useState('');
   const [actionSaving, setActionSaving] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
 
   // ---- NEW: scroll the chart into view whenever the user picks a metric ----
@@ -236,6 +251,31 @@ export const MachineDetailPage: React.FC = () => {
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  // Refresh when the intelligence tab is opened so operators see the latest
+  // monitoring cycle instead of the page-load snapshot.
+  useEffect(() => {
+    if (activeTab !== 'agent' || !id) return;
+    let cancelled = false;
+    const refreshAi = () => {
+      machineMonitoringService.getAi(id)
+        .then((payload: MachineAiPayload) => {
+          if (!cancelled) {
+            setAiData(payload);
+            setAiError(null);
+          }
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) setAiError(error instanceof Error ? error.message : 'Machine AI state is unavailable');
+        });
+    };
+    refreshAi();
+    const refreshTimer = window.setInterval(refreshAi, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshTimer);
+    };
+  }, [activeTab, id]);
 
   if (!machine) {
     return <div className="p-6 text-sm text-slate-500">Live InfluxDB telemetry is not available.</div>;
@@ -263,6 +303,9 @@ export const MachineDetailPage: React.FC = () => {
   const agentStatus = aiData?.state?.agent_state?.replaceAll('_', ' ') || 'LOADING';
   const activeIssue = aiData?.active_issue;
   const activeIssueCount = aiData ? aiData.issues.filter((issue) => issue.status !== 'RESOLVED').length : machine.activeIssues;
+  const evidenceMetrics = activeIssue?.analysis?.evidence?.metrics
+    ?? activeIssue?.context?.metrics
+    ?? aiData?.summary?.snapshot?.metrics as Record<string, MachineEvidenceMetric> | undefined;
 
   const TABS: TabItem[] = [
     { key: 'telemetry', label: 'Live Telemetry & Signals', icon: Activity },
@@ -542,20 +585,6 @@ export const MachineDetailPage: React.FC = () => {
                     {aiData?.summary?.text || 'The initial monitoring window has not produced a summary yet.'}
                   </p>
                   <div className="text-[11px] text-muted">Generated: {aiData?.summary ? new Date(aiData.summary.generated_at).toLocaleString() : 'Pending'}</div>
-                                  {aiData?.summary && (
-                                    <div className="mt-5 space-y-2">
-                                      {[
-                                        ['Snapshot JSON', aiData.summary.snapshot],
-                                        ['Baseline JSON', aiData.summary.baseline],
-                                        ['Exact LLM Runtime Trace', aiData.summary.llm_trace],
-                                      ].map(([label, value]) => (
-                                        <details key={label as string} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                          <summary className="cursor-pointer text-[11px] font-bold text-slate-700">{label as string}</summary>
-                                          <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-slate-600">{JSON.stringify(value ?? {}, null, 2)}</pre>
-                                        </details>
-                                      ))}
-                                    </div>
-                                  )}
                 </div>
                 <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
                   <h4 className="font-head font-bold text-ink text-sm mb-3">Current AI State</h4>
@@ -582,16 +611,36 @@ export const MachineDetailPage: React.FC = () => {
                 )}
               </div>
 
+              <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
+                <h4 className="font-head font-bold text-ink text-sm mb-3">Telemetry Evidence</h4>
+                {evidenceMetrics && Object.keys(evidenceMetrics).length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {Object.entries(evidenceMetrics).map(([parameter, evidence]) => (
+                      <div key={parameter} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-bold text-ink capitalize">{parameter.replaceAll('_', ' ')}</span>
+                          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${evidence.status === 'CRITICAL' ? 'bg-rose-100 text-rose-700' : evidence.status === 'WARNING' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>{evidence.status || 'UNKNOWN'}</span>
+                        </div>
+                        <div className="mt-2 font-mono font-bold text-slate-800">{evidence.value ?? 'N/A'} {evidence.unit || ''}</div>
+                        <div className="mt-1 text-[10px] text-muted">Range: {evidence.minimum ?? '—'}–{evidence.maximum ?? '—'} · Avg: {evidence.average ?? '—'}</div>
+                        <div className="mt-1 text-[10px] text-muted capitalize">Trend: {evidence.trend || 'unknown'} · {evidence.samples ?? 0} samples</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-xs text-muted">Evidence will appear after telemetry is captured for this machine.</p>}
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
                   <h4 className="font-head font-bold text-ink text-sm mb-3">Recommendations</h4>
-                  {aiData?.recommendations.length ? <div className="flex flex-col gap-2">{aiData.recommendations.slice(0, 8).map((recommendation) => <div key={recommendation.id} className="text-xs border-b border-slate-100 pb-2"><span className="font-bold text-teal mr-2">{recommendation.category}</span>{recommendation.action}</div>)}</div> : <p className="text-xs text-muted">No recommendations are pending.</p>}
+                  {aiData?.recommendations.length ? <div className="flex flex-col gap-2">{aiData.recommendations.slice(0, 8).map((recommendation) => <div key={recommendation.id} className="text-xs border-b border-slate-100 pb-2"><span className="font-bold text-teal mr-2">{recommendation.category}</span>{recommendation.action}<div className="mt-1 text-[10px] text-muted">{recommendation.status.replaceAll('_', ' ')} · {new Date(recommendation.generated_at).toLocaleString()}</div></div>)}</div> : <p className="text-xs text-muted">No recommendations are pending.</p>}
                 </div>
                 <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
                   <h4 className="font-head font-bold text-ink text-sm mb-3">Operator Action</h4>
                   {activeIssue ? <>
                     <textarea value={actionText} onChange={(event) => setActionText(event.target.value)} placeholder="Record the action taken" className="w-full min-h-20 rounded-xl border border-slate-200 p-3 text-xs resize-y" />
-                    <button disabled={!actionText.trim() || actionSaving} onClick={async () => { setActionSaving(true); try { await machineMonitoringService.recordOperatorAction(machine.id, activeIssue.id, actionText.trim()); setActionText(''); const payload = await machineMonitoringService.getAi(machine.id); setAiData(payload); } finally { setActionSaving(false); } }} className="mt-3 px-4 py-2 rounded-xl bg-teal text-white font-bold text-xs disabled:opacity-50">{actionSaving ? 'Recording...' : 'Record action'}</button>
+                    {actionError && <p className="mt-2 text-xs text-rose-700">{actionError}</p>}
+                    <button disabled={!actionText.trim() || actionSaving} onClick={async () => { setActionSaving(true); setActionError(null); try { await machineMonitoringService.recordOperatorAction(machine.id, activeIssue.id, actionText.trim()); setActionText(''); const payload = await machineMonitoringService.getAi(machine.id); setAiData(payload); } catch (error: unknown) { setActionError(error instanceof Error ? error.message : 'Unable to record the operator action.'); } finally { setActionSaving(false); } }} className="mt-3 px-4 py-2 rounded-xl bg-teal text-white font-bold text-xs disabled:opacity-50">{actionSaving ? 'Recording...' : 'Record action'}</button>
                   </> : <p className="text-xs text-muted">Operator actions become available when an issue is recorded.</p>}
                 </div>
               </div>

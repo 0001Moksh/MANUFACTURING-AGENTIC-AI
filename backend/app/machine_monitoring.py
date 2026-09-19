@@ -396,7 +396,7 @@ async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Di
     investigations = (await session.execute(select(MachineAgentInvestigation).where(MachineAgentInvestigation.machine_code == machine_code).order_by(MachineAgentInvestigation.created_at.desc()).limit(20))).scalars().all()
 
     def issue_json(issue: MachineIssue) -> Dict[str, Any]:
-        return {"id": issue.id, "title": issue.title, "severity": issue.severity, "status": issue.status, "affected_parameters": issue.affected_parameters or [], "detected_at": issue.detected_at.isoformat(), "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None, "persistence_seconds": issue.persistence_seconds, "analysis": issue.analysis}
+        return {"id": issue.id, "title": issue.title, "severity": issue.severity, "status": issue.status, "affected_parameters": issue.affected_parameters or [], "detected_at": issue.detected_at.isoformat(), "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None, "persistence_seconds": issue.persistence_seconds, "context": issue.context, "analysis": issue.analysis}
 
     return {
         "machine_code": machine_code,
