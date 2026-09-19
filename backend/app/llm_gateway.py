@@ -8,13 +8,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("llm_gateway")
 
 # Provider configuration is loaded by app.main before routes are imported.
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini/gemini-2.5-flash")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/llama-3.1-8b-instant")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini/gemini-3.8-flash")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/openai/gpt-oss-20b")
 
 # Provider cost dictionary for usage tracking
 MODEL_COSTS = {
-    "gemini/gemini-2.5-flash": {"input": 0.0000003, "output": 0.0000025},
-    "groq/llama-3.1-8b-instant": {"input": 0.00000005, "output": 0.00000008},
+    "gemini/gemini-3.8-flash": {"input": 0.0000003, "output": 0.0000025},
+    "groq/openai/gpt-oss-20b": {"input": 0.00000005, "output": 0.00000008},
 }
 
 # Audit log in memory for tracking costs during runtime

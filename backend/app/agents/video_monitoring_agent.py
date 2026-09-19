@@ -140,7 +140,7 @@ def get_db_health() -> Dict[str, Any]:
 # 🚀 LLM GATEWAY (Fallback + Guardrails + Cost Metrics)
 # ════════════════════════════════════════════════════════════════════════════
 groq_llm = ChatLiteLLM(
-    model="groq/llama-3.1-8b-instant",
+    model="groq/openai/gpt-oss-20b",
     api_key=os.getenv("GROQ_API_KEY", ""),
     temperature=0.1,
     max_tokens=1500,
@@ -158,7 +158,7 @@ class FallbackLLM:
     """Production Gateway with Fallback, Guardrails & Token/Cost Metrics tracking."""
 
     _COST_TABLE = {
-        "groq/llama-3.1-8b-instant": {"input": 0.59, "output": 0.79},
+        "groq/openai/gpt-oss-20b": {"input": 0.59, "output": 0.79},
         "gemini/gemini-3.1-flash-lite": {"input": 0.075, "output": 0.30},
     }
 
@@ -6207,7 +6207,7 @@ def get_user_permissions(user_id_or_username: str) -> List[str]:
 # ════════════════════════════════════════════════════════════════════════════
 
 def _create_trace_record(agent_name: str, routing_path: str, tool_name: str, args: Dict[str, Any], latency_ms: float, status: str = "success", summary: str = "", tokens_in: int = 120, tokens_out: int = 80) -> Dict[str, Any]:
-    rates = FallbackLLM._COST_TABLE.get("groq/llama-3.1-8b-instant", {"input": 0.59, "output": 0.79})
+    rates = FallbackLLM._COST_TABLE.get("groq/openai/gpt-oss-20b", {"input": 0.59, "output": 0.79})
     cost = round((tokens_in / 1_000_000) * rates["input"] + (tokens_out / 1_000_000) * rates["output"], 6)
     return {
         "active_agent": agent_name,
