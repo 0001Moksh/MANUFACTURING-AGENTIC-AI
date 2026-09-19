@@ -498,7 +498,9 @@ class MachineAISummary(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     machine_code: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     summary_text: Mapped[str] = mapped_column(Text, nullable=False)
+    snapshot_context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     baseline_context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    llm_trace: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     generated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     model_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
@@ -855,6 +857,8 @@ async def init_db():
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'UNTESTED';",
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP;",
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS details TEXT;",
+            "ALTER TABLE machine_ai_summaries ADD COLUMN IF NOT EXISTS snapshot_context JSON;",
+            "ALTER TABLE machine_ai_summaries ADD COLUMN IF NOT EXISTS llm_trace JSON;",
         ]
         for statement in migration_statements:
             try:

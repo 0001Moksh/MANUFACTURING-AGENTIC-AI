@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import (
@@ -149,7 +150,13 @@ def _response_text(response: Dict[str, Any]) -> str:
 async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
     machine_code = telemetry["code"]
     existing = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
-    if existing and not existing.summary_text.startswith("[LLM Response Not Available]"):
+    if (
+        existing
+        and not existing.summary_text.startswith("[LLM Response Not Available]")
+        and existing.snapshot_context is not None
+        and existing.baseline_context is not None
+        and existing.llm_trace is not None
+    ):
         return
     prompt = json.dumps({"machine": telemetry, "baseline": snapshot}, default=str)
     response = await execute_completion([
@@ -167,16 +174,24 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
         logger.warning("LLM returned no usable machine summary for %s; stored deterministic baseline", machine_code)
     summary_data = {
         "summary_text": str(summary_text),
+        "snapshot_context": telemetry,
         "baseline_context": snapshot,
         "model_name": response.get("model_used"),
+        "llm_trace": response.get("llm_trace"),
     }
     if existing:
         existing.summary_text = summary_data["summary_text"]
+        existing.snapshot_context = summary_data["snapshot_context"]
         existing.baseline_context = summary_data["baseline_context"]
         existing.model_name = summary_data["model_name"]
+        existing.llm_trace = summary_data["llm_trace"]
         existing.generated_at = _now()
     else:
-        session.add(MachineAISummary(machine_code=machine_code, **summary_data))
+        statement = pg_insert(MachineAISummary).values(machine_code=machine_code, **summary_data).on_conflict_do_update(
+            index_elements=[MachineAISummary.machine_code],
+            set_=summary_data,
+        )
+        await session.execute(statement)
     logger.info("Stored machine AI summary for %s (response_chars=%d, model=%s)", machine_code, len(response_text), response.get("model_used", "unknown"))
 
 
@@ -329,7 +344,7 @@ async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Di
 
     return {
         "machine_code": machine_code,
-        "summary": {"text": summary.summary_text, "generated_at": summary.generated_at.isoformat(), "baseline": summary.baseline_context} if summary else None,
+        "summary": {"text": summary.summary_text, "generated_at": summary.generated_at.isoformat(), "snapshot": summary.snapshot_context, "baseline": summary.baseline_context, "llm_trace": summary.llm_trace, "model_name": summary.model_name} if summary else None,
         "state": {"operational_state": state.operational_state, "agent_state": state.agent_state, "parameter_states": state.parameter_states or {}, "last_checked_at": state.last_checked_at.isoformat()} if state else None,
         "active_issue": next((issue_json(issue) for issue in issues if issue.status != "RESOLVED"), None),
         "issues": [issue_json(issue) for issue in issues],

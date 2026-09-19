@@ -20,6 +20,22 @@ MODEL_COSTS = {
 # Audit log in memory for tracking costs during runtime
 usage_audit_log: List[Dict[str, Any]] = []
 
+
+def _json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return _json_safe(model_dump())
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        return _json_safe(to_dict())
+    return str(value)
+
 async def execute_completion(
     messages: List[Dict[str, str]],
     model: str = "auto",
@@ -38,7 +54,7 @@ async def execute_completion(
     if not (has_gemini or has_groq):
         message = "No LLM provider API key is configured. No generated response is available."
         logger.error(message)
-        return {"text": "", "model_used": None, "usage": {}, "cost_usd": 0.0, "error": message}
+        return {"text": "", "model_used": None, "usage": {}, "cost_usd": 0.0, "error": message, "llm_trace": {"request": {"model": model, "messages": _json_safe(messages), "parameters": {"temperature": temperature, "response_format": response_format, **kwargs}}, "response": {"text": "", "error": message}}}
 
     # Normalize model names to correct litellm provider strings
     model_lower = model.lower().strip()
@@ -67,15 +83,20 @@ async def execute_completion(
         models_to_try = [model] + fallbacks
         response = None
         last_err = None
+        request_parameters = {
+            "temperature": temperature,
+            "timeout": float(os.getenv("LLM_TIMEOUT", "30")),
+            **kwargs,
+        }
+        if response_format is not None:
+            request_parameters["response_format"] = response_format
         
         for current_model in models_to_try:
             try:
                 response = await litellm.acompletion(
                     model=current_model,
                     messages=messages,
-                    temperature=temperature,
-                    timeout=float(os.getenv("LLM_TIMEOUT", "30")),
-                    **kwargs
+                    **request_parameters,
                 )
                 break
             except Exception as e:
@@ -110,7 +131,11 @@ async def execute_completion(
             "text": response.choices[0].message.content,
             "model_used": model_used,
             "usage": usage,
-            "cost_usd": total_cost
+            "cost_usd": total_cost,
+            "llm_trace": {
+                "request": {"model": model_used, "messages": _json_safe(messages), "parameters": _json_safe(request_parameters)},
+                "response": _json_safe(response),
+            },
         }
 
     except Exception as e:
@@ -121,7 +146,7 @@ async def execute_completion(
             "status": "failed",
             "estimated_cost_usd": 0.0
         })
-        return {"text": "", "model_used": None, "usage": {}, "cost_usd": 0.0, "error": str(e)}
+        return {"text": "", "model_used": None, "usage": {}, "cost_usd": 0.0, "error": str(e), "llm_trace": {"request": {"model": model, "messages": _json_safe(messages), "parameters": _json_safe(locals().get("request_parameters", {"temperature": temperature, "timeout": float(os.getenv("LLM_TIMEOUT", "30")), **kwargs, **({"response_format": response_format} if response_format is not None else {})}))}, "response": {"text": "", "error": str(e)}}}
 
 def get_usage_audit() -> List[Dict[str, Any]]:
     """Returns log of LLM usage for ROI tracking."""

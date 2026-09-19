@@ -33,7 +33,7 @@ interface MachineAiIssue {
 }
 
 interface MachineAiPayload {
-  summary: { text: string; generated_at: string; baseline?: Record<string, unknown> } | null;
+  summary: { text: string; generated_at: string; model_name?: string; snapshot?: Record<string, unknown>; baseline?: Record<string, unknown>; llm_trace?: Record<string, unknown> } | null;
   state: { operational_state: string; agent_state: string; last_checked_at: string } | null;
   active_issue: MachineAiIssue | null;
   issues: MachineAiIssue[];
@@ -562,6 +562,20 @@ export const MachineDetailPage: React.FC = () => {
                     {aiData?.summary?.text || 'The initial monitoring window has not produced a summary yet.'}
                   </p>
                   <div className="text-[11px] text-muted">Generated: {aiData?.summary ? new Date(aiData.summary.generated_at).toLocaleString() : 'Pending'}</div>
+                                  {aiData?.summary && (
+                                    <div className="mt-5 space-y-2">
+                                      {[
+                                        ['Snapshot JSON', aiData.summary.snapshot],
+                                        ['Baseline JSON', aiData.summary.baseline],
+                                        ['Exact LLM Runtime Trace', aiData.summary.llm_trace],
+                                      ].map(([label, value]) => (
+                                        <details key={label as string} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                          <summary className="cursor-pointer text-[11px] font-bold text-slate-700">{label as string}</summary>
+                                          <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-slate-600">{JSON.stringify(value ?? {}, null, 2)}</pre>
+                                        </details>
+                                      ))}
+                                    </div>
+                                  )}
                 </div>
                 <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm">
                   <h4 className="font-head font-bold text-ink text-sm mb-3">Current AI State</h4>
