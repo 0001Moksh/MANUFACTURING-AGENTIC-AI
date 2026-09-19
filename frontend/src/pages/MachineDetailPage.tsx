@@ -208,6 +208,11 @@ export const MachineDetailPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'telemetry' | 'agent' | 'mes' | 'maintenance'>('telemetry');
   const [selectedMetric, setSelectedMetric] = useState<string>('Temperature');
+    useEffect(() => {
+      if (machine?.liveMetrics.length && !machine.liveMetrics.some((metric) => metric.key === selectedMetric)) {
+        setSelectedMetric(machine.liveMetrics[0].key);
+      }
+    }, [machine, selectedMetric]);
   const [aiData, setAiData] = useState<MachineAiPayload | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [actionText, setActionText] = useState('');
@@ -409,7 +414,11 @@ export const MachineDetailPage: React.FC = () => {
           transition={{ duration: 0.25 }}
         >
           {activeTab === 'telemetry' && (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center justify-between">
+                <h2 className="font-head text-base font-extrabold text-ink">Key Indicators</h2>
+                <span className="text-[11px] font-semibold text-muted">Live InfluxDB telemetry</span>
+              </div>
               {/* Signal Cards Selector – gold/black gauge dial style */}
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -423,7 +432,7 @@ export const MachineDetailPage: React.FC = () => {
                     <ArrowDown className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                   {machine.liveMetrics.map((m) => {
                     const liveVal = m.value ?? 0;
                     const liveStatus = m.status;
@@ -450,19 +459,19 @@ export const MachineDetailPage: React.FC = () => {
                         onClick={() => handleSelectMetric(m.key)}
                         whileHover={{ y: -3 }}
                         whileTap={{ scale: 0.98 }}
-                        className="relative rounded-2xl p-4 border-2 flex flex-col items-center text-center cursor-pointer transition-shadow"
+                        className="relative rounded-xl p-3 border flex flex-col items-center text-center cursor-pointer transition-shadow"
                         style={{
-                          borderColor: isSelected ? '#000000' : '#000000',
-                          background: 'linear-gradient(160deg, #dfdfdf 0%, #ffffff 100%)',
+                          borderColor: isSelected ? '#159b78' : '#cbd5d1',
+                          background: 'linear-gradient(160deg, #f6faf8 0%, #ffffff 100%)',
                           boxShadow: isSelected
-                            ? '0 0 0 3px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(184,134,11,0.25)'
-                            : 'inset 0 0 0 1px rgba(184,134,11,0.25)',
+                            ? '0 0 0 2px rgba(21,155,120,0.18), 0 6px 18px -12px rgba(15,23,42,0.35)'
+                            : '0 3px 10px -8px rgba(15,23,42,0.25)',
                         }}
                       >
-                        <div className="flex items-center gap-1.5 mb-1 font-head font-extrabold text-[15px]" style={{ color: '#5a4a1e' }}>
+                        <div className="flex items-center gap-1.5 mb-1 font-head font-extrabold text-[12px]" style={{ color: '#334155' }}>
                           <Icon className="w-4 h-4" style={{ color: '#000000' }} />
                           {m.label}
-                          <span className="text-[10px] font-semibold opacity-70">({m.unit})</span>
+                          <span className="text-[9px] font-semibold opacity-70">({m.unit})</span>
                         </div>
 
                         <GaugeDial
@@ -474,8 +483,8 @@ export const MachineDetailPage: React.FC = () => {
                           criticalThreshold={m.criticalThreshold ?? undefined}
                         />
 
-                        <div className="font-mono font-extrabold text-lg mt-1" style={{ color: '#000000' }}>
-                          {m.value === null ? 'N/A' : liveVal} <span className="text-[20px] font-semibold opacity-70">{m.unit}</span>
+                        <div className="font-mono font-extrabold text-base mt-1" style={{ color: '#172033' }}>
+                          {m.value === null ? 'N/A' : liveVal} <span className="text-[11px] font-semibold opacity-70">{m.unit}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-bold capitalize" style={{ color: statusColorDot }}>
@@ -483,7 +492,7 @@ export const MachineDetailPage: React.FC = () => {
                           {liveStatus}
                         </div>
 
-                        <div className="text-[10px] mt-1 opacity-70" style={{ color: '#5a4a1e' }}>
+                        <div className="text-[9px] mt-1 opacity-70" style={{ color: '#64748b' }}>
                           {configuredRange ? `Normal: ${configuredRange[0]}-${configuredRange[1]}` : 'No threshold configured'}
                         </div>
                       </motion.div>
@@ -492,7 +501,25 @@ export const MachineDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Detailed TimeSeries Chart — now with a scroll anchor + sticky mini header */}
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.35fr]">
+                <div className="rounded-[18px] border border-slate-200 bg-white p-4 shadow-[0_4px_24px_-8px_rgba(15,23,42,0.08)]">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="font-head text-sm font-extrabold text-ink">Operation &amp; Cycle Metrics</h3>
+                    <span className="text-[10px] font-semibold text-muted">Live</span>
+                  </div>
+                  <div className="mb-2 grid grid-cols-[1fr_70px_70px] px-3 text-[10px] font-bold uppercase tracking-wide text-slate-400"><span>Metric</span><span>Value</span><span>Status</span></div>
+                  <div className="flex flex-col gap-2">
+                    {machine.liveMetrics.slice(0, 6).map((metric) => (
+                      <button key={metric.key} type="button" onClick={() => handleSelectMetric(metric.key)} className="grid grid-cols-[1fr_70px_70px] items-center rounded-xl border border-slate-200 bg-gradient-to-r from-[#f2fbf8] to-white px-3 py-2 text-left hover:border-teal/40">
+                        <span className="truncate text-[11px] font-semibold text-slate-700">{metric.label} <span className="font-normal text-slate-400">({metric.unit})</span></span>
+                        <span className="font-mono text-xs font-extrabold text-slate-800">{metric.value ?? 'N/A'}</span>
+                        <span className="flex items-center gap-1 text-[10px] font-bold capitalize text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{metric.status}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              {/* Detailed TimeSeries Chart */}
               <div
                 ref={chartSectionRef}
                 className="bg-white/90 backdrop-blur-xl border border-slate-200 rounded-[20px] shadow-[0_8px_32px_-12px_rgba(15,23,42,0.12)] overflow-hidden scroll-mt-6"
@@ -520,12 +547,15 @@ export const MachineDetailPage: React.FC = () => {
                     warningThreshold={currentMetricObj.warningThreshold}
                     criticalThreshold={currentMetricObj.criticalThreshold}
                     initialSeries={currentMetricObj.spark}
+                    availableSignals={machine.liveMetrics}
+                    onSelectSignal={handleSelectMetric}
                   />
                 ) : (
                   <div className="p-6 text-sm text-slate-600">
                     {currentMetricObj.label} has {currentMetricObj.spark.length} real InfluxDB samples. No configured threshold chart is available for this field.
                   </div>
                 )}
+              </div>
               </div>
             </div>
           )}

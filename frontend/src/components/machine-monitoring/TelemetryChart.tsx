@@ -3,7 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, ReferenceArea
 } from 'recharts';
-import type { SparkPoint, TimeSeriesPoint } from '../../data/machineMonitoringData';
+import type { LiveMetric, SparkPoint } from '../../data/machineMonitoringData';
 
 interface TelemetryChartProps {
   machineId: string;
@@ -15,6 +15,8 @@ interface TelemetryChartProps {
   criticalThreshold: number;
   /** Historical points returned by InfluxDB for this metric */
   initialSeries?: SparkPoint[];
+  availableSignals?: LiveMetric[];
+  onSelectSignal?: (metricKey: string) => void;
   /** Fires whenever the chart's own live value updates, so parent UI (KPI cards) can stay in sync */
   onLatestValue?: (value: number) => void;
 }
@@ -41,6 +43,8 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   warningThreshold,
   criticalThreshold,
   initialSeries = [],
+  availableSignals = [],
+  onSelectSignal,
   onLatestValue,
 }) => {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
@@ -114,9 +118,9 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
   const yMin = 0;
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-[0_4px_24px_-8px_rgba(15,23,42,0.08)] overflow-hidden">
+    <div className="bg-white border border-slate-200/90 rounded-[18px] shadow-[0_4px_24px_-8px_rgba(15,23,42,0.08)] overflow-hidden">
       {/* ── Header ── */}
-      <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+      <div className="px-5 pt-4 pb-3 border-b border-slate-100">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -180,9 +184,30 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
         </div>
       </div>
 
-      {/* ── Chart ── */}
-      <div className="px-2 sm:px-4 pb-4 pt-3">
-        <div className="h-[300px] w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-[190px_minmax(0,1fr)]">
+        <aside className="border-b lg:border-b-0 lg:border-r border-slate-100 p-4">
+          <div className="mb-3 text-[11px] font-extrabold uppercase tracking-wide text-slate-700">Signal list</div>
+          <div className="flex flex-col gap-1.5">
+            {availableSignals.map((signal) => {
+              const selected = signal.key === metricKey;
+              return (
+                <button
+                  key={signal.key}
+                  type="button"
+                  onClick={() => onSelectSignal?.(signal.key)}
+                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors ${selected ? 'bg-teal/10 text-teal-deep font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <span className={`flex h-3.5 w-3.5 items-center justify-center rounded border text-[9px] ${selected ? 'border-teal bg-teal text-white' : 'border-slate-300 bg-white'}`}>{selected ? '✓' : ''}</span>
+                  <span className="truncate">{signal.label} ({signal.unit})</span>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* ── Chart ── */}
+        <div className="px-2 sm:px-4 pb-4 pt-3">
+        <div className="h-[285px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 12, right: 12, left: -12, bottom: 4 }}>
               <defs>
@@ -288,6 +313,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
               />
             </AreaChart>
           </ResponsiveContainer>
+        </div>
         </div>
       </div>
     </div>
