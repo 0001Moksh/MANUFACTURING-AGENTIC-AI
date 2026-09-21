@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, Bot, MapPin, Wrench, Shield, FileText, Sparkles, Activity,
+  ChevronLeft, Bot, Wrench, Shield, FileText, Sparkles, Activity,
   Thermometer, Zap, Plug, Gauge as RpmIcon, ChevronLeft as ChevronLeftIcon,
   ChevronRight, AlertTriangle, History, CheckCircle2, CircleSlash, X
 } from 'lucide-react';
@@ -381,7 +381,13 @@ export const MachineDetailPage: React.FC = () => {
     };
   }, [activeTab, id]);
 
-
+  if (!machine) {
+    return (
+      <div className="p-6 text-sm text-slate-500">
+        Loading machine details, or the requested machine is no longer available.
+      </div>
+    );
+  }
 
   const sanitizedMachineName =
     machine.name.replace(/^InfluxDB\s+Machine\s*/i, '').trim() || machine.code;
@@ -453,11 +459,6 @@ export const MachineDetailPage: React.FC = () => {
       setHistoryLoading(false);
     }
   };
-
-  const evidenceMetrics =
-    activeIssue?.analysis?.evidence?.metrics ??
-    activeIssue?.context?.metrics ??
-    (aiData?.summary?.snapshot?.metrics as Record<string, MachineEvidenceMetric> | undefined);
 
   const TABS: TabItem[] = [
     { key: 'telemetry', label: 'Live Telemetry', icon: Activity },

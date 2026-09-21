@@ -59,7 +59,6 @@ const SummaryTile: React.FC<SummaryTileProps> = ({
 
 export const MachineMonitoringPage: React.FC = () => {
   const machines = useMachineStore((state) => state.machines);
-  const loading = useMachineStore((state) => state.loading);
   const error = useMachineStore((state) => state.error);
   const loadMachines = useMachineStore((state) => state.loadMachines);
   const [view, setView] = useState<'grid' | 'table'>('grid');

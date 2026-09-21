@@ -10,7 +10,6 @@ import {
   ReferenceLine,
   ReferenceArea,
   Brush,
-  Legend,
 } from 'recharts';
 import type { LiveMetric } from '../../data/machineMonitoringData';
 
