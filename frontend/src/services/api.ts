@@ -92,6 +92,45 @@ export const machineMonitoringService = {
     const res = await api.post(`/v1/mai/thresholds/${encodeURIComponent(machineId)}`, { parameters });
     return res.data;
   },
+  ignoreIssue: async (machineId: string, issueId: number, notes?: string) => {
+    const res = await api.post(`/machines/${encodeURIComponent(machineId)}/issues/${issueId}/ignore`, { notes });
+    return res.data;
+  },
+  getIssueHistory: async (machineId: string) => {
+    const res = await api.get(`/machines/${encodeURIComponent(machineId)}/issues/history`);
+    return res.data;
+  },
+  getDocuments: async (machineId: string) => {
+    const res = await api.get(`/machines/${encodeURIComponent(machineId)}/documents`);
+    return res.data;
+  },
+  uploadDocument: async (machineId: string, file: File, title: string, documentType: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('document_type', documentType);
+    const res = await api.post(`/machines/${encodeURIComponent(machineId)}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+  updateDocument: async (machineId: string, documentId: number, title: string, documentType: string) => {
+    const res = await api.patch(`/machines/${encodeURIComponent(machineId)}/documents/${documentId}`, {
+      title,
+      document_type: documentType,
+    });
+    return res.data;
+  },
+  deleteDocument: async (machineId: string, documentId: number) => {
+    await api.delete(`/machines/${encodeURIComponent(machineId)}/documents/${documentId}`);
+  },
+  getDocumentFile: async (machineId: string, documentId: number, download = false) => {
+    const res = await api.get(
+      `/machines/${encodeURIComponent(machineId)}/documents/${documentId}/content${download ? '?download=true' : ''}`,
+      { responseType: 'blob' }
+    );
+    return res.data as Blob;
+  },
 };
 
 export const licenseService = {

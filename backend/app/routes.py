@@ -4,10 +4,14 @@ import logging
 import hashlib
 import os
 import secrets
+import mimetypes
+import re
+import uuid
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request, UploadFile, File
-from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request, UploadFile, File, Form
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, RedirectResponse, FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
@@ -21,7 +25,7 @@ from app.db import (
     mes_db_status, video_analytics_db_status, test_mes_connection, test_video_analytics_connection,
     AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
-    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig
+    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig, MachineDocument
 )
 from app.db import MachineRecommendation, MachineIssue
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
@@ -85,6 +89,10 @@ class MachineOperatorActionRequest(BaseModel):
     action: str
 
 
+class MachineIssueIgnoreRequest(BaseModel):
+    notes: Optional[str] = None
+
+
 class MachineVerificationRequest(BaseModel):
     outcome: str
     notes: Optional[str] = None
@@ -92,6 +100,11 @@ class MachineVerificationRequest(BaseModel):
 
 class MachineThresholdRequest(BaseModel):
     parameters: Dict[str, Dict[str, Optional[float]]]
+
+
+class MachineDocumentUpdateRequest(BaseModel):
+    title: str
+    document_type: str
 
 class QueryRequest(BaseModel):
     query: str
@@ -1392,6 +1405,145 @@ async def save_machine_thresholds(machine_id: str, request: MachineThresholdRequ
     return {"machine_id": machine_id, "parameters": row.parameters, "updated_at": row.updated_at.isoformat()}
 
 
+DOCUMENT_TYPES = {
+    "Repair Guide", "Machine Documentation", "User Guide", "Service Manual",
+    "Maintenance Guide", "Troubleshooting Guide", "Safety Document", "Technical Document",
+}
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".md"}
+MAX_MACHINE_DOCUMENT_BYTES = 25 * 1024 * 1024
+MACHINE_DOCUMENT_STORAGE = Path(
+    os.getenv("MACHINE_DOCUMENT_STORAGE", str(Path(__file__).resolve().parent.parent / "machine_documents"))
+).resolve()
+
+
+def _machine_document_payload(document: MachineDocument) -> Dict[str, Any]:
+    return {
+        "id": document.id,
+        "machine_id": document.machine_code,
+        "title": document.title,
+        "document_type": document.document_type,
+        "original_filename": document.original_filename,
+        "mime_type": document.mime_type,
+        "file_size": document.file_size,
+        "uploaded_by": document.uploaded_by,
+        "created_at": document.created_at.isoformat(),
+        "updated_at": document.updated_at.isoformat(),
+    }
+
+
+async def _get_machine_document_or_404(machine_id: str, document_id: int, db: AsyncSession) -> MachineDocument:
+    document = (await db.execute(
+        select(MachineDocument).where(
+            MachineDocument.id == document_id,
+            MachineDocument.machine_code == machine_id,
+        )
+    )).scalars().first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Machine document not found")
+    return document
+
+
+@router.get("/api/machines/{machine_id}/documents")
+async def list_machine_documents(machine_id: str, request: Request, db: AsyncSession = Depends(get_db)):
+    await get_current_user(request, db)
+    documents = (await db.execute(
+        select(MachineDocument)
+        .where(MachineDocument.machine_code == machine_id)
+        .order_by(MachineDocument.updated_at.desc())
+    )).scalars().all()
+    return {"machine_id": machine_id, "documents": [_machine_document_payload(document) for document in documents]}
+
+
+@router.post("/api/machines/{machine_id}/documents", status_code=status.HTTP_201_CREATED)
+async def upload_machine_document(
+    machine_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    document_type: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(request, db)
+    clean_title = title.strip()
+    if not clean_title or len(clean_title) > 255:
+        raise HTTPException(status_code=422, detail="Document title is required and must be 255 characters or fewer")
+    if document_type not in DOCUMENT_TYPES:
+        raise HTTPException(status_code=422, detail="Choose a valid machine document type")
+
+    original_filename = Path(file.filename or "document").name
+    extension = Path(original_filename).suffix.lower()
+    if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
+        raise HTTPException(status_code=415, detail="Allowed files: PDF, Word, Excel, TXT, and Markdown")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=422, detail="The selected document is empty")
+    if len(content) > MAX_MACHINE_DOCUMENT_BYTES:
+        raise HTTPException(status_code=413, detail="Machine documents must be 25 MB or smaller")
+
+    safe_machine = re.sub(r"[^A-Za-z0-9_-]", "_", machine_id).strip("_") or "machine"
+    machine_directory = MACHINE_DOCUMENT_STORAGE / safe_machine
+    machine_directory.mkdir(parents=True, exist_ok=True)
+    stored_path = machine_directory / f"{uuid.uuid4().hex}{extension}"
+    try:
+        stored_path.write_bytes(content)
+        document = MachineDocument(
+            machine_code=machine_id,
+            title=clean_title,
+            document_type=document_type,
+            original_filename=original_filename,
+            stored_path=str(stored_path),
+            mime_type=file.content_type or mimetypes.guess_type(original_filename)[0],
+            file_size=len(content),
+            uploaded_by=user.username,
+        )
+        db.add(document)
+        await db.commit()
+        await db.refresh(document)
+    except Exception:
+        stored_path.unlink(missing_ok=True)
+        raise
+    return _machine_document_payload(document)
+
+
+@router.patch("/api/machines/{machine_id}/documents/{document_id}")
+async def update_machine_document(machine_id: str, document_id: int, payload: MachineDocumentUpdateRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await get_current_user(request, db)
+    title = payload.title.strip()
+    if not title or len(title) > 255:
+        raise HTTPException(status_code=422, detail="Document title is required and must be 255 characters or fewer")
+    if payload.document_type not in DOCUMENT_TYPES:
+        raise HTTPException(status_code=422, detail="Choose a valid machine document type")
+    document = await _get_machine_document_or_404(machine_id, document_id, db)
+    document.title = title
+    document.document_type = payload.document_type
+    document.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(document)
+    return _machine_document_payload(document)
+
+
+@router.get("/api/machines/{machine_id}/documents/{document_id}/content")
+async def get_machine_document_content(machine_id: str, document_id: int, request: Request, download: bool = False, db: AsyncSession = Depends(get_db)):
+    await get_current_user(request, db)
+    document = await _get_machine_document_or_404(machine_id, document_id, db)
+    path = Path(document.stored_path).resolve()
+    if MACHINE_DOCUMENT_STORAGE not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="The stored document file is unavailable")
+    disposition = "attachment" if download else "inline"
+    return FileResponse(path, media_type=document.mime_type or "application/octet-stream", filename=document.original_filename, content_disposition_type=disposition)
+
+
+@router.delete("/api/machines/{machine_id}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_machine_document(machine_id: str, document_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    await get_current_user(request, db)
+    document = await _get_machine_document_or_404(machine_id, document_id, db)
+    path = Path(document.stored_path).resolve()
+    await db.delete(document)
+    await db.commit()
+    if MACHINE_DOCUMENT_STORAGE in path.parents:
+        path.unlink(missing_ok=True)
+
+
 async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, Any]:
     try:
         telemetry_list = await asyncio.to_thread(get_machine_telemetry)
@@ -1426,6 +1578,36 @@ async def get_machine_issues(machine_id: str, db: AsyncSession = Depends(get_db)
     return {"machine_code": machine_id, "issues": payload["issues"]}
 
 
+@router.get("/api/machines/{machine_id}/issues/history")
+async def get_machine_issue_history(machine_id: str, db: AsyncSession = Depends(get_db)):
+    """Return every non-active issue for the machine, newest resolution first."""
+    issues = (await db.execute(
+        select(MachineIssue)
+        .where(
+            MachineIssue.machine_code == machine_id,
+            MachineIssue.status.in_(["RESOLVED_BY_OPERATOR", "RESOLVED_BY_SYSTEM", "IGNORED", "RESOLVED"]),
+        )
+        .order_by(MachineIssue.resolved_at.desc(), MachineIssue.detected_at.desc())
+    )).scalars().all()
+    return {
+        "machine_code": machine_id,
+        "issues": [{
+            "id": issue.id,
+            "title": issue.title,
+            "severity": issue.severity,
+            "status": issue.status,
+            "affected_parameters": issue.affected_parameters or [],
+            "detected_at": issue.detected_at.isoformat(),
+            "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None,
+            "operator_action_taken": issue.operator_action_taken,
+            "resolved_by": issue.resolved_by,
+            "resolution_notes": issue.resolution_notes,
+            "tags": issue.tags or [],
+            "analysis": issue.analysis,
+        } for issue in issues],
+    }
+
+
 @router.get("/api/machines/{machine_id}/recommendations")
 async def get_machine_recommendations(machine_id: str, db: AsyncSession = Depends(get_db)):
     payload = await _machine_ai_payload(machine_id, db)
@@ -1448,15 +1630,40 @@ async def record_machine_operator_action(machine_id: str, issue_id: int, request
     issue = (await db.execute(select(MachineIssue).where(MachineIssue.id == issue_id, MachineIssue.machine_code == machine_id))).scalars().first()
     if not issue:
         raise HTTPException(status_code=404, detail="Machine issue not found")
+    action = request.action.strip()
+    if not action:
+        raise HTTPException(status_code=422, detail="Describe the operator action before resolving an issue")
     recommendations = (await db.execute(select(MachineRecommendation).where(MachineRecommendation.issue_id == issue_id))).scalars().all()
     action_time = datetime.utcnow()
     for recommendation in recommendations:
-        recommendation.operator_action = request.action
+        recommendation.operator_action = action
         recommendation.operator_action_at = action_time
-        recommendation.status = "ACTION_RECORDED"
-    issue.status = "VERIFYING"
+        recommendation.status = "RESOLVED_BY_OPERATOR"
+    issue.operator_action_taken = action
+    issue.resolved_by = "OPERATOR"
+    issue.resolution_notes = action
+    issue.status = "RESOLVED_BY_OPERATOR"
+    issue.resolved_at = action_time
+    issue.tags = list(set((issue.tags or []) + ["OPERATOR_RESOLVED"]))
     await db.commit()
-    return {"status": "recorded", "issue_id": issue_id, "action_at": action_time.isoformat()}
+    return {"status": issue.status, "issue_id": issue_id, "action_at": action_time.isoformat()}
+
+
+@router.post("/api/machines/{machine_id}/issues/{issue_id}/ignore")
+async def ignore_machine_issue(machine_id: str, issue_id: int, request: MachineIssueIgnoreRequest, db: AsyncSession = Depends(get_db)):
+    issue = (await db.execute(select(MachineIssue).where(MachineIssue.id == issue_id, MachineIssue.machine_code == machine_id))).scalars().first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Machine issue not found")
+    ignored_at = datetime.utcnow()
+    issue.status = "IGNORED"
+    issue.resolved_at = ignored_at
+    issue.resolution_notes = request.notes.strip() if request.notes else "Marked as ignored by operator."
+    issue.tags = list(set((issue.tags or []) + ["IGNORED"]))
+    recommendations = (await db.execute(select(MachineRecommendation).where(MachineRecommendation.issue_id == issue_id))).scalars().all()
+    for recommendation in recommendations:
+        recommendation.status = "IGNORED"
+    await db.commit()
+    return {"status": issue.status, "issue_id": issue_id, "ignored_at": ignored_at.isoformat()}
 
 
 @router.post("/api/machines/{machine_id}/issues/{issue_id}/verify")
@@ -1469,9 +1676,11 @@ async def verify_machine_issue(machine_id: str, issue_id: int, request: MachineV
     for recommendation in recommendations:
         recommendation.verification = verification
         recommendation.status = "VERIFIED" if request.outcome.lower() == "recovered" else "STILL_ABNORMAL"
-    issue.status = "RESOLVED" if request.outcome.lower() == "recovered" else "RE_OCCURRENCE"
-    if issue.status == "RESOLVED":
+    issue.status = "RESOLVED_BY_SYSTEM" if request.outcome.lower() == "recovered" else "RE_OCCURRENCE"
+    if issue.status == "RESOLVED_BY_SYSTEM":
         issue.resolved_at = datetime.utcnow()
+        issue.resolved_by = "SYSTEM"
+        issue.tags = list(set((issue.tags or []) + ["SYSTEM_AUTO_RESOLVED"]))
     await db.commit()
     return {"status": issue.status, "issue_id": issue_id}
 

@@ -492,6 +492,23 @@ class MachineThresholdConfig(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class MachineDocument(Base):
+    """A locally stored document belonging to a monitored machine."""
+    __tablename__ = "machine_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    machine_code: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    document_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    mime_type: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    uploaded_by: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class MachineAISummary(Base):
     __tablename__ = "machine_ai_summaries"
 
@@ -533,6 +550,10 @@ class MachineIssue(Base):
     persistence_seconds: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     analysis: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    operator_action_taken: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    resolution_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
 
 class MachineRecommendation(Base):
@@ -859,6 +880,10 @@ async def init_db():
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS details TEXT;",
             "ALTER TABLE machine_ai_summaries ADD COLUMN IF NOT EXISTS snapshot_context JSON;",
             "ALTER TABLE machine_ai_summaries ADD COLUMN IF NOT EXISTS llm_trace JSON;",
+            "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS operator_action_taken TEXT;",
+            "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(20);",
+            "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS resolution_notes TEXT;",
+            "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS tags JSON;",
         ]
         for statement in migration_statements:
             try:

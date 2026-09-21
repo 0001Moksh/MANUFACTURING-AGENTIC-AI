@@ -29,11 +29,11 @@ RECOVERY_VERIFICATION_SECONDS = float(os.getenv("MACHINE_RECOVERY_VERIFICATION_S
 MONITORING_WINDOW_MINUTES = int(os.getenv("MACHINE_MONITORING_WINDOW_MINUTES", "120"))
 
 DEFAULT_RECOMMENDATIONS = {
-    "temperature": ["Check surrounding environment and cooling airflow", "Check for nearby heat sources", "Continue monitoring the temperature trend"],
-    "vibration": ["Inspect mounting and loose components", "Check for abnormal mechanical vibration", "Continue monitoring the vibration trend"],
-    "current": ["Check operating load", "Check electrical input and current behavior", "Monitor the current trend"],
-    "power": ["Check load and power consumption", "Compare with the normal operating pattern", "Monitor the power trend"],
-    "rpm": ["Check machine operating speed", "Check the speed and load relationship", "Monitor the RPM trend"],
+    "temperature": ["[DEFAULT_RECOMMENDATIONS] Check surrounding environment and cooling airflow", "Check for nearby heat sources", "Continue monitoring the temperature trend"],
+    "vibration": ["[DEFAULT_RECOMMENDATIONS] Inspect mounting and loose components", "Check for abnormal mechanical vibration", "Continue monitoring the vibration trend"],
+    "current": ["[DEFAULT_RECOMMENDATIONS] Check operating load", "Check electrical input and current behavior", "Monitor the current trend"],
+    "power": ["[DEFAULT_RECOMMENDATIONS] Check load and power consumption", "Compare with the normal operating pattern", "Monitor the power trend"],
+    "rpm": ["[DEFAULT_RECOMMENDATIONS] Check machine operating speed", "Check the speed and load relationship", "Monitor the RPM trend"],
 }
 
 
@@ -250,13 +250,16 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
     logger.info("Stored machine AI summary for %s (response_chars=%d, model=%s)", machine_code, len(response_text), response.get("model_used", "unknown"))
 
 
-async def _get_active_issue(session: AsyncSession, machine_code: str) -> Optional[MachineIssue]:
+ACTIVE_ISSUE_STATUSES = {"ACTIVE", "OPEN", "INVESTIGATION", "RECOMMENDATION", "VERIFYING", "RE_OCCURRENCE"}
+
+
+async def _get_active_issues(session: AsyncSession, machine_code: str) -> List[MachineIssue]:
     return (await session.execute(
         select(MachineIssue).where(
             MachineIssue.machine_code == machine_code,
-            MachineIssue.status.not_in(["RESOLVED"]),
+            MachineIssue.status.in_(ACTIVE_ISSUE_STATUSES),
         ).order_by(MachineIssue.detected_at.desc())
-    )).scalars().first()
+    )).scalars().all()
 
 
 async def _create_issue(session: AsyncSession, machine_code: str, snapshot: Dict[str, Any], severity: str, now: datetime) -> MachineIssue:
@@ -265,7 +268,7 @@ async def _create_issue(session: AsyncSession, machine_code: str, snapshot: Dict
         machine_code=machine_code,
         title=f"{severity.title()} telemetry condition detected",
         severity=severity,
-        status="INVESTIGATION" if severity == "HIGH_RISK" else "OPEN",
+        status="ACTIVE",
         affected_parameters=affected,
         detected_at=now,
         persistence_seconds=0,
@@ -296,7 +299,7 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
     ], temperature=0.1, response_format={"type": "json_object"})
     result = _parse_agent_result(_response_text(response), context)
     issue.analysis = result
-    issue.status = "RECOMMENDATION"
+    issue.status = "ACTIVE"
     investigation = MachineAgentInvestigation(machine_code=issue.machine_code, issue_id=issue.id, context=context, result=result, model_name=response.get("model_used"), status="COMPLETED")
     session.add(investigation)
     for category in ("immediate_actions", "corrective_actions", "preventive_actions"):
@@ -333,7 +336,8 @@ async def monitor_machine(session: AsyncSession, telemetry: Dict[str, Any]) -> N
         if not state.anomaly_started_at:
             state.anomaly_started_at = now
         elapsed = (now - state.anomaly_started_at).total_seconds()
-        issue = await _get_active_issue(session, machine_code)
+        active_issues = await _get_active_issues(session, machine_code)
+        issue = next((item for item in active_issues if item.severity == condition), None)
         required = HIGH_RISK_PERSISTENCE_SECONDS if condition == "HIGH_RISK" else WARNING_PERSISTENCE_SECONDS
         if condition == "WARNING" and not issue and elapsed >= required:
             issue = await _create_issue(session, machine_code, snapshot, "WARNING", now)
@@ -341,7 +345,7 @@ async def monitor_machine(session: AsyncSession, telemetry: Dict[str, Any]) -> N
             if not issue or issue.severity != "HIGH_RISK":
                 issue = await _create_issue(session, machine_code, snapshot, "HIGH_RISK", now)
             issue.persistence_seconds = elapsed
-            if issue.status in {"INVESTIGATION", "RE_OCCURRENCE"} and not issue.analysis:
+            if not issue.analysis:
                 summary = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
                 state.agent_state = "INVESTIGATING"
                 await _investigate(session, issue, snapshot, summary)
@@ -353,13 +357,17 @@ async def monitor_machine(session: AsyncSession, telemetry: Dict[str, Any]) -> N
         return
 
     state.anomaly_started_at = None
-    issue = await _get_active_issue(session, machine_code)
-    if issue and issue.status not in {"RESOLVED"}:
+    active_issues = await _get_active_issues(session, machine_code)
+    if active_issues:
         if not state.recovery_started_at:
             state.recovery_started_at = now
         if (now - state.recovery_started_at).total_seconds() >= RECOVERY_VERIFICATION_SECONDS:
-            issue.status = "RESOLVED"
-            issue.resolved_at = now
+            for issue in active_issues:
+                issue.status = "RESOLVED_BY_SYSTEM"
+                issue.resolved_at = now
+                issue.resolved_by = "SYSTEM"
+                issue.resolution_notes = "Resolved automatically after telemetry returned to normal operating parameters."
+                issue.tags = list(set((issue.tags or []) + ["SYSTEM_AUTO_RESOLVED"]))
             state.agent_state = "RESOLVED"
             state.recovery_started_at = None
         else:
@@ -396,13 +404,13 @@ async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Di
     investigations = (await session.execute(select(MachineAgentInvestigation).where(MachineAgentInvestigation.machine_code == machine_code).order_by(MachineAgentInvestigation.created_at.desc()).limit(20))).scalars().all()
 
     def issue_json(issue: MachineIssue) -> Dict[str, Any]:
-        return {"id": issue.id, "title": issue.title, "severity": issue.severity, "status": issue.status, "affected_parameters": issue.affected_parameters or [], "detected_at": issue.detected_at.isoformat(), "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None, "persistence_seconds": issue.persistence_seconds, "context": issue.context, "analysis": issue.analysis}
+        return {"id": issue.id, "title": issue.title, "severity": issue.severity, "status": issue.status, "affected_parameters": issue.affected_parameters or [], "detected_at": issue.detected_at.isoformat(), "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None, "persistence_seconds": issue.persistence_seconds, "context": issue.context, "analysis": issue.analysis, "operator_action_taken": issue.operator_action_taken, "resolved_by": issue.resolved_by, "resolution_notes": issue.resolution_notes, "tags": issue.tags or []}
 
     return {
         "machine_code": machine_code,
         "summary": {"text": summary.summary_text, "generated_at": summary.generated_at.isoformat(), "snapshot": summary.snapshot_context, "baseline": summary.baseline_context, "llm_trace": summary.llm_trace, "model_name": summary.model_name} if summary else None,
         "state": {"operational_state": state.operational_state, "agent_state": state.agent_state, "parameter_states": state.parameter_states or {}, "last_checked_at": state.last_checked_at.isoformat()} if state else None,
-        "active_issue": next((issue_json(issue) for issue in issues if issue.status != "RESOLVED"), None),
+        "active_issue": next((issue_json(issue) for issue in issues if issue.status in ACTIVE_ISSUE_STATUSES), None),
         "issues": [issue_json(issue) for issue in issues],
         "recommendations": [{"id": item.id, "issue_id": item.issue_id, "action": item.action, "category": item.category, "status": item.status, "generated_at": item.generated_at.isoformat(), "operator_action": item.operator_action, "verification": item.verification} for item in recommendations if item.issue_id in issue_ids],
         "agent_history": [{"id": item.id, "issue_id": item.issue_id, "status": item.status, "created_at": item.created_at.isoformat(), "model_name": item.model_name, "result": item.result} for item in investigations],
