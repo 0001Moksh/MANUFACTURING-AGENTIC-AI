@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft, Bot, Wrench, Shield, FileText, Sparkles, Activity,
   Thermometer, Zap, Plug, Gauge as RpmIcon, ChevronLeft as ChevronLeftIcon,
-  ChevronRight, AlertTriangle, History, CheckCircle2, CircleSlash, X
+  ChevronRight, AlertTriangle, History, CheckCircle2, CircleSlash, X, RefreshCw
 } from 'lucide-react';
 import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
@@ -325,6 +325,7 @@ export const MachineDetailPage: React.FC = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyIssues, setHistoryIssues] = useState<MachineAiIssue[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [summaryRegenerating, setSummaryRegenerating] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
 
   useEffect(() => {
@@ -695,9 +696,31 @@ export const MachineDetailPage: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
-                    {agentStatus}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => {
+                        setSummaryRegenerating(true);
+                        setAiError(null);
+                        try {
+                          const result = await machineMonitoringService.regenerateSummary(machine.id);
+                          setAiData((current) => current ? { ...current, summary: result.summary } : current);
+                        } catch (error: unknown) {
+                          setAiError(error instanceof Error ? error.message : 'Unable to regenerate the machine summary.');
+                        } finally {
+                          setSummaryRegenerating(false);
+                        }
+                      }}
+                      disabled={summaryRegenerating}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-teal/30 bg-white px-3 py-1.5 text-[11px] font-bold text-teal hover:bg-teal/5 disabled:opacity-50"
+                      title="Regenerate AI summary using current machine telemetry"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${summaryRegenerating ? 'animate-spin' : ''}`} />
+                      {summaryRegenerating ? 'Regenerating…' : 'Regenerate summary'}
+                    </button>
+                    <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
+                      {agentStatus}
+                    </span>
+                  </div>
                 </div>
 
                 {aiError && (

@@ -92,6 +92,10 @@ export const machineMonitoringService = {
     const res = await api.post(`/v1/mai/thresholds/${encodeURIComponent(machineId)}`, { parameters });
     return res.data;
   },
+  regenerateSummary: async (machineId: string) => {
+    const res = await api.post(`/machines/${encodeURIComponent(machineId)}/ai-summary/regenerate`);
+    return res.data;
+  },
   ignoreIssue: async (machineId: string, issueId: number, notes?: string) => {
     const res = await api.post(`/machines/${encodeURIComponent(machineId)}/issues/${issueId}/ignore`, { notes });
     return res.data;

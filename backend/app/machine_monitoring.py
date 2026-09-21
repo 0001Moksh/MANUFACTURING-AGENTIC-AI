@@ -201,11 +201,12 @@ def _response_text(response: Dict[str, Any]) -> str:
     return str(content or "").strip()
 
 
-async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
+async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], snapshot: Dict[str, Any], force: bool = False) -> None:
     machine_code = telemetry["code"]
     existing = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
     if (
-        existing
+        not force
+        and existing
         and not existing.summary_text.startswith("[LLM Response Not Available]")
         and existing.snapshot_context is not None
         and existing.baseline_context is not None
@@ -248,6 +249,13 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
         )
         await session.execute(statement)
     logger.info("Stored machine AI summary for %s (response_chars=%d, model=%s)", machine_code, len(response_text), response.get("model_used", "unknown"))
+
+
+async def regenerate_machine_summary(session: AsyncSession, telemetry: Dict[str, Any]) -> None:
+    """Regenerate a summary from the current telemetry without changing issue state."""
+    telemetry = await _apply_machine_thresholds(session, telemetry)
+    await _generate_summary(session, telemetry, _snapshot(telemetry), force=True)
+    await session.commit()
 
 
 ACTIVE_ISSUE_STATUSES = {"ACTIVE", "OPEN", "INVESTIGATION", "RECOMMENDATION", "VERIFYING", "RE_OCCURRENCE"}

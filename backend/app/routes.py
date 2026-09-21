@@ -32,7 +32,7 @@ from app.permission_engine import get_permission_catalog as get_permission_catal
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
 from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
-from app.machine_monitoring import get_machine_ai_payload, monitor_machine
+from app.machine_monitoring import get_machine_ai_payload, monitor_machine, regenerate_machine_summary
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.insights_summary_agent import generate_chart_summary as agent_generate_chart_summary
@@ -1563,6 +1563,20 @@ async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, An
 @router.get("/api/machines/{machine_id}/ai-summary")
 async def get_machine_ai_summary(machine_id: str, db: AsyncSession = Depends(get_db)):
     payload = await _machine_ai_payload(machine_id, db)
+    return {"machine_code": machine_id, "summary": payload["summary"]}
+
+
+@router.post("/api/machines/{machine_id}/ai-summary/regenerate")
+async def regenerate_machine_ai_summary(machine_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        telemetry_list = await asyncio.to_thread(get_machine_telemetry)
+    except InfluxTelemetryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    telemetry = next((item for item in telemetry_list if item.get("id") == machine_id or item.get("code") == machine_id), None)
+    if telemetry is None:
+        raise HTTPException(status_code=404, detail=f"Machine {machine_id} is not available from the configured telemetry source")
+    await regenerate_machine_summary(db, telemetry)
+    payload = await get_machine_ai_payload(db, machine_id)
     return {"machine_code": machine_id, "summary": payload["summary"]}
 
 
