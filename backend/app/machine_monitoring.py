@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,6 +72,7 @@ def _snapshot(telemetry: Dict[str, Any]) -> Dict[str, Any]:
             "trend": ("rising" if len(points) > 1 and points[-1] > points[0] else "falling" if len(points) > 1 and points[-1] < points[0] else "stable") if points else "unknown",
         }
     return {
+        "_llm_response_available": False,
         "machine_code": telemetry.get("code"),
         "machine_name": telemetry.get("name"),
         "operational_status": telemetry.get("status"),
@@ -411,11 +412,6 @@ async def _create_issue(session: AsyncSession, machine_code: str, snapshot: Dict
     )
     session.add(issue)
     await session.flush()
-    retrieved_evidence = await retrieve_machine_evidence(session, machine_code, issue.title, affected, limit=3)
-    if severity == "WARNING":
-        for metric in affected:
-            for action in _recommendations(metric):
-                session.add(MachineRecommendation(machine_code=machine_code, issue_id=issue.id, action=action, category="IMMEDIATE", source_chunks=retrieved_evidence))
     logger.warning("Created %s machine issue %s for %s", severity, issue.id, machine_code)
     return issue
 
@@ -437,14 +433,35 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
         {"role": "system", "content": "You are a machine monitoring agent. Analyze only supplied telemetry and retrieved document evidence. Do not invent manual steps, component specifications, causes, or citations. If supplied evidence is insufficient, explicitly say so and recommend inspection. Return valid JSON with issue_title, issue_summary, affected_parameters, detected_condition, possible_causes, root_cause_confidence, risk_level, recommended_actions, immediate_actions, corrective_actions, preventive_actions, evidence, reasoning_summary, operator_instructions, monitoring_requirements."},
         {"role": "user", "content": json.dumps(context, default=str)},
     ], temperature=0.1, response_format={"type": "json_object"})
-    result = _parse_agent_result(_response_text(response), context)
+    raw_text = _response_text(response)
+    result = _parse_agent_result(raw_text, context)
+    result["_llm_response_available"] = bool(raw_text) and result.get("_llm_response_available") is not False
     issue.analysis = result
     issue.status = "ACTIVE"
+    # Replace any legacy/default recommendations with this investigation's LLM actions.
+    await session.execute(delete(MachineRecommendation).where(MachineRecommendation.issue_id == issue.id))
     investigation = MachineAgentInvestigation(machine_code=issue.machine_code, issue_id=issue.id, context=context, result=result, model_name=response.get("model_used"), status="COMPLETED")
     session.add(investigation)
-    for category in ("immediate_actions", "corrective_actions", "preventive_actions"):
-        for action in result.get(category, []) or []:
-            session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=str(action), category=category.replace("_actions", "").upper(), source_chunks=retrieved_evidence))
+    action_fields = (
+        ("immediate_actions", "IMMEDIATE"),
+        ("corrective_actions", "CORRECTIVE"),
+        ("preventive_actions", "PREVENTIVE"),
+        ("recommended_actions", "RECOMMENDED"),
+    )
+    saved_actions = 0
+    for field, category in action_fields:
+        for action in result.get(field, []) or []:
+            if isinstance(action, str) and action.strip():
+                session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=action.strip(), category=category, source_chunks=retrieved_evidence))
+                saved_actions += 1
+    # Deterministic actions are only used when the LLM did not return a usable response.
+    if not result["_llm_response_available"]:
+        for metric in issue.affected_parameters or []:
+            for action in _recommendations(metric):
+                session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=action, category="FALLBACK", source_chunks=retrieved_evidence))
+                saved_actions += 1
+    if not saved_actions:
+        logger.warning("LLM response for issue %s contained no action arrays; no fallback was inserted.", issue.id)
     logger.info("Completed machine agent investigation for issue %s", issue.id)
 
 
@@ -481,6 +498,10 @@ async def monitor_machine(session: AsyncSession, telemetry: Dict[str, Any]) -> N
         required = HIGH_RISK_PERSISTENCE_SECONDS if condition == "HIGH_RISK" else WARNING_PERSISTENCE_SECONDS
         if condition == "WARNING" and not issue and elapsed >= required:
             issue = await _create_issue(session, machine_code, snapshot, "WARNING", now)
+        if condition == "WARNING" and issue and not issue.analysis:
+            summary = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
+            state.agent_state = "INVESTIGATING"
+            await _investigate(session, issue, snapshot, summary)
         if condition == "HIGH_RISK" and elapsed >= required:
             if not issue or issue.severity != "HIGH_RISK":
                 issue = await _create_issue(session, machine_code, snapshot, "HIGH_RISK", now)

@@ -1,148 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Download, Eye, FileSpreadsheet, FileText, Pencil, Plus, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Download, Eye, FileText, Loader2, Search, Send, Trash2, Upload, X } from 'lucide-react';
 import { machineMonitoringService } from '../../services/api';
+import type { KBQueryResponse, MachineDocument } from '../../types/machineDocuments';
 
-type MachineDocument = {
-  id: number;
-  title: string;
-  document_type: string;
-  original_filename: string;
-  mime_type?: string | null;
-  file_size: number;
-  uploaded_by?: string | null;
-  created_at: string;
-  updated_at: string;
-};
+type ApiDocument = Partial<MachineDocument> & { id: number | string; original_filename?: string; file_size?: number; created_at?: string };
+const PAGE_SIZE = 8;
+const ALLOWED = new Set(['pdf', 'doc', 'docx', 'md', 'txt']);
+const size = (n: number) => n < 1048576 ? `${Math.max(1, Math.ceil(n / 1024))} KB` : `${(n / 1048576).toFixed(1)} MB`;
 
-const DOCUMENT_TYPES = [
-  'Repair Guide', 'Machine Documentation', 'User Guide', 'Service Manual',
-  'Maintenance Guide', 'Troubleshooting Guide', 'Safety Document', 'Technical Document',
-];
-
-const TYPE_CODES: Record<string, string> = {
-  'Repair Guide': 'RG', 'Machine Documentation': 'MD', 'User Guide': 'UG', 'Service Manual': 'SM',
-  'Maintenance Guide': 'MM', 'Troubleshooting Guide': 'TG', 'Safety Document': 'SaM', 'Technical Document': 'TM',
-};
-
-const readableSize = (size: number) => size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`;
-const extensionOf = (filename: string) => filename.split('.').pop()?.toUpperCase() || 'FILE';
-
-export const MachineDocumentsPanel: React.FC<{ machineId: string }> = ({ machineId }) => {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [documents, setDocuments] = useState<MachineDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
-  const [documentType, setDocumentType] = useState('Machine Documentation');
-  const [uploading, setUploading] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [editing, setEditing] = useState<MachineDocument | null>(null);
-  const [preview, setPreview] = useState<{ doc: MachineDocument; url: string } | null>(null);
-
-  const loadDocuments = async () => {
-    setLoading(true);
-    try {
-      const response = await machineMonitoringService.getDocuments(machineId);
-      setDocuments(response.documents ?? []);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load machine documents.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { void loadDocuments(); }, [machineId]);
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
-
-  const selectFile = (file?: File) => {
-    if (!file) return;
-    setSelectedFile(file);
-    if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''));
-  };
-
-  const upload = async () => {
-    if (!selectedFile || !title.trim()) return;
-    setUploading(true);
-    try {
-      await machineMonitoringService.uploadDocument(machineId, selectedFile, title.trim(), documentType);
-      setSelectedFile(null); setTitle(''); setDocumentType('Machine Documentation'); setShowUpload(false);
-      if (fileInput.current) fileInput.current.value = '';
-      await loadDocuments();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to upload the document.');
-    } finally { setUploading(false); }
-  };
-
-  const download = async (doc: MachineDocument) => {
-    try {
-      const blob = await machineMonitoringService.getDocumentFile(machineId, doc.id, true);
-      const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
-      anchor.href = url; anchor.download = doc.original_filename; anchor.click(); URL.revokeObjectURL(url);
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to download the document.'); }
-  };
-
-  const openPreview = async (doc: MachineDocument) => {
-    try {
-      const blob = await machineMonitoringService.getDocumentFile(machineId, doc.id);
-      setPreview({ doc, url: URL.createObjectURL(blob) });
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to preview the document.'); }
-  };
-
-  const remove = async (doc: MachineDocument) => {
-    if (!window.confirm(`Delete “${doc.title}”? This removes the locally stored file as well.`)) return;
-    try { await machineMonitoringService.deleteDocument(machineId, doc.id); await loadDocuments(); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Unable to delete the document.'); }
-  };
-
-  const saveEdit = async () => {
-    if (!editing || !editing.title.trim()) return;
-    try {
-      await machineMonitoringService.updateDocument(machineId, editing.id, editing.title.trim(), editing.document_type);
-      setEditing(null); await loadDocuments();
-    } catch (err) { setError(err instanceof Error ? err.message : 'Unable to update the document.'); }
-  };
-
-  const previewable = preview && ['PDF', 'TXT', 'MD'].includes(extensionOf(preview.doc.original_filename));
-
+export const MachineDocumentsPanel: React.FC<{ machineId: string; openUploadSignal?: number }> = ({ machineId, openUploadSignal }) => {
+  const input = useRef<HTMLInputElement>(null);
+  const [docs, setDocs] = useState<MachineDocument[]>([]); const [file, setFile] = useState<File | null>(null);
+  const [search, setSearch] = useState(''); const [type, setType] = useState<'all' | MachineDocument['fileType']>('all'); const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true); const [uploading, setUploading] = useState(false); const [dragging, setDragging] = useState(false); const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState(''); const [querying, setQuerying] = useState(false); const [result, setResult] = useState<KBQueryResponse | null>(null);
+  const load = async () => { setLoading(true); try { const response = await machineMonitoringService.getDocuments(machineId); setDocs(((response.documents ?? []) as ApiDocument[]).map(d => ({ id: String(d.id), machineId: d.machineId ?? machineId, fileName: d.fileName ?? d.original_filename ?? 'Untitled', fileType: (d.fileType ?? d.original_filename?.split('.').pop() ?? 'txt').toLowerCase() as MachineDocument['fileType'], fileUrl: d.fileUrl ?? '', uploadedAt: d.uploadedAt ?? d.created_at ?? new Date().toISOString(), fileSize: d.fileSize ?? d.file_size ?? 0 })).filter(d => ALLOWED.has(d.fileType))); setError(null); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load repair documents.'); } finally { setLoading(false); } };
+  useEffect(() => { void load(); }, [machineId]); useEffect(() => { if (openUploadSignal) input.current?.click(); }, [openUploadSignal]); useEffect(() => setPage(1), [search, type]);
+  const select = (next?: File) => { if (!next) return; const ext = next.name.split('.').pop()?.toLowerCase() ?? ''; if (!ALLOWED.has(ext)) { setError('Use a PDF, DOC, DOCX, Markdown, or text file.'); return; } setFile(next); setError(null); };
+  const upload = async () => { if (!file) return; setUploading(true); try { await machineMonitoringService.uploadDocument(machineId, file, file.name.replace(/\.[^.]+$/, ''), 'Repair Guide'); setFile(null); if (input.current) input.current.value = ''; await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to upload document.'); } finally { setUploading(false); } };
+  const filtered = useMemo(() => docs.filter(d => (type === 'all' || d.fileType === type) && d.fileName.toLowerCase().includes(search.toLowerCase())), [docs, type, search]); const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); const shown = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const action = async (doc: MachineDocument, mode: 'view' | 'download' | 'delete') => { try { if (mode === 'delete') { if (!window.confirm(`Delete “${doc.fileName}”? This removes it from the KB.`)) return; await machineMonitoringService.deleteDocument(machineId, Number(doc.id)); await load(); return; } const blob = await machineMonitoringService.getDocumentFile(machineId, Number(doc.id), mode === 'download'); const url = URL.createObjectURL(blob); if (mode === 'view') { window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60000); } else { const a = document.createElement('a'); a.href = url; a.download = doc.fileName; a.click(); URL.revokeObjectURL(url); } } catch (e) { setError(e instanceof Error ? e.message : `Unable to ${mode} document.`); } };
+  const ask = async () => { if (!query.trim()) return; setQuerying(true); setResult(null); try { setResult(await machineMonitoringService.queryDocumentKb(machineId, query.trim()) as KBQueryResponse); } catch (e) { setError(e instanceof Error ? e.message : 'Unable to query the knowledge base.'); } finally { setQuerying(false); } };
   return <div className="space-y-5">
-    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
-      <div className="absolute right-0 top-0 h-24 w-48 bg-gradient-to-bl from-teal/10 to-transparent" />
-      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal/20 bg-teal/10 text-teal"><FileText className="h-5 w-5" /></div>
-          <div><h3 className="font-head text-[16px] font-extrabold text-slate-800">Machine Documents</h3><p className="mt-0.5 text-[12px] text-slate-500">Guides, manuals, procedures and technical records for this machine.</p></div>
-        </div>
-        <button onClick={() => setShowUpload(v => !v)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-[12px] font-bold text-white shadow-sm transition-colors hover:bg-teal/90"><Plus className="h-4 w-4" /> Upload document</button>
-      </div>
-      <div className="relative mt-5 flex flex-wrap gap-2 text-[10.5px] font-semibold text-slate-500"><span className="rounded-full bg-slate-100 px-2.5 py-1">PDF</span><span className="rounded-full bg-slate-100 px-2.5 py-1">Word</span><span className="rounded-full bg-slate-100 px-2.5 py-1">Excel</span><span className="rounded-full bg-slate-100 px-2.5 py-1">README / Markdown</span><span className="ml-auto flex items-center gap-1 text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" /> Stored locally</span></div>
-    </section>
-
-    <AnimatePresence>{showUpload && <motion.section initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden rounded-2xl border border-teal/20 bg-teal/[0.03] p-5">
-      <div className="mb-4 flex items-center justify-between"><div><h4 className="text-[14px] font-bold text-slate-800">Add a machine document</h4><p className="mt-0.5 text-[11.5px] text-slate-500">Up to 25 MB. PDF, Word, Excel, TXT or Markdown.</p></div><button onClick={() => setShowUpload(false)} className="rounded-lg p-1 text-slate-400 hover:bg-white hover:text-slate-700"><X className="h-4 w-4" /></button></div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.2fr_1fr_1fr_auto] md:items-end">
-        <label className="block"><span className="mb-1.5 block text-[11px] font-bold text-slate-600">Document file</span><button type="button" onClick={() => fileInput.current?.click()} className="flex w-full items-center gap-2 rounded-xl border border-dashed border-teal/40 bg-white px-3 py-2.5 text-left text-[12px] text-slate-600 hover:border-teal"><Upload className="h-4 w-4 text-teal" /><span className="truncate">{selectedFile?.name || 'Choose a file'}</span></button><input ref={fileInput} className="hidden" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.md,text/plain,application/pdf" onChange={e => selectFile(e.target.files?.[0])} /></label>
-        <label className="block"><span className="mb-1.5 block text-[11px] font-bold text-slate-600">Title</span><input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Hydraulic service manual" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] outline-none focus:border-teal" /></label>
-        <label className="block"><span className="mb-1.5 block text-[11px] font-bold text-slate-600">Category</span><select value={documentType} onChange={e => setDocumentType(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[12px] outline-none focus:border-teal">{DOCUMENT_TYPES.map(type => <option key={type}>{type}</option>)}</select></label>
-        <button disabled={!selectedFile || !title.trim() || uploading} onClick={upload} className="rounded-xl bg-slate-900 px-4 py-2.5 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">{uploading ? 'Uploading…' : 'Save document'}</button>
-      </div>
-    </motion.section>}</AnimatePresence>
-
-    {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] text-rose-700">{error}</div>}
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h4 className="text-[14px] font-bold text-slate-800">Document library</h4><p className="mt-0.5 text-[11px] text-slate-500">{documents.length} document{documents.length === 1 ? '' : 's'} available</p></div></div>
-      {loading ? <div className="p-10 text-center text-[12px] text-slate-400">Loading document library…</div> : documents.length === 0 ? <div className="p-10 text-center"><div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-400"><FileText className="h-5 w-5" /></div><p className="text-[13px] font-bold text-slate-700">No documents yet</p><p className="mt-1 text-[11.5px] text-slate-500">Upload a repair guide, manual, safety document or technical reference.</p></div> : <div className="divide-y divide-slate-100">{documents.map(doc => <div key={doc.id} className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal/10 text-[10px] font-extrabold text-teal">{extensionOf(doc.original_filename) === 'XLSX' || extensionOf(doc.original_filename) === 'XLS' ? <FileSpreadsheet className="h-5 w-5" /> : extensionOf(doc.original_filename)}</div>
-        <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-[13px] font-bold text-slate-800">{doc.title}</p><span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-500">{TYPE_CODES[doc.document_type] || 'DOC'} · {doc.document_type}</span></div><p className="mt-1 truncate text-[11px] text-slate-500">{doc.original_filename} <span className="mx-1 text-slate-300">•</span> {readableSize(doc.file_size)} <span className="mx-1 text-slate-300">•</span> Updated {new Date(doc.updated_at).toLocaleDateString()} {doc.uploaded_by ? `by ${doc.uploaded_by}` : ''}</p></div>
-        <div className="flex items-center gap-1"><button onClick={() => void openPreview(doc)} title="Preview" className="rounded-lg p-2 text-slate-500 hover:bg-teal/10 hover:text-teal"><Eye className="h-4 w-4" /></button><button onClick={() => void download(doc)} title="Download" className="rounded-lg p-2 text-slate-500 hover:bg-teal/10 hover:text-teal"><Download className="h-4 w-4" /></button><button onClick={() => setEditing({ ...doc })} title="Edit details" className="rounded-lg p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-800"><Pencil className="h-4 w-4" /></button><button onClick={() => void remove(doc)} title="Delete" className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" /></button></div>
-      </div>)}</div>}
-    </section>
-
-    <AnimatePresence>{(editing || preview) && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-      {editing && <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"><div className="mb-4 flex items-center justify-between"><h4 className="font-head text-[16px] font-bold text-slate-800">Edit document details</h4><button onClick={() => setEditing(null)}><X className="h-5 w-5 text-slate-400" /></button></div><label className="mb-3 block text-[11px] font-bold text-slate-600">Title<input value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none focus:border-teal" /></label><label className="block text-[11px] font-bold text-slate-600">Category<select value={editing.document_type} onChange={e => setEditing({ ...editing, document_type: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-[12px] outline-none focus:border-teal">{DOCUMENT_TYPES.map(type => <option key={type}>{type}</option>)}</select></label><div className="mt-5 flex justify-end gap-2"><button onClick={() => setEditing(null)} className="rounded-xl px-3 py-2 text-[12px] font-bold text-slate-500">Cancel</button><button onClick={() => void saveEdit()} className="rounded-xl bg-teal px-4 py-2 text-[12px] font-bold text-white">Save changes</button></div></div>}
-      {preview && <div className="flex h-[min(82vh,760px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-3"><div className="min-w-0"><p className="truncate text-[13px] font-bold text-slate-800">{preview.doc.title}</p><p className="text-[10.5px] text-slate-500">{preview.doc.original_filename}</p></div><div className="flex gap-1"><button onClick={() => void download(preview.doc)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Download className="h-4 w-4" /></button><button onClick={() => setPreview(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div></div>{previewable ? <iframe title={preview.doc.title} src={preview.url} className="min-h-0 flex-1 bg-slate-100" /> : <div className="flex flex-1 flex-col items-center justify-center p-8 text-center"><FileText className="mb-3 h-10 w-10 text-teal" /><p className="text-[14px] font-bold text-slate-800">Preview is not available for this Office file</p><p className="mt-1 text-[12px] text-slate-500">Download it to open it in your preferred application.</p><button onClick={() => void download(preview.doc)} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2.5 text-[12px] font-bold text-white"><Download className="h-4 w-4" /> Download document</button></div>}</div>}
-    </motion.div>}</AnimatePresence>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center gap-2"><FileText className="h-5 w-5 text-teal" /><div><h3 className="font-head text-[16px] font-bold text-slate-800">Repair Document Knowledge Base</h3><p className="text-[12px] text-slate-500">Upload repair references and search the machine-specific indexed content.</p></div></div><input ref={input} className="hidden" type="file" accept=".pdf,.doc,.docx,.md,.txt" onChange={e => select(e.target.files?.[0])} /><div onClick={() => input.current?.click()} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); select(e.dataTransfer.files[0]); }} className={`cursor-pointer rounded-xl border-2 border-dashed p-7 text-center ${dragging ? 'border-teal bg-teal/10' : 'border-slate-200 bg-slate-50 hover:border-teal/60'}`}><Upload className="mx-auto mb-2 h-6 w-6 text-teal" /><p className="text-[13px] font-bold text-slate-700">Drag and drop a repair document here</p><p className="mt-1 text-[11px] text-slate-500">PDF, DOC, DOCX, MD, or TXT — maximum 25 MB</p><button type="button" className="mt-3 rounded-lg border border-teal/30 bg-white px-3 py-1.5 text-[11px] font-bold text-teal">Choose file</button></div>{file && <div className="mt-3 flex items-center justify-between rounded-lg bg-teal/5 px-3 py-2 text-[12px]"><span className="truncate font-medium">{file.name} · {size(file.size)}</span><div className="flex gap-2"><button onClick={e => { e.stopPropagation(); setFile(null); }}><X className="h-4 w-4" /></button><button onClick={e => { e.stopPropagation(); void upload(); }} disabled={uploading} className="rounded bg-teal px-3 py-1 text-[11px] font-bold text-white">{uploading ? 'Uploading…' : 'Upload'}</button></div></div>}</section>
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><h4 className="font-bold text-slate-800">Repair documents</h4><div className="flex gap-2"><label className="relative"><Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search documents" className="rounded-lg border border-slate-200 py-1.5 pl-8 pr-2 text-[12px]" /></label><select value={type} onChange={e => setType(e.target.value as typeof type)} className="rounded-lg border border-slate-200 px-2 text-[12px]"><option value="all">All types</option>{['pdf', 'doc', 'docx', 'md', 'txt'].map(v => <option key={v} value={v}>{v.toUpperCase()}</option>)}</select></div></div>{error && <div className="m-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">{error}</div>}<div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-[12px]"><thead className="bg-slate-50 text-[10px] uppercase text-slate-500"><tr>{['File Name', 'Type', 'Upload Date', 'Machine ID', 'Actions'].map(h => <th key={h} className={`px-4 py-3 ${h === 'Actions' ? 'text-right' : ''}`}>{h}</th>)}</tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-10 text-center text-slate-400">Loading documents…</td></tr> : shown.length ? shown.map(d => <tr key={d.id} className="border-t border-slate-100"><td className="px-4 py-3 font-medium"><FileText className="mr-2 inline h-4 w-4 text-teal" />{d.fileName}<span className="ml-2 text-[10px] font-normal text-slate-400">{size(d.fileSize)}</span></td><td className="px-4 py-3 uppercase">{d.fileType}</td><td className="px-4 py-3">{new Date(d.uploadedAt).toLocaleDateString()}</td><td className="px-4 py-3 font-mono">{d.machineId}</td><td className="px-4 py-3"><div className="flex justify-end gap-1"><button onClick={() => void action(d, 'view')} title="View" className="p-1.5 text-teal"><Eye className="h-4 w-4" /></button><button onClick={() => void action(d, 'download')} title="Download" className="p-1.5 text-teal"><Download className="h-4 w-4" /></button><button onClick={() => void action(d, 'delete')} title="Delete" className="p-1.5 text-rose-500"><Trash2 className="h-4 w-4" /></button></div></td></tr>) : <tr><td colSpan={5} className="p-10 text-center text-slate-500">No repair documents match this filter.</td></tr>}</tbody></table></div><div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-[11px] text-slate-500"><span>{filtered.length} documents</span><div className="flex gap-2"><button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="rounded border px-2 py-1 disabled:opacity-40">Previous</button><span>Page {page} of {pages}</span><button disabled={page === pages} onClick={() => setPage(p => p + 1)} className="rounded border px-2 py-1 disabled:opacity-40">Next</button></div></div></section>
+    <section className="rounded-2xl border border-teal/20 bg-teal/[0.03] p-5"><h4 className="font-bold text-slate-800">Query the KB</h4><p className="text-[12px] text-slate-500">Ask a question against this machine’s indexed repair documents.</p><div className="mt-3 flex gap-2"><input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void ask(); }} placeholder="e.g. What are the steps to reset the overload alarm?" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-[12px]" /><button onClick={() => void ask()} disabled={!query.trim() || querying} className="inline-flex items-center gap-1 rounded-xl bg-teal px-4 py-2.5 text-[12px] font-bold text-white">{querying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Ask</button></div>{result && <div className="mt-4 rounded-xl border border-teal/15 bg-white p-4"><p className="whitespace-pre-wrap text-[12px] text-slate-700">{result.answer}</p>{result.sources.map((s, i) => <div key={`${s.fileName}-${i}`} className="mt-3 border-l-2 border-teal/40 pl-2 text-[11px]"><b>{s.fileName}{s.pageNumber ? ` · Section ${s.pageNumber}` : ''}</b><p className="text-slate-500">{s.snippet}</p></div>)}</div>}</section>
   </div>;
 };

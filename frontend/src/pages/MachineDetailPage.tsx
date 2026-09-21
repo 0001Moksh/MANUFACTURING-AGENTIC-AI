@@ -5,7 +5,7 @@ import {
   ChevronLeft, Bot, Wrench, FileText, Sparkles, Activity,
   Thermometer, Zap, Plug, Gauge as RpmIcon, ChevronLeft as ChevronLeftIcon,
   ChevronRight, AlertTriangle, History, CheckCircle2, CircleSlash, X, RefreshCw,
-  ChevronDown
+  ChevronDown, Plus
 } from 'lucide-react';
 import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
@@ -383,6 +383,7 @@ export const MachineDetailPage: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [summaryRegenerating, setSummaryRegenerating] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
+  const [documentUploadSignal, setDocumentUploadSignal] = useState(0);
 
   // Agent tab – collapsible Active Issues section
   const [issuesOpen, setIssuesOpen] = useState(true);
@@ -585,7 +586,7 @@ export const MachineDetailPage: React.FC = () => {
     { key: 'agent', label: 'AI Agent Root-Cause', icon: Bot, alert: activeIssueCount > 0 },
     { key: 'mes', label: 'Work Orders', icon: FileText },
     { key: 'maintenance', label: 'Service History', icon: Wrench },
-    { key: 'documents', label: 'Machine Documents', icon: FileText },
+    { key: 'documents', label: 'Repair Document', icon: FileText },
   ];
 
   return (
@@ -696,6 +697,15 @@ export const MachineDetailPage: React.FC = () => {
                 </button>
               );
             })}
+            <button
+              type="button"
+              aria-label="Add repair document"
+              title="Add repair document"
+              onClick={() => { setActiveTab('documents'); setDocumentUploadSignal((value) => value + 1); }}
+              className="rounded-lg px-2.5 py-2 text-teal transition-colors hover:bg-teal/10"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
 
           <button
@@ -996,7 +1006,7 @@ export const MachineDetailPage: React.FC = () => {
                                                   {source.category} · {source.title}
                                                   <span className="ml-1 font-normal text-slate-400">chunk {source.chunk_index + 1}</span>
                                                 </p>
-                                                <p className="mt-0.5 line-clamp-2 text-[10.5px] leading-relaxed text-slate-500">{source.content}</p>
+                                                <p className="mt-0.5 text-[10.5px] leading-relaxed text-slate-500">{source.content.slice(0, 220)}{source.content.length > 220 ? '…' : ''}</p>
                                               </div>
                                             ))}
                                           </div>
@@ -1339,7 +1349,7 @@ export const MachineDetailPage: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'documents' && <MachineDocumentsPanel machineId={machine.id} />}
+            {activeTab === 'documents' && <MachineDocumentsPanel machineId={machine.id} openUploadSignal={documentUploadSignal} />}
           </motion.div>
         </AnimatePresence>
       </div>

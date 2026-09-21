@@ -112,3 +112,29 @@ async def retrieve_machine_evidence(session: AsyncSession, machine_code: str, is
             ranked.append((score, chunk, document))
     ranked.sort(key=lambda item: item[0], reverse=True)
     return [{"document_id": document.id, "title": document.title, "filename": document.original_filename, "category": chunk.document_type, "chunk_index": chunk.chunk_index, "content": chunk.content, "score": round(score, 3)} for score, chunk, document in ranked[:limit]]
+
+
+async def query_machine_documents(session: AsyncSession, machine_code: str, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """Retrieve only evidence indexed for one machine's document library."""
+    query_vector = _embedding(query)
+    rows = (await session.execute(
+        select(MachineDocumentChunk, MachineDocument)
+        .join(MachineDocument, MachineDocument.id == MachineDocumentChunk.document_id)
+        .where(MachineDocumentChunk.machine_code == machine_code)
+    )).all()
+    ranked = []
+    for chunk, document in rows:
+        score = _dot(query_vector, chunk.embedding) + _category_score(chunk.document_type, query)
+        if score > 0:
+            ranked.append((score, chunk, document))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [
+        {
+            "fileName": document.original_filename,
+            # Chunk offsets are stable citations; PDF page metadata is not available for every supported format.
+            "pageNumber": chunk.chunk_index + 1,
+            "snippet": chunk.content[:700],
+            "score": round(score, 3),
+        }
+        for score, chunk, document in ranked[:limit]
+    ]

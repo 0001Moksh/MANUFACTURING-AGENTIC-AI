@@ -135,6 +135,10 @@ export const machineMonitoringService = {
     );
     return res.data as Blob;
   },
+  queryDocumentKb: async (machineId: string, query: string) => {
+    const res = await api.post(`/machines/${encodeURIComponent(machineId)}/documents/query`, { query });
+    return res.data;
+  },
 };
 
 export const licenseService = {

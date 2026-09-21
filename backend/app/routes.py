@@ -28,7 +28,7 @@ from app.db import (
     Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig, MachineDocument
 )
 from app.db import MachineRecommendation, MachineIssue, MachineDocumentChunk
-from app.machine_rag import index_machine_document
+from app.machine_rag import index_machine_document, query_machine_documents
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
@@ -106,6 +106,10 @@ class MachineThresholdRequest(BaseModel):
 class MachineDocumentUpdateRequest(BaseModel):
     title: str
     document_type: str
+
+
+class MachineDocumentQueryRequest(BaseModel):
+    query: str
 
 class QueryRequest(BaseModel):
     query: str
@@ -1431,6 +1435,13 @@ def _machine_document_payload(document: MachineDocument) -> Dict[str, Any]:
         "indexed_at": document.indexed_at.isoformat() if document.indexed_at else None,
         "created_at": document.created_at.isoformat(),
         "updated_at": document.updated_at.isoformat(),
+        # Canonical frontend KB schema (keep existing fields above for compatibility).
+        "machineId": document.machine_code,
+        "fileName": document.original_filename,
+        "fileType": Path(document.original_filename).suffix.lower().lstrip("."),
+        "fileUrl": f"/api/machines/{document.machine_code}/documents/{document.id}/content",
+        "uploadedAt": document.created_at.isoformat(),
+        "fileSize": document.file_size,
     }
 
 
@@ -1552,6 +1563,24 @@ async def delete_machine_document(machine_id: str, document_id: int, request: Re
         path.unlink(missing_ok=True)
     if embedding_path and embedding_path.is_file():
         embedding_path.unlink(missing_ok=True)
+
+
+@router.post("/api/machines/{machine_id}/documents/query")
+async def query_machine_document_kb(machine_id: str, payload: MachineDocumentQueryRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    """Answer from local, machine-scoped indexed document excerpts only."""
+    await get_current_user(request, db)
+    query = payload.query.strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="A knowledge-base query is required")
+    if len(query) > 2_000:
+        raise HTTPException(status_code=422, detail="Knowledge-base queries must be 2,000 characters or fewer")
+    sources = await query_machine_documents(db, machine_id, query)
+    if not sources:
+        return {"answer": "No relevant indexed content was found for this machine. Upload a readable repair document or use different terms.", "sources": []}
+    answer = "Relevant information from this machine's repair documents:\n\n" + "\n\n".join(
+        f"{source['snippet']}" for source in sources[:3]
+    )
+    return {"answer": answer, "sources": [{key: source[key] for key in ("fileName", "pageNumber", "snippet")} for source in sources]}
 
 
 async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, Any]:
