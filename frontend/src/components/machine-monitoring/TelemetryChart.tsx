@@ -254,10 +254,7 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({
 
           {/* Right: Controls */}
           <div className="flex shrink-0 flex-wrap items-center gap-2.5">
-            <span className="hidden items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 font-mono text-[11px] font-semibold text-cyan-300 sm:flex">
-              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
-              INFLUXDB
-            </span>
+            
 
             {isMulti && (
               <div className="flex items-center rounded-xl border border-slate-600/50 bg-slate-800/50 p-0.5 text-[12px]">

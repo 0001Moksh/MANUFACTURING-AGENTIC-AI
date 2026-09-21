@@ -190,19 +190,19 @@ const GaugeRow: React.FC<{
   if (!metrics.length) return null;
 
   return (
-    <div className="mb-5 last:mb-0">
-      <div className="flex items-center justify-between mb-2.5">
+    <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+      <div className="flex items-center justify-between">
         <h3 className="text-[13px] font-bold text-slate-700">{title}</h3>
-        <div className="flex items-center gap-1">
+        <div className=" flex items-center gap-1">
           <button
             onClick={() => scroll('left')}
-            className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+            className="w-7 h-7 rounded-lg border  border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
           >
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
           <button
             onClick={() => scroll('right')}
-            className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+            className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -228,17 +228,17 @@ const GaugeRow: React.FC<{
           const axisMax = hasCritical
             ? (m.criticalThreshold as number) * 1.1
             : hasWarning
-            ? (m.warningThreshold as number) * 1.2
-            : configuredRange[1] * 1.15;
+              ? (m.warningThreshold as number) * 1.2
+              : configuredRange[1] * 1.15;
 
           const statusColor =
             liveStatus === 'critical'
               ? '#EF4444'
               : liveStatus === 'warning'
-              ? '#F59E0B'
-              : liveStatus === 'unavailable'
-              ? '#64748B'
-              : '#10B981';
+                ? '#F59E0B'
+                : liveStatus === 'unavailable'
+                  ? '#64748B'
+                  : '#10B981';
 
           return (
             <motion.div
@@ -548,9 +548,8 @@ export const MachineDetailPage: React.FC = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`relative px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
-                    isActive ? 'text-white' : 'text-slate-500 hover:text-slate-800'
-                  }`}
+                  className={`relative px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-800'
+                    }`}
                 >
                   {isActive && (
                     <motion.div
@@ -601,7 +600,7 @@ export const MachineDetailPage: React.FC = () => {
             {activeTab === 'telemetry' && (
               <div className="flex flex-col gap-5">
                 {/* Key Indicators - Horizontal Scroll Rows */}
-                <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h2 className="font-head text-[15px] font-extrabold text-slate-800">
@@ -611,44 +610,46 @@ export const MachineDetailPage: React.FC = () => {
                         Click any gauge to add/remove it from the chart below
                       </p>
                     </div>
-                  
+
                   </div>
+                  <div>
 
-                  <GaugeRow
-                    title="Voltage"
-                    metrics={voltageMetrics}
-                    plottedKeys={plottedKeys}
-                    onToggle={toggleMetric}
-                  />
-                  <GaugeRow
-                    title="Current"
-                    metrics={currentMetrics}
-                    plottedKeys={plottedKeys}
-                    onToggle={toggleMetric}
-                  />
-                  <GaugeRow
-                    title="Other Sensors"
-                    metrics={otherMetrics}
-                    plottedKeys={plottedKeys}
-                    onToggle={toggleMetric}
-                  />
+                    <GaugeRow
+                      title="Voltage"
+                      metrics={voltageMetrics}
+                      plottedKeys={plottedKeys}
+                      onToggle={toggleMetric}
+                    />
+                    <GaugeRow
+                      title="Current"
+                      metrics={currentMetrics}
+                      plottedKeys={plottedKeys}
+                      onToggle={toggleMetric}
+                    />
+                    <GaugeRow
+                      title="Other Sensors"
+                      metrics={otherMetrics}
+                      plottedKeys={plottedKeys}
+                      onToggle={toggleMetric}
+                    />
 
-                  {voltageMetrics.length === 0 &&
-                    currentMetrics.length === 0 &&
-                    otherMetrics.length === 0 && (
-                      <div className="text-sm text-slate-500 py-8 text-center">
-                        No metrics available
-                      </div>
-                    )}
+                    {voltageMetrics.length === 0 &&
+                      currentMetrics.length === 0 &&
+                      otherMetrics.length === 0 && (
+                        <div className="text-sm text-slate-500 py-8 text-center">
+                          No metrics available
+                        </div>
+                      )}
+                  </div>
                 </div>
 
-                  <TelemetryChart
-                    signals={machine.liveMetrics}
-                    selectedKeys={plottedKeys}
-                    onToggleSignal={toggleMetric}
-                    maxSelected={MAX_SELECTED}
-                  />
-              
+                <TelemetryChart
+                  signals={machine.liveMetrics}
+                  selectedKeys={plottedKeys}
+                  onToggleSignal={toggleMetric}
+                  maxSelected={MAX_SELECTED}
+                />
+
               </div>
             )}
 
@@ -770,7 +771,7 @@ export const MachineDetailPage: React.FC = () => {
                   )}
                 </div>
 
-               
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div className="border border-slate-200 rounded-xl p-5">
                     <h4 className="font-head font-bold text-slate-800 text-[13px] mb-3">
