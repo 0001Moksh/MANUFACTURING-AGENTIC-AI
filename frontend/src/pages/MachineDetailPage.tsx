@@ -79,6 +79,15 @@ interface MachineAiPayload {
     status: string;
     generated_at: string;
     operator_action?: string | null;
+    source_chunks?: Array<{
+      document_id: number;
+      title: string;
+      filename: string;
+      category: string;
+      chunk_index: number;
+      content: string;
+      score: number;
+    }>;
   }>;
 }
 
@@ -972,6 +981,29 @@ export const MachineDetailPage: React.FC = () => {
                                       ) : (
                                         <p className="text-[12.5px] text-slate-500">
                                           Recommendation is being prepared by the monitoring agent.
+                                        </p>
+                                      )}
+
+                                      {recommendations[0]?.source_chunks?.length ? (
+                                        <div className="mt-3 rounded-xl border border-teal/20 bg-teal/[0.03] p-3">
+                                          <p className="text-[10px] font-extrabold uppercase tracking-wide text-teal">
+                                            Document evidence used · top {recommendations[0].source_chunks.length} chunks
+                                          </p>
+                                          <div className="mt-2 space-y-2">
+                                            {recommendations[0].source_chunks.map((source) => (
+                                              <div key={`${source.document_id}-${source.chunk_index}`} className="border-l-2 border-teal/40 pl-2.5">
+                                                <p className="text-[11px] font-bold text-slate-700">
+                                                  {source.category} · {source.title}
+                                                  <span className="ml-1 font-normal text-slate-400">chunk {source.chunk_index + 1}</span>
+                                                </p>
+                                                <p className="mt-0.5 line-clamp-2 text-[10.5px] leading-relaxed text-slate-500">{source.content}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p className="mt-3 text-[10.5px] text-amber-700">
+                                          No indexed machine-document evidence was available; this recommendation is limited to live telemetry.
                                         </p>
                                       )}
 

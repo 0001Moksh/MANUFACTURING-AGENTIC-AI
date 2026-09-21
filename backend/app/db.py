@@ -505,8 +505,23 @@ class MachineDocument(Base):
     mime_type: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)
     uploaded_by: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    embedding_path: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    indexed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class MachineDocumentChunk(Base):
+    __tablename__ = "machine_document_chunks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    document_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    machine_code: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    document_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class MachineAISummary(Base):
@@ -569,6 +584,7 @@ class MachineRecommendation(Base):
     operator_action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     operator_action_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     verification: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    source_chunks: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
 
 class MachineAgentInvestigation(Base):
@@ -884,6 +900,9 @@ async def init_db():
             "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(20);",
             "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS resolution_notes TEXT;",
             "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS tags JSON;",
+            "ALTER TABLE machine_documents ADD COLUMN IF NOT EXISTS embedding_path VARCHAR(1000);",
+            "ALTER TABLE machine_documents ADD COLUMN IF NOT EXISTS indexed_at TIMESTAMP;",
+            "ALTER TABLE machine_recommendations ADD COLUMN IF NOT EXISTS source_chunks JSON;",
         ]
         for statement in migration_statements:
             try:

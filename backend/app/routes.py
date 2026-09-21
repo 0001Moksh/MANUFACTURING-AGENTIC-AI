@@ -17,7 +17,7 @@ import jwt
 import bcrypt
 import json
 from pydantic import BaseModel, model_validator
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import (
@@ -27,7 +27,8 @@ from app.db import (
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
     Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig, MachineDocument
 )
-from app.db import MachineRecommendation, MachineIssue
+from app.db import MachineRecommendation, MachineIssue, MachineDocumentChunk
+from app.machine_rag import index_machine_document
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
@@ -1426,6 +1427,8 @@ def _machine_document_payload(document: MachineDocument) -> Dict[str, Any]:
         "mime_type": document.mime_type,
         "file_size": document.file_size,
         "uploaded_by": document.uploaded_by,
+        "embedding_path": document.embedding_path,
+        "indexed_at": document.indexed_at.isoformat() if document.indexed_at else None,
         "created_at": document.created_at.isoformat(),
         "updated_at": document.updated_at.isoformat(),
     }
@@ -1497,12 +1500,14 @@ async def upload_machine_document(
             uploaded_by=user.username,
         )
         db.add(document)
+        await db.flush()
+        chunk_count = await index_machine_document(db, document)
         await db.commit()
         await db.refresh(document)
     except Exception:
         stored_path.unlink(missing_ok=True)
         raise
-    return _machine_document_payload(document)
+    return {**_machine_document_payload(document), "indexed_chunks": chunk_count}
 
 
 @router.patch("/api/machines/{machine_id}/documents/{document_id}")
@@ -1517,6 +1522,7 @@ async def update_machine_document(machine_id: str, document_id: int, payload: Ma
     document.title = title
     document.document_type = payload.document_type
     document.updated_at = datetime.utcnow()
+    await index_machine_document(db, document)
     await db.commit()
     await db.refresh(document)
     return _machine_document_payload(document)
@@ -1538,10 +1544,14 @@ async def delete_machine_document(machine_id: str, document_id: int, request: Re
     await get_current_user(request, db)
     document = await _get_machine_document_or_404(machine_id, document_id, db)
     path = Path(document.stored_path).resolve()
+    await db.execute(delete(MachineDocumentChunk).where(MachineDocumentChunk.document_id == document.id))
+    embedding_path = Path(document.embedding_path).resolve() if document.embedding_path else None
     await db.delete(document)
     await db.commit()
     if MACHINE_DOCUMENT_STORAGE in path.parents:
         path.unlink(missing_ok=True)
+    if embedding_path and embedding_path.is_file():
+        embedding_path.unlink(missing_ok=True)
 
 
 async def _machine_ai_payload(machine_id: str, db: AsyncSession) -> Dict[str, Any]:

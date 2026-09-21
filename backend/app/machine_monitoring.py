@@ -18,6 +18,7 @@ from app.db import (
     MachineRecommendation,
     MachineThresholdConfig,
 )
+from app.machine_rag import retrieve_machine_evidence
 from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
 from app.llm_gateway import execute_completion
 
@@ -410,15 +411,19 @@ async def _create_issue(session: AsyncSession, machine_code: str, snapshot: Dict
     )
     session.add(issue)
     await session.flush()
+    retrieved_evidence = await retrieve_machine_evidence(session, machine_code, issue.title, affected, limit=3)
     if severity == "WARNING":
         for metric in affected:
             for action in _recommendations(metric):
-                session.add(MachineRecommendation(machine_code=machine_code, issue_id=issue.id, action=action, category="IMMEDIATE"))
+                session.add(MachineRecommendation(machine_code=machine_code, issue_id=issue.id, action=action, category="IMMEDIATE", source_chunks=retrieved_evidence))
     logger.warning("Created %s machine issue %s for %s", severity, issue.id, machine_code)
     return issue
 
 
 async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dict[str, Any], summary: Optional[MachineAISummary]) -> None:
+    retrieved_evidence = await retrieve_machine_evidence(
+        session, issue.machine_code, issue.title, issue.affected_parameters or [], limit=3
+    )
     context = {
         "machine_code": issue.machine_code,
         "machine_summary": summary.summary_text if summary else None,
@@ -426,9 +431,10 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
         "snapshot": snapshot,
         "previous_issues": [],
         "previous_recommendations": [],
+        "retrieved_machine_document_evidence": retrieved_evidence,
     }
     response = await execute_completion([
-        {"role": "system", "content": "You are a machine monitoring agent. Analyze only supplied evidence. Return valid JSON with issue_title, issue_summary, affected_parameters, detected_condition, possible_causes, root_cause_confidence, risk_level, recommended_actions, immediate_actions, corrective_actions, preventive_actions, evidence, reasoning_summary, operator_instructions, monitoring_requirements."},
+        {"role": "system", "content": "You are a machine monitoring agent. Analyze only supplied telemetry and retrieved document evidence. Do not invent manual steps, component specifications, causes, or citations. If supplied evidence is insufficient, explicitly say so and recommend inspection. Return valid JSON with issue_title, issue_summary, affected_parameters, detected_condition, possible_causes, root_cause_confidence, risk_level, recommended_actions, immediate_actions, corrective_actions, preventive_actions, evidence, reasoning_summary, operator_instructions, monitoring_requirements."},
         {"role": "user", "content": json.dumps(context, default=str)},
     ], temperature=0.1, response_format={"type": "json_object"})
     result = _parse_agent_result(_response_text(response), context)
@@ -438,7 +444,7 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
     session.add(investigation)
     for category in ("immediate_actions", "corrective_actions", "preventive_actions"):
         for action in result.get(category, []) or []:
-            session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=str(action), category=category.replace("_actions", "").upper()))
+            session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=str(action), category=category.replace("_actions", "").upper(), source_chunks=retrieved_evidence))
     logger.info("Completed machine agent investigation for issue %s", issue.id)
 
 
@@ -546,6 +552,6 @@ async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Di
         "state": {"operational_state": state.operational_state, "agent_state": state.agent_state, "parameter_states": state.parameter_states or {}, "last_checked_at": state.last_checked_at.isoformat()} if state else None,
         "active_issue": next((issue_json(issue) for issue in issues if issue.status in ACTIVE_ISSUE_STATUSES), None),
         "issues": [issue_json(issue) for issue in issues],
-        "recommendations": [{"id": item.id, "issue_id": item.issue_id, "action": item.action, "category": item.category, "status": item.status, "generated_at": item.generated_at.isoformat(), "operator_action": item.operator_action, "verification": item.verification} for item in recommendations if item.issue_id in issue_ids],
+        "recommendations": [{"id": item.id, "issue_id": item.issue_id, "action": item.action, "category": item.category, "status": item.status, "generated_at": item.generated_at.isoformat(), "operator_action": item.operator_action, "verification": item.verification, "source_chunks": item.source_chunks or []} for item in recommendations if item.issue_id in issue_ids],
         "agent_history": [{"id": item.id, "issue_id": item.issue_id, "status": item.status, "created_at": item.created_at.isoformat(), "model_name": item.model_name, "result": item.result} for item in investigations],
     }
