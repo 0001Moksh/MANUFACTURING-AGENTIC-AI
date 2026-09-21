@@ -2,9 +2,10 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, Bot, Wrench, Shield, FileText, Sparkles, Activity,
+  ChevronLeft, Bot, Wrench, FileText, Sparkles, Activity,
   Thermometer, Zap, Plug, Gauge as RpmIcon, ChevronLeft as ChevronLeftIcon,
-  ChevronRight, AlertTriangle, History, CheckCircle2, CircleSlash, X, RefreshCw
+  ChevronRight, AlertTriangle, History, CheckCircle2, CircleSlash, X, RefreshCw,
+  ChevronDown
 } from 'lucide-react';
 import { STATUS_DESCRIPTIONS } from '../data/machineMonitoringData';
 import { TelemetryChart } from '../components/machine-monitoring/TelemetryChart';
@@ -80,6 +81,52 @@ interface MachineAiPayload {
     operator_action?: string | null;
   }>;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Agent tab helpers                                                  */
+/* ------------------------------------------------------------------ */
+const ACTIVE_ISSUE_STATUSES = [
+  'ACTIVE',
+  'OPEN',
+  'INVESTIGATION',
+  'RECOMMENDATION',
+  'VERIFYING',
+  'RE_OCCURRENCE',
+];
+
+/** Parses the LLM summary payload (JSON string or object) into a plain object. */
+const parseAiSummary = (aiData: MachineAiPayload | null): any | null => {
+  if (!aiData?.summary) return null;
+  try {
+    const llmContent = (aiData.summary.llm_trace as any)?.response?.choices?.[0]?.message?.content;
+    const raw = llmContent || aiData.summary.text;
+    if (typeof raw === 'string') return JSON.parse(raw);
+    if (raw && typeof raw === 'object') return raw;
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+};
+
+/** Turns a summary entry (string or object) into one readable line. */
+const formatSummaryEntry = (entry: any): string => {
+  if (typeof entry === 'string') return entry;
+  if (!entry || typeof entry !== 'object') return '';
+  return [
+    entry.metric,
+    entry.value != null ? `${entry.value}` : null,
+    entry.status,
+    entry.threshold != null ? `threshold ${entry.threshold}` : null,
+    entry.trend,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
+
+const severityClass = (severity: string) =>
+  severity === 'HIGH_RISK' || severity === 'CRITICAL'
+    ? 'bg-rose-50 text-rose-700 border-rose-200'
+    : 'bg-amber-50 text-amber-700 border-amber-200';
 
 /* ------------------------------------------------------------------ */
 /*  Per-metric visual theme                                            */
@@ -328,6 +375,9 @@ export const MachineDetailPage: React.FC = () => {
   const [summaryRegenerating, setSummaryRegenerating] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false);
 
+  // Agent tab – collapsible Active Issues section
+  const [issuesOpen, setIssuesOpen] = useState(true);
+
   useEffect(() => {
     let cancelled = false;
     if (!id) return undefined;
@@ -440,12 +490,23 @@ export const MachineDetailPage: React.FC = () => {
 
   const agentStatus = aiData?.state?.agent_state?.replaceAll('_', ' ') || 'LOADING';
   const activeIssue = aiData?.active_issue;
-  const activeIssueCount = aiData
-    ? aiData.issues.filter((issue) => ['ACTIVE', 'OPEN', 'INVESTIGATION', 'RECOMMENDATION', 'VERIFYING', 'RE_OCCURRENCE'].includes(issue.status)).length
-    : machine.activeIssues;
-  const activeIssues = aiData?.issues.filter((issue) =>
-    ['ACTIVE', 'OPEN', 'INVESTIGATION', 'RECOMMENDATION', 'VERIFYING', 'RE_OCCURRENCE'].includes(issue.status)
-  ) ?? [];
+  const activeIssues =
+    aiData?.issues.filter((issue) => ACTIVE_ISSUE_STATUSES.includes(issue.status)) ?? [];
+  const activeIssueCount = aiData ? activeIssues.length : machine.activeIssues;
+
+  // Agent tab derived data
+  const aiSummary = parseAiSummary(aiData);
+  const summaryIsWarning =
+    aiSummary?.overall_status?.toLowerCase().includes('warning') ||
+    aiSummary?.overall_status?.toLowerCase().includes('critical');
+  const summaryBadgeClass = summaryIsWarning
+    ? 'text-amber-700 bg-amber-50 border-amber-200'
+    : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+
+  const summaryLines = (list: unknown): string[] =>
+    Array.isArray(list) ? list.map(formatSummaryEntry).filter(Boolean) : [];
+  const summaryActiveIssues = summaryLines(aiSummary?.active_issues);
+  const keyObservations = summaryLines(aiSummary?.key_observations);
 
   const openIssueHistory = async () => {
     setHistoryOpen(true);
@@ -458,6 +519,55 @@ export const MachineDetailPage: React.FC = () => {
       setActionError(error instanceof Error ? error.message : 'Unable to load issue history.');
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const regenerateSummary = async () => {
+    setSummaryRegenerating(true);
+    setAiError(null);
+    try {
+      const result = await machineMonitoringService.regenerateSummary(machine.id);
+      setAiData((current) => (current ? { ...current, summary: result.summary } : current));
+    } catch (error: unknown) {
+      setAiError(
+        error instanceof Error ? error.message : 'Unable to regenerate the machine summary.'
+      );
+    } finally {
+      setSummaryRegenerating(false);
+    }
+  };
+
+  const recordOperatorAction = async (issue: MachineAiIssue) => {
+    const action = (operatorActions[issue.id] ?? '').trim();
+    if (!action) return;
+    setActionSavingIssueId(issue.id);
+    setActionError(null);
+    try {
+      await machineMonitoringService.recordOperatorAction(machine.id, issue.id, action);
+      setOperatorActions((current) => ({ ...current, [issue.id]: '' }));
+      setAiData(await machineMonitoringService.getAi(machine.id));
+    } catch (error: unknown) {
+      setActionError(error instanceof Error ? error.message : 'Unable to resolve this issue.');
+    } finally {
+      setActionSavingIssueId(null);
+    }
+  };
+
+  const ignoreIssue = async (issue: MachineAiIssue) => {
+    if (!window.confirm(`Ignore “${issue.title}”? It will be retained in issue history.`)) return;
+    setActionSavingIssueId(issue.id);
+    setActionError(null);
+    try {
+      await machineMonitoringService.ignoreIssue(
+        machine.id,
+        issue.id,
+        (operatorActions[issue.id] ?? '').trim() || undefined
+      );
+      setAiData(await machineMonitoringService.getAi(machine.id));
+    } catch (error: unknown) {
+      setActionError(error instanceof Error ? error.message : 'Unable to ignore this issue.');
+    } finally {
+      setActionSavingIssueId(null);
     }
   };
 
@@ -522,25 +632,7 @@ export const MachineDetailPage: React.FC = () => {
                 <h1 className="font-head text-[22px] sm:text-[24px] font-extrabold text-slate-900 tracking-tight">
                   {sanitizedMachineName}
                 </h1>
-                {/* <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-teal/10 text-teal border border-teal/20 font-mono font-bold">
-                  {machine.type}
-                </span> */}
               </div>
-
-              {/* <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-slate-500 mt-1.5">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-teal" />
-                  {machine.plant} • {machine.line}
-                </span>
-                <span className="hidden sm:inline text-slate-300">•</span>
-                <span>
-                  Operator: <strong className="text-slate-700">{machine.operator || 'Not configured'}</strong>
-                </span>
-                <span className="hidden sm:inline text-slate-300">•</span>
-                <span>
-                  Installed: <strong className="text-slate-700">{machine.installDate || '—'}</strong>
-                </span>
-              </div> */}
 
               <p className="text-[12.5px] text-slate-600 mt-2 max-w-2xl leading-relaxed">
                 {STATUS_DESCRIPTIONS[machine.status]}
@@ -682,47 +774,73 @@ export const MachineDetailPage: React.FC = () => {
               </div>
             )}
 
+            {/* ================================================================
+                AI AGENT ROOT-CAUSE TAB
+                Order:
+                  1. Machine Intelligence header (+ status & health score)
+                  2. Active Issues & Root-Cause (collapsible, History)
+                  3. AI summary text
+                  4. Key Observations | Active Issues + Data Quality
+                  5. Recommended Action
+                  6. Current AI State
+               ================================================================ */}
             {activeTab === 'agent' && (
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)] flex flex-col gap-5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-teal/10 border border-teal/20 flex items-center justify-center text-teal">
-                      <Bot className="w-5 h-5" />
+              <div className="flex flex-col gap-5">
+                {/* 1 ── Header ─────────────────────────────────────────── */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-4 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal/10 border border-teal/20 flex items-center justify-center text-teal">
+                        <Bot className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-head font-bold text-[16px] text-slate-800">
+                          Machine Intelligence
+                        </h3>
+                        <p className="text-[12px] text-slate-500">
+                          Live monitoring summary, evidence & recommendations
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-head font-bold text-[16px] text-slate-800">Machine Intelligence</h3>
-                      <p className="text-[12px] text-slate-500">
-                        Backend monitoring state, evidence & recommendations
-                      </p>
+
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={() => void regenerateSummary()}
+                        disabled={summaryRegenerating}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-teal/30 bg-white px-3 py-1.5 text-[11px] font-bold text-teal hover:bg-teal/5 disabled:opacity-50 transition-colors"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${summaryRegenerating ? 'animate-spin' : ''}`} />
+                        {summaryRegenerating ? 'Regenerating…' : 'Regenerate'}
+                      </button>
+                      <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
+                        {agentStatus}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={async () => {
-                        setSummaryRegenerating(true);
-                        setAiError(null);
-                        try {
-                          const result = await machineMonitoringService.regenerateSummary(machine.id);
-                          setAiData((current) => current ? { ...current, summary: result.summary } : current);
-                        } catch (error: unknown) {
-                          setAiError(error instanceof Error ? error.message : 'Unable to regenerate the machine summary.');
-                        } finally {
-                          setSummaryRegenerating(false);
-                        }
-                      }}
-                      disabled={summaryRegenerating}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-teal/30 bg-white px-3 py-1.5 text-[11px] font-bold text-teal hover:bg-teal/5 disabled:opacity-50"
-                      title="Regenerate AI summary using current machine telemetry"
-                    >
-                      <RefreshCw className={`h-3.5 w-3.5 ${summaryRegenerating ? 'animate-spin' : ''}`} />
-                      {summaryRegenerating ? 'Regenerating…' : 'Regenerate summary'}
-                    </button>
-                    <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
-                      {agentStatus}
-                    </span>
-                  </div>
+
+                  {aiSummary && (
+                    <div className="mt-3.5 flex flex-wrap items-center justify-end gap-2">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${summaryBadgeClass}`}
+                      >
+                        {summaryIsWarning && <AlertTriangle className="w-3 h-3" />}
+                        {aiSummary.overall_status || 'Unknown'}
+                      </span>
+                      {aiSummary.health_score != null && (
+                        <span className="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+                          Health Score: <b className="text-slate-800">{aiSummary.health_score}</b>
+                        </span>
+                      )}
+                      {aiSummary.monitoring_window_minutes != null && (
+                        <span className="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+                          Window: <b className="text-slate-800">{aiSummary.monitoring_window_minutes} min</b>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
+                {/* Error */}
                 {aiError && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-[12.5px] text-amber-800 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
@@ -730,201 +848,409 @@ export const MachineDetailPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="border border-slate-200 rounded-xl p-5 bg-slate-50/50">
-                    <h4 className="font-head font-bold text-slate-800 text-[13px] mb-2.5 flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-teal" />
-                      AI Summary
-                    </h4>
-                    <p className="text-[12.5px] text-slate-700 leading-relaxed mb-4">
-                      {aiData?.summary?.text || 'The initial monitoring window has not produced a summary yet.'}
+                {/* 2 ── Active Issues & Root-Cause (collapsible) ───────── */}
+                <div className="rounded-2xl border border-slate-200/80 bg-white overflow-hidden shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                  <div className="flex items-center justify-between gap-3 bg-slate-50/70 px-5 py-3.5">
+                    <div>
+                      <h4 className="font-head font-bold text-slate-800 text-[14px]">
+                        Active Issues & Root-Cause
+                      </h4>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        Issue-specific recommendations and operator workflow
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => void openIssueHistory()}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:text-teal transition-colors"
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        History
+                      </button>
+                      <button
+                        onClick={() => setIssuesOpen((open) => !open)}
+                        aria-expanded={issuesOpen}
+                        aria-label={issuesOpen ? 'Collapse active issues' : 'Expand active issues'}
+                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+                      >
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-200 ${issuesOpen ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <AnimatePresence initial={false}>
+                    {issuesOpen && (
+                      <motion.div
+                        key="issues-body"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-slate-100">
+                          {activeIssues.length === 0 ? (
+                            <div className="p-10 text-center text-[13px] text-slate-500">
+                              No active issues. Healthy telemetry continues to be monitored.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-slate-100">
+                              {activeIssues.map((issue) => {
+                                const recommendations =
+                                  aiData?.recommendations.filter((rec) => rec.issue_id === issue.id) ?? [];
+                                const action = operatorActions[issue.id] ?? '';
+                                const isSaving = actionSavingIssueId === issue.id;
+
+                                return (
+                                  <div
+                                    key={issue.id}
+                                    className="grid grid-cols-1 gap-5 p-5 lg:grid-cols-2"
+                                  >
+                                    {/* Left – issue details */}
+                                    <div>
+                                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                                        <strong className="text-[13.5px] text-slate-800">
+                                          {issue.title}
+                                        </strong>
+                                        <span
+                                          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${severityClass(issue.severity)}`}
+                                        >
+                                          {issue.severity}
+                                        </span>
+                                      </div>
+
+                                      <div className="space-y-1.5 text-[12px] text-slate-600">
+                                        <p>
+                                          <span className="text-slate-400">Detected:</span>{' '}
+                                          {new Date(issue.detected_at).toLocaleString()}
+                                        </p>
+                                        <p>
+                                          <span className="text-slate-400">Affected:</span>{' '}
+                                          {issue.affected_parameters.join(', ') || 'N/A'}
+                                        </p>
+                                        <p>
+                                          <span className="text-slate-400">Persistence:</span>{' '}
+                                          {Math.round(issue.persistence_seconds)}s
+                                        </p>
+                                      </div>
+
+                                      <p className="mt-3.5 text-[12.5px] leading-relaxed text-slate-700">
+                                        {issue.analysis?.issue_summary ||
+                                          'The monitoring agent is collecting evidence for this threshold condition.'}
+                                      </p>
+
+                                      {issue.analysis?.possible_causes?.length ? (
+                                        <p className="mt-2 text-[12px] text-slate-500">
+                                          <span className="font-semibold text-slate-600">Possible causes:</span>{' '}
+                                          {issue.analysis.possible_causes.join('; ')}
+                                        </p>
+                                      ) : null}
+                                    </div>
+
+                                    {/* Right – recommendations + operator action */}
+                                    <div className="border-t border-slate-100 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+                                      <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-wider text-teal">
+                                        Recommended action
+                                      </p>
+
+                                      {recommendations.length ? (
+                                        <ul className="space-y-2">
+                                          {recommendations.map((rec) => (
+                                            <li
+                                              key={rec.id}
+                                              className="rounded-lg bg-teal-50/60 border border-teal/10 px-3 py-2 text-[12px] text-slate-700"
+                                            >
+                                              <span className="font-bold text-teal mr-1.5">
+                                                {rec.category}:
+                                              </span>
+                                              {rec.action}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <p className="text-[12.5px] text-slate-500">
+                                          Recommendation is being prepared by the monitoring agent.
+                                        </p>
+                                      )}
+
+                                      <textarea
+                                        value={action}
+                                        onChange={(e) =>
+                                          setOperatorActions((current) => ({
+                                            ...current,
+                                            [issue.id]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder="Document the physical action taken to resolve this issue…"
+                                        className="mt-3.5 min-h-[72px] w-full resize-y rounded-xl border border-slate-200 p-3 text-[12.5px] outline-none focus:border-teal/40 focus:ring-1 focus:ring-teal/20"
+                                      />
+
+                                      <div className="mt-2.5 flex flex-wrap gap-2">
+                                        <button
+                                          disabled={!action.trim() || isSaving}
+                                          onClick={() => void recordOperatorAction(issue)}
+                                          className="inline-flex items-center gap-1.5 rounded-lg bg-teal px-3.5 py-2 text-[11.5px] font-bold text-white hover:bg-teal/90 disabled:opacity-45 transition-colors"
+                                        >
+                                          <CheckCircle2 className="h-3.5 w-3.5" />
+                                          {isSaving ? 'Saving…' : 'Action performed / Resolve'}
+                                        </button>
+
+                                        <button
+                                          disabled={isSaving}
+                                          onClick={() => void ignoreIssue(issue)}
+                                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[11.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-45 transition-colors"
+                                        >
+                                          <CircleSlash className="h-3.5 w-3.5" />
+                                          Ignore
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {actionError && (
+                            <p className="border-t border-rose-100 bg-rose-50 px-5 py-3 text-[12.5px] text-rose-700">
+                              {actionError}
+                            </p>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* 3 ── AI summary text ───────────────────────────────── */}
+                <div className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                  {aiSummary ? (
+                    <p className="text-[14px] text-slate-800 leading-relaxed">
+                      {aiSummary.summary_text}
                     </p>
-                    <div className="text-[11px] text-slate-400">
-                      Generated:{' '}
-                      {aiData?.summary
+                  ) : (
+                    <p className="py-4 text-center text-[12.5px] text-slate-500">
+                      Monitoring data is being processed. AI summary will appear shortly.
+                    </p>
+                  )}
+                  <p className="mt-3 text-[10.5px] text-slate-400">
+                    Generated{' '}
+                    <span className="font-mono">
+                      {aiData?.summary?.generated_at
                         ? new Date(aiData.summary.generated_at).toLocaleString()
                         : 'Pending'}
-                    </div>
-                  </div>
-
-                  <div className="border border-slate-200 rounded-xl p-5">
-                    <h4 className="font-head font-bold text-slate-800 text-[13px] mb-3">Current AI State</h4>
-                    <div className="grid grid-cols-2 gap-3 text-[12px]">
-                      <div>
-                        <span className="text-slate-400">Operational</span>
-                        <div className="font-bold text-slate-800 mt-0.5">
-                          {aiData?.state?.operational_state || 'PENDING'}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Agent</span>
-                        <div className="font-bold text-teal mt-0.5">{agentStatus}</div>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Last checked</span>
-                        <div className="font-mono text-slate-700 mt-0.5 text-[11px]">
-                          {aiData?.state
-                            ? new Date(aiData.state.last_checked_at).toLocaleString()
-                            : 'Pending'}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-slate-400">Active issue</span>
-                        <div className="font-bold text-slate-800 mt-0.5">
-                          {activeIssue ? activeIssue.status : 'None'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    </span>
+                    {aiData?.summary?.model_name ? ` · ${aiData.summary.model_name}` : ''}
+                  </p>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
-                    <div><h4 className="font-head font-bold text-slate-800 text-[14px]">Active Issues & Root-Cause</h4><p className="mt-0.5 text-[11px] text-slate-500">Issue-specific recommendations and operator resolution workflow</p></div>
-                    <button onClick={() => void openIssueHistory()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:text-teal"><History className="h-3.5 w-3.5" /> History</button>
-                  </div>
-                  {activeIssues.length === 0 ? <div className="p-8 text-center text-[12.5px] text-slate-500">No active issues recorded. Healthy telemetry will continue to be monitored.</div> : <div className="divide-y divide-slate-200">{activeIssues.map((issue) => {
-                    const recommendations = aiData?.recommendations.filter((rec) => rec.issue_id === issue.id) ?? [];
-                    const action = operatorActions[issue.id] ?? '';
-                    const isSaving = actionSavingIssueId === issue.id;
-                    return <div key={issue.id} className="grid grid-cols-1 gap-5 p-5 lg:grid-cols-2">
-                      <div><div className="mb-3 flex flex-wrap items-center gap-2"><strong className="text-[13px] text-slate-800">{issue.title}</strong><span className={`rounded px-2 py-0.5 text-[10px] font-bold ${issue.severity === 'HIGH_RISK' || issue.severity === 'CRITICAL' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{issue.severity}</span></div><div className="space-y-1.5 text-[12px] text-slate-600"><p><b>Detected:</b> {new Date(issue.detected_at).toLocaleString()}</p><p><b>Affected:</b> {issue.affected_parameters.join(', ') || 'N/A'}</p><p><b>Persistence:</b> {Math.round(issue.persistence_seconds)}s</p></div><p className="mt-3 text-[12px] leading-relaxed text-slate-700">{issue.analysis?.issue_summary || 'The monitoring agent is collecting evidence for this threshold condition.'}</p>{issue.analysis?.possible_causes?.length ? <p className="mt-2 text-[11.5px] text-slate-500"><b>Possible causes:</b> {issue.analysis.possible_causes.join('; ')}</p> : null}</div>
-                      <div className="border-t border-slate-100 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0"><p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-teal">Recommended action</p>{recommendations.length ? <ul className="space-y-2">{recommendations.map((rec) => <li key={rec.id} className="rounded-lg bg-teal/[0.04] px-3 py-2 text-[12px] text-slate-700"><span className="mr-1.5 font-bold text-teal">{rec.category}:</span>{rec.action}</li>)}</ul> : <p className="text-[12px] text-slate-500">Recommendation is being prepared by the monitoring agent.</p>}<textarea value={action} onChange={(e) => setOperatorActions((current) => ({ ...current, [issue.id]: e.target.value }))} placeholder="Document the physical action taken to resolve this issue…" className="mt-3 min-h-[74px] w-full resize-y rounded-xl border border-slate-200 p-3 text-[12px] outline-none focus:border-teal/40" /><div className="mt-2.5 flex flex-wrap gap-2"><button disabled={!action.trim() || isSaving} onClick={async () => { setActionSavingIssueId(issue.id); setActionError(null); try { await machineMonitoringService.recordOperatorAction(machine.id, issue.id, action.trim()); setOperatorActions((current) => ({ ...current, [issue.id]: '' })); setAiData(await machineMonitoringService.getAi(machine.id)); } catch (error: unknown) { setActionError(error instanceof Error ? error.message : 'Unable to resolve this issue.'); } finally { setActionSavingIssueId(null); } }} className="inline-flex items-center gap-1.5 rounded-lg bg-teal px-3 py-2 text-[11px] font-bold text-white disabled:opacity-45"><CheckCircle2 className="h-3.5 w-3.5" /> {isSaving ? 'Saving…' : 'Action performed / Resolve'}</button><button disabled={isSaving} onClick={async () => { if (!window.confirm(`Ignore “${issue.title}”? It will be retained in issue history.`)) return; setActionSavingIssueId(issue.id); setActionError(null); try { await machineMonitoringService.ignoreIssue(machine.id, issue.id, action.trim() || undefined); setAiData(await machineMonitoringService.getAi(machine.id)); } catch (error: unknown) { setActionError(error instanceof Error ? error.message : 'Unable to ignore this issue.'); } finally { setActionSavingIssueId(null); } }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 disabled:opacity-45"><CircleSlash className="h-3.5 w-3.5" /> Ignore</button></div></div>
-                    </div>;
-                  })}</div>}
-                  {actionError && <p className="border-t border-rose-100 bg-rose-50 px-5 py-3 text-[12px] text-rose-700">{actionError}</p>}
-                </div>
-                {/*
-                <div className="border border-slate-200 rounded-xl p-5">
-                  <h4 className="font-head font-bold text-slate-800 text-[13px] mb-3">
-                    Active Issue & Root-Cause
-                  </h4>
-                  {!activeIssue ? (
-                    <p className="text-[12.5px] text-slate-500">No active issue recorded.</p>
-                  ) : (
-                    <div className="flex flex-col gap-2.5 text-[12.5px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <strong className="text-slate-800">{activeIssue.title}</strong>
-                        <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-bold text-[11px]">
-                          {activeIssue.severity}
-                        </span>
-                        <span className="text-slate-400">{activeIssue.status}</span>
-                      </div>
-                      <div className="text-slate-500">
-                        Affected: {activeIssue.affected_parameters.join(', ') || 'N/A'} • Persistence:{' '}
-                        {Math.round(activeIssue.persistence_seconds)}s
-                      </div>
-                      <p className="text-slate-700">
-                        {activeIssue.analysis?.issue_summary ||
-                          'Investigation is processed with persistence and structured agent analysis.'}
-                      </p>
-                      {activeIssue.analysis?.possible_causes?.length ? (
-                        <div>
-                          <strong>Possible causes:</strong>{' '}
-                          {activeIssue.analysis.possible_causes.join('; ')}
-                        </div>
-                      ) : null}
-                      {activeIssue.analysis?.reasoning_summary ? (
-                        <div>
-                          <strong>Reasoning:</strong> {activeIssue.analysis.reasoning_summary}
-                        </div>
-                      ) : null}
-                      {activeIssue.analysis?.root_cause_confidence != null ? (
-                        <div>
-                          <strong>Confidence:</strong>{' '}
-                          {Math.round(activeIssue.analysis.root_cause_confidence * 100)}%
-                        </div>
-                      ) : null}
+                {/* 4 ── Key Observations | Active Issues + Data Quality ── */}
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      Key Observations
                     </div>
-                  )}
-                </div>
-
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="border border-slate-200 rounded-xl p-5">
-                    <h4 className="font-head font-bold text-slate-800 text-[13px] mb-3">
-                      Recommendations
-                    </h4>
-                    {aiData?.recommendations?.length ? (
-                      <div className="flex flex-col gap-2">
-                        {aiData.recommendations.slice(0, 8).map((rec) => (
-                          <div
-                            key={rec.id}
-                            className="text-[12px] border-b border-slate-100 pb-2 last:border-0"
-                          >
-                            <span className="font-bold text-teal mr-1.5">{rec.category}</span>
-                            {rec.action}
-                            <div className="mt-1 text-[10px] text-slate-400">
-                              {rec.status.replaceAll('_', ' ')} ·{' '}
-                              {new Date(rec.generated_at).toLocaleString()}
-                            </div>
-                          </div>
+                    {keyObservations.length ? (
+                      <ul className="space-y-2">
+                        {keyObservations.map((line, i) => (
+                          <li key={i} className="flex items-start gap-2.5 text-[12.5px] text-slate-700">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />
+                            <span>{line}</span>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     ) : (
-                      <p className="text-[12.5px] text-slate-500">No recommendations pending.</p>
+                      <p className="text-[12.5px] text-slate-500">No observations yet.</p>
                     )}
                   </div>
 
-                  <div className="border border-slate-200 rounded-xl p-5">
-                    <h4 className="font-head font-bold text-slate-800 text-[13px] mb-3">
-                      Operator Action
-                    </h4>
-                    {activeIssue ? (
-                      <>
-                        <textarea
-                          value={actionText}
-                          onChange={(e) => setActionText(e.target.value)}
-                          placeholder="Record the action taken…"
-                          className="w-full min-h-[80px] rounded-xl border border-slate-200 p-3 text-[12.5px] resize-y focus:outline-none focus:border-teal/40"
-                        />
-                        {actionError && (
-                          <p className="mt-2 text-[12px] text-rose-700">{actionError}</p>
-                        )}
-                        <button
-                          disabled={!actionText.trim() || actionSaving}
-                          onClick={async () => {
-                            setActionSaving(true);
-                            setActionError(null);
-                            try {
-                              await machineMonitoringService.recordOperatorAction(
-                                machine.id,
-                                activeIssue.id,
-                                actionText.trim()
-                              );
-                              setActionText('');
-                              const payload = await machineMonitoringService.getAi(machine.id);
-                              setAiData(payload);
-                            } catch (error: unknown) {
-                              setActionError(
-                                error instanceof Error
-                                  ? error.message
-                                  : 'Unable to record the operator action.'
-                              );
-                            } finally {
-                              setActionSaving(false);
-                            }
-                          }}
-                          className="mt-3 px-4 py-2 rounded-xl bg-teal text-white font-bold text-[12px] disabled:opacity-50"
-                        >
-                          {actionSaving ? 'Recording…' : 'Record action'}
-                        </button>
-                      </>
+                  <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                      Active Issues
+                    </div>
+                    {summaryActiveIssues.length ? (
+                      <ul className="space-y-2">
+                        {summaryActiveIssues.map((line, i) => (
+                          <li key={i} className="flex items-start gap-2.5 text-[12.5px] text-slate-700">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
                     ) : (
-                      <p className="text-[12.5px] text-slate-500">
-                        Operator actions become available when an issue is recorded.
-                      </p>
+                      <p className="text-[12.5px] text-slate-500">No active issues reported.</p>
                     )}
+
+                    <div className="mt-5 border-t border-slate-100 pt-4">
+                      <div className="text-[12px] font-bold text-slate-800 mb-1">Data Quality</div>
+                      <p className="text-[12.5px] text-slate-600 leading-snug">
+                        {aiSummary?.data_quality || 'Data quality has not been assessed yet.'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                */}
+
+                {/* 5 ── Recommended Action ────────────────────────────── */}
+                {aiSummary?.recommended_action && (
+                  <div className="rounded-xl border border-teal-100 bg-teal-50 px-5 py-4">
+                    <div className="text-[10.5px] font-bold text-teal-700 uppercase tracking-wider mb-1.5">
+                      Recommended Action
+                    </div>
+                    <p className="text-[13px] text-teal-900 leading-relaxed">
+                      {aiSummary.recommended_action}
+                    </p>
+                  </div>
+                )}
+
+                {/* 6 ── Current AI State ──────────────────────────────── */}
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+                  <h4 className="font-head font-bold text-slate-800 text-[13px] mb-4">
+                    Current AI State
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-slate-400 text-[11px]">Operational</span>
+                      <div className="font-bold text-slate-800 mt-1 text-[13px]">
+                        {aiData?.state?.operational_state || 'PENDING'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[11px]">Agent</span>
+                      <div className="font-bold text-teal mt-1 text-[13px]">{agentStatus}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[11px]">Last checked</span>
+                      <div className="font-mono text-slate-700 mt-1 text-[12px]">
+                        {aiData?.state
+                          ? new Date(aiData.state.last_checked_at).toLocaleString()
+                          : 'Pending'}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[11px]">Active issue</span>
+                      <div className="font-bold text-slate-800 mt-1 text-[13px]">
+                        {activeIssue ? activeIssue.status : 'None'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Issue History Drawer ───────────────────────────── */}
                 <AnimatePresence>
-                  {historyOpen && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex justify-end bg-slate-950/40" onClick={() => setHistoryOpen(false)}>
-                    <motion.aside initial={{ x: 420 }} animate={{ x: 0 }} exit={{ x: 420 }} transition={{ type: 'spring', bounce: 0.12 }} className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
-                      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4"><div><h4 className="font-head text-[16px] font-extrabold text-slate-800">Issue History</h4><p className="mt-0.5 text-[11.5px] text-slate-500">Resolved, system-resolved and ignored issues</p></div><button onClick={() => setHistoryOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X className="h-4 w-4" /></button></div>
-                      <div className="p-5">{historyLoading ? <p className="py-10 text-center text-[12px] text-slate-400">Loading issue history…</p> : historyIssues.length === 0 ? <p className="py-10 text-center text-[12px] text-slate-500">No historical issues for this machine.</p> : <div className="space-y-3">{historyIssues.map((issue) => { const systemResolved = issue.status === 'RESOLVED_BY_SYSTEM' || issue.tags?.includes('SYSTEM_AUTO_RESOLVED'); const ignored = issue.status === 'IGNORED'; return <div key={issue.id} className="rounded-xl border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-[13px] font-bold text-slate-800">{issue.title}</p><p className="mt-1 text-[11px] text-slate-500">Detected {new Date(issue.detected_at).toLocaleString()}</p></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${ignored ? 'bg-amber-50 text-amber-700' : systemResolved ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700'}`}>{ignored ? 'Ignored' : systemResolved ? 'Resolved based on system analysis' : 'Resolved by operator'}</span></div><div className="mt-3 grid grid-cols-2 gap-2 text-[11.5px] text-slate-600"><p><b>Severity:</b> {issue.severity}</p><p><b>Resolved:</b> {issue.resolved_at ? new Date(issue.resolved_at).toLocaleString() : '—'}</p></div>{issue.operator_action_taken && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11.5px] text-emerald-800"><b>Operator action:</b> {issue.operator_action_taken}</p>}{issue.resolution_notes && !issue.operator_action_taken && <p className="mt-3 text-[11.5px] text-slate-600"><b>Resolution note:</b> {issue.resolution_notes}</p>}</div>; })}</div>}</div>
-                    </motion.aside>
-                  </motion.div>}
+                  {historyOpen && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-50 flex justify-end bg-slate-950/40"
+                      onClick={() => setHistoryOpen(false)}
+                    >
+                      <motion.aside
+                        initial={{ x: 420 }}
+                        animate={{ x: 0 }}
+                        exit={{ x: 420 }}
+                        transition={{ type: 'spring', bounce: 0.12 }}
+                        className="h-full w-full max-w-xl overflow-y-auto bg-white shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+                          <div>
+                            <h4 className="font-head text-[16px] font-extrabold text-slate-800">
+                              Issue History
+                            </h4>
+                            <p className="mt-0.5 text-[11.5px] text-slate-500">
+                              Resolved, system-resolved and ignored issues
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setHistoryOpen(false)}
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="p-5">
+                          {historyLoading ? (
+                            <p className="py-10 text-center text-[12.5px] text-slate-400">
+                              Loading issue history…
+                            </p>
+                          ) : historyIssues.length === 0 ? (
+                            <p className="py-10 text-center text-[12.5px] text-slate-500">
+                              No historical issues for this machine.
+                            </p>
+                          ) : (
+                            <div className="space-y-3">
+                              {historyIssues.map((issue) => {
+                                const systemResolved =
+                                  issue.status === 'RESOLVED_BY_SYSTEM' ||
+                                  issue.tags?.includes('SYSTEM_AUTO_RESOLVED');
+                                const ignored = issue.status === 'IGNORED';
+
+                                return (
+                                  <div
+                                    key={issue.id}
+                                    className="rounded-xl border border-slate-200 p-4"
+                                  >
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                      <div>
+                                        <p className="text-[13px] font-bold text-slate-800">
+                                          {issue.title}
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-slate-500">
+                                          Detected {new Date(issue.detected_at).toLocaleString()}
+                                        </p>
+                                      </div>
+                                      <span
+                                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${ignored
+                                          ? 'bg-amber-50 text-amber-700'
+                                          : systemResolved
+                                            ? 'bg-sky-50 text-sky-700'
+                                            : 'bg-emerald-50 text-emerald-700'
+                                          }`}
+                                      >
+                                        {ignored
+                                          ? 'Ignored'
+                                          : systemResolved
+                                            ? 'Resolved by system'
+                                            : 'Resolved by operator'}
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11.5px] text-slate-600">
+                                      <p>
+                                        <b>Severity:</b> {issue.severity}
+                                      </p>
+                                      <p>
+                                        <b>Resolved:</b>{' '}
+                                        {issue.resolved_at
+                                          ? new Date(issue.resolved_at).toLocaleString()
+                                          : '—'}
+                                      </p>
+                                    </div>
+
+                                    {issue.operator_action_taken && (
+                                      <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-[11.5px] text-emerald-800">
+                                        <b>Operator action:</b> {issue.operator_action_taken}
+                                      </p>
+                                    )}
+
+                                    {issue.resolution_notes && !issue.operator_action_taken && (
+                                      <p className="mt-3 text-[11.5px] text-slate-600">
+                                        <b>Resolution note:</b> {issue.resolution_notes}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </motion.aside>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             )}

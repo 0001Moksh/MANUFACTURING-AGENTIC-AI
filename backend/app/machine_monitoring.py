@@ -201,9 +201,22 @@ def _response_text(response: Dict[str, Any]) -> str:
     return str(content or "").strip()
 
 
-async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], snapshot: Dict[str, Any], force: bool = False) -> None:
+async def _generate_summary(
+    session: AsyncSession,
+    telemetry: Dict[str, Any],
+    snapshot: Dict[str, Any],
+    force: bool = False,
+) -> None:
     machine_code = telemetry["code"]
-    existing = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
+
+    existing = (
+        await session.execute(
+            select(MachineAISummary).where(
+                MachineAISummary.machine_code == machine_code
+            )
+        )
+    ).scalars().first()
+
     if (
         not force
         and existing
@@ -211,23 +224,122 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
         and existing.snapshot_context is not None
         and existing.baseline_context is not None
         and existing.llm_trace is not None
-        and _threshold_context(existing.baseline_context) == _threshold_context(snapshot)
+        and _threshold_context(existing.baseline_context)
+        == _threshold_context(snapshot)
     ):
         return
-    prompt = json.dumps({"machine": telemetry, "baseline": snapshot}, default=str)
-    response = await execute_completion([
-        {"role": "system", "content": "Create a concise machine monitoring baseline summary from the supplied telemetry. Do not invent history. Return JSON with summary_text and baseline_observations."},
-        {"role": "user", "content": prompt},
-    ], temperature=0.1)
+
+    # Compact LLM context: exclude raw spark/history arrays and duplicate data.
+    compact_metrics = {}
+
+    for metric_key, metric in snapshot.get("metrics", {}).items():
+        compact_metrics[metric_key] = {
+            "value": metric.get("value"),
+            "status": metric.get("status"),
+            "unit": metric.get("unit"),
+            "normal_range": metric.get("normal_range"),
+            "warning_threshold": metric.get("warning_threshold"),
+            "critical_threshold": metric.get("critical_threshold"),
+            "average": metric.get("average"),
+            "minimum": metric.get("minimum"),
+            "maximum": metric.get("maximum"),
+            "samples": metric.get("samples"),
+            "trend": metric.get("trend"),
+        }
+
+    compact_context = {
+        "machine_code": telemetry.get("code"),
+        "machine_name": telemetry.get("name"),
+        "operational_status": telemetry.get("status"),
+        "health_score": telemetry.get("healthScore"),
+        "monitoring_window_minutes": MONITORING_WINDOW_MINUTES,
+        "source": "InfluxDB",
+        "metrics": compact_metrics,
+    }
+
+    prompt = json.dumps(compact_context, default=str)
+
+    response = await execute_completion(
+        [
+            {
+                "role": "system",
+                "content": (
+    "You are a professional Industrial IoT Machine Monitoring "
+    "Summary Agent. Analyze only the supplied telemetry. "
+
+    "Generate a concise, factual, dashboard-friendly summary. "
+    "Do not invent history, values, causes, or events. "
+
+    "IMPORTANT STATUS RULES: "
+    "Use the supplied metric status and operational status as the "
+    "primary source of truth. Do not change Healthy to Warning or "
+    "Critical only because a historical maximum exceeded a threshold. "
+
+    "Clearly distinguish between: "
+    "(1) current value status, "
+    "(2) historical maximum or minimum threshold exceedance, "
+    "(3) rising or falling trends, and "
+    "(4) unavailable or invalid data. "
+
+    "Only report a metric as an active issue when its current status "
+    "is WARNING or CRITICAL, or when the supplied evidence explicitly "
+    "identifies an active issue. Historical threshold exceedances "
+    "must be described as historical observations. "
+
+    "Do not classify normal rising or falling trends as issues unless "
+    "the supplied status or thresholds indicate a problem. "
+
+    "Never treat missing, invalid, stale, or suspicious data as normal. "
+    "Mention unavailable metrics separately. "
+
+    "Return valid JSON with exactly these keys: "
+    "summary_text, overall_status, health_score, "
+    "monitoring_window_minutes, active_issues, "
+    "key_observations, data_quality, recommended_action. "
+
+    "Use concise observations with exact values and units. "
+    "Return JSON only, without Markdown or code fences."
+),
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        temperature=0.1,
+        response_format={"type": "json_object"},
+    )
+
     response_text = _response_text(response)
-    parsed = _parse_agent_result(response_text, {"snapshot": snapshot})
-    summary_text = parsed.get("summary_text") or (response_text if response_text else "")
-    if not summary_text or summary_text == "Agent output was unavailable or not valid structured JSON.":
+    parsed = _parse_agent_result(
+        response_text,
+        {"snapshot": snapshot},
+    )
+
+    summary_text = parsed.get("summary_text") or (
+        response_text if response_text else ""
+    )
+
+    if (
+        not summary_text
+        or summary_text
+        == "Agent output was unavailable or not valid structured JSON."
+    ):
         summary_text = (
-            f"[LLM Response Not Available]\n{telemetry.get('name', machine_code)} is monitored from InfluxDB over a {MONITORING_WINDOW_MINUTES}-minute configured window. "
-            "Baseline observations are limited to the available telemetry samples and configured threshold context."
+            f"[LLM Response Not Available]\n"
+            f"{telemetry.get('name', machine_code)} is monitored from "
+            f"InfluxDB over a {MONITORING_WINDOW_MINUTES}-minute "
+            "configured window. Baseline observations are limited to "
+            "the available telemetry samples and configured threshold context."
         )
-        logger.warning("LLM returned no usable machine summary for %s; stored deterministic baseline", machine_code)
+
+        logger.warning(
+            "LLM returned no usable machine summary for %s; "
+            "stored deterministic baseline",
+            machine_code,
+        )
+
+    # Complete telemetry and snapshot remain available for database/UI use.
     summary_data = {
         "summary_text": str(summary_text),
         "snapshot_context": telemetry,
@@ -235,6 +347,7 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
         "model_name": response.get("model_used"),
         "llm_trace": response.get("llm_trace"),
     }
+
     if existing:
         existing.summary_text = summary_data["summary_text"]
         existing.snapshot_context = summary_data["snapshot_context"]
@@ -243,13 +356,26 @@ async def _generate_summary(session: AsyncSession, telemetry: Dict[str, Any], sn
         existing.llm_trace = summary_data["llm_trace"]
         existing.generated_at = _now()
     else:
-        statement = pg_insert(MachineAISummary).values(machine_code=machine_code, **summary_data).on_conflict_do_update(
-            index_elements=[MachineAISummary.machine_code],
-            set_=summary_data,
+        statement = (
+            pg_insert(MachineAISummary)
+            .values(
+                machine_code=machine_code,
+                **summary_data,
+            )
+            .on_conflict_do_update(
+                index_elements=[MachineAISummary.machine_code],
+                set_=summary_data,
+            )
         )
-        await session.execute(statement)
-    logger.info("Stored machine AI summary for %s (response_chars=%d, model=%s)", machine_code, len(response_text), response.get("model_used", "unknown"))
 
+        await session.execute(statement)
+
+    logger.info(
+        "Stored machine AI summary for %s (response_chars=%d, model=%s)",
+        machine_code,
+        len(response_text),
+        response.get("model_used", "unknown"),
+    )
 
 async def regenerate_machine_summary(session: AsyncSession, telemetry: Dict[str, Any]) -> None:
     """Regenerate a summary from the current telemetry without changing issue state."""
