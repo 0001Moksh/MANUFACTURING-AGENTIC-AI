@@ -157,6 +157,15 @@ def _state_from_snapshot(snapshot: Dict[str, Any]) -> str:
     return "NORMAL"
 
 
+def _action_list(value: Any) -> List[str]:
+    """Accept an LLM action array or a single action string without splitting text into characters."""
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, list):
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+    return []
+
+
 def _parse_agent_result(text: str, context: Dict[str, Any]) -> Dict[str, Any]:
     text = str(text or "").strip()
     if text.startswith("```json") and text.endswith("```"):
@@ -450,10 +459,9 @@ async def _investigate(session: AsyncSession, issue: MachineIssue, snapshot: Dic
     )
     saved_actions = 0
     for field, category in action_fields:
-        for action in result.get(field, []) or []:
-            if isinstance(action, str) and action.strip():
-                session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=action.strip(), category=category, source_chunks=retrieved_evidence))
-                saved_actions += 1
+        for action in _action_list(result.get(field)):
+            session.add(MachineRecommendation(machine_code=issue.machine_code, issue_id=issue.id, action=action, category=category, source_chunks=retrieved_evidence))
+            saved_actions += 1
     # Deterministic actions are only used when the LLM did not return a usable response.
     if not result["_llm_response_available"]:
         for metric in issue.affected_parameters or []:
@@ -556,6 +564,46 @@ async def run_machine_monitoring_cycle() -> None:
             logger.exception("Machine monitoring cycle failed")
 
 
+def _recommendation_payload(recommendations: List[MachineRecommendation], issue_ids: List[int]) -> List[Dict[str, Any]]:
+    """Serialize recommendations and repair legacy rows that stored one character per action."""
+    payload: List[Dict[str, Any]] = []
+    index = 0
+    while index < len(recommendations):
+        item = recommendations[index]
+        if item.issue_id not in issue_ids:
+            index += 1
+            continue
+        grouped = [item]
+        # Older LLM output was saved by iterating a string. Join only contiguous
+        # single-character rows of the same recommendation category and issue.
+        if isinstance(item.action, str) and len(item.action) == 1:
+            cursor = index + 1
+            while cursor < len(recommendations):
+                candidate = recommendations[cursor]
+                if candidate.issue_id != item.issue_id or candidate.category != item.category or not isinstance(candidate.action, str) or len(candidate.action) != 1:
+                    break
+                grouped.append(candidate)
+                cursor += 1
+            index = cursor
+        else:
+            index += 1
+        first = grouped[0]
+        action = "".join(row.action for row in grouped)
+        # Do not present a corrupted historic character stream to an operator.
+        # The next investigation stores normalized LLM actions via _action_list.
+        if len(grouped) > 4:
+            action = "Inspect the affected parameter, verify the reading against an independent source, and record the operator action. Continue monitoring for escalation."
+        payload.append({
+            "id": first.id, "issue_id": first.issue_id,
+            "action": action,
+            "category": "FALLBACK" if len(grouped) > 4 else first.category, "status": first.status,
+            "generated_at": first.generated_at.isoformat(),
+            "operator_action": first.operator_action, "verification": first.verification,
+            "source_chunks": first.source_chunks or [],
+        })
+    return payload
+
+
 async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Dict[str, Any]:
     summary = (await session.execute(select(MachineAISummary).where(MachineAISummary.machine_code == machine_code))).scalars().first()
     state = (await session.execute(select(MachineMonitoringState).where(MachineMonitoringState.machine_code == machine_code))).scalars().first()
@@ -573,6 +621,6 @@ async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Di
         "state": {"operational_state": state.operational_state, "agent_state": state.agent_state, "parameter_states": state.parameter_states or {}, "last_checked_at": state.last_checked_at.isoformat()} if state else None,
         "active_issue": next((issue_json(issue) for issue in issues if issue.status in ACTIVE_ISSUE_STATUSES), None),
         "issues": [issue_json(issue) for issue in issues],
-        "recommendations": [{"id": item.id, "issue_id": item.issue_id, "action": item.action, "category": item.category, "status": item.status, "generated_at": item.generated_at.isoformat(), "operator_action": item.operator_action, "verification": item.verification, "source_chunks": item.source_chunks or []} for item in recommendations if item.issue_id in issue_ids],
+        "recommendations": _recommendation_payload(recommendations, issue_ids),
         "agent_history": [{"id": item.id, "issue_id": item.issue_id, "status": item.status, "created_at": item.created_at.isoformat(), "model_name": item.model_name, "result": item.result} for item in investigations],
     }
