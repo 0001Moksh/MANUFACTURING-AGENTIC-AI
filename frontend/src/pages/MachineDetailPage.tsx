@@ -388,6 +388,9 @@ export const MachineDetailPage: React.FC = () => {
   // Agent tab – collapsible Active Issues section
   const [issuesOpen, setIssuesOpen] = useState(true);
 
+  // Per-issue Document evidence collapse state (default collapsed)
+  const [evidenceOpenMap, setEvidenceOpenMap] = useState<Record<number, boolean>>({});
+
   useEffect(() => {
     let cancelled = false;
     if (!id) return undefined;
@@ -828,33 +831,8 @@ export const MachineDetailPage: React.FC = () => {
                           ? 'Regenerating…'
                           : 'Regenerate'}
                       </button>
-
-                      {/* <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
-                        {agentStatus}
-                      </span> */}
                     </div>
                   </div>
-                  {/* 
-                  {aiSummary && (
-                    <div className="mt-3.5 flex flex-wrap items-center justify-end gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${summaryBadgeClass}`}
-                      >
-                        {summaryIsWarning && <AlertTriangle className="w-3 h-3" />}
-                        {aiSummary.overall_status || 'Unknown'}
-                      </span>
-                      {aiSummary.health_score != null && (
-                        <span className="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
-                          Health Score: <b className="text-slate-800">{aiSummary.health_score}</b>
-                        </span>
-                      )}
-                      {aiSummary.monitoring_window_minutes != null && (
-                        <span className="px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
-                          Window: <b className="text-slate-800">{aiSummary.monitoring_window_minutes} min</b>
-                        </span>
-                      )}
-                    </div>
-                  )} */}
                 </div>
 
                 {/* Error */}
@@ -919,6 +897,7 @@ export const MachineDetailPage: React.FC = () => {
                                   aiData?.recommendations.filter((rec) => rec.issue_id === issue.id) ?? [];
                                 const action = operatorActions[issue.id] ?? '';
                                 const isSaving = actionSavingIssueId === issue.id;
+                                const isEvidenceOpen = evidenceOpenMap[issue.id] ?? false;
 
                                 return (
                                   <div
@@ -973,7 +952,7 @@ export const MachineDetailPage: React.FC = () => {
                                       </p>
 
                                       {recommendations.length ? (
-                                        <ul className="space-y-2">
+                                        <ul className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                                           {recommendations.map((rec) => (
                                             <li
                                               key={rec.id}
@@ -992,22 +971,49 @@ export const MachineDetailPage: React.FC = () => {
                                         </p>
                                       )}
 
+                                      {/* ── Document evidence (collapsible, default collapsed) ── */}
                                       {recommendations[0]?.source_chunks?.length ? (
-                                        <div className="mt-3 rounded-xl border border-teal/20 bg-teal/[0.03] p-3">
-                                          <p className="text-[10px] font-extrabold uppercase tracking-wide text-teal">
-                                            Document evidence used · top {recommendations[0].source_chunks.length} chunks
-                                          </p>
-                                          <div className="mt-2 space-y-2">
-                                            {recommendations[0].source_chunks.map((source) => (
-                                              <div key={`${source.document_id}-${source.chunk_index}`} className="border-l-2 border-teal/40 pl-2.5">
-                                                <p className="text-[11px] font-bold text-slate-700">
-                                                  {source.category} · {source.title}
-                                                  <span className="ml-1 font-normal text-slate-400">chunk {source.chunk_index + 1}</span>
-                                                </p>
-                                                <p className="mt-0.5 text-[10.5px] leading-relaxed text-slate-500">{source.content.slice(0, 220)}{source.content.length > 220 ? '…' : ''}</p>
-                                              </div>
-                                            ))}
-                                          </div>
+                                        <div className="mt-3 rounded-xl border border-black overflow-hidden">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setEvidenceOpenMap((prev) => ({
+                                                ...prev,
+                                                [issue.id]: !isEvidenceOpen,
+                                              }))
+                                            }
+                                            className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-teal/[0.06] transition-colors"
+                                          >
+                                            <p className="text-[10px] font-extrabold uppercase tracking-wide text-teal">
+                                              Data Source - {recommendations[0].source_chunks.length} chunks
+                                            </p>
+                                            <ChevronDown
+                                              className={`h-3.5 w-3.5 shrink-0 text-teal transition-transform duration-200 ${isEvidenceOpen ? 'rotate-180' : ''
+                                                }`}
+                                            />
+                                          </button>
+
+                                          {isEvidenceOpen && (
+                                            <div className="border-t border-teal/15 px-3 pb-3 pt-2 space-y-2">
+                                              {recommendations[0].source_chunks.map((source) => (
+                                                <div
+                                                  key={`${source.document_id}-${source.chunk_index}`}
+                                                  className="border-l-2 border-teal/40 pl-2.5"
+                                                >
+                                                  <p className="text-[11px] font-bold text-slate-700">
+                                                    {source.category} · {source.title}
+                                                    <span className="ml-1 font-normal text-slate-400">
+                                                      chunk {source.chunk_index + 1}
+                                                    </span>
+                                                  </p>
+                                                  <p className="mt-0.5 text-[10.5px] leading-relaxed text-slate-500">
+                                                    {source.content.slice(0, 220)}
+                                                    {source.content.length > 220 ? '…' : ''}
+                                                  </p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
                                       ) : (
                                         <p className="mt-3 text-[10.5px] text-amber-700">
@@ -1178,8 +1184,8 @@ export const MachineDetailPage: React.FC = () => {
 
                         <span
                           className={`rounded-full px-2 py-1 text-[10px] font-semibold ${summaryActiveIssues.length
-                              ? 'bg-amber-50 text-amber-700'
-                              : 'bg-slate-100 text-slate-500'
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-slate-100 text-slate-500'
                             }`}
                         >
                           {summaryActiveIssues.length}
