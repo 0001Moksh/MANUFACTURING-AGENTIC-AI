@@ -741,17 +741,6 @@ export const MachineDetailPage: React.FC = () => {
               <div className="flex flex-col gap-5">
                 {/* Key Indicators - Horizontal Scroll Rows */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="font-head text-[15px] font-extrabold text-slate-800">
-                        Key Indicators
-                      </h2>
-                      <p className="text-[11.5px] text-slate-500 mt-0.5">
-                        Click any gauge to add/remove it from the chart below
-                      </p>
-                    </div>
-
-                  </div>
                   <div>
 
                     <GaugeRow
@@ -792,7 +781,6 @@ export const MachineDetailPage: React.FC = () => {
 
               </div>
             )}
-
             {/* ================================================================
                 AI AGENT ROOT-CAUSE TAB
                 Order:
@@ -807,15 +795,18 @@ export const MachineDetailPage: React.FC = () => {
               <div className="flex flex-col gap-5">
                 {/* 1 ── Header ─────────────────────────────────────────── */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl px-5 py-4 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-teal/10 border border-teal/20 flex items-center justify-center text-teal">
                         <Bot className="w-5 h-5" />
                       </div>
+
                       <div>
                         <h3 className="font-head font-bold text-[16px] text-slate-800">
                           Machine Intelligence
                         </h3>
+
                         <p className="text-[12px] text-slate-500">
                           Live monitoring summary, evidence & recommendations
                         </p>
@@ -828,15 +819,22 @@ export const MachineDetailPage: React.FC = () => {
                         disabled={summaryRegenerating}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-teal/30 bg-white px-3 py-1.5 text-[11px] font-bold text-teal hover:bg-teal/5 disabled:opacity-50 transition-colors"
                       >
-                        <RefreshCw className={`h-3.5 w-3.5 ${summaryRegenerating ? 'animate-spin' : ''}`} />
-                        {summaryRegenerating ? 'Regenerating…' : 'Regenerate'}
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 ${summaryRegenerating ? 'animate-spin' : ''
+                            }`}
+                        />
+
+                        {summaryRegenerating
+                          ? 'Regenerating…'
+                          : 'Regenerate'}
                       </button>
-                      <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
+
+                      {/* <span className="px-3 py-1 rounded-full bg-teal/10 text-teal border border-teal/20 text-[11px] font-mono font-bold">
                         {agentStatus}
-                      </span>
+                      </span> */}
                     </div>
                   </div>
-
+                  {/* 
                   {aiSummary && (
                     <div className="mt-3.5 flex flex-wrap items-center justify-end gap-2">
                       <span
@@ -856,7 +854,7 @@ export const MachineDetailPage: React.FC = () => {
                         </span>
                       )}
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 {/* Error */}
@@ -1066,86 +1064,206 @@ export const MachineDetailPage: React.FC = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* 3 ── AI summary text ───────────────────────────────── */}
-                <div className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
-                  {aiSummary ? (
-                    <p className="text-[14px] text-slate-800 leading-relaxed">
-                      {aiSummary.summary_text}
-                    </p>
-                  ) : (
-                    <p className="py-4 text-center text-[12.5px] text-slate-500">
-                      Monitoring data is being processed. AI summary will appear shortly.
-                    </p>
-                  )}
-                  <p className="mt-3 text-[10.5px] text-slate-400">
-                    Generated{' '}
-                    <span className="font-mono">
-                      {aiData?.summary?.generated_at
-                        ? new Date(aiData.summary.generated_at).toLocaleString()
-                        : 'Pending'}
-                    </span>
-                    {aiData?.summary?.model_name ? ` · ${aiData.summary.model_name}` : ''}
-                  </p>
-                </div>
+                {/* ============================================================
+    MACHINE AI SUMMARY CONTENT
+============================================================ */}
 
-                {/* 4 ── Key Observations | Active Issues + Data Quality ── */}
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
-                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-                      Key Observations
-                    </div>
-                    {keyObservations.length ? (
-                      <ul className="space-y-2">
-                        {keyObservations.map((line, i) => (
-                          <li key={i} className="flex items-start gap-2.5 text-[12.5px] text-slate-700">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />
-                            <span>{line}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-[12.5px] text-slate-500">No observations yet.</p>
-                    )}
-                  </div>
+                <div className="space-y-2">
 
-                  <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
-                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-                      Active Issues
-                    </div>
-                    {summaryActiveIssues.length ? (
-                      <ul className="space-y-2">
-                        {summaryActiveIssues.map((line, i) => (
-                          <li key={i} className="flex items-start gap-2.5 text-[12.5px] text-slate-700">
-                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                            <span>{line}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {/* ============================================================
+      3 — AI SUMMARY TEXT
+  ============================================================ */}
+
+                  <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+
+                    {aiSummary ? (
+                      <p className="text-[14px] leading-relaxed text-slate-800">
+                        {aiSummary.summary_text}
+                      </p>
                     ) : (
-                      <p className="text-[12.5px] text-slate-500">No active issues reported.</p>
+                      <p className="py-4 text-center text-[12.5px] text-slate-500">
+                        Monitoring data is being processed. AI summary will appear shortly.
+                      </p>
                     )}
 
-                    <div className="mt-5 border-t border-slate-100 pt-4">
-                      <div className="text-[12px] font-bold text-slate-800 mb-1">Data Quality</div>
-                      <p className="text-[12.5px] text-slate-600 leading-snug">
-                        {aiSummary?.data_quality || 'Data quality has not been assessed yet.'}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <p className="text-[10.5px] text-slate-400">
+                        Generated{' '}
+                        <span className="font-mono">
+                          {aiData?.summary?.generated_at
+                            ? new Date(
+                              aiData.summary.generated_at
+                            ).toLocaleString()
+                            : 'Pending'}
+                        </span>
+
+                        {aiData?.summary?.model_name
+                          ? ` · ${aiData.summary.model_name}`
+                          : ''}
                       </p>
                     </div>
+
+                  </section>
+
+
+                  {/* ============================================================
+      4 — KEY OBSERVATIONS + ACTIVE ISSUES
+  ============================================================ */}
+
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+
+                    {/* ==========================================================
+        KEY OBSERVATIONS
+    ========================================================== */}
+
+                    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+
+                      <div className="mb-4 flex items-center justify-between gap-2">
+
+                        <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                          Key Observations
+                        </h4>
+
+                        <span className="rounded-full bg-teal-50 px-2 py-1 text-[10px] font-semibold text-teal-700">
+                          {keyObservations.length}
+                        </span>
+
+                      </div>
+
+                      {keyObservations.length ? (
+
+                        <ul className="space-y-3">
+
+                          {keyObservations.map((line, i) => (
+
+                            <li
+                              key={i}
+                              className="flex items-start gap-2.5 text-[12.5px] leading-relaxed text-slate-700"
+                            >
+
+                              <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+
+                              <span className="min-w-0">
+                                {line}
+                              </span>
+
+                            </li>
+
+                          ))}
+
+                        </ul>
+
+                      ) : (
+
+                        <p className="text-[12.5px] text-slate-500">
+                          No observations yet.
+                        </p>
+
+                      )}
+
+                    </section>
+
+
+                    {/* ==========================================================
+        ACTIVE ISSUES + DATA QUALITY
+    ========================================================== */}
+
+                    <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
+
+                      <div className="mb-4 flex items-center justify-between gap-2">
+
+                        <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                          Active Issues
+                        </h4>
+
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold ${summaryActiveIssues.length
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-slate-100 text-slate-500'
+                            }`}
+                        >
+                          {summaryActiveIssues.length}
+                        </span>
+
+                      </div>
+
+                      {summaryActiveIssues.length ? (
+
+                        <ul className="space-y-3">
+
+                          {summaryActiveIssues.map((line, i) => (
+
+                            <li
+                              key={i}
+                              className="flex items-start gap-2.5 text-[12.5px] leading-relaxed text-slate-700"
+                            >
+
+                              <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+
+                              <span className="min-w-0">
+                                {line}
+                              </span>
+
+                            </li>
+
+                          ))}
+
+                        </ul>
+
+                      ) : (
+
+                        <p className="text-[12.5px] text-slate-500">
+                          No active issues reported.
+                        </p>
+
+                      )}
+
+
+                      {/* DATA QUALITY */}
+
+                      <div className="mt-5 border-t border-slate-100 pt-4">
+
+                        <h4 className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                          Data Quality
+                        </h4>
+
+                        <p className="text-[12.5px] leading-relaxed text-slate-600">
+                          {aiSummary?.data_quality ||
+                            'Data quality has not been assessed yet.'}
+                        </p>
+
+                      </div>
+
+                    </section>
+
                   </div>
+
+
+                  {/* ============================================================
+      5 — RECOMMENDED ACTION
+  ============================================================ */}
+
+                  {aiSummary?.recommended_action && (
+
+                    <section className="rounded-2xl border border-teal-100 bg-teal-50/60 p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.04)]">
+
+                      <div className="mb-2 flex items-center gap-2">
+
+                        <h4 className="text-[10.5px] font-bold uppercase tracking-wider text-teal-700">
+                          Recommended Action
+                        </h4>
+
+                      </div>
+
+                      <p className="text-[13px] leading-relaxed text-teal-900">
+                        {aiSummary.recommended_action}
+                      </p>
+
+                    </section>
+
+                  )}
+
                 </div>
-
-                {/* 5 ── Recommended Action ────────────────────────────── */}
-                {aiSummary?.recommended_action && (
-                  <div className="rounded-xl border border-teal-100 bg-teal-50 px-5 py-4">
-                    <div className="text-[10.5px] font-bold text-teal-700 uppercase tracking-wider mb-1.5">
-                      Recommended Action
-                    </div>
-                    <p className="text-[13px] text-teal-900 leading-relaxed">
-                      {aiSummary.recommended_action}
-                    </p>
-                  </div>
-                )}
-
                 {/* 6 ── Current AI State ──────────────────────────────── */}
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_2px_16px_-6px_rgba(15,23,42,0.06)]">
                   <h4 className="font-head font-bold text-slate-800 text-[13px] mb-4">
