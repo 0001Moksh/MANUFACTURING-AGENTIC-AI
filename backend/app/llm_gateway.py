@@ -1,15 +1,34 @@
 import os
 import logging
 from typing import List, Dict, Any
+from dotenv import load_dotenv
 import litellm
 
 # Configure litellm logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("llm_gateway")
 
-# Provider configuration is loaded by app.main before routes are imported.
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini/gemini-3.8-flash")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/openai/gpt-oss-20b")
+load_dotenv()
+
+DEFAULT_GEMINI_MODEL = "gemini/gemini-3.8-flash"
+DEFAULT_GROQ_MODEL = "groq/openai/gpt-oss-20b"
+
+
+def _resolve_model_names() -> tuple[str, str]:
+    """Refresh model names from the live environment and fall back to supported defaults."""
+    load_dotenv()
+    gemini_model = (os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL).strip()
+    groq_model = (os.getenv("GROQ_MODEL") or DEFAULT_GROQ_MODEL).strip()
+
+    if "gemini" not in gemini_model.lower():
+        gemini_model = DEFAULT_GEMINI_MODEL
+    if "groq" not in groq_model.lower():
+        groq_model = DEFAULT_GROQ_MODEL
+
+    return gemini_model, groq_model
+
+
+GEMINI_MODEL, GROQ_MODEL = _resolve_model_names()
 
 # Provider cost dictionary for usage tracking
 MODEL_COSTS = {
@@ -56,23 +75,25 @@ async def execute_completion(
         logger.error(message)
         return {"text": "", "model_used": None, "usage": {}, "cost_usd": 0.0, "error": message, "llm_trace": {"request": {"model": model, "messages": _json_safe(messages), "parameters": {"temperature": temperature, "response_format": response_format, **kwargs}}, "response": {"text": "", "error": message}}}
 
+    current_gemini_model, current_groq_model = _resolve_model_names()
+
     # Normalize model names to correct litellm provider strings
     model_lower = model.lower().strip()
     if model_lower in {"", "auto"}:
-        model = GEMINI_MODEL if has_gemini else GROQ_MODEL
+        model = current_gemini_model if has_gemini else current_groq_model
     elif "gemini" in model_lower:
-        model = GEMINI_MODEL
+        model = current_gemini_model
     elif "llama" in model_lower or "groq" in model_lower:
-        model = GROQ_MODEL
+        model = current_groq_model
     else:
-        model = GEMINI_MODEL if has_gemini else GROQ_MODEL
+        model = current_gemini_model if has_gemini else current_groq_model
 
     # Build fallback list — always cross-provider
     fallbacks = []
-    if model == GEMINI_MODEL and has_groq:
-        fallbacks = [GROQ_MODEL]
-    elif model == GROQ_MODEL and has_gemini:
-        fallbacks = [GEMINI_MODEL]
+    if model == current_gemini_model and has_groq:
+        fallbacks = [current_groq_model]
+    elif model == current_groq_model and has_gemini:
+        fallbacks = [current_gemini_model]
 
     litellm.success_callback = []
     litellm.failure_callback = []

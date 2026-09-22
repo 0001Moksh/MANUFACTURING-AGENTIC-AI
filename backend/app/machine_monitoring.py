@@ -2,8 +2,9 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -37,9 +38,12 @@ DEFAULT_RECOMMENDATIONS = {
     "rpm": ["[DEFAULT_RECOMMENDATIONS] Check machine operating speed", "Check the speed and load relationship", "Monitor the RPM trend"],
 }
 
+IST = ZoneInfo("Asia/Kolkata")
+
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    """Use plant-local Indian Standard Time for all machine timestamps before they hit the DB."""
+    return datetime.now(IST).replace(tzinfo=None)
 
 
 def _recommendations(metric: str) -> List[str]:

@@ -4,13 +4,15 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List
 import logging
+from zoneinfo import ZoneInfo
 
 
 logger = logging.getLogger("influx_telemetry")
 
+IST = ZoneInfo("Asia/Kolkata")
 CANONICAL_MEASUREMENT = "electrical_params"
 FIELD_METADATA = {
     "BN_V": {"label": "BN Voltage", "unit": "V"},
@@ -214,8 +216,8 @@ def get_machine_telemetry() -> List[Dict[str, Any]]:
             "healthScore": health_score,
             "status": status,
             "activeIssues": int(has_critical or has_warning),
-            "lastAnomalyAt": datetime.now(timezone.utc).isoformat() if has_critical or has_warning else None,
-            "lastUpdated": datetime.now(timezone.utc).isoformat(),
+            "lastAnomalyAt": datetime.now(IST).isoformat() if has_critical or has_warning else None,
+            "lastUpdated": datetime.now(IST).isoformat(),
             "operator": "Not configured",
             "installDate": "Not configured",
             "lastMaintenance": "Not configured",
