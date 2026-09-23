@@ -228,7 +228,7 @@ def get_machine_telemetry() -> List[Dict[str, Any]]:
         for key in fields:
             config = _metric_config(key, measurement_name=measurement)
             for row in _metric_rows(key, config, range_window):
-                device_id = row.get("device_id")
+                device_id = row.get("device_id") or row.get("deviceId") or row.get("_measurement") or row.get("measurement")
                 if not device_id:
                     continue
                 try:
