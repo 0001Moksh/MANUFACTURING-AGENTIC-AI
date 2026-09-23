@@ -131,7 +131,7 @@ const formatSummaryEntry = (entry: any): string => {
     .filter(Boolean)
     .join(' · ');
 };
-
+ 
 const formatMachineTimestamp = (value?: string | null) => {
   if (!value) return '—';
   const hasTimezone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(value);
