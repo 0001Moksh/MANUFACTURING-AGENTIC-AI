@@ -66,17 +66,26 @@ configured_origins = [
         "FRONTEND_URLS",
         os.getenv(
             "FRONTEND_URL",
-            "http://localhost:3000, http://localhost:8080, http://localhost:8001, http://127.0.0.1:3000, http://127.0.0.1:8080, http://127.0.0.1:8001, http://192.168.10.8:3000, http://192.168.10.8:8001",
+            "http://localhost:3000, http://localhost:5173, http://localhost:8080, http://localhost:8001, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8080, http://127.0.0.1:8001, http://192.168.10.4:3000, http://192.168.10.4:5173, http://192.168.10.8:3000, http://192.168.10.8:8001",
         ),
     ).split(",")
     if origin.strip()
 ]
 
-# Use explicit origins so browser credentialed requests from the Vite frontend are allowed
-# without triggering the wildcard+credentials CORS rejection that occurs in Chromium.
+# Allow the local LAN frontend hosts used in this environment while keeping credentialed browser requests valid.
+# This avoids the Chromium CORS preflight issues caused by missing or overly narrow origin allowlists.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=configured_origins or ["http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.10.8:3000"],
+    allow_origins=configured_origins or [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://192.168.10.4:3000",
+        "http://192.168.10.4:5173",
+        "http://192.168.10.8:3000",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
