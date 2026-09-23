@@ -1365,6 +1365,25 @@ async def get_machine_monitoring_telemetry(db: AsyncSession = Depends(get_db)):
         machines = get_machine_telemetry()
         threshold_rows = (await db.execute(select(MachineThresholdConfig))).scalars().all()
         threshold_map = {row.machine_code: row.parameters for row in threshold_rows}
+
+        active_issue_rows = (await db.execute(
+            select(MachineIssue)
+            .where(MachineIssue.status.in_(["ACTIVE", "OPEN", "INVESTIGATION", "RECOMMENDATION", "VERIFYING", "RE_OCCURRENCE"]))
+            .order_by(MachineIssue.detected_at.desc())
+        )).scalars().all()
+
+        active_issue_map: Dict[str, Dict[str, Any]] = {}
+        for issue in active_issue_rows:
+            entry = active_issue_map.setdefault(issue.machine_code, {
+                "count": 0,
+                "lastIssueText": None,
+                "lastAnomalyAt": None,
+            })
+            entry["count"] += 1
+            if entry["lastAnomalyAt"] is None or issue.detected_at > entry["lastAnomalyAt"]:
+                entry["lastIssueText"] = issue.title
+                entry["lastAnomalyAt"] = issue.detected_at
+
         for machine in machines:
             parameters = threshold_map.get(machine["id"], {})
             for metric in machine["liveMetrics"]:
@@ -1385,6 +1404,16 @@ async def get_machine_monitoring_telemetry(db: AsyncSession = Depends(get_db)):
             monitored = [metric for metric in machine["liveMetrics"] if metric.get("value") is not None]
             machine["status"] = "Critical" if any(metric["status"] == "critical" for metric in monitored) else "Warning" if any(metric["status"] == "warning" for metric in monitored) else "Healthy"
             machine["healthScore"] = max(0, min(100, round(100 - sum(35 if metric["status"] == "critical" else 15 if metric["status"] == "warning" else 0 for metric in monitored))))
+
+            issue_state = active_issue_map.get(machine.get("id")) or active_issue_map.get(machine.get("code"))
+            if issue_state:
+                machine["activeIssues"] = max(int(machine.get("activeIssues", 0)), int(issue_state["count"]))
+                machine["lastIssueText"] = issue_state["lastIssueText"] or machine.get("lastIssueText")
+                machine["lastAnomalyAt"] = issue_state["lastAnomalyAt"].isoformat() if issue_state["lastAnomalyAt"] else machine.get("lastAnomalyAt")
+                if machine["status"] == "Healthy":
+                    machine["status"] = "Warning"
+                    machine["healthScore"] = min(machine["healthScore"], 75)
+
         return {"source": "InfluxDB", "machines": machines}
     except InfluxTelemetryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
