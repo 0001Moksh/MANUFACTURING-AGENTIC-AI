@@ -116,26 +116,47 @@ def _query_flux(query: str) -> List[Dict[str, str]]:
     return rows
 
 
-def _discover_fields() -> List[str]:
+def _discover_measurements() -> List[str]:
     bucket = get_active_influx_bucket().replace('"', '\\"')
-    measurement = CANONICAL_MEASUREMENT.replace('"', '\\"')
+    flux = f'''import "influxdata/influxdb/schema"
+schema.measurements(bucket: "{bucket}")'''
+    measurements = [row.get("_value", "").strip() for row in _query_flux(flux) if row.get("_value", "").strip()]
+    ordered = []
+    for candidate in [CANONICAL_MEASUREMENT, *measurements]:
+        if candidate not in ordered:
+            ordered.append(candidate)
+    return ordered
+
+
+def _discover_fields_for_measurement(measurement: str) -> List[str]:
+    bucket = get_active_influx_bucket().replace('"', '\\"')
+    measurement_name = measurement.replace('"', '\\"')
     flux = f'''import "influxdata/influxdb/schema"
 schema.fieldKeys(
   bucket: "{bucket}",
-  predicate: (r) => r._measurement == "{measurement}",
+  predicate: (r) => r._measurement == "{measurement_name}",
   start: -30d
 )'''
     fields = {row.get("_value", "").strip() for row in _query_flux(flux) if row.get("_value", "").strip()}
     return sorted(fields)
 
 
-def _metric_config(field: str) -> Dict[str, Any]:
+def _discover_fields() -> List[str]:
+    discovered: List[str] = []
+    for measurement in _discover_measurements():
+        fields = _discover_fields_for_measurement(measurement)
+        if fields:
+            discovered.extend(fields)
+    return sorted(set(discovered))
+
+
+def _metric_config(field: str, measurement_name: str = CANONICAL_MEASUREMENT) -> Dict[str, Any]:
     metadata = FIELD_METADATA.get(field, {})
     return {
         **metadata,
         "label": metadata.get("label", field.replace("_", " ").strip()),
         "unit": metadata.get("unit", ""),
-        "measurement": CANONICAL_MEASUREMENT,
+        "measurement": measurement_name,
         "field": field,
         "bucket": get_active_influx_bucket(),
         "normal": metadata.get("normal"),
@@ -191,24 +212,35 @@ def _status(value: float | None, config: Dict[str, Any]) -> str:
 def get_machine_telemetry() -> List[Dict[str, Any]]:
     device_metrics: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
     range_window = os.getenv("INFLUX_TELEMETRY_RANGE", "24h")
-    discovered_fields = _discover_fields()
-    if not discovered_fields:
-        raise InfluxTelemetryError("InfluxDB returned no fields for electrical_params")
-    for key in discovered_fields:
-        config = _metric_config(key)
-        for row in _metric_rows(key, config, range_window):
-            device_id = row.get("device_id")
-            if not device_id:
-                continue
-            try:
-                value = float(row["_value"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            device_metrics.setdefault(device_id, {}).setdefault(key, []).append({
-                "t": row.get("_time", ""),
-                "v": value,
-                "deviceId": device_id,
-            })
+    measurement_fields: Dict[str, List[str]] = {}
+
+    for measurement in _discover_measurements():
+        fields = _discover_fields_for_measurement(measurement)
+        if fields:
+            measurement_fields[measurement] = fields
+
+    if not measurement_fields:
+        raise InfluxTelemetryError(f"InfluxDB returned no fields for the active bucket '{get_active_influx_bucket()}'")
+
+    discovered_fields = sorted({field for fields in measurement_fields.values() for field in fields})
+
+    for measurement, fields in measurement_fields.items():
+        for key in fields:
+            config = _metric_config(key, measurement_name=measurement)
+            for row in _metric_rows(key, config, range_window):
+                device_id = row.get("device_id")
+                if not device_id:
+                    continue
+                try:
+                    value = float(row["_value"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                device_metrics.setdefault(device_id, {}).setdefault(key, []).append({
+                    "t": row.get("_time", ""),
+                    "v": value,
+                    "deviceId": device_id,
+                    "measurement": measurement,
+                })
 
     if not device_metrics:
         raise InfluxTelemetryError("InfluxDB returned no configured machine telemetry")
@@ -217,8 +249,12 @@ def get_machine_telemetry() -> List[Dict[str, Any]]:
     for device_id, fields in sorted(device_metrics.items()):
         metrics = []
         for key in discovered_fields:
-            config = _metric_config(key)
-            points = sorted(fields.get(key, []), key=lambda point: point["t"])
+            measurement = next(
+                (measurement_name for measurement_name, measurement_keys in measurement_fields.items() if key in measurement_keys),
+                CANONICAL_MEASUREMENT,
+            )
+            config = _metric_config(key, measurement_name=measurement)
+            points = sorted([point for point in fields.get(key, [])], key=lambda point: point["t"])
             latest = points[-1]["v"] if points else None
             normal = config.get("normal")
             metrics.append({
@@ -246,7 +282,7 @@ def get_machine_telemetry() -> List[Dict[str, Any]]:
             "id": device_id,
             "code": device_id,
             "name": f"InfluxDB Machine {device_id}",
-            "type": "InfluxDB electrical_params device",
+            "type": "InfluxDB device",
             "location": "Configured InfluxDB source",
             "plant": "Configured InfluxDB source",
             "line": "Configured InfluxDB source",
