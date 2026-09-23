@@ -60,12 +60,23 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-configured_origins = [origin.strip().rstrip("/") for origin in os.getenv("FRONTEND_URLS", os.getenv("FRONTEND_URL", "http://localhost:3000, http://localhost:8080, http://localhost:8001, http://127.0.0.1:3000, http://127.0.0.1:8080, http://127.0.0.1:8001")).split(",") if origin.strip()]
+configured_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "FRONTEND_URLS",
+        os.getenv(
+            "FRONTEND_URL",
+            "http://localhost:3000, http://localhost:8080, http://localhost:8001, http://127.0.0.1:3000, http://127.0.0.1:8080, http://127.0.0.1:8001, http://192.168.10.8:3000, http://192.168.10.8:8001",
+        ),
+    ).split(",")
+    if origin.strip()
+]
 
-# Allow all origins in development and mixed local deployments so frontend dev servers can reach the backend cleanly.
+# Use explicit origins so browser credentialed requests from the Vite frontend are allowed
+# without triggering the wildcard+credentials CORS rejection that occurs in Chromium.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=configured_origins or ["http://localhost:3000", "http://127.0.0.1:3000", "http://192.168.10.8:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
