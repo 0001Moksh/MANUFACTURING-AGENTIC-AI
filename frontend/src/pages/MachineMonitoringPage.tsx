@@ -9,6 +9,7 @@ import type { MachineStatus } from '../data/machineMonitoringData';
 import { MachineCard } from '../components/machine-monitoring/MachineCard';
 import { MachineTable } from '../components/machine-monitoring/MachineTable';
 import { useMachineStore } from '../store/useMachineStore';
+import { machineMonitoringService } from '../services/api';
 
 // ─── Summary Tile ─────────────────────────────────────────────────────────────
 
@@ -67,12 +68,27 @@ export const MachineMonitoringPage: React.FC = () => {
   const [plantFilter, setPlantFilter] = useState('All Plants');
   const [issueFilter, setIssueFilter] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeBucket, setActiveBucket] = useState('ECE2');
+  const [bucketMenuOpen, setBucketMenuOpen] = useState(false);
+  const [bucketChanging, setBucketChanging] = useState(false);
 
   useEffect(() => {
     loadMachines();
     const interval = setInterval(loadMachines, 10000);
     return () => clearInterval(interval);
   }, [loadMachines]);
+
+  useEffect(() => {
+    const loadActiveBucket = async () => {
+      try {
+        const data = await machineMonitoringService.getInfluxBuckets();
+        if (data?.activeBucket) setActiveBucket(data.activeBucket);
+      } catch (error) {
+        console.error('Unable to load active Influx bucket:', error);
+      }
+    };
+    loadActiveBucket();
+  }, []);
 
   const summary = useMemo(() => getMachineSummary(machines), [machines]);
 
@@ -89,6 +105,25 @@ export const MachineMonitoringPage: React.FC = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     loadMachines().finally(() => setRefreshing(false));
+  };
+
+  const handleBucketChange = async (bucket: string) => {
+    if (!bucket || bucket === activeBucket) {
+      setBucketMenuOpen(false);
+      return;
+    }
+
+    setBucketChanging(true);
+    try {
+      const data = await machineMonitoringService.setInfluxBucket(bucket);
+      setActiveBucket(data?.activeBucket || bucket);
+      setBucketMenuOpen(false);
+      await handleRefresh();
+    } catch (error) {
+      console.error('Unable to switch Influx bucket:', error);
+    } finally {
+      setBucketChanging(false);
+    }
   };
 
   const hasActiveFilters = search || statusFilter !== 'All' || plantFilter !== 'All Plants' || issueFilter;
@@ -124,14 +159,35 @@ export const MachineMonitoringPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => undefined}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/90 backdrop-blur border border-slate-200 text-ink hover:border-teal/50 hover:shadow-md font-semibold text-xs shadow-sm transition-all"
-            title="Change InfluxDB bucket"
-          >
-            <span>Change Bucket in InfluxDB</span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setBucketMenuOpen((open) => !open)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/90 backdrop-blur border border-slate-200 text-ink hover:border-teal/50 hover:shadow-md font-semibold text-xs shadow-sm transition-all"
+              title="Change active InfluxDB bucket"
+            >
+              <span>Change Bucket</span>
+              <span className="rounded-full bg-teal/10 px-2 py-0.5 text-[10px] font-bold text-teal">
+                {bucketChanging ? 'Switching...' : activeBucket}
+              </span>
+            </button>
+
+            {bucketMenuOpen && (
+              <div className="absolute right-0 top-full mt-2 z-20 w-36 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur">
+                {['ECE2', 'mps'].map((bucket) => (
+                  <button
+                    key={bucket}
+                    type="button"
+                    onClick={() => handleBucketChange(bucket)}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium transition-colors ${activeBucket === bucket ? 'bg-teal/10 text-teal' : 'text-slate-700 hover:bg-slate-100'}`}
+                  >
+                    <span>{bucket}</span>
+                    {activeBucket === bucket && <span className="h-2 w-2 rounded-full bg-teal" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={handleRefresh}

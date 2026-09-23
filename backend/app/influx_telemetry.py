@@ -37,6 +37,43 @@ class InfluxTelemetryError(RuntimeError):
     pass
 
 
+SUPPORTED_INFLUX_BUCKETS = ["ECE2", "mps"]
+
+
+def normalize_influx_bucket(bucket_name: str | None) -> str:
+    if not bucket_name:
+        return "ECE2"
+    normalized = str(bucket_name).strip()
+    if not normalized:
+        return "ECE2"
+    lookup = normalized.lower().replace(" ", "")
+    if lookup in {"ece2", "ece-2"}:
+        return "ECE2"
+    if lookup in {"mps", "mp3"}:
+        return "mps"
+    return normalized
+
+
+def get_active_influx_bucket() -> str:
+    return normalize_influx_bucket(os.getenv("INFLUXDB_BUCKET", "ECE2"))
+
+
+def list_supported_influx_buckets() -> List[str]:
+    return ["ECE2", "mps"]
+
+
+def set_active_influx_bucket(bucket_name: str) -> Dict[str, Any]:
+    normalized = normalize_influx_bucket(bucket_name)
+    if normalized not in set(list_supported_influx_buckets()):
+        raise ValueError(f"Unsupported Influx DB bucket: {bucket_name}")
+    os.environ["INFLUXDB_BUCKET"] = normalized
+    return {
+        "activeBucket": normalized,
+        "supportedBuckets": list_supported_influx_buckets(),
+        "message": f"InfluxDB bucket switched to {normalized}",
+    }
+
+
 def _influx_url() -> str:
     configured = os.getenv("INFLUXDB_URL", "").strip()
     if configured:
@@ -80,7 +117,7 @@ def _query_flux(query: str) -> List[Dict[str, str]]:
 
 
 def _discover_fields() -> List[str]:
-    bucket = os.getenv("INFLUXDB_BUCKET", "ECE2").replace('"', '\\"')
+    bucket = get_active_influx_bucket().replace('"', '\\"')
     measurement = CANONICAL_MEASUREMENT.replace('"', '\\"')
     flux = f'''import "influxdata/influxdb/schema"
 schema.fieldKeys(
@@ -100,7 +137,7 @@ def _metric_config(field: str) -> Dict[str, Any]:
         "unit": metadata.get("unit", ""),
         "measurement": CANONICAL_MEASUREMENT,
         "field": field,
-        "bucket": os.getenv("INFLUXDB_BUCKET", "ECE2"),
+        "bucket": get_active_influx_bucket(),
         "normal": metadata.get("normal"),
         "warning": metadata.get("warning"),
         "critical": metadata.get("critical"),

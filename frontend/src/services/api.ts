@@ -76,6 +76,14 @@ export const telemetryService = {
 };
 
 export const machineMonitoringService = {
+  getInfluxBuckets: async () => {
+    const res = await api.get('/influx/buckets');
+    return res.data;
+  },
+  setInfluxBucket: async (bucket: string) => {
+    const res = await api.post('/influx/buckets', { bucket });
+    return res.data;
+  },
   getAi: async (machineId: string) => {
     const res = await api.get(`/machines/${encodeURIComponent(machineId)}/ai`);
     return res.data;

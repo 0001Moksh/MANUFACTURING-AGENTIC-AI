@@ -32,7 +32,14 @@ from app.machine_rag import index_machine_document, query_machine_documents
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
-from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
+from app.influx_telemetry import (
+    InfluxTelemetryError,
+    get_active_influx_bucket,
+    get_machine_telemetry,
+    list_supported_influx_buckets,
+    normalize_influx_bucket,
+    set_active_influx_bucket,
+)
 from app.machine_monitoring import get_machine_ai_payload, monitor_machine, regenerate_machine_summary
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
@@ -1417,6 +1424,27 @@ async def get_machine_monitoring_telemetry(db: AsyncSession = Depends(get_db)):
         return {"source": "InfluxDB", "machines": machines}
     except InfluxTelemetryError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/api/influx/buckets")
+async def get_influx_buckets():
+    return {
+        "activeBucket": get_active_influx_bucket(),
+        "supportedBuckets": list_supported_influx_buckets(),
+        "bucketName": get_active_influx_bucket(),
+    }
+
+
+@router.post("/api/influx/buckets")
+async def set_influx_bucket(payload: Dict[str, str]):
+    bucket_name = payload.get("bucket") or payload.get("bucket_name")
+    if not bucket_name:
+        raise HTTPException(status_code=400, detail="Bucket name is required")
+    try:
+        result = set_active_influx_bucket(bucket_name)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/api/v1/mai/thresholds/{machine_id}")
