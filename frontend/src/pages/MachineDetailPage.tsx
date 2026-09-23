@@ -509,12 +509,6 @@ export const MachineDetailPage: React.FC = () => {
 
   // Agent tab derived data
   const aiSummary = parseAiSummary(aiData);
-  const summaryIsWarning =
-    aiSummary?.overall_status?.toLowerCase().includes('warning') ||
-    aiSummary?.overall_status?.toLowerCase().includes('critical');
-  const summaryBadgeClass = summaryIsWarning
-    ? 'text-amber-700 bg-amber-50 border-amber-200'
-    : 'text-emerald-700 bg-emerald-50 border-emerald-200';
 
   const summaryLines = (list: unknown): string[] =>
     Array.isArray(list) ? list.map(formatSummaryEntry).filter(Boolean) : [];
