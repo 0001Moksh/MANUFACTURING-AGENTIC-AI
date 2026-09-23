@@ -616,15 +616,22 @@ async def get_machine_ai_payload(session: AsyncSession, machine_code: str) -> Di
     recommendations = (await session.execute(select(MachineRecommendation).where(MachineRecommendation.machine_code == machine_code).order_by(MachineRecommendation.generated_at.desc()).limit(50))).scalars().all()
     investigations = (await session.execute(select(MachineAgentInvestigation).where(MachineAgentInvestigation.machine_code == machine_code).order_by(MachineAgentInvestigation.created_at.desc()).limit(20))).scalars().all()
 
+    def normalize_iso(value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
     def issue_json(issue: MachineIssue) -> Dict[str, Any]:
-        return {"id": issue.id, "title": issue.title, "severity": issue.severity, "status": issue.status, "affected_parameters": issue.affected_parameters or [], "detected_at": issue.detected_at.isoformat(), "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None, "persistence_seconds": issue.persistence_seconds, "context": issue.context, "analysis": issue.analysis, "operator_action_taken": issue.operator_action_taken, "resolved_by": issue.resolved_by, "resolution_notes": issue.resolution_notes, "tags": issue.tags or []}
+        return {"id": issue.id, "title": issue.title, "severity": issue.severity, "status": issue.status, "affected_parameters": issue.affected_parameters or [], "detected_at": normalize_iso(issue.detected_at), "resolved_at": normalize_iso(issue.resolved_at), "persistence_seconds": issue.persistence_seconds, "context": issue.context, "analysis": issue.analysis, "operator_action_taken": issue.operator_action_taken, "resolved_by": issue.resolved_by, "resolution_notes": issue.resolution_notes, "tags": issue.tags or []}
 
     return {
         "machine_code": machine_code,
-        "summary": {"text": summary.summary_text, "generated_at": summary.generated_at.isoformat(), "snapshot": summary.snapshot_context, "baseline": summary.baseline_context, "llm_trace": summary.llm_trace, "model_name": summary.model_name} if summary else None,
-        "state": {"operational_state": state.operational_state, "agent_state": state.agent_state, "parameter_states": state.parameter_states or {}, "last_checked_at": state.last_checked_at.isoformat()} if state else None,
+        "summary": {"text": summary.summary_text, "generated_at": normalize_iso(summary.generated_at), "snapshot": summary.snapshot_context, "baseline": summary.baseline_context, "llm_trace": summary.llm_trace, "model_name": summary.model_name} if summary else None,
+        "state": {"operational_state": state.operational_state, "agent_state": state.agent_state, "parameter_states": state.parameter_states or {}, "last_checked_at": normalize_iso(state.last_checked_at)} if state else None,
         "active_issue": next((issue_json(issue) for issue in issues if issue.status in ACTIVE_ISSUE_STATUSES), None),
         "issues": [issue_json(issue) for issue in issues],
         "recommendations": _recommendation_payload(recommendations, issue_ids),
-        "agent_history": [{"id": item.id, "issue_id": item.issue_id, "status": item.status, "created_at": item.created_at.isoformat(), "model_name": item.model_name, "result": item.result} for item in investigations],
+        "agent_history": [{"id": item.id, "issue_id": item.issue_id, "status": item.status, "created_at": normalize_iso(item.created_at), "model_name": item.model_name, "result": item.result} for item in investigations],
     }

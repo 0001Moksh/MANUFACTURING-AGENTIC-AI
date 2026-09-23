@@ -1671,6 +1671,14 @@ async def get_machine_issue_history(machine_id: str, db: AsyncSession = Depends(
         )
         .order_by(MachineIssue.resolved_at.desc(), MachineIssue.detected_at.desc())
     )).scalars().all()
+
+    def normalize_iso(value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
     return {
         "machine_code": machine_id,
         "issues": [{
@@ -1679,8 +1687,8 @@ async def get_machine_issue_history(machine_id: str, db: AsyncSession = Depends(
             "severity": issue.severity,
             "status": issue.status,
             "affected_parameters": issue.affected_parameters or [],
-            "detected_at": issue.detected_at.isoformat(),
-            "resolved_at": issue.resolved_at.isoformat() if issue.resolved_at else None,
+            "detected_at": normalize_iso(issue.detected_at),
+            "resolved_at": normalize_iso(issue.resolved_at),
             "operator_action_taken": issue.operator_action_taken,
             "resolved_by": issue.resolved_by,
             "resolution_notes": issue.resolution_notes,

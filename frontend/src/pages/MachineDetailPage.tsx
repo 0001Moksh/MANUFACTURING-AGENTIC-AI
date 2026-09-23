@@ -132,6 +132,13 @@ const formatSummaryEntry = (entry: any): string => {
     .join(' · ');
 };
 
+const formatMachineTimestamp = (value?: string | null) => {
+  if (!value) return '—';
+  const hasTimezone = /[zZ]|[+-]\d{2}:?\d{2}$/.test(value);
+  const parsed = new Date(hasTimezone ? value : `${value}Z`);
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString();
+};
+
 const severityClass = (severity: string) =>
   severity === 'HIGH_RISK' || severity === 'CRITICAL'
     ? 'bg-rose-50 text-rose-700 border-rose-200'
@@ -914,7 +921,7 @@ export const MachineDetailPage: React.FC = () => {
                                       <div className="space-y-1.5 text-[12px] text-slate-600">
                                         <p>
                                           <span className="text-slate-400">Detected:</span>{' '}
-                                          {new Date(issue.detected_at).toLocaleString()}
+                                          {formatMachineTimestamp(issue.detected_at)}
                                         </p>
                                         <p>
                                           <span className="text-slate-400">Affected:</span>{' '}
@@ -1091,9 +1098,7 @@ export const MachineDetailPage: React.FC = () => {
                         Generated{' '}
                         <span className="font-mono">
                           {aiData?.summary?.generated_at
-                            ? new Date(
-                              aiData.summary.generated_at
-                            ).toLocaleString()
+                            ? formatMachineTimestamp(aiData.summary.generated_at)
                             : 'Pending'}
                         </span>
 
@@ -1284,7 +1289,7 @@ export const MachineDetailPage: React.FC = () => {
                       <span className="text-slate-400 text-[11px]">Last checked</span>
                       <div className="font-mono text-slate-700 mt-1 text-[12px]">
                         {aiData?.state
-                          ? new Date(aiData.state.last_checked_at).toLocaleString()
+                          ? formatMachineTimestamp(aiData.state.last_checked_at)
                           : 'Pending'}
                       </div>
                     </div>
@@ -1360,7 +1365,7 @@ export const MachineDetailPage: React.FC = () => {
                                           {issue.title}
                                         </p>
                                         <p className="mt-1 text-[11px] text-slate-500">
-                                          Detected {new Date(issue.detected_at).toLocaleString()}
+                                          Detected {formatMachineTimestamp(issue.detected_at)}
                                         </p>
                                       </div>
                                       <span
@@ -1385,9 +1390,7 @@ export const MachineDetailPage: React.FC = () => {
                                       </p>
                                       <p>
                                         <b>Resolved:</b>{' '}
-                                        {issue.resolved_at
-                                          ? new Date(issue.resolved_at).toLocaleString()
-                                          : '—'}
+                                        {issue.resolved_at ? formatMachineTimestamp(issue.resolved_at) : '—'}
                                       </p>
                                     </div>
 
