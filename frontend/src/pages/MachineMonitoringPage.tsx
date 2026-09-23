@@ -125,6 +125,15 @@ export const MachineMonitoringPage: React.FC = () => {
 
         <div className="flex items-center gap-3 shrink-0">
           <button
+            type="button"
+            onClick={() => undefined}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/90 backdrop-blur border border-slate-200 text-ink hover:border-teal/50 hover:shadow-md font-semibold text-xs shadow-sm transition-all"
+            title="Change InfluxDB bucket"
+          >
+            <span>Change Bucket in InfluxDB</span>
+          </button>
+
+          <button
             onClick={handleRefresh}
             className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white/90 backdrop-blur border border-slate-200 text-ink hover:border-teal/50 hover:shadow-md font-semibold text-xs shadow-sm transition-all"
           >
