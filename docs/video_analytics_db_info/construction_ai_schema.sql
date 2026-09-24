@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict chMT6UaDq3u2af44dRYXhJriTJMOhhDtfWpef3amu4GfEaZDdf9knf1fZndema9
+\restrict 5D8R0dBYnwHhsHCTFhxk0uw1rAlTfezDThqZqoyVfOvtYQO8OtgEhA0XMwS2rcZ
 
 -- Dumped from database version 17.10
 -- Dumped by pg_dump version 17.10
 
--- Started on 2026-09-09 11:18:00
+-- Started on 2026-09-24 12:46:48
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -58,7 +58,7 @@ CREATE SEQUENCE public.access_rules_id_seq
 ALTER SEQUENCE public.access_rules_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5327 (class 0 OID 0)
+-- TOC entry 5336 (class 0 OID 0)
 -- Dependencies: 241
 -- Name: access_rules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -106,12 +106,54 @@ CREATE SEQUENCE public.agent_recommendations_id_seq
 ALTER SEQUENCE public.agent_recommendations_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5328 (class 0 OID 0)
+-- TOC entry 5337 (class 0 OID 0)
 -- Dependencies: 302
 -- Name: agent_recommendations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
 ALTER SEQUENCE public.agent_recommendations_id_seq OWNED BY public.agent_recommendations.id;
+
+
+--
+-- TOC entry 319 (class 1259 OID 45797)
+-- Name: agent_trace_logs; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.agent_trace_logs (
+    id integer NOT NULL,
+    thread_id character varying(100),
+    agent_name character varying(50),
+    user_input text,
+    response_text text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE public.agent_trace_logs OWNER TO postgres;
+
+--
+-- TOC entry 318 (class 1259 OID 45796)
+-- Name: agent_trace_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.agent_trace_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.agent_trace_logs_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5338 (class 0 OID 0)
+-- Dependencies: 318
+-- Name: agent_trace_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.agent_trace_logs_id_seq OWNED BY public.agent_trace_logs.id;
 
 
 --
@@ -148,7 +190,7 @@ CREATE SEQUENCE public.ai_model_classes_id_seq
 ALTER SEQUENCE public.ai_model_classes_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5329 (class 0 OID 0)
+-- TOC entry 5339 (class 0 OID 0)
 -- Dependencies: 267
 -- Name: ai_model_classes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -198,7 +240,7 @@ CREATE SEQUENCE public.ai_models_id_seq
 ALTER SEQUENCE public.ai_models_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5330 (class 0 OID 0)
+-- TOC entry 5340 (class 0 OID 0)
 -- Dependencies: 247
 -- Name: ai_models_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -246,7 +288,7 @@ CREATE SEQUENCE public.alerts_id_seq
 ALTER SEQUENCE public.alerts_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5331 (class 0 OID 0)
+-- TOC entry 5341 (class 0 OID 0)
 -- Dependencies: 312
 -- Name: alerts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -296,7 +338,7 @@ CREATE SEQUENCE public.anomaly_flags_id_seq
 ALTER SEQUENCE public.anomaly_flags_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5332 (class 0 OID 0)
+-- TOC entry 5342 (class 0 OID 0)
 -- Dependencies: 304
 -- Name: anomaly_flags_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -343,7 +385,7 @@ CREATE SEQUENCE public.attendances_id_seq
 ALTER SEQUENCE public.attendances_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5333 (class 0 OID 0)
+-- TOC entry 5343 (class 0 OID 0)
 -- Dependencies: 290
 -- Name: attendances_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -386,7 +428,7 @@ CREATE SEQUENCE public.basler_devices_id_seq
 ALTER SEQUENCE public.basler_devices_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5334 (class 0 OID 0)
+-- TOC entry 5344 (class 0 OID 0)
 -- Dependencies: 243
 -- Name: basler_devices_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -428,7 +470,7 @@ CREATE SEQUENCE public.basler_model_assignments_id_seq
 ALTER SEQUENCE public.basler_model_assignments_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5335 (class 0 OID 0)
+-- TOC entry 5345 (class 0 OID 0)
 -- Dependencies: 278
 -- Name: basler_model_assignments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -468,7 +510,7 @@ CREATE SEQUENCE public.camera_status_logs_id_seq
 ALTER SEQUENCE public.camera_status_logs_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5336 (class 0 OID 0)
+-- TOC entry 5346 (class 0 OID 0)
 -- Dependencies: 286
 -- Name: camera_status_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -518,7 +560,7 @@ CREATE SEQUENCE public.cameras_id_seq
 ALTER SEQUENCE public.cameras_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5337 (class 0 OID 0)
+-- TOC entry 5347 (class 0 OID 0)
 -- Dependencies: 265
 -- Name: cameras_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -563,7 +605,7 @@ CREATE SEQUENCE public.correlated_events_id_seq
 ALTER SEQUENCE public.correlated_events_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5338 (class 0 OID 0)
+-- TOC entry 5348 (class 0 OID 0)
 -- Dependencies: 300
 -- Name: correlated_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -608,7 +650,7 @@ CREATE SEQUENCE public.counting_batches_id_seq
 ALTER SEQUENCE public.counting_batches_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5339 (class 0 OID 0)
+-- TOC entry 5349 (class 0 OID 0)
 -- Dependencies: 306
 -- Name: counting_batches_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -661,7 +703,7 @@ CREATE SEQUENCE public.counting_configs_id_seq
 ALTER SEQUENCE public.counting_configs_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5340 (class 0 OID 0)
+-- TOC entry 5350 (class 0 OID 0)
 -- Dependencies: 288
 -- Name: counting_configs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -709,7 +751,7 @@ CREATE SEQUENCE public.counting_recordings_id_seq
 ALTER SEQUENCE public.counting_recordings_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5341 (class 0 OID 0)
+-- TOC entry 5351 (class 0 OID 0)
 -- Dependencies: 316
 -- Name: counting_recordings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -752,7 +794,7 @@ CREATE SEQUENCE public.counting_snapshots_id_seq
 ALTER SEQUENCE public.counting_snapshots_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5342 (class 0 OID 0)
+-- TOC entry 5352 (class 0 OID 0)
 -- Dependencies: 308
 -- Name: counting_snapshots_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -797,7 +839,7 @@ CREATE SEQUENCE public.defect_detections_id_seq
 ALTER SEQUENCE public.defect_detections_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5343 (class 0 OID 0)
+-- TOC entry 5353 (class 0 OID 0)
 -- Dependencies: 280
 -- Name: defect_detections_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -849,7 +891,7 @@ CREATE SEQUENCE public.departments_id_seq
 ALTER SEQUENCE public.departments_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5344 (class 0 OID 0)
+-- TOC entry 5354 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -888,7 +930,7 @@ CREATE SEQUENCE public.designations_id_seq
 ALTER SEQUENCE public.designations_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5345 (class 0 OID 0)
+-- TOC entry 5355 (class 0 OID 0)
 -- Dependencies: 255
 -- Name: designations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -939,7 +981,7 @@ CREATE SEQUENCE public.detection_assignments_id_seq
 ALTER SEQUENCE public.detection_assignments_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5346 (class 0 OID 0)
+-- TOC entry 5356 (class 0 OID 0)
 -- Dependencies: 294
 -- Name: detection_assignments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -983,7 +1025,7 @@ CREATE SEQUENCE public.employee_movements_id_seq
 ALTER SEQUENCE public.employee_movements_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5347 (class 0 OID 0)
+-- TOC entry 5357 (class 0 OID 0)
 -- Dependencies: 276
 -- Name: employee_movements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1022,7 +1064,7 @@ CREATE SEQUENCE public.employee_types_id_seq
 ALTER SEQUENCE public.employee_types_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5348 (class 0 OID 0)
+-- TOC entry 5358 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: employee_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1072,7 +1114,7 @@ CREATE SEQUENCE public.employees_id_seq
 ALTER SEQUENCE public.employees_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5349 (class 0 OID 0)
+-- TOC entry 5359 (class 0 OID 0)
 -- Dependencies: 259
 -- Name: employees_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1114,7 +1156,7 @@ CREATE SEQUENCE public.evaluator_templates_id_seq
 ALTER SEQUENCE public.evaluator_templates_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5350 (class 0 OID 0)
+-- TOC entry 5360 (class 0 OID 0)
 -- Dependencies: 231
 -- Name: evaluator_templates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1157,7 +1199,7 @@ CREATE SEQUENCE public.hse_camera_rules_id_seq
 ALTER SEQUENCE public.hse_camera_rules_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5351 (class 0 OID 0)
+-- TOC entry 5361 (class 0 OID 0)
 -- Dependencies: 310
 -- Name: hse_camera_rules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1203,7 +1245,7 @@ CREATE SEQUENCE public.hse_rule_definitions_id_seq
 ALTER SEQUENCE public.hse_rule_definitions_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5352 (class 0 OID 0)
+-- TOC entry 5362 (class 0 OID 0)
 -- Dependencies: 263
 -- Name: hse_rule_definitions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1248,7 +1290,7 @@ CREATE SEQUENCE public.hse_rule_events_id_seq
 ALTER SEQUENCE public.hse_rule_events_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5353 (class 0 OID 0)
+-- TOC entry 5363 (class 0 OID 0)
 -- Dependencies: 292
 -- Name: hse_rule_events_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1304,7 +1346,7 @@ CREATE SEQUENCE public.incidents_id_seq
 ALTER SEQUENCE public.incidents_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5354 (class 0 OID 0)
+-- TOC entry 5364 (class 0 OID 0)
 -- Dependencies: 314
 -- Name: incidents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1343,7 +1385,7 @@ CREATE SEQUENCE public.locations_id_seq
 ALTER SEQUENCE public.locations_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5355 (class 0 OID 0)
+-- TOC entry 5365 (class 0 OID 0)
 -- Dependencies: 235
 -- Name: locations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1383,7 +1425,7 @@ CREATE SEQUENCE public.model_groups_id_seq
 ALTER SEQUENCE public.model_groups_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5356 (class 0 OID 0)
+-- TOC entry 5366 (class 0 OID 0)
 -- Dependencies: 217
 -- Name: model_groups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1426,7 +1468,7 @@ CREATE SEQUENCE public.notification_logs_id_seq
 ALTER SEQUENCE public.notification_logs_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5357 (class 0 OID 0)
+-- TOC entry 5367 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: notification_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1465,7 +1507,7 @@ CREATE SEQUENCE public.notification_rule_recipients_id_seq
 ALTER SEQUENCE public.notification_rule_recipients_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5358 (class 0 OID 0)
+-- TOC entry 5368 (class 0 OID 0)
 -- Dependencies: 271
 -- Name: notification_rule_recipients_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1507,7 +1549,7 @@ CREATE SEQUENCE public.notification_rule_targets_id_seq
 ALTER SEQUENCE public.notification_rule_targets_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5359 (class 0 OID 0)
+-- TOC entry 5369 (class 0 OID 0)
 -- Dependencies: 296
 -- Name: notification_rule_targets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1552,7 +1594,7 @@ CREATE SEQUENCE public.notification_rules_id_seq
 ALTER SEQUENCE public.notification_rules_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5360 (class 0 OID 0)
+-- TOC entry 5370 (class 0 OID 0)
 -- Dependencies: 251
 -- Name: notification_rules_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1602,7 +1644,7 @@ CREATE SEQUENCE public.notification_settings_id_seq
 ALTER SEQUENCE public.notification_settings_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5361 (class 0 OID 0)
+-- TOC entry 5371 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: notification_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1645,7 +1687,7 @@ CREATE SEQUENCE public.notification_templates_id_seq
 ALTER SEQUENCE public.notification_templates_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5362 (class 0 OID 0)
+-- TOC entry 5372 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: notification_templates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1687,7 +1729,7 @@ CREATE SEQUENCE public.patrol_logs_id_seq
 ALTER SEQUENCE public.patrol_logs_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5363 (class 0 OID 0)
+-- TOC entry 5373 (class 0 OID 0)
 -- Dependencies: 261
 -- Name: patrol_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1727,7 +1769,7 @@ CREATE SEQUENCE public.plants_id_seq
 ALTER SEQUENCE public.plants_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5364 (class 0 OID 0)
+-- TOC entry 5374 (class 0 OID 0)
 -- Dependencies: 253
 -- Name: plants_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1767,7 +1809,7 @@ CREATE SEQUENCE public.recipient_groups_id_seq
 ALTER SEQUENCE public.recipient_groups_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5365 (class 0 OID 0)
+-- TOC entry 5375 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: recipient_groups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1808,7 +1850,7 @@ CREATE SEQUENCE public.recipients_id_seq
 ALTER SEQUENCE public.recipients_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5366 (class 0 OID 0)
+-- TOC entry 5376 (class 0 OID 0)
 -- Dependencies: 249
 -- Name: recipients_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1847,7 +1889,7 @@ CREATE SEQUENCE public.role_permissions_id_seq
 ALTER SEQUENCE public.role_permissions_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5367 (class 0 OID 0)
+-- TOC entry 5377 (class 0 OID 0)
 -- Dependencies: 257
 -- Name: role_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1886,7 +1928,7 @@ CREATE SEQUENCE public.roles_id_seq
 ALTER SEQUENCE public.roles_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5368 (class 0 OID 0)
+-- TOC entry 5378 (class 0 OID 0)
 -- Dependencies: 229
 -- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1940,7 +1982,7 @@ CREATE SEQUENCE public.scheduled_reports_id_seq
 ALTER SEQUENCE public.scheduled_reports_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5369 (class 0 OID 0)
+-- TOC entry 5379 (class 0 OID 0)
 -- Dependencies: 245
 -- Name: scheduled_reports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -1984,7 +2026,7 @@ CREATE SEQUENCE public.security_guards_id_seq
 ALTER SEQUENCE public.security_guards_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5370 (class 0 OID 0)
+-- TOC entry 5380 (class 0 OID 0)
 -- Dependencies: 239
 -- Name: security_guards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2030,7 +2072,7 @@ CREATE SEQUENCE public.system_settings_id_seq
 ALTER SEQUENCE public.system_settings_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5371 (class 0 OID 0)
+-- TOC entry 5381 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: system_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2072,7 +2114,7 @@ CREATE SEQUENCE public.user_activity_logs_id_seq
 ALTER SEQUENCE public.user_activity_logs_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5372 (class 0 OID 0)
+-- TOC entry 5382 (class 0 OID 0)
 -- Dependencies: 284
 -- Name: user_activity_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2122,7 +2164,7 @@ CREATE SEQUENCE public.users_id_seq
 ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5373 (class 0 OID 0)
+-- TOC entry 5383 (class 0 OID 0)
 -- Dependencies: 269
 -- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2170,7 +2212,7 @@ CREATE SEQUENCE public.visitors_id_seq
 ALTER SEQUENCE public.visitors_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5374 (class 0 OID 0)
+-- TOC entry 5384 (class 0 OID 0)
 -- Dependencies: 274
 -- Name: visitors_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2218,7 +2260,7 @@ CREATE SEQUENCE public.zone_risk_scores_id_seq
 ALTER SEQUENCE public.zone_risk_scores_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5375 (class 0 OID 0)
+-- TOC entry 5385 (class 0 OID 0)
 -- Dependencies: 298
 -- Name: zone_risk_scores_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2265,7 +2307,7 @@ CREATE SEQUENCE public.zones_id_seq
 ALTER SEQUENCE public.zones_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5376 (class 0 OID 0)
+-- TOC entry 5386 (class 0 OID 0)
 -- Dependencies: 282
 -- Name: zones_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -2274,7 +2316,7 @@ ALTER SEQUENCE public.zones_id_seq OWNED BY public.zones.id;
 
 
 --
--- TOC entry 4880 (class 2604 OID 37615)
+-- TOC entry 4885 (class 2604 OID 37615)
 -- Name: access_rules id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2282,7 +2324,7 @@ ALTER TABLE ONLY public.access_rules ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
--- TOC entry 4932 (class 2604 OID 38169)
+-- TOC entry 4937 (class 2604 OID 38169)
 -- Name: agent_recommendations id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2290,7 +2332,15 @@ ALTER TABLE ONLY public.agent_recommendations ALTER COLUMN id SET DEFAULT nextva
 
 
 --
--- TOC entry 4902 (class 2604 OID 37805)
+-- TOC entry 4950 (class 2604 OID 45800)
+-- Name: agent_trace_logs id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.agent_trace_logs ALTER COLUMN id SET DEFAULT nextval('public.agent_trace_logs_id_seq'::regclass);
+
+
+--
+-- TOC entry 4907 (class 2604 OID 37805)
 -- Name: ai_model_classes id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2298,7 +2348,7 @@ ALTER TABLE ONLY public.ai_model_classes ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4886 (class 2604 OID 37647)
+-- TOC entry 4891 (class 2604 OID 37647)
 -- Name: ai_models id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2306,7 +2356,7 @@ ALTER TABLE ONLY public.ai_models ALTER COLUMN id SET DEFAULT nextval('public.ai
 
 
 --
--- TOC entry 4940 (class 2604 OID 38265)
+-- TOC entry 4945 (class 2604 OID 38265)
 -- Name: alerts id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2314,7 +2364,7 @@ ALTER TABLE ONLY public.alerts ALTER COLUMN id SET DEFAULT nextval('public.alert
 
 
 --
--- TOC entry 4934 (class 2604 OID 38190)
+-- TOC entry 4939 (class 2604 OID 38190)
 -- Name: anomaly_flags id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2322,7 +2372,7 @@ ALTER TABLE ONLY public.anomaly_flags ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
--- TOC entry 4921 (class 2604 OID 38016)
+-- TOC entry 4926 (class 2604 OID 38016)
 -- Name: attendances id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2330,7 +2380,7 @@ ALTER TABLE ONLY public.attendances ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
--- TOC entry 4882 (class 2604 OID 37626)
+-- TOC entry 4887 (class 2604 OID 37626)
 -- Name: basler_devices id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2338,7 +2388,7 @@ ALTER TABLE ONLY public.basler_devices ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
--- TOC entry 4910 (class 2604 OID 37910)
+-- TOC entry 4915 (class 2604 OID 37910)
 -- Name: basler_model_assignments id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2346,7 +2396,7 @@ ALTER TABLE ONLY public.basler_model_assignments ALTER COLUMN id SET DEFAULT nex
 
 
 --
--- TOC entry 4918 (class 2604 OID 37981)
+-- TOC entry 4923 (class 2604 OID 37981)
 -- Name: camera_status_logs id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2354,7 +2404,7 @@ ALTER TABLE ONLY public.camera_status_logs ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4901 (class 2604 OID 37780)
+-- TOC entry 4906 (class 2604 OID 37780)
 -- Name: cameras id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2362,7 +2412,7 @@ ALTER TABLE ONLY public.cameras ALTER COLUMN id SET DEFAULT nextval('public.came
 
 
 --
--- TOC entry 4930 (class 2604 OID 38147)
+-- TOC entry 4935 (class 2604 OID 38147)
 -- Name: correlated_events id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2370,7 +2420,7 @@ ALTER TABLE ONLY public.correlated_events ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4936 (class 2604 OID 38211)
+-- TOC entry 4941 (class 2604 OID 38211)
 -- Name: counting_batches id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2378,7 +2428,7 @@ ALTER TABLE ONLY public.counting_batches ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4920 (class 2604 OID 37996)
+-- TOC entry 4925 (class 2604 OID 37996)
 -- Name: counting_configs id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2386,7 +2436,7 @@ ALTER TABLE ONLY public.counting_configs ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4944 (class 2604 OID 38320)
+-- TOC entry 4949 (class 2604 OID 38320)
 -- Name: counting_recordings id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2394,7 +2444,7 @@ ALTER TABLE ONLY public.counting_recordings ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- TOC entry 4937 (class 2604 OID 38224)
+-- TOC entry 4942 (class 2604 OID 38224)
 -- Name: counting_snapshots id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2402,7 +2452,7 @@ ALTER TABLE ONLY public.counting_snapshots ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4912 (class 2604 OID 37929)
+-- TOC entry 4917 (class 2604 OID 37929)
 -- Name: defect_detections id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2410,7 +2460,7 @@ ALTER TABLE ONLY public.defect_detections ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4870 (class 2604 OID 37544)
+-- TOC entry 4875 (class 2604 OID 37544)
 -- Name: departments id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2418,7 +2468,7 @@ ALTER TABLE ONLY public.departments ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
--- TOC entry 4893 (class 2604 OID 37707)
+-- TOC entry 4898 (class 2604 OID 37707)
 -- Name: designations id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2426,7 +2476,7 @@ ALTER TABLE ONLY public.designations ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
--- TOC entry 4925 (class 2604 OID 38062)
+-- TOC entry 4930 (class 2604 OID 38062)
 -- Name: detection_assignments id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2434,7 +2484,7 @@ ALTER TABLE ONLY public.detection_assignments ALTER COLUMN id SET DEFAULT nextva
 
 
 --
--- TOC entry 4908 (class 2604 OID 37895)
+-- TOC entry 4913 (class 2604 OID 37895)
 -- Name: employee_movements id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2442,7 +2492,7 @@ ALTER TABLE ONLY public.employee_movements ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4877 (class 2604 OID 37594)
+-- TOC entry 4882 (class 2604 OID 37594)
 -- Name: employee_types id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2450,7 +2500,7 @@ ALTER TABLE ONLY public.employee_types ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
--- TOC entry 4895 (class 2604 OID 37731)
+-- TOC entry 4900 (class 2604 OID 37731)
 -- Name: employees id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2458,7 +2508,7 @@ ALTER TABLE ONLY public.employees ALTER COLUMN id SET DEFAULT nextval('public.em
 
 
 --
--- TOC entry 4872 (class 2604 OID 37562)
+-- TOC entry 4877 (class 2604 OID 37562)
 -- Name: evaluator_templates id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2466,7 +2516,7 @@ ALTER TABLE ONLY public.evaluator_templates ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- TOC entry 4938 (class 2604 OID 38237)
+-- TOC entry 4943 (class 2604 OID 38237)
 -- Name: hse_camera_rules id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2474,7 +2524,7 @@ ALTER TABLE ONLY public.hse_camera_rules ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4898 (class 2604 OID 37763)
+-- TOC entry 4903 (class 2604 OID 37763)
 -- Name: hse_rule_definitions id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2482,7 +2532,7 @@ ALTER TABLE ONLY public.hse_rule_definitions ALTER COLUMN id SET DEFAULT nextval
 
 
 --
--- TOC entry 4923 (class 2604 OID 38038)
+-- TOC entry 4928 (class 2604 OID 38038)
 -- Name: hse_rule_events id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2490,7 +2540,7 @@ ALTER TABLE ONLY public.hse_rule_events ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 4942 (class 2604 OID 38295)
+-- TOC entry 4947 (class 2604 OID 38295)
 -- Name: incidents id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2498,7 +2548,7 @@ ALTER TABLE ONLY public.incidents ALTER COLUMN id SET DEFAULT nextval('public.in
 
 
 --
--- TOC entry 4876 (class 2604 OID 37585)
+-- TOC entry 4881 (class 2604 OID 37585)
 -- Name: locations id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2506,7 +2556,7 @@ ALTER TABLE ONLY public.locations ALTER COLUMN id SET DEFAULT nextval('public.lo
 
 
 --
--- TOC entry 4860 (class 2604 OID 37491)
+-- TOC entry 4865 (class 2604 OID 37491)
 -- Name: model_groups id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2514,7 +2564,7 @@ ALTER TABLE ONLY public.model_groups ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
--- TOC entry 4866 (class 2604 OID 37524)
+-- TOC entry 4871 (class 2604 OID 37524)
 -- Name: notification_logs id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2522,7 +2572,7 @@ ALTER TABLE ONLY public.notification_logs ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4906 (class 2604 OID 37848)
+-- TOC entry 4911 (class 2604 OID 37848)
 -- Name: notification_rule_recipients id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2530,7 +2580,7 @@ ALTER TABLE ONLY public.notification_rule_recipients ALTER COLUMN id SET DEFAULT
 
 
 --
--- TOC entry 4927 (class 2604 OID 38092)
+-- TOC entry 4932 (class 2604 OID 38092)
 -- Name: notification_rule_targets id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2538,7 +2588,7 @@ ALTER TABLE ONLY public.notification_rule_targets ALTER COLUMN id SET DEFAULT ne
 
 
 --
--- TOC entry 4890 (class 2604 OID 37678)
+-- TOC entry 4895 (class 2604 OID 37678)
 -- Name: notification_rules id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2546,7 +2596,7 @@ ALTER TABLE ONLY public.notification_rules ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4868 (class 2604 OID 37534)
+-- TOC entry 4873 (class 2604 OID 37534)
 -- Name: notification_settings id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2554,7 +2604,7 @@ ALTER TABLE ONLY public.notification_settings ALTER COLUMN id SET DEFAULT nextva
 
 
 --
--- TOC entry 4862 (class 2604 OID 37504)
+-- TOC entry 4867 (class 2604 OID 37504)
 -- Name: notification_templates id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2562,7 +2612,7 @@ ALTER TABLE ONLY public.notification_templates ALTER COLUMN id SET DEFAULT nextv
 
 
 --
--- TOC entry 4897 (class 2604 OID 37750)
+-- TOC entry 4902 (class 2604 OID 37750)
 -- Name: patrol_logs id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2570,7 +2620,7 @@ ALTER TABLE ONLY public.patrol_logs ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
--- TOC entry 4892 (class 2604 OID 37693)
+-- TOC entry 4897 (class 2604 OID 37693)
 -- Name: plants id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2578,7 +2628,7 @@ ALTER TABLE ONLY public.plants ALTER COLUMN id SET DEFAULT nextval('public.plant
 
 
 --
--- TOC entry 4864 (class 2604 OID 37514)
+-- TOC entry 4869 (class 2604 OID 37514)
 -- Name: recipient_groups id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2586,7 +2636,7 @@ ALTER TABLE ONLY public.recipient_groups ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4888 (class 2604 OID 37663)
+-- TOC entry 4893 (class 2604 OID 37663)
 -- Name: recipients id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2594,7 +2644,7 @@ ALTER TABLE ONLY public.recipients ALTER COLUMN id SET DEFAULT nextval('public.r
 
 
 --
--- TOC entry 4894 (class 2604 OID 37719)
+-- TOC entry 4899 (class 2604 OID 37719)
 -- Name: role_permissions id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2602,7 +2652,7 @@ ALTER TABLE ONLY public.role_permissions ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4871 (class 2604 OID 37553)
+-- TOC entry 4876 (class 2604 OID 37553)
 -- Name: roles id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2610,7 +2660,7 @@ ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_
 
 
 --
--- TOC entry 4884 (class 2604 OID 37637)
+-- TOC entry 4889 (class 2604 OID 37637)
 -- Name: scheduled_reports id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2618,7 +2668,7 @@ ALTER TABLE ONLY public.scheduled_reports ALTER COLUMN id SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4878 (class 2604 OID 37603)
+-- TOC entry 4883 (class 2604 OID 37603)
 -- Name: security_guards id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2626,7 +2676,7 @@ ALTER TABLE ONLY public.security_guards ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 4874 (class 2604 OID 37575)
+-- TOC entry 4879 (class 2604 OID 37575)
 -- Name: system_settings id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2634,7 +2684,7 @@ ALTER TABLE ONLY public.system_settings ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
--- TOC entry 4916 (class 2604 OID 37965)
+-- TOC entry 4921 (class 2604 OID 37965)
 -- Name: user_activity_logs id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2642,7 +2692,7 @@ ALTER TABLE ONLY public.user_activity_logs ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
--- TOC entry 4904 (class 2604 OID 37818)
+-- TOC entry 4909 (class 2604 OID 37818)
 -- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2650,7 +2700,7 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 
 --
--- TOC entry 4907 (class 2604 OID 37880)
+-- TOC entry 4912 (class 2604 OID 37880)
 -- Name: visitors id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2658,7 +2708,7 @@ ALTER TABLE ONLY public.visitors ALTER COLUMN id SET DEFAULT nextval('public.vis
 
 
 --
--- TOC entry 4928 (class 2604 OID 38124)
+-- TOC entry 4933 (class 2604 OID 38124)
 -- Name: zone_risk_scores id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2666,7 +2716,7 @@ ALTER TABLE ONLY public.zone_risk_scores ALTER COLUMN id SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4914 (class 2604 OID 37950)
+-- TOC entry 4919 (class 2604 OID 37950)
 -- Name: zones id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -2674,7 +2724,7 @@ ALTER TABLE ONLY public.zones ALTER COLUMN id SET DEFAULT nextval('public.zones_
 
 
 --
--- TOC entry 4986 (class 2606 OID 37620)
+-- TOC entry 4993 (class 2606 OID 37620)
 -- Name: access_rules access_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2683,7 +2733,7 @@ ALTER TABLE ONLY public.access_rules
 
 
 --
--- TOC entry 5087 (class 2606 OID 38174)
+-- TOC entry 5094 (class 2606 OID 38174)
 -- Name: agent_recommendations agent_recommendations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2692,7 +2742,16 @@ ALTER TABLE ONLY public.agent_recommendations
 
 
 --
--- TOC entry 5026 (class 2606 OID 37808)
+-- TOC entry 5119 (class 2606 OID 45805)
+-- Name: agent_trace_logs agent_trace_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.agent_trace_logs
+    ADD CONSTRAINT agent_trace_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 5033 (class 2606 OID 37808)
 -- Name: ai_model_classes ai_model_classes_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2701,7 +2760,7 @@ ALTER TABLE ONLY public.ai_model_classes
 
 
 --
--- TOC entry 4996 (class 2606 OID 37652)
+-- TOC entry 5003 (class 2606 OID 37652)
 -- Name: ai_models ai_models_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2710,7 +2769,7 @@ ALTER TABLE ONLY public.ai_models
 
 
 --
--- TOC entry 5104 (class 2606 OID 38270)
+-- TOC entry 5111 (class 2606 OID 38270)
 -- Name: alerts alerts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2719,7 +2778,7 @@ ALTER TABLE ONLY public.alerts
 
 
 --
--- TOC entry 5090 (class 2606 OID 38195)
+-- TOC entry 5097 (class 2606 OID 38195)
 -- Name: anomaly_flags anomaly_flags_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2728,7 +2787,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- TOC entry 5064 (class 2606 OID 38021)
+-- TOC entry 5071 (class 2606 OID 38021)
 -- Name: attendances attendances_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2737,7 +2796,7 @@ ALTER TABLE ONLY public.attendances
 
 
 --
--- TOC entry 4989 (class 2606 OID 37629)
+-- TOC entry 4996 (class 2606 OID 37629)
 -- Name: basler_devices basler_devices_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2746,7 +2805,7 @@ ALTER TABLE ONLY public.basler_devices
 
 
 --
--- TOC entry 4991 (class 2606 OID 37631)
+-- TOC entry 4998 (class 2606 OID 37631)
 -- Name: basler_devices basler_devices_serial_number_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2755,7 +2814,7 @@ ALTER TABLE ONLY public.basler_devices
 
 
 --
--- TOC entry 5046 (class 2606 OID 37913)
+-- TOC entry 5053 (class 2606 OID 37913)
 -- Name: basler_model_assignments basler_model_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2764,7 +2823,7 @@ ALTER TABLE ONLY public.basler_model_assignments
 
 
 --
--- TOC entry 5057 (class 2606 OID 37984)
+-- TOC entry 5064 (class 2606 OID 37984)
 -- Name: camera_status_logs camera_status_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2773,7 +2832,7 @@ ALTER TABLE ONLY public.camera_status_logs
 
 
 --
--- TOC entry 5023 (class 2606 OID 37784)
+-- TOC entry 5030 (class 2606 OID 37784)
 -- Name: cameras cameras_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2782,7 +2841,7 @@ ALTER TABLE ONLY public.cameras
 
 
 --
--- TOC entry 5083 (class 2606 OID 38152)
+-- TOC entry 5090 (class 2606 OID 38152)
 -- Name: correlated_events correlated_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2791,7 +2850,7 @@ ALTER TABLE ONLY public.correlated_events
 
 
 --
--- TOC entry 5093 (class 2606 OID 38213)
+-- TOC entry 5100 (class 2606 OID 38213)
 -- Name: counting_batches counting_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2800,7 +2859,7 @@ ALTER TABLE ONLY public.counting_batches
 
 
 --
--- TOC entry 5061 (class 2606 OID 38001)
+-- TOC entry 5068 (class 2606 OID 38000)
 -- Name: counting_configs counting_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2809,7 +2868,7 @@ ALTER TABLE ONLY public.counting_configs
 
 
 --
--- TOC entry 5108 (class 2606 OID 38324)
+-- TOC entry 5115 (class 2606 OID 38324)
 -- Name: counting_recordings counting_recordings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2818,7 +2877,7 @@ ALTER TABLE ONLY public.counting_recordings
 
 
 --
--- TOC entry 5096 (class 2606 OID 38226)
+-- TOC entry 5103 (class 2606 OID 38226)
 -- Name: counting_snapshots counting_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2827,7 +2886,7 @@ ALTER TABLE ONLY public.counting_snapshots
 
 
 --
--- TOC entry 5049 (class 2606 OID 37934)
+-- TOC entry 5056 (class 2606 OID 37934)
 -- Name: defect_detections defect_detections_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2836,7 +2895,7 @@ ALTER TABLE ONLY public.defect_detections
 
 
 --
--- TOC entry 5037 (class 2606 OID 37865)
+-- TOC entry 5044 (class 2606 OID 37865)
 -- Name: department_plant department_plant_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2845,7 +2904,7 @@ ALTER TABLE ONLY public.department_plant
 
 
 --
--- TOC entry 4959 (class 2606 OID 37548)
+-- TOC entry 4966 (class 2606 OID 37548)
 -- Name: departments departments_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2854,7 +2913,7 @@ ALTER TABLE ONLY public.departments
 
 
 --
--- TOC entry 4961 (class 2606 OID 37546)
+-- TOC entry 4968 (class 2606 OID 37546)
 -- Name: departments departments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2863,7 +2922,7 @@ ALTER TABLE ONLY public.departments
 
 
 --
--- TOC entry 5007 (class 2606 OID 37709)
+-- TOC entry 5014 (class 2606 OID 37709)
 -- Name: designations designations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2872,7 +2931,7 @@ ALTER TABLE ONLY public.designations
 
 
 --
--- TOC entry 5074 (class 2606 OID 38067)
+-- TOC entry 5081 (class 2606 OID 38067)
 -- Name: detection_assignments detection_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2881,7 +2940,7 @@ ALTER TABLE ONLY public.detection_assignments
 
 
 --
--- TOC entry 5042 (class 2606 OID 37898)
+-- TOC entry 5049 (class 2606 OID 37898)
 -- Name: employee_movements employee_movements_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2890,7 +2949,7 @@ ALTER TABLE ONLY public.employee_movements
 
 
 --
--- TOC entry 4978 (class 2606 OID 37596)
+-- TOC entry 4985 (class 2606 OID 37596)
 -- Name: employee_types employee_types_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2899,7 +2958,7 @@ ALTER TABLE ONLY public.employee_types
 
 
 --
--- TOC entry 4980 (class 2606 OID 37598)
+-- TOC entry 4987 (class 2606 OID 37598)
 -- Name: employee_types employee_types_type_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2908,7 +2967,7 @@ ALTER TABLE ONLY public.employee_types
 
 
 --
--- TOC entry 5011 (class 2606 OID 37738)
+-- TOC entry 5018 (class 2606 OID 37738)
 -- Name: employees employees_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2917,7 +2976,7 @@ ALTER TABLE ONLY public.employees
 
 
 --
--- TOC entry 5013 (class 2606 OID 37736)
+-- TOC entry 5020 (class 2606 OID 37736)
 -- Name: employees employees_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2926,7 +2985,7 @@ ALTER TABLE ONLY public.employees
 
 
 --
--- TOC entry 4967 (class 2606 OID 37569)
+-- TOC entry 4974 (class 2606 OID 37569)
 -- Name: evaluator_templates evaluator_templates_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2935,7 +2994,7 @@ ALTER TABLE ONLY public.evaluator_templates
 
 
 --
--- TOC entry 4969 (class 2606 OID 37567)
+-- TOC entry 4976 (class 2606 OID 37567)
 -- Name: evaluator_templates evaluator_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2944,7 +3003,7 @@ ALTER TABLE ONLY public.evaluator_templates
 
 
 --
--- TOC entry 5099 (class 2606 OID 38242)
+-- TOC entry 5106 (class 2606 OID 38242)
 -- Name: hse_camera_rules hse_camera_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2953,7 +3012,7 @@ ALTER TABLE ONLY public.hse_camera_rules
 
 
 --
--- TOC entry 5020 (class 2606 OID 37769)
+-- TOC entry 5027 (class 2606 OID 37769)
 -- Name: hse_rule_definitions hse_rule_definitions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2962,7 +3021,7 @@ ALTER TABLE ONLY public.hse_rule_definitions
 
 
 --
--- TOC entry 5068 (class 2606 OID 38043)
+-- TOC entry 5075 (class 2606 OID 38043)
 -- Name: hse_rule_events hse_rule_events_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2971,7 +3030,7 @@ ALTER TABLE ONLY public.hse_rule_events
 
 
 --
--- TOC entry 5106 (class 2606 OID 38300)
+-- TOC entry 5113 (class 2606 OID 38300)
 -- Name: incidents incidents_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2980,7 +3039,7 @@ ALTER TABLE ONLY public.incidents
 
 
 --
--- TOC entry 4974 (class 2606 OID 37589)
+-- TOC entry 4981 (class 2606 OID 37589)
 -- Name: locations locations_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2989,7 +3048,7 @@ ALTER TABLE ONLY public.locations
 
 
 --
--- TOC entry 4976 (class 2606 OID 37587)
+-- TOC entry 4983 (class 2606 OID 37587)
 -- Name: locations locations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -2998,7 +3057,7 @@ ALTER TABLE ONLY public.locations
 
 
 --
--- TOC entry 4947 (class 2606 OID 37498)
+-- TOC entry 4954 (class 2606 OID 37498)
 -- Name: model_groups model_groups_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3007,7 +3066,7 @@ ALTER TABLE ONLY public.model_groups
 
 
 --
--- TOC entry 4949 (class 2606 OID 37496)
+-- TOC entry 4956 (class 2606 OID 37496)
 -- Name: model_groups model_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3016,7 +3075,7 @@ ALTER TABLE ONLY public.model_groups
 
 
 --
--- TOC entry 4955 (class 2606 OID 37529)
+-- TOC entry 4962 (class 2606 OID 37529)
 -- Name: notification_logs notification_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3025,7 +3084,7 @@ ALTER TABLE ONLY public.notification_logs
 
 
 --
--- TOC entry 5035 (class 2606 OID 37850)
+-- TOC entry 5042 (class 2606 OID 37850)
 -- Name: notification_rule_recipients notification_rule_recipients_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3034,7 +3093,7 @@ ALTER TABLE ONLY public.notification_rule_recipients
 
 
 --
--- TOC entry 5076 (class 2606 OID 38094)
+-- TOC entry 5083 (class 2606 OID 38094)
 -- Name: notification_rule_targets notification_rule_targets_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3043,7 +3102,7 @@ ALTER TABLE ONLY public.notification_rule_targets
 
 
 --
--- TOC entry 5001 (class 2606 OID 37683)
+-- TOC entry 5008 (class 2606 OID 37683)
 -- Name: notification_rules notification_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3052,7 +3111,7 @@ ALTER TABLE ONLY public.notification_rules
 
 
 --
--- TOC entry 4957 (class 2606 OID 37539)
+-- TOC entry 4964 (class 2606 OID 37539)
 -- Name: notification_settings notification_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3061,7 +3120,7 @@ ALTER TABLE ONLY public.notification_settings
 
 
 --
--- TOC entry 4951 (class 2606 OID 37509)
+-- TOC entry 4958 (class 2606 OID 37509)
 -- Name: notification_templates notification_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3070,7 +3129,7 @@ ALTER TABLE ONLY public.notification_templates
 
 
 --
--- TOC entry 5018 (class 2606 OID 37752)
+-- TOC entry 5025 (class 2606 OID 37752)
 -- Name: patrol_logs patrol_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3079,7 +3138,7 @@ ALTER TABLE ONLY public.patrol_logs
 
 
 --
--- TOC entry 5003 (class 2606 OID 37697)
+-- TOC entry 5010 (class 2606 OID 37697)
 -- Name: plants plants_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3088,7 +3147,7 @@ ALTER TABLE ONLY public.plants
 
 
 --
--- TOC entry 5005 (class 2606 OID 37695)
+-- TOC entry 5012 (class 2606 OID 37695)
 -- Name: plants plants_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3097,7 +3156,7 @@ ALTER TABLE ONLY public.plants
 
 
 --
--- TOC entry 4953 (class 2606 OID 37519)
+-- TOC entry 4960 (class 2606 OID 37519)
 -- Name: recipient_groups recipient_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3106,7 +3165,7 @@ ALTER TABLE ONLY public.recipient_groups
 
 
 --
--- TOC entry 4999 (class 2606 OID 37668)
+-- TOC entry 5006 (class 2606 OID 37668)
 -- Name: recipients recipients_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3115,7 +3174,7 @@ ALTER TABLE ONLY public.recipients
 
 
 --
--- TOC entry 5009 (class 2606 OID 37721)
+-- TOC entry 5016 (class 2606 OID 37721)
 -- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3124,7 +3183,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- TOC entry 4963 (class 2606 OID 37557)
+-- TOC entry 4970 (class 2606 OID 37557)
 -- Name: roles roles_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3133,7 +3192,7 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- TOC entry 4965 (class 2606 OID 37555)
+-- TOC entry 4972 (class 2606 OID 37555)
 -- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3142,7 +3201,7 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- TOC entry 4994 (class 2606 OID 37642)
+-- TOC entry 5001 (class 2606 OID 37642)
 -- Name: scheduled_reports scheduled_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3151,7 +3210,7 @@ ALTER TABLE ONLY public.scheduled_reports
 
 
 --
--- TOC entry 4984 (class 2606 OID 37608)
+-- TOC entry 4991 (class 2606 OID 37608)
 -- Name: security_guards security_guards_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3160,7 +3219,7 @@ ALTER TABLE ONLY public.security_guards
 
 
 --
--- TOC entry 4972 (class 2606 OID 37580)
+-- TOC entry 4979 (class 2606 OID 37580)
 -- Name: system_settings system_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3169,7 +3228,7 @@ ALTER TABLE ONLY public.system_settings
 
 
 --
--- TOC entry 5055 (class 2606 OID 37970)
+-- TOC entry 5062 (class 2606 OID 37970)
 -- Name: user_activity_logs user_activity_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3178,7 +3237,7 @@ ALTER TABLE ONLY public.user_activity_logs
 
 
 --
--- TOC entry 5029 (class 2606 OID 37825)
+-- TOC entry 5036 (class 2606 OID 37825)
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3187,7 +3246,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 5031 (class 2606 OID 37823)
+-- TOC entry 5038 (class 2606 OID 37823)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3196,7 +3255,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 5033 (class 2606 OID 37827)
+-- TOC entry 5040 (class 2606 OID 37827)
 -- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3205,7 +3264,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 5040 (class 2606 OID 37884)
+-- TOC entry 5047 (class 2606 OID 37884)
 -- Name: visitors visitors_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3214,7 +3273,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- TOC entry 5081 (class 2606 OID 38129)
+-- TOC entry 5088 (class 2606 OID 38129)
 -- Name: zone_risk_scores zone_risk_scores_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3223,7 +3282,7 @@ ALTER TABLE ONLY public.zone_risk_scores
 
 
 --
--- TOC entry 5052 (class 2606 OID 37955)
+-- TOC entry 5059 (class 2606 OID 37955)
 -- Name: zones zones_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3232,7 +3291,7 @@ ALTER TABLE ONLY public.zones
 
 
 --
--- TOC entry 4987 (class 1259 OID 37621)
+-- TOC entry 4994 (class 1259 OID 37621)
 -- Name: ix_access_rules_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3240,7 +3299,7 @@ CREATE INDEX ix_access_rules_id ON public.access_rules USING btree (id);
 
 
 --
--- TOC entry 5088 (class 1259 OID 38185)
+-- TOC entry 5095 (class 1259 OID 38185)
 -- Name: ix_agent_recommendations_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3248,7 +3307,7 @@ CREATE INDEX ix_agent_recommendations_id ON public.agent_recommendations USING b
 
 
 --
--- TOC entry 4997 (class 1259 OID 37658)
+-- TOC entry 5004 (class 1259 OID 37658)
 -- Name: ix_ai_models_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3256,7 +3315,7 @@ CREATE INDEX ix_ai_models_id ON public.ai_models USING btree (id);
 
 
 --
--- TOC entry 5091 (class 1259 OID 38206)
+-- TOC entry 5098 (class 1259 OID 38206)
 -- Name: ix_anomaly_flags_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3264,7 +3323,7 @@ CREATE INDEX ix_anomaly_flags_id ON public.anomaly_flags USING btree (id);
 
 
 --
--- TOC entry 5065 (class 1259 OID 38033)
+-- TOC entry 5072 (class 1259 OID 38033)
 -- Name: ix_attendances_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3272,7 +3331,7 @@ CREATE INDEX ix_attendances_id ON public.attendances USING btree (id);
 
 
 --
--- TOC entry 5066 (class 1259 OID 38032)
+-- TOC entry 5073 (class 1259 OID 38032)
 -- Name: ix_attendances_timestamp; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3280,7 +3339,7 @@ CREATE INDEX ix_attendances_timestamp ON public.attendances USING btree ("timest
 
 
 --
--- TOC entry 4992 (class 1259 OID 37632)
+-- TOC entry 4999 (class 1259 OID 37632)
 -- Name: ix_basler_devices_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3288,7 +3347,7 @@ CREATE INDEX ix_basler_devices_id ON public.basler_devices USING btree (id);
 
 
 --
--- TOC entry 5047 (class 1259 OID 37924)
+-- TOC entry 5054 (class 1259 OID 37924)
 -- Name: ix_basler_model_assignments_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3296,7 +3355,7 @@ CREATE INDEX ix_basler_model_assignments_id ON public.basler_model_assignments U
 
 
 --
--- TOC entry 5058 (class 1259 OID 37991)
+-- TOC entry 5065 (class 1259 OID 37991)
 -- Name: ix_camera_status_logs_camera_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3304,7 +3363,7 @@ CREATE INDEX ix_camera_status_logs_camera_id ON public.camera_status_logs USING 
 
 
 --
--- TOC entry 5059 (class 1259 OID 37990)
+-- TOC entry 5066 (class 1259 OID 37990)
 -- Name: ix_camera_status_logs_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3312,7 +3371,7 @@ CREATE INDEX ix_camera_status_logs_id ON public.camera_status_logs USING btree (
 
 
 --
--- TOC entry 5024 (class 1259 OID 37800)
+-- TOC entry 5031 (class 1259 OID 37800)
 -- Name: ix_cameras_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3320,7 +3379,7 @@ CREATE INDEX ix_cameras_id ON public.cameras USING btree (id);
 
 
 --
--- TOC entry 5084 (class 1259 OID 38164)
+-- TOC entry 5091 (class 1259 OID 38164)
 -- Name: ix_correlated_events_camera_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3328,7 +3387,7 @@ CREATE INDEX ix_correlated_events_camera_id ON public.correlated_events USING bt
 
 
 --
--- TOC entry 5085 (class 1259 OID 38163)
+-- TOC entry 5092 (class 1259 OID 38163)
 -- Name: ix_correlated_events_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3336,7 +3395,7 @@ CREATE INDEX ix_correlated_events_id ON public.correlated_events USING btree (id
 
 
 --
--- TOC entry 5094 (class 1259 OID 38219)
+-- TOC entry 5101 (class 1259 OID 38219)
 -- Name: ix_counting_batches_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3344,7 +3403,7 @@ CREATE INDEX ix_counting_batches_id ON public.counting_batches USING btree (id);
 
 
 --
--- TOC entry 5062 (class 1259 OID 38011)
+-- TOC entry 5069 (class 1259 OID 38011)
 -- Name: ix_counting_configs_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3352,7 +3411,7 @@ CREATE INDEX ix_counting_configs_id ON public.counting_configs USING btree (id);
 
 
 --
--- TOC entry 5109 (class 1259 OID 38335)
+-- TOC entry 5116 (class 1259 OID 38335)
 -- Name: ix_counting_recordings_folder_date; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3360,7 +3419,7 @@ CREATE INDEX ix_counting_recordings_folder_date ON public.counting_recordings US
 
 
 --
--- TOC entry 5110 (class 1259 OID 38336)
+-- TOC entry 5117 (class 1259 OID 38336)
 -- Name: ix_counting_recordings_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3368,7 +3427,7 @@ CREATE INDEX ix_counting_recordings_id ON public.counting_recordings USING btree
 
 
 --
--- TOC entry 5097 (class 1259 OID 38232)
+-- TOC entry 5104 (class 1259 OID 38232)
 -- Name: ix_counting_snapshots_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3376,7 +3435,7 @@ CREATE INDEX ix_counting_snapshots_id ON public.counting_snapshots USING btree (
 
 
 --
--- TOC entry 5050 (class 1259 OID 37945)
+-- TOC entry 5057 (class 1259 OID 37945)
 -- Name: ix_defect_detections_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3384,7 +3443,7 @@ CREATE INDEX ix_defect_detections_id ON public.defect_detections USING btree (id
 
 
 --
--- TOC entry 5043 (class 1259 OID 37905)
+-- TOC entry 5050 (class 1259 OID 37905)
 -- Name: ix_employee_movements_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3392,7 +3451,7 @@ CREATE INDEX ix_employee_movements_id ON public.employee_movements USING btree (
 
 
 --
--- TOC entry 5044 (class 1259 OID 37904)
+-- TOC entry 5051 (class 1259 OID 37904)
 -- Name: ix_employee_movements_time_in; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3400,7 +3459,7 @@ CREATE INDEX ix_employee_movements_time_in ON public.employee_movements USING bt
 
 
 --
--- TOC entry 5014 (class 1259 OID 37745)
+-- TOC entry 5021 (class 1259 OID 37745)
 -- Name: ix_employees_employee_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3408,7 +3467,7 @@ CREATE UNIQUE INDEX ix_employees_employee_id ON public.employees USING btree (em
 
 
 --
--- TOC entry 5015 (class 1259 OID 37744)
+-- TOC entry 5022 (class 1259 OID 37744)
 -- Name: ix_employees_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3416,7 +3475,7 @@ CREATE INDEX ix_employees_id ON public.employees USING btree (id);
 
 
 --
--- TOC entry 4970 (class 1259 OID 37570)
+-- TOC entry 4977 (class 1259 OID 37570)
 -- Name: ix_evaluator_templates_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3424,7 +3483,7 @@ CREATE INDEX ix_evaluator_templates_id ON public.evaluator_templates USING btree
 
 
 --
--- TOC entry 5100 (class 1259 OID 38259)
+-- TOC entry 5107 (class 1259 OID 38259)
 -- Name: ix_hse_camera_rules_camera_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3432,7 +3491,7 @@ CREATE INDEX ix_hse_camera_rules_camera_id ON public.hse_camera_rules USING btre
 
 
 --
--- TOC entry 5101 (class 1259 OID 38260)
+-- TOC entry 5108 (class 1259 OID 38260)
 -- Name: ix_hse_camera_rules_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3440,7 +3499,7 @@ CREATE INDEX ix_hse_camera_rules_id ON public.hse_camera_rules USING btree (id);
 
 
 --
--- TOC entry 5102 (class 1259 OID 38258)
+-- TOC entry 5109 (class 1259 OID 38258)
 -- Name: ix_hse_camera_rules_zone_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3448,7 +3507,7 @@ CREATE INDEX ix_hse_camera_rules_zone_id ON public.hse_camera_rules USING btree 
 
 
 --
--- TOC entry 5021 (class 1259 OID 37775)
+-- TOC entry 5028 (class 1259 OID 37775)
 -- Name: ix_hse_rule_definitions_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3456,7 +3515,7 @@ CREATE INDEX ix_hse_rule_definitions_id ON public.hse_rule_definitions USING btr
 
 
 --
--- TOC entry 5069 (class 1259 OID 38056)
+-- TOC entry 5076 (class 1259 OID 38056)
 -- Name: ix_hse_rule_events_camera_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3464,7 +3523,7 @@ CREATE INDEX ix_hse_rule_events_camera_id ON public.hse_rule_events USING btree 
 
 
 --
--- TOC entry 5070 (class 1259 OID 38057)
+-- TOC entry 5077 (class 1259 OID 38057)
 -- Name: ix_hse_rule_events_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3472,7 +3531,7 @@ CREATE INDEX ix_hse_rule_events_id ON public.hse_rule_events USING btree (id);
 
 
 --
--- TOC entry 5071 (class 1259 OID 38054)
+-- TOC entry 5078 (class 1259 OID 38054)
 -- Name: ix_hse_rule_events_rule_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3480,7 +3539,7 @@ CREATE INDEX ix_hse_rule_events_rule_id ON public.hse_rule_events USING btree (r
 
 
 --
--- TOC entry 5072 (class 1259 OID 38055)
+-- TOC entry 5079 (class 1259 OID 38055)
 -- Name: ix_hse_rule_events_triggered_at; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3488,7 +3547,7 @@ CREATE INDEX ix_hse_rule_events_triggered_at ON public.hse_rule_events USING btr
 
 
 --
--- TOC entry 4945 (class 1259 OID 37499)
+-- TOC entry 4952 (class 1259 OID 37499)
 -- Name: ix_model_groups_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3496,7 +3555,7 @@ CREATE INDEX ix_model_groups_id ON public.model_groups USING btree (id);
 
 
 --
--- TOC entry 5016 (class 1259 OID 37758)
+-- TOC entry 5023 (class 1259 OID 37758)
 -- Name: ix_patrol_logs_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3504,7 +3563,7 @@ CREATE INDEX ix_patrol_logs_id ON public.patrol_logs USING btree (id);
 
 
 --
--- TOC entry 4981 (class 1259 OID 37609)
+-- TOC entry 4988 (class 1259 OID 37609)
 -- Name: ix_security_guards_guard_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3512,7 +3571,7 @@ CREATE UNIQUE INDEX ix_security_guards_guard_id ON public.security_guards USING 
 
 
 --
--- TOC entry 4982 (class 1259 OID 37610)
+-- TOC entry 4989 (class 1259 OID 37610)
 -- Name: ix_security_guards_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3520,7 +3579,7 @@ CREATE INDEX ix_security_guards_id ON public.security_guards USING btree (id);
 
 
 --
--- TOC entry 5053 (class 1259 OID 37976)
+-- TOC entry 5060 (class 1259 OID 37976)
 -- Name: ix_user_activity_logs_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3528,7 +3587,7 @@ CREATE INDEX ix_user_activity_logs_id ON public.user_activity_logs USING btree (
 
 
 --
--- TOC entry 5027 (class 1259 OID 37843)
+-- TOC entry 5034 (class 1259 OID 37843)
 -- Name: ix_users_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3536,7 +3595,7 @@ CREATE INDEX ix_users_id ON public.users USING btree (id);
 
 
 --
--- TOC entry 5038 (class 1259 OID 37890)
+-- TOC entry 5045 (class 1259 OID 37890)
 -- Name: ix_visitors_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3544,7 +3603,7 @@ CREATE INDEX ix_visitors_id ON public.visitors USING btree (id);
 
 
 --
--- TOC entry 5077 (class 1259 OID 38142)
+-- TOC entry 5084 (class 1259 OID 38142)
 -- Name: ix_zone_risk_scores_camera_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3552,7 +3611,7 @@ CREATE INDEX ix_zone_risk_scores_camera_id ON public.zone_risk_scores USING btre
 
 
 --
--- TOC entry 5078 (class 1259 OID 38141)
+-- TOC entry 5085 (class 1259 OID 38141)
 -- Name: ix_zone_risk_scores_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3560,7 +3619,7 @@ CREATE INDEX ix_zone_risk_scores_id ON public.zone_risk_scores USING btree (id);
 
 
 --
--- TOC entry 5079 (class 1259 OID 38140)
+-- TOC entry 5086 (class 1259 OID 38140)
 -- Name: ix_zone_risk_scores_zone_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -3568,7 +3627,7 @@ CREATE INDEX ix_zone_risk_scores_zone_id ON public.zone_risk_scores USING btree 
 
 
 --
--- TOC entry 5159 (class 2606 OID 38180)
+-- TOC entry 5168 (class 2606 OID 38180)
 -- Name: agent_recommendations agent_recommendations_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3577,7 +3636,7 @@ ALTER TABLE ONLY public.agent_recommendations
 
 
 --
--- TOC entry 5160 (class 2606 OID 38175)
+-- TOC entry 5169 (class 2606 OID 38175)
 -- Name: agent_recommendations agent_recommendations_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3586,7 +3645,7 @@ ALTER TABLE ONLY public.agent_recommendations
 
 
 --
--- TOC entry 5123 (class 2606 OID 37809)
+-- TOC entry 5132 (class 2606 OID 37809)
 -- Name: ai_model_classes ai_model_classes_model_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3595,7 +3654,7 @@ ALTER TABLE ONLY public.ai_model_classes
 
 
 --
--- TOC entry 5111 (class 2606 OID 37653)
+-- TOC entry 5120 (class 2606 OID 37653)
 -- Name: ai_models ai_models_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3604,7 +3663,7 @@ ALTER TABLE ONLY public.ai_models
 
 
 --
--- TOC entry 5168 (class 2606 OID 38281)
+-- TOC entry 5177 (class 2606 OID 38281)
 -- Name: alerts alerts_assignment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3613,7 +3672,7 @@ ALTER TABLE ONLY public.alerts
 
 
 --
--- TOC entry 5169 (class 2606 OID 38271)
+-- TOC entry 5178 (class 2606 OID 38271)
 -- Name: alerts alerts_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3622,7 +3681,7 @@ ALTER TABLE ONLY public.alerts
 
 
 --
--- TOC entry 5170 (class 2606 OID 38286)
+-- TOC entry 5179 (class 2606 OID 38286)
 -- Name: alerts alerts_camera_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3631,7 +3690,7 @@ ALTER TABLE ONLY public.alerts
 
 
 --
--- TOC entry 5171 (class 2606 OID 38276)
+-- TOC entry 5180 (class 2606 OID 38276)
 -- Name: alerts alerts_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3640,7 +3699,7 @@ ALTER TABLE ONLY public.alerts
 
 
 --
--- TOC entry 5161 (class 2606 OID 38201)
+-- TOC entry 5170 (class 2606 OID 38201)
 -- Name: anomaly_flags anomaly_flags_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3649,7 +3708,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- TOC entry 5162 (class 2606 OID 38196)
+-- TOC entry 5171 (class 2606 OID 38196)
 -- Name: anomaly_flags anomaly_flags_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3658,7 +3717,7 @@ ALTER TABLE ONLY public.anomaly_flags
 
 
 --
--- TOC entry 5142 (class 2606 OID 38027)
+-- TOC entry 5151 (class 2606 OID 38027)
 -- Name: attendances attendances_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3667,7 +3726,7 @@ ALTER TABLE ONLY public.attendances
 
 
 --
--- TOC entry 5143 (class 2606 OID 38022)
+-- TOC entry 5152 (class 2606 OID 38022)
 -- Name: attendances attendances_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3676,7 +3735,7 @@ ALTER TABLE ONLY public.attendances
 
 
 --
--- TOC entry 5133 (class 2606 OID 37914)
+-- TOC entry 5142 (class 2606 OID 37914)
 -- Name: basler_model_assignments basler_model_assignments_basler_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3685,7 +3744,7 @@ ALTER TABLE ONLY public.basler_model_assignments
 
 
 --
--- TOC entry 5134 (class 2606 OID 37919)
+-- TOC entry 5143 (class 2606 OID 37919)
 -- Name: basler_model_assignments basler_model_assignments_model_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3694,7 +3753,7 @@ ALTER TABLE ONLY public.basler_model_assignments
 
 
 --
--- TOC entry 5139 (class 2606 OID 37985)
+-- TOC entry 5148 (class 2606 OID 37985)
 -- Name: camera_status_logs camera_status_logs_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3703,7 +3762,7 @@ ALTER TABLE ONLY public.camera_status_logs
 
 
 --
--- TOC entry 5120 (class 2606 OID 37785)
+-- TOC entry 5129 (class 2606 OID 37785)
 -- Name: cameras cameras_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3712,7 +3771,7 @@ ALTER TABLE ONLY public.cameras
 
 
 --
--- TOC entry 5121 (class 2606 OID 37795)
+-- TOC entry 5130 (class 2606 OID 37795)
 -- Name: cameras cameras_location_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3721,7 +3780,7 @@ ALTER TABLE ONLY public.cameras
 
 
 --
--- TOC entry 5122 (class 2606 OID 37790)
+-- TOC entry 5131 (class 2606 OID 37790)
 -- Name: cameras cameras_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3730,7 +3789,7 @@ ALTER TABLE ONLY public.cameras
 
 
 --
--- TOC entry 5157 (class 2606 OID 38153)
+-- TOC entry 5166 (class 2606 OID 38153)
 -- Name: correlated_events correlated_events_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3739,7 +3798,7 @@ ALTER TABLE ONLY public.correlated_events
 
 
 --
--- TOC entry 5158 (class 2606 OID 38158)
+-- TOC entry 5167 (class 2606 OID 38158)
 -- Name: correlated_events correlated_events_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3748,7 +3807,7 @@ ALTER TABLE ONLY public.correlated_events
 
 
 --
--- TOC entry 5163 (class 2606 OID 44821)
+-- TOC entry 5172 (class 2606 OID 46017)
 -- Name: counting_batches counting_batches_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3757,7 +3816,7 @@ ALTER TABLE ONLY public.counting_batches
 
 
 --
--- TOC entry 5140 (class 2606 OID 38001)
+-- TOC entry 5149 (class 2606 OID 38001)
 -- Name: counting_configs counting_configs_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3766,7 +3825,7 @@ ALTER TABLE ONLY public.counting_configs
 
 
 --
--- TOC entry 5141 (class 2606 OID 38006)
+-- TOC entry 5150 (class 2606 OID 38006)
 -- Name: counting_configs counting_configs_model_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3775,7 +3834,7 @@ ALTER TABLE ONLY public.counting_configs
 
 
 --
--- TOC entry 5175 (class 2606 OID 38330)
+-- TOC entry 5184 (class 2606 OID 38330)
 -- Name: counting_recordings counting_recordings_batch_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3784,7 +3843,7 @@ ALTER TABLE ONLY public.counting_recordings
 
 
 --
--- TOC entry 5176 (class 2606 OID 44831)
+-- TOC entry 5185 (class 2606 OID 46027)
 -- Name: counting_recordings counting_recordings_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3793,7 +3852,7 @@ ALTER TABLE ONLY public.counting_recordings
 
 
 --
--- TOC entry 5164 (class 2606 OID 44826)
+-- TOC entry 5173 (class 2606 OID 46022)
 -- Name: counting_snapshots counting_snapshots_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3802,7 +3861,7 @@ ALTER TABLE ONLY public.counting_snapshots
 
 
 --
--- TOC entry 5135 (class 2606 OID 37935)
+-- TOC entry 5144 (class 2606 OID 37935)
 -- Name: defect_detections defect_detections_basler_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3811,7 +3870,7 @@ ALTER TABLE ONLY public.defect_detections
 
 
 --
--- TOC entry 5136 (class 2606 OID 37940)
+-- TOC entry 5145 (class 2606 OID 37940)
 -- Name: defect_detections defect_detections_model_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3820,7 +3879,7 @@ ALTER TABLE ONLY public.defect_detections
 
 
 --
--- TOC entry 5129 (class 2606 OID 37866)
+-- TOC entry 5138 (class 2606 OID 37866)
 -- Name: department_plant department_plant_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3829,7 +3888,7 @@ ALTER TABLE ONLY public.department_plant
 
 
 --
--- TOC entry 5130 (class 2606 OID 37871)
+-- TOC entry 5139 (class 2606 OID 37871)
 -- Name: department_plant department_plant_plant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3838,7 +3897,7 @@ ALTER TABLE ONLY public.department_plant
 
 
 --
--- TOC entry 5115 (class 2606 OID 37710)
+-- TOC entry 5124 (class 2606 OID 37710)
 -- Name: designations designations_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3847,7 +3906,7 @@ ALTER TABLE ONLY public.designations
 
 
 --
--- TOC entry 5146 (class 2606 OID 38068)
+-- TOC entry 5155 (class 2606 OID 38068)
 -- Name: detection_assignments detection_assignments_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3856,7 +3915,7 @@ ALTER TABLE ONLY public.detection_assignments
 
 
 --
--- TOC entry 5147 (class 2606 OID 38083)
+-- TOC entry 5156 (class 2606 OID 38083)
 -- Name: detection_assignments detection_assignments_class_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3865,7 +3924,7 @@ ALTER TABLE ONLY public.detection_assignments
 
 
 --
--- TOC entry 5148 (class 2606 OID 38078)
+-- TOC entry 5157 (class 2606 OID 38078)
 -- Name: detection_assignments detection_assignments_model_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3874,7 +3933,7 @@ ALTER TABLE ONLY public.detection_assignments
 
 
 --
--- TOC entry 5149 (class 2606 OID 38073)
+-- TOC entry 5158 (class 2606 OID 38073)
 -- Name: detection_assignments detection_assignments_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3883,7 +3942,7 @@ ALTER TABLE ONLY public.detection_assignments
 
 
 --
--- TOC entry 5132 (class 2606 OID 37899)
+-- TOC entry 5141 (class 2606 OID 37899)
 -- Name: employee_movements employee_movements_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3892,7 +3951,7 @@ ALTER TABLE ONLY public.employee_movements
 
 
 --
--- TOC entry 5117 (class 2606 OID 37739)
+-- TOC entry 5126 (class 2606 OID 37739)
 -- Name: employees employees_employee_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3901,7 +3960,7 @@ ALTER TABLE ONLY public.employees
 
 
 --
--- TOC entry 5165 (class 2606 OID 38243)
+-- TOC entry 5174 (class 2606 OID 38243)
 -- Name: hse_camera_rules hse_camera_rules_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3910,7 +3969,7 @@ ALTER TABLE ONLY public.hse_camera_rules
 
 
 --
--- TOC entry 5166 (class 2606 OID 38248)
+-- TOC entry 5175 (class 2606 OID 38248)
 -- Name: hse_camera_rules hse_camera_rules_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3919,7 +3978,7 @@ ALTER TABLE ONLY public.hse_camera_rules
 
 
 --
--- TOC entry 5167 (class 2606 OID 38253)
+-- TOC entry 5176 (class 2606 OID 38253)
 -- Name: hse_camera_rules hse_camera_rules_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3928,7 +3987,7 @@ ALTER TABLE ONLY public.hse_camera_rules
 
 
 --
--- TOC entry 5119 (class 2606 OID 37770)
+-- TOC entry 5128 (class 2606 OID 37770)
 -- Name: hse_rule_definitions hse_rule_definitions_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3937,7 +3996,7 @@ ALTER TABLE ONLY public.hse_rule_definitions
 
 
 --
--- TOC entry 5144 (class 2606 OID 38044)
+-- TOC entry 5153 (class 2606 OID 38044)
 -- Name: hse_rule_events hse_rule_events_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3946,7 +4005,7 @@ ALTER TABLE ONLY public.hse_rule_events
 
 
 --
--- TOC entry 5145 (class 2606 OID 38049)
+-- TOC entry 5154 (class 2606 OID 38049)
 -- Name: hse_rule_events hse_rule_events_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3955,7 +4014,7 @@ ALTER TABLE ONLY public.hse_rule_events
 
 
 --
--- TOC entry 5172 (class 2606 OID 38311)
+-- TOC entry 5181 (class 2606 OID 38311)
 -- Name: incidents incidents_assignment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3964,7 +4023,7 @@ ALTER TABLE ONLY public.incidents
 
 
 --
--- TOC entry 5173 (class 2606 OID 38301)
+-- TOC entry 5182 (class 2606 OID 38301)
 -- Name: incidents incidents_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3973,7 +4032,7 @@ ALTER TABLE ONLY public.incidents
 
 
 --
--- TOC entry 5174 (class 2606 OID 38306)
+-- TOC entry 5183 (class 2606 OID 38306)
 -- Name: incidents incidents_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3982,7 +4041,7 @@ ALTER TABLE ONLY public.incidents
 
 
 --
--- TOC entry 5127 (class 2606 OID 37856)
+-- TOC entry 5136 (class 2606 OID 37856)
 -- Name: notification_rule_recipients notification_rule_recipients_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3991,7 +4050,7 @@ ALTER TABLE ONLY public.notification_rule_recipients
 
 
 --
--- TOC entry 5128 (class 2606 OID 37851)
+-- TOC entry 5137 (class 2606 OID 37851)
 -- Name: notification_rule_recipients notification_rule_recipients_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4000,7 +4059,7 @@ ALTER TABLE ONLY public.notification_rule_recipients
 
 
 --
--- TOC entry 5150 (class 2606 OID 38100)
+-- TOC entry 5159 (class 2606 OID 38100)
 -- Name: notification_rule_targets notification_rule_targets_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4009,7 +4068,7 @@ ALTER TABLE ONLY public.notification_rule_targets
 
 
 --
--- TOC entry 5151 (class 2606 OID 38115)
+-- TOC entry 5160 (class 2606 OID 38115)
 -- Name: notification_rule_targets notification_rule_targets_class_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4018,7 +4077,7 @@ ALTER TABLE ONLY public.notification_rule_targets
 
 
 --
--- TOC entry 5152 (class 2606 OID 38110)
+-- TOC entry 5161 (class 2606 OID 38110)
 -- Name: notification_rule_targets notification_rule_targets_model_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4027,7 +4086,7 @@ ALTER TABLE ONLY public.notification_rule_targets
 
 
 --
--- TOC entry 5153 (class 2606 OID 38095)
+-- TOC entry 5162 (class 2606 OID 38095)
 -- Name: notification_rule_targets notification_rule_targets_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4036,7 +4095,7 @@ ALTER TABLE ONLY public.notification_rule_targets
 
 
 --
--- TOC entry 5154 (class 2606 OID 38105)
+-- TOC entry 5163 (class 2606 OID 38105)
 -- Name: notification_rule_targets notification_rule_targets_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4045,7 +4104,7 @@ ALTER TABLE ONLY public.notification_rule_targets
 
 
 --
--- TOC entry 5113 (class 2606 OID 37684)
+-- TOC entry 5122 (class 2606 OID 37684)
 -- Name: notification_rules notification_rules_template_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4054,7 +4113,7 @@ ALTER TABLE ONLY public.notification_rules
 
 
 --
--- TOC entry 5118 (class 2606 OID 37753)
+-- TOC entry 5127 (class 2606 OID 37753)
 -- Name: patrol_logs patrol_logs_guard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4063,7 +4122,7 @@ ALTER TABLE ONLY public.patrol_logs
 
 
 --
--- TOC entry 5114 (class 2606 OID 37698)
+-- TOC entry 5123 (class 2606 OID 37698)
 -- Name: plants plants_location_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4072,7 +4131,7 @@ ALTER TABLE ONLY public.plants
 
 
 --
--- TOC entry 5112 (class 2606 OID 37669)
+-- TOC entry 5121 (class 2606 OID 37669)
 -- Name: recipients recipients_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4081,7 +4140,7 @@ ALTER TABLE ONLY public.recipients
 
 
 --
--- TOC entry 5116 (class 2606 OID 37722)
+-- TOC entry 5125 (class 2606 OID 37722)
 -- Name: role_permissions role_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4090,7 +4149,7 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- TOC entry 5138 (class 2606 OID 37971)
+-- TOC entry 5147 (class 2606 OID 37971)
 -- Name: user_activity_logs user_activity_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4099,7 +4158,7 @@ ALTER TABLE ONLY public.user_activity_logs
 
 
 --
--- TOC entry 5124 (class 2606 OID 37833)
+-- TOC entry 5133 (class 2606 OID 37833)
 -- Name: users users_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4108,7 +4167,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 5125 (class 2606 OID 37838)
+-- TOC entry 5134 (class 2606 OID 37838)
 -- Name: users users_designation_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4117,7 +4176,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 5126 (class 2606 OID 37828)
+-- TOC entry 5135 (class 2606 OID 37828)
 -- Name: users users_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4126,7 +4185,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 5131 (class 2606 OID 37885)
+-- TOC entry 5140 (class 2606 OID 37885)
 -- Name: visitors visitors_host_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4135,7 +4194,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- TOC entry 5155 (class 2606 OID 38135)
+-- TOC entry 5164 (class 2606 OID 38135)
 -- Name: zone_risk_scores zone_risk_scores_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4144,7 +4203,7 @@ ALTER TABLE ONLY public.zone_risk_scores
 
 
 --
--- TOC entry 5156 (class 2606 OID 38130)
+-- TOC entry 5165 (class 2606 OID 38130)
 -- Name: zone_risk_scores zone_risk_scores_zone_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4153,7 +4212,7 @@ ALTER TABLE ONLY public.zone_risk_scores
 
 
 --
--- TOC entry 5137 (class 2606 OID 37956)
+-- TOC entry 5146 (class 2606 OID 37956)
 -- Name: zones zones_camera_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -4161,11 +4220,11 @@ ALTER TABLE ONLY public.zones
     ADD CONSTRAINT zones_camera_id_fkey FOREIGN KEY (camera_id) REFERENCES public.cameras(id);
 
 
--- Completed on 2026-09-09 11:18:01
+-- Completed on 2026-09-24 12:46:48
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict chMT6UaDq3u2af44dRYXhJriTJMOhhDtfWpef3amu4GfEaZDdf9knf1fZndema9
+\unrestrict 5D8R0dBYnwHhsHCTFhxk0uw1rAlTfezDThqZqoyVfOvtYQO8OtgEhA0XMwS2rcZ
 
