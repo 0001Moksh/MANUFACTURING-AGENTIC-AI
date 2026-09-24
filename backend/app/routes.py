@@ -1802,39 +1802,65 @@ async def verify_machine_issue(machine_id: str, issue_id: int, request: MachineV
     await db.commit()
     return {"status": issue.status, "issue_id": issue_id}
 
+async def _get_telemetry_counts(db: AsyncSession) -> Dict[str, int]:
+    default_counts = {
+        "active_work_orders": 0,
+        "in_progress_work_orders": 0,
+        "active_alerts": 0,
+        "running_machines": 0,
+        "total_machines": 0,
+    }
+
+    try:
+        active_work_orders = (await db.execute(select(func.count(WorkOrder.WorkOrderId)))).scalar_one() or 0
+        in_progress_work_orders = (
+            await db.execute(
+                select(func.count(WorkOrder.WorkOrderId)).where(WorkOrder.Status == "In Progress")
+            )
+        ).scalar_one() or 0
+        active_alerts = (
+            await db.execute(
+                select(func.count(AlertMaster.AlertId)).where(AlertMaster.IsResolved == False)
+            )
+        ).scalar_one() or 0
+        running_machines = (
+            await db.execute(
+                select(func.count(MachineMaster.MachineId)).where(MachineMaster.Status == "Running")
+            )
+        ).scalar_one() or 0
+        total_machines = (await db.execute(select(func.count(MachineMaster.MachineId)))).scalar_one() or 0
+
+        return {
+            "active_work_orders": int(active_work_orders),
+            "in_progress_work_orders": int(in_progress_work_orders),
+            "active_alerts": int(active_alerts),
+            "running_machines": int(running_machines),
+            "total_machines": int(total_machines),
+        }
+    except Exception:
+        logger.exception("Telemetry summary query failed; returning safe zero counts.")
+        return default_counts
+
+
 @router.get("/api/telemetry")
 async def get_telemetry(db: AsyncSession = Depends(get_db)):
     # Dynamically re-verify DB connections if disconnected or cached timer expired
     current_mes_status = test_mes_connection()
     current_va_status = test_video_analytics_connection()
     current_grafana_status = get_grafana_health_status_sync()
-    
-    # Calculate live stats
-    # OEE avg, total active work orders, total alerts
-    result_wo = await db.execute(select(WorkOrder))
-    work_orders = result_wo.scalars().all()
-    
-    total_wo = len(work_orders)
-    in_progress_wo = len([w for w in work_orders if w.Status == "In Progress"])
-    
-    result_alerts = await db.execute(select(AlertMaster).where(AlertMaster.IsResolved == False))
-    active_alerts = len(result_alerts.scalars().all())
-    
-    # Calculate average OEE based on machines
-    result_machines = await db.execute(select(MachineMaster))
-    machines = result_machines.scalars().all()
-    running_machines = len([m for m in machines if m.Status == "Running"])
-    
+
+    stats = await _get_telemetry_counts(db)
+
     return {
         "production_output": "8,240 T/day",
         "plant_oee": "83.6%",
         "zero_harm_index": "94.6",
         "revenue_ytd": "₹487 Cr",
-        "active_work_orders": total_wo,
-        "in_progress_work_orders": in_progress_wo,
-        "active_alerts": active_alerts,
-        "running_machines": running_machines,
-        "total_machines": len(machines),
+        "active_work_orders": stats["active_work_orders"],
+        "in_progress_work_orders": stats["in_progress_work_orders"],
+        "active_alerts": stats["active_alerts"],
+        "running_machines": stats["running_machines"],
+        "total_machines": stats["total_machines"],
         "mes_db_status": current_mes_status,
         "video_analytics_db_status": current_va_status,
         "grafana_status": current_grafana_status,
