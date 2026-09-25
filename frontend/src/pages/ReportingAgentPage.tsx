@@ -40,11 +40,11 @@ export const ReportingAgentPage: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5 text-teal-300" />
             </div>
             <h1 className="font-head text-[16px] font-extrabold m-0 text-white truncate">
-              LangGraph SQL Reporting Agent
+              Agentic Daily Operations &amp; Resources Reporting
             </h1>
             <span className="hidden sm:inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-300 bg-emerald-400/10 border border-emerald-400/30 px-2 py-0.5 rounded-full ml-1 shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live SQL Agent
+              v3 Intelligent Report Generator
             </span>
           </div>
 
@@ -74,32 +74,37 @@ export const ReportingAgentPage: React.FC = () => {
             >
               <div className="px-4 pb-4 pt-1 border-t border-white/10">
                 <p className="text-white/80 text-[13px] max-w-[840px] mt-2 mb-0 leading-relaxed">
-                  Query production telemetry, shift reports, work orders, and equipment metrics in natural language. The agent executes safe SQL queries, validates database actions with Human-in-the-Loop governance, and generates downloadable PDF reports.
+                  Autonomous multi-database analytical report generator. Synthesizes data across MES (MSSQL), Video Analytics (PostgreSQL), and High-Frequency IoT &amp; Machine Telemetry (InfluxDB) with safe SQL / Flux downsampling, rich data quality profiling, and automated publication-grade PDF generation with telemetry charts.
                 </p>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
                   <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
                     <div className="flex justify-center mb-1"><Database className="w-3.5 h-3.5 text-teal-300" /></div>
-                    <div className="text-[12px] font-bold text-white">PostgreSQL / MES</div>
-                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Database</div>
+                    <div className="text-[12px] font-bold text-white">MES MSSQL</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Production &amp; Orders</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
-                    <div className="flex justify-center mb-1"><ShieldCheck className="w-3.5 h-3.5 text-teal-300" /></div>
-                    <div className="text-[12px] font-bold text-white">HITL Approval</div>
-                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Governance</div>
+                    <div className="flex justify-center mb-1"><Database className="w-3.5 h-3.5 text-teal-300" /></div>
+                    <div className="text-[12px] font-bold text-white">Video Analytics</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">PostgreSQL Vision Logs</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
+                    <div className="flex justify-center mb-1"><Sparkles className="w-3.5 h-3.5 text-teal-300" /></div>
+                    <div className="text-[12px] font-bold text-white">InfluxDB IoT</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Real-Time Telemetry</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-xs rounded-[12px] px-3 py-2 border border-white/10 text-center">
                     <div className="flex justify-center mb-1"><FileText className="w-3.5 h-3.5 text-teal-300" /></div>
-                    <div className="text-[12px] font-bold text-white">PDF Reports</div>
-                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Export</div>
+                    <div className="text-[12px] font-bold text-white">ReportLab PDF</div>
+                    <div className="text-[9.5px] text-white/70 font-semibold uppercase">Embedded Charts</div>
                   </div>
                 </div>
 
                 <div className="flex gap-1.5 mt-3 flex-wrap text-[10.5px] text-white/80">
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">LangGraph State Machine</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Natural Language SQL</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Human-in-the-Loop</span>
-                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">PDF Export</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">v3 Intelligent Multi-Source Pipeline</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Flux AggregateWindow Downsampling</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Deterministic Fallbacks</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/10">Data Quality Profiling</span>
                 </div>
               </div>
             </motion.div>
@@ -108,7 +113,7 @@ export const ReportingAgentPage: React.FC = () => {
       </div>
 
       {/* ── Embedded SQL Reporting Agent Console ── */}
-      <div className="flex-1 min-h-0 md:mx-2">
+      <div className="flex-1 min-h-0 md:mx-2 overflow-y-auto pr-1 pb-8">
         <AgentChatConsole />
       </div>
     </motion.div>

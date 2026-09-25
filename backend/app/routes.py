@@ -2363,14 +2363,14 @@ async def decide_report_approval(approval_key: str, decision: str, req: Approval
         await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="human_intervention", title="Daily report rejected", message="A report requires revision before it can be dispatched.", source_type="report_approval", source_id=approval.approval_key)
         await db.commit()
         return {"status": approval.status}
-    if not approval.recipient_email:
-        raise HTTPException(status_code=409, detail="No recipient email was supplied when this report was generated")
     approval.status = "APPROVED"
-    delivered = send_pdf_report_email(approval.recipient_email, "Approved Agentic Daily Operations Report", "Please find the approved report attached.", approval.report_path)
-    approval.status = "SENT" if delivered else "APPROVED"
-    await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered else "Daily report approved; delivery failed", message="The approved PDF was sent to the configured recipient." if delivered else "The PDF remains approved but SMTP delivery failed. Check mail configuration.", source_type="report_approval", source_id=approval.approval_key)
+    delivered = False
+    if approval.recipient_email:
+        delivered = send_pdf_report_email(approval.recipient_email, "Approved Agentic Daily Operations Report", "Please find the approved report attached.", approval.report_path)
+        approval.status = "SENT" if delivered else "APPROVED"
+    await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered or not approval.recipient_email else "Daily report approved; delivery failed", message="The approved PDF was dispatched to the recipient." if delivered else ("The report has been approved." if not approval.recipient_email else "The PDF remains approved but SMTP delivery failed. Check mail configuration."), source_type="report_approval", source_id=approval.approval_key)
     await db.commit()
-    return {"status": approval.status, "email_status": "sent" if delivered else "failed"}
+    return {"status": approval.status, "email_status": "sent" if delivered else "not_configured"}
 
 
 @router.api_route("/api/report-approvals/email-action", methods=["GET", "POST"], response_class=HTMLResponse)
@@ -2657,10 +2657,14 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
                     )
                     await db.commit()
                 return {
-                    "status": "requires_approval", "approval_key": approval_key,
-                    "pdf_url": state.get("pdf_url", ""), "sql_query": state.get("sql_query", ""),
+                    "status": "requires_approval",
+                    "approval_key": approval_key,
+                    "pdf_url": state.get("pdf_url", ""),
+                    "pdf_path": state.get("pdf_path", ""),
+                    "sql_query": state.get("sql_query", ""),
+                    "sql_result": state.get("sql_result", []),
                     "execution_steps": state.get("execution_steps", []),
-                    "insights": "The PDF has been generated and is pending Human-in-the-Loop approval before dispatch.",
+                    "insights": state.get("insights") or "The PDF has been generated and is pending Human-in-the-Loop approval before dispatch.",
                 }
              
         # Handle optional email sending

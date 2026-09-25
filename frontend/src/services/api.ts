@@ -179,6 +179,13 @@ export const agentService = {
   }
 };
 
+export const reportApprovalService = {
+  decide: async (approvalKey: string, decision: 'approve' | 'reject', note: string = '') => {
+    const res = await api.post(`/report-approvals/${approvalKey}/${decision}`, { note });
+    return res.data;
+  },
+};
+
 export const adminService = {
   getUsers: async () => {
     const res = await api.get('/admin/users');
