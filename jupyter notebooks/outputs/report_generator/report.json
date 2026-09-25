@@ -1,0 +1,3166 @@
+{
+  "report": {
+    "report_id": "rpt_30fd917da3",
+    "title": "Machine Performance Report",
+    "report_type": "machine_performance",
+    "status": "success",
+    "generated_at": "2026-09-24T09:39:09.061722+00:00",
+    "time_range": {
+      "start": "2026-09-23T09:26:33.569567+00:00",
+      "end": "2026-09-24T09:11:33.569567+00:00",
+      "timezone": "Asia/Kolkata"
+    }
+  },
+  "summary": {
+    "executive_summary": "This machine performance report covers 1 data source(s) and 192 record(s). Data quality is 'complete' with 0 warning(s) flagged. 5 KPI(s) were computed deterministically from the underlying data.",
+    "key_findings": [
+      {
+        "title": "Average Current (machine_telemetry) trending up",
+        "description": "Average Current (machine_telemetry) increased 15.54% over the observed window.",
+        "severity": "warning",
+        "evidence_refs": [
+          "influxdb.machine_telemetry"
+        ]
+      },
+      {
+        "title": "Average Power (machine_telemetry) trending up",
+        "description": "Average Power (machine_telemetry) increased 36.06% over the observed window.",
+        "severity": "warning",
+        "evidence_refs": [
+          "influxdb.machine_telemetry"
+        ]
+      }
+    ],
+    "recommendations": [
+      {
+        "title": "Continue routine monitoring",
+        "description": "No immediate action required based on current data.",
+        "priority": "low",
+        "action_type": "monitoring"
+      }
+    ]
+  },
+  "kpis": [
+    {
+      "id": "kpi_influxdb_machine_telemetry_temperature_avg",
+      "label": "Average Temperature (machine_telemetry)",
+      "value": 70.059,
+      "unit": null,
+      "status": "normal",
+      "comparison": {
+        "type": "previous_period",
+        "value": -6.69,
+        "unit": "%",
+        "direction": "decrease"
+      },
+      "source_ref": "influxdb.machine_telemetry"
+    },
+    {
+      "id": "kpi_influxdb_machine_telemetry_vibration_avg",
+      "label": "Average Vibration (machine_telemetry)",
+      "value": 2.315,
+      "unit": null,
+      "status": "normal",
+      "comparison": {
+        "type": "previous_period",
+        "value": -15.67,
+        "unit": "%",
+        "direction": "decrease"
+      },
+      "source_ref": "influxdb.machine_telemetry"
+    },
+    {
+      "id": "kpi_influxdb_machine_telemetry_current_avg",
+      "label": "Average Current (machine_telemetry)",
+      "value": 14.499,
+      "unit": null,
+      "status": "warning",
+      "comparison": {
+        "type": "previous_period",
+        "value": 15.54,
+        "unit": "%",
+        "direction": "increase"
+      },
+      "source_ref": "influxdb.machine_telemetry"
+    },
+    {
+      "id": "kpi_influxdb_machine_telemetry_power_avg",
+      "label": "Average Power (machine_telemetry)",
+      "value": 5.808,
+      "unit": null,
+      "status": "warning",
+      "comparison": {
+        "type": "previous_period",
+        "value": 36.06,
+        "unit": "%",
+        "direction": "increase"
+      },
+      "source_ref": "influxdb.machine_telemetry"
+    },
+    {
+      "id": "kpi_influxdb_machine_telemetry_rpm_avg",
+      "label": "Average Rpm (machine_telemetry)",
+      "value": 1443.906,
+      "unit": null,
+      "status": "normal",
+      "comparison": {
+        "type": "previous_period",
+        "value": -6.74,
+        "unit": "%",
+        "direction": "decrease"
+      },
+      "source_ref": "influxdb.machine_telemetry"
+    }
+  ],
+  "charts": [
+    {
+      "id": "chart_machine_telemetry_trend_0",
+      "chart_type": "line",
+      "title": "Machine Telemetry Over Time",
+      "description": "",
+      "x_axis": {
+        "field": "timestamp",
+        "label": "Time",
+        "data_type": "datetime"
+      },
+      "y_axis": {
+        "field": "temperature",
+        "label": "Temperature",
+        "data_type": "number"
+      },
+      "series": [
+        {
+          "id": "temperature",
+          "name": "Temperature",
+          "field": "temperature"
+        },
+        {
+          "id": "vibration",
+          "name": "Vibration",
+          "field": "vibration"
+        },
+        {
+          "id": "current",
+          "name": "Current",
+          "field": "current"
+        },
+        {
+          "id": "power",
+          "name": "Power",
+          "field": "power"
+        }
+      ],
+      "data": [
+        {
+          "timestamp": "2026-09-23T09:26:33.569567+00:00",
+          "temperature": 72.51,
+          "vibration": 2.68,
+          "current": 12.55,
+          "power": 5.02
+        },
+        {
+          "timestamp": "2026-09-23T09:26:33.569567+00:00",
+          "temperature": 64.53,
+          "vibration": 2.4,
+          "current": 13.6,
+          "power": 5.91
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569567+00:00",
+          "temperature": 66.16,
+          "vibration": 2.2,
+          "current": 14.86,
+          "power": 4.35
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569567+00:00",
+          "temperature": 71.64,
+          "vibration": 1.96,
+          "current": 15.38,
+          "power": 6.27
+        },
+        {
+          "timestamp": "2026-09-23T09:56:33.569567+00:00",
+          "temperature": 63.43,
+          "vibration": 2.59,
+          "current": 16.5,
+          "power": 5.09
+        },
+        {
+          "timestamp": "2026-09-23T09:56:33.569567+00:00",
+          "temperature": 72.28,
+          "vibration": 1.96,
+          "current": 14.87,
+          "power": 5.22
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569567+00:00",
+          "temperature": 71.53,
+          "vibration": 2.03,
+          "current": 15.72,
+          "power": 5.71
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569567+00:00",
+          "temperature": 66.69,
+          "vibration": 1.81,
+          "current": 14.75,
+          "power": 6.89
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569567+00:00",
+          "temperature": 72.36,
+          "vibration": 2.45,
+          "current": 14.91,
+          "power": 6.06
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569567+00:00",
+          "temperature": 64.19,
+          "vibration": 2.09,
+          "current": 15.31,
+          "power": 5.94
+        },
+        {
+          "timestamp": "2026-09-23T10:41:33.569567+00:00",
+          "temperature": 64.11,
+          "vibration": 2.81,
+          "current": 13.87,
+          "power": 5.42
+        },
+        {
+          "timestamp": "2026-09-23T10:41:33.569567+00:00",
+          "temperature": 71.3,
+          "vibration": 1.97,
+          "current": 15.12,
+          "power": 6.48
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569567+00:00",
+          "temperature": 70.86,
+          "vibration": 2.56,
+          "current": 15.24,
+          "power": 6.13
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569567+00:00",
+          "temperature": 65.48,
+          "vibration": 1.63,
+          "current": 15.04,
+          "power": 5.18
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569567+00:00",
+          "temperature": 65.5,
+          "vibration": 1.98,
+          "current": 13.22,
+          "power": 6.23
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569567+00:00",
+          "temperature": 72.13,
+          "vibration": 2.39,
+          "current": 15.37,
+          "power": 5.93
+        },
+        {
+          "timestamp": "2026-09-23T11:26:33.569567+00:00",
+          "temperature": 66.6,
+          "vibration": 2.12,
+          "current": 14.53,
+          "power": 5.96
+        },
+        {
+          "timestamp": "2026-09-23T11:26:33.569567+00:00",
+          "temperature": 72.13,
+          "vibration": 2.55,
+          "current": 13.04,
+          "power": 5.61
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569567+00:00",
+          "temperature": 71.68,
+          "vibration": 2.9,
+          "current": 13.63,
+          "power": 6.38
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569567+00:00",
+          "temperature": 64.17,
+          "vibration": 2.14,
+          "current": 15.86,
+          "power": 5.18
+        },
+        {
+          "timestamp": "2026-09-23T11:56:33.569567+00:00",
+          "temperature": 72.33,
+          "vibration": 2.53,
+          "current": 15.21,
+          "power": 6.28
+        },
+        {
+          "timestamp": "2026-09-23T11:56:33.569567+00:00",
+          "temperature": 68.03,
+          "vibration": 2.14,
+          "current": 12.56,
+          "power": 5.61
+        },
+        {
+          "timestamp": "2026-09-23T12:11:33.569567+00:00",
+          "temperature": 63.91,
+          "vibration": 2.53,
+          "current": 15.02,
+          "power": 4.9
+        },
+        {
+          "timestamp": "2026-09-23T12:11:33.569567+00:00",
+          "temperature": 73.07,
+          "vibration": 2.22,
+          "current": 13.22,
+          "power": 5.12
+        },
+        {
+          "timestamp": "2026-09-23T12:26:33.569567+00:00",
+          "temperature": 65.57,
+          "vibration": 2.17,
+          "current": 14.36,
+          "power": 6.17
+        },
+        {
+          "timestamp": "2026-09-23T12:26:33.569567+00:00",
+          "temperature": 72.17,
+          "vibration": 2.58,
+          "current": 14.07,
+          "power": 5.9
+        },
+        {
+          "timestamp": "2026-09-23T12:41:33.569567+00:00",
+          "temperature": 64.63,
+          "vibration": 3.04,
+          "current": 14.33,
+          "power": 6.8
+        },
+        {
+          "timestamp": "2026-09-23T12:41:33.569567+00:00",
+          "temperature": 72.65,
+          "vibration": 2.04,
+          "current": 14.14,
+          "power": 5.57
+        },
+        {
+          "timestamp": "2026-09-23T12:56:33.569567+00:00",
+          "temperature": 71.61,
+          "vibration": 2.3,
+          "current": 14.98,
+          "power": 6.07
+        },
+        {
+          "timestamp": "2026-09-23T12:56:33.569567+00:00",
+          "temperature": 65.41,
+          "vibration": 1.95,
+          "current": 14.68,
+          "power": 6.53
+        },
+        {
+          "timestamp": "2026-09-23T13:11:33.569567+00:00",
+          "temperature": 71.65,
+          "vibration": 2.27,
+          "current": 12.81,
+          "power": 4.93
+        },
+        {
+          "timestamp": "2026-09-23T13:11:33.569567+00:00",
+          "temperature": 65.5,
+          "vibration": 1.94,
+          "current": 14.16,
+          "power": 5.75
+        },
+        {
+          "timestamp": "2026-09-23T13:26:33.569567+00:00",
+          "temperature": 65.74,
+          "vibration": 2.09,
+          "current": 11.94,
+          "power": 6.27
+        },
+        {
+          "timestamp": "2026-09-23T13:26:33.569567+00:00",
+          "temperature": 73.06,
+          "vibration": 1.94,
+          "current": 14.12,
+          "power": 6.58
+        },
+        {
+          "timestamp": "2026-09-23T13:41:33.569567+00:00",
+          "temperature": 71.35,
+          "vibration": 2.22,
+          "current": 13.55,
+          "power": 5.6
+        },
+        {
+          "timestamp": "2026-09-23T13:41:33.569567+00:00",
+          "temperature": 63.6,
+          "vibration": 2.63,
+          "current": 14.85,
+          "power": 7.23
+        },
+        {
+          "timestamp": "2026-09-23T13:56:33.569567+00:00",
+          "temperature": 72.66,
+          "vibration": 2.4,
+          "current": 13.91,
+          "power": 4.93
+        },
+        {
+          "timestamp": "2026-09-23T13:56:33.569567+00:00",
+          "temperature": 65.38,
+          "vibration": 2.63,
+          "current": 15.13,
+          "power": 6.55
+        },
+        {
+          "timestamp": "2026-09-23T14:11:33.569567+00:00",
+          "temperature": 72.85,
+          "vibration": 2.31,
+          "current": 16.1,
+          "power": 5.66
+        },
+        {
+          "timestamp": "2026-09-23T14:11:33.569567+00:00",
+          "temperature": 65.05,
+          "vibration": 2.13,
+          "current": 14.02,
+          "power": 6.27
+        },
+        {
+          "timestamp": "2026-09-23T14:26:33.569567+00:00",
+          "temperature": 72.64,
+          "vibration": 2.84,
+          "current": 15.34,
+          "power": 6.01
+        },
+        {
+          "timestamp": "2026-09-23T14:26:33.569567+00:00",
+          "temperature": 65.06,
+          "vibration": 2.43,
+          "current": 14.25,
+          "power": 6.37
+        },
+        {
+          "timestamp": "2026-09-23T14:41:33.569567+00:00",
+          "temperature": 71.79,
+          "vibration": 1.93,
+          "current": 14.11,
+          "power": 4.97
+        },
+        {
+          "timestamp": "2026-09-23T14:41:33.569567+00:00",
+          "temperature": 64.2,
+          "vibration": 1.37,
+          "current": 13.54,
+          "power": 5.25
+        },
+        {
+          "timestamp": "2026-09-23T14:56:33.569567+00:00",
+          "temperature": 70.32,
+          "vibration": 1.89,
+          "current": 14.81,
+          "power": 6.3
+        },
+        {
+          "timestamp": "2026-09-23T14:56:33.569567+00:00",
+          "temperature": 65.06,
+          "vibration": 1.89,
+          "current": 14.44,
+          "power": 6.43
+        },
+        {
+          "timestamp": "2026-09-23T15:11:33.569567+00:00",
+          "temperature": 73.06,
+          "vibration": 1.9,
+          "current": 12.37,
+          "power": 5.96
+        },
+        {
+          "timestamp": "2026-09-23T15:11:33.569567+00:00",
+          "temperature": 65.96,
+          "vibration": 2.21,
+          "current": 15.15,
+          "power": 5.79
+        },
+        {
+          "timestamp": "2026-09-23T15:26:33.569567+00:00",
+          "temperature": 71.9,
+          "vibration": 2.24,
+          "current": 15.57,
+          "power": 5.89
+        },
+        {
+          "timestamp": "2026-09-23T15:26:33.569567+00:00",
+          "temperature": 65.96,
+          "vibration": 2.22,
+          "current": 13.28,
+          "power": 4.86
+        },
+        {
+          "timestamp": "2026-09-23T15:41:33.569567+00:00",
+          "temperature": 64.72,
+          "vibration": 2.26,
+          "current": 15.63,
+          "power": 4.43
+        },
+        {
+          "timestamp": "2026-09-23T15:41:33.569567+00:00",
+          "temperature": 70.7,
+          "vibration": 2.11,
+          "current": 14.45,
+          "power": 6.86
+        },
+        {
+          "timestamp": "2026-09-23T15:56:33.569567+00:00",
+          "temperature": 71.67,
+          "vibration": 1.83,
+          "current": 13.53,
+          "power": 5.36
+        },
+        {
+          "timestamp": "2026-09-23T15:56:33.569567+00:00",
+          "temperature": 67.65,
+          "vibration": 2.41,
+          "current": 15.27,
+          "power": 5.12
+        },
+        {
+          "timestamp": "2026-09-23T16:11:33.569567+00:00",
+          "temperature": 66.05,
+          "vibration": 2.52,
+          "current": 14.31,
+          "power": 5.97
+        },
+        {
+          "timestamp": "2026-09-23T16:11:33.569567+00:00",
+          "temperature": 74.11,
+          "vibration": 1.94,
+          "current": 15.43,
+          "power": 6.03
+        },
+        {
+          "timestamp": "2026-09-23T16:26:33.569567+00:00",
+          "temperature": 66.38,
+          "vibration": 1.65,
+          "current": 12.25,
+          "power": 6.4
+        },
+        {
+          "timestamp": "2026-09-23T16:26:33.569567+00:00",
+          "temperature": 71.71,
+          "vibration": 2.48,
+          "current": 14.05,
+          "power": 5.06
+        },
+        {
+          "timestamp": "2026-09-23T16:41:33.569567+00:00",
+          "temperature": 63.7,
+          "vibration": 2.34,
+          "current": 15.43,
+          "power": 6.88
+        },
+        {
+          "timestamp": "2026-09-23T16:41:33.569567+00:00",
+          "temperature": 75.19,
+          "vibration": 2.36,
+          "current": 14.38,
+          "power": 5.97
+        },
+        {
+          "timestamp": "2026-09-23T16:56:33.569567+00:00",
+          "temperature": 72.71,
+          "vibration": 2.74,
+          "current": 14.93,
+          "power": 6.72
+        },
+        {
+          "timestamp": "2026-09-23T16:56:33.569567+00:00",
+          "temperature": 65.13,
+          "vibration": 2.3,
+          "current": 14.2,
+          "power": 5.19
+        },
+        {
+          "timestamp": "2026-09-23T17:11:33.569567+00:00",
+          "temperature": 67.89,
+          "vibration": 1.93,
+          "current": 15.36,
+          "power": 6.18
+        },
+        {
+          "timestamp": "2026-09-23T17:11:33.569567+00:00",
+          "temperature": 71.82,
+          "vibration": 2.96,
+          "current": 16.22,
+          "power": 5.69
+        },
+        {
+          "timestamp": "2026-09-23T17:26:33.569567+00:00",
+          "temperature": 66.33,
+          "vibration": 2.6,
+          "current": 15.14,
+          "power": 6.0
+        },
+        {
+          "timestamp": "2026-09-23T17:26:33.569567+00:00",
+          "temperature": 71.75,
+          "vibration": 1.94,
+          "current": 15.14,
+          "power": 5.56
+        },
+        {
+          "timestamp": "2026-09-23T17:41:33.569567+00:00",
+          "temperature": 64.66,
+          "vibration": 1.79,
+          "current": 16.18,
+          "power": 6.84
+        },
+        {
+          "timestamp": "2026-09-23T17:41:33.569567+00:00",
+          "temperature": 72.9,
+          "vibration": 2.86,
+          "current": 14.59,
+          "power": 6.19
+        },
+        {
+          "timestamp": "2026-09-23T17:56:33.569567+00:00",
+          "temperature": 68.2,
+          "vibration": 2.3,
+          "current": 14.7,
+          "power": 5.14
+        },
+        {
+          "timestamp": "2026-09-23T17:56:33.569567+00:00",
+          "temperature": 72.02,
+          "vibration": 1.81,
+          "current": 13.62,
+          "power": 5.6
+        },
+        {
+          "timestamp": "2026-09-23T18:11:33.569567+00:00",
+          "temperature": 73.45,
+          "vibration": 2.11,
+          "current": 14.17,
+          "power": 6.4
+        },
+        {
+          "timestamp": "2026-09-23T18:11:33.569567+00:00",
+          "temperature": 64.52,
+          "vibration": 2.28,
+          "current": 14.42,
+          "power": 6.88
+        },
+        {
+          "timestamp": "2026-09-23T18:26:33.569567+00:00",
+          "temperature": 73.61,
+          "vibration": 2.02,
+          "current": 14.28,
+          "power": 5.95
+        },
+        {
+          "timestamp": "2026-09-23T18:26:33.569567+00:00",
+          "temperature": 65.85,
+          "vibration": 2.32,
+          "current": 14.3,
+          "power": 5.15
+        },
+        {
+          "timestamp": "2026-09-23T18:41:33.569567+00:00",
+          "temperature": 63.96,
+          "vibration": 2.5,
+          "current": 14.89,
+          "power": 4.73
+        },
+        {
+          "timestamp": "2026-09-23T18:41:33.569567+00:00",
+          "temperature": 72.65,
+          "vibration": 2.39,
+          "current": 17.02,
+          "power": 6.93
+        },
+        {
+          "timestamp": "2026-09-23T18:56:33.569567+00:00",
+          "temperature": 71.92,
+          "vibration": 2.06,
+          "current": 14.82,
+          "power": 6.52
+        },
+        {
+          "timestamp": "2026-09-23T18:56:33.569567+00:00",
+          "temperature": 67.62,
+          "vibration": 2.71,
+          "current": 14.54,
+          "power": 5.29
+        },
+        {
+          "timestamp": "2026-09-23T19:11:33.569567+00:00",
+          "temperature": 71.14,
+          "vibration": 2.23,
+          "current": 13.44,
+          "power": 5.48
+        },
+        {
+          "timestamp": "2026-09-23T19:11:33.569567+00:00",
+          "temperature": 66.52,
+          "vibration": 2.81,
+          "current": 15.6,
+          "power": 5.72
+        },
+        {
+          "timestamp": "2026-09-23T19:26:33.569567+00:00",
+          "temperature": 71.42,
+          "vibration": 1.71,
+          "current": 16.63,
+          "power": 5.03
+        },
+        {
+          "timestamp": "2026-09-23T19:26:33.569567+00:00",
+          "temperature": 66.41,
+          "vibration": 2.22,
+          "current": 13.92,
+          "power": 5.95
+        },
+        {
+          "timestamp": "2026-09-23T19:41:33.569567+00:00",
+          "temperature": 77.34,
+          "vibration": 1.83,
+          "current": 14.13,
+          "power": 6.0
+        },
+        {
+          "timestamp": "2026-09-23T19:41:33.569567+00:00",
+          "temperature": 66.0,
+          "vibration": 2.14,
+          "current": 14.74,
+          "power": 5.96
+        },
+        {
+          "timestamp": "2026-09-23T19:56:33.569567+00:00",
+          "temperature": 67.53,
+          "vibration": 1.84,
+          "current": 12.38,
+          "power": 4.68
+        },
+        {
+          "timestamp": "2026-09-23T19:56:33.569567+00:00",
+          "temperature": 72.73,
+          "vibration": 2.61,
+          "current": 14.93,
+          "power": 5.57
+        },
+        {
+          "timestamp": "2026-09-23T20:11:33.569567+00:00",
+          "temperature": 66.05,
+          "vibration": 2.79,
+          "current": 11.83,
+          "power": 6.04
+        },
+        {
+          "timestamp": "2026-09-23T20:11:33.569567+00:00",
+          "temperature": 72.43,
+          "vibration": 2.19,
+          "current": 14.73,
+          "power": 5.47
+        },
+        {
+          "timestamp": "2026-09-23T20:26:33.569567+00:00",
+          "temperature": 73.96,
+          "vibration": 2.44,
+          "current": 14.55,
+          "power": 5.8
+        },
+        {
+          "timestamp": "2026-09-23T20:26:33.569567+00:00",
+          "temperature": 65.27,
+          "vibration": 2.0,
+          "current": 13.61,
+          "power": 5.6
+        },
+        {
+          "timestamp": "2026-09-23T20:41:33.569567+00:00",
+          "temperature": 66.54,
+          "vibration": 3.06,
+          "current": 14.54,
+          "power": 6.85
+        },
+        {
+          "timestamp": "2026-09-23T20:41:33.569567+00:00",
+          "temperature": 72.51,
+          "vibration": 3.14,
+          "current": 16.07,
+          "power": 6.03
+        },
+        {
+          "timestamp": "2026-09-23T20:56:33.569567+00:00",
+          "temperature": 66.77,
+          "vibration": 3.57,
+          "current": 15.35,
+          "power": 5.38
+        },
+        {
+          "timestamp": "2026-09-23T20:56:33.569567+00:00",
+          "temperature": 73.6,
+          "vibration": 1.86,
+          "current": 15.69,
+          "power": 5.96
+        },
+        {
+          "timestamp": "2026-09-23T21:11:33.569567+00:00",
+          "temperature": 66.84,
+          "vibration": 2.66,
+          "current": 14.53,
+          "power": 5.97
+        },
+        {
+          "timestamp": "2026-09-23T21:11:33.569567+00:00",
+          "temperature": 73.9,
+          "vibration": 2.48,
+          "current": 13.39,
+          "power": 5.52
+        },
+        {
+          "timestamp": "2026-09-23T21:26:33.569567+00:00",
+          "temperature": 66.45,
+          "vibration": 1.53,
+          "current": 15.17,
+          "power": 5.21
+        },
+        {
+          "timestamp": "2026-09-23T21:26:33.569567+00:00",
+          "temperature": 73.54,
+          "vibration": 2.26,
+          "current": 14.25,
+          "power": 5.89
+        },
+        {
+          "timestamp": "2026-09-23T21:41:33.569567+00:00",
+          "temperature": 67.27,
+          "vibration": 2.02,
+          "current": 15.33,
+          "power": 4.99
+        },
+        {
+          "timestamp": "2026-09-23T21:41:33.569567+00:00",
+          "temperature": 73.29,
+          "vibration": 2.37,
+          "current": 14.8,
+          "power": 5.58
+        },
+        {
+          "timestamp": "2026-09-23T21:56:33.569567+00:00",
+          "temperature": 75.59,
+          "vibration": 1.69,
+          "current": 15.36,
+          "power": 5.6
+        },
+        {
+          "timestamp": "2026-09-23T21:56:33.569567+00:00",
+          "temperature": 66.57,
+          "vibration": 2.41,
+          "current": 13.49,
+          "power": 6.23
+        },
+        {
+          "timestamp": "2026-09-23T22:11:33.569567+00:00",
+          "temperature": 64.38,
+          "vibration": 2.3,
+          "current": 14.28,
+          "power": 5.74
+        },
+        {
+          "timestamp": "2026-09-23T22:11:33.569567+00:00",
+          "temperature": 73.73,
+          "vibration": 2.82,
+          "current": 15.08,
+          "power": 6.84
+        },
+        {
+          "timestamp": "2026-09-23T22:26:33.569567+00:00",
+          "temperature": 75.95,
+          "vibration": 2.48,
+          "current": 15.33,
+          "power": 5.62
+        },
+        {
+          "timestamp": "2026-09-23T22:26:33.569567+00:00",
+          "temperature": 68.79,
+          "vibration": 1.86,
+          "current": 13.33,
+          "power": 5.14
+        },
+        {
+          "timestamp": "2026-09-23T22:41:33.569567+00:00",
+          "temperature": 74.54,
+          "vibration": 1.83,
+          "current": 15.28,
+          "power": 5.69
+        },
+        {
+          "timestamp": "2026-09-23T22:41:33.569567+00:00",
+          "temperature": 65.87,
+          "vibration": 1.3,
+          "current": 12.8,
+          "power": 5.3
+        },
+        {
+          "timestamp": "2026-09-23T22:56:33.569567+00:00",
+          "temperature": 75.13,
+          "vibration": 2.59,
+          "current": 12.93,
+          "power": 5.76
+        },
+        {
+          "timestamp": "2026-09-23T22:56:33.569567+00:00",
+          "temperature": 66.16,
+          "vibration": 2.18,
+          "current": 15.55,
+          "power": 5.39
+        },
+        {
+          "timestamp": "2026-09-23T23:11:33.569567+00:00",
+          "temperature": 64.59,
+          "vibration": 2.46,
+          "current": 14.6,
+          "power": 5.71
+        },
+        {
+          "timestamp": "2026-09-23T23:11:33.569567+00:00",
+          "temperature": 76.4,
+          "vibration": 2.56,
+          "current": 13.8,
+          "power": 5.19
+        },
+        {
+          "timestamp": "2026-09-23T23:26:33.569567+00:00",
+          "temperature": 73.35,
+          "vibration": 2.42,
+          "current": 15.66,
+          "power": 6.17
+        },
+        {
+          "timestamp": "2026-09-23T23:26:33.569567+00:00",
+          "temperature": 70.45,
+          "vibration": 2.21,
+          "current": 13.22,
+          "power": 5.84
+        },
+        {
+          "timestamp": "2026-09-23T23:41:33.569567+00:00",
+          "temperature": 74.12,
+          "vibration": 2.47,
+          "current": 16.12,
+          "power": 4.56
+        },
+        {
+          "timestamp": "2026-09-23T23:41:33.569567+00:00",
+          "temperature": 66.7,
+          "vibration": 2.52,
+          "current": 13.88,
+          "power": 6.39
+        },
+        {
+          "timestamp": "2026-09-23T23:56:33.569567+00:00",
+          "temperature": 71.21,
+          "vibration": 2.89,
+          "current": 14.87,
+          "power": 6.31
+        },
+        {
+          "timestamp": "2026-09-23T23:56:33.569567+00:00",
+          "temperature": 66.78,
+          "vibration": 2.51,
+          "current": 15.86,
+          "power": 4.67
+        },
+        {
+          "timestamp": "2026-09-24T00:11:33.569567+00:00",
+          "temperature": 75.77,
+          "vibration": 2.39,
+          "current": 14.73,
+          "power": 5.96
+        },
+        {
+          "timestamp": "2026-09-24T00:11:33.569567+00:00",
+          "temperature": 68.3,
+          "vibration": 2.07,
+          "current": 14.33,
+          "power": 6.93
+        },
+        {
+          "timestamp": "2026-09-24T00:26:33.569567+00:00",
+          "temperature": 73.46,
+          "vibration": 2.45,
+          "current": 15.5,
+          "power": 5.16
+        },
+        {
+          "timestamp": "2026-09-24T00:26:33.569567+00:00",
+          "temperature": 66.93,
+          "vibration": 2.33,
+          "current": 14.51,
+          "power": 6.07
+        },
+        {
+          "timestamp": "2026-09-24T00:41:33.569567+00:00",
+          "temperature": 73.84,
+          "vibration": 1.97,
+          "current": 14.7,
+          "power": 6.31
+        },
+        {
+          "timestamp": "2026-09-24T00:41:33.569567+00:00",
+          "temperature": 68.68,
+          "vibration": 2.54,
+          "current": 13.35,
+          "power": 5.75
+        },
+        {
+          "timestamp": "2026-09-24T00:56:33.569567+00:00",
+          "temperature": 76.48,
+          "vibration": 2.64,
+          "current": 15.05,
+          "power": 7.2
+        },
+        {
+          "timestamp": "2026-09-24T00:56:33.569567+00:00",
+          "temperature": 66.47,
+          "vibration": 2.65,
+          "current": 14.99,
+          "power": 6.52
+        },
+        {
+          "timestamp": "2026-09-24T01:11:33.569567+00:00",
+          "temperature": 75.17,
+          "vibration": 2.12,
+          "current": 14.61,
+          "power": 6.59
+        },
+        {
+          "timestamp": "2026-09-24T01:11:33.569567+00:00",
+          "temperature": 67.72,
+          "vibration": 1.13,
+          "current": 14.88,
+          "power": 3.61
+        },
+        {
+          "timestamp": "2026-09-24T01:26:33.569567+00:00",
+          "temperature": 66.93,
+          "vibration": 1.84,
+          "current": 13.79,
+          "power": 6.62
+        },
+        {
+          "timestamp": "2026-09-24T01:26:33.569567+00:00",
+          "temperature": 71.81,
+          "vibration": 1.98,
+          "current": 14.94,
+          "power": 6.11
+        },
+        {
+          "timestamp": "2026-09-24T01:41:33.569567+00:00",
+          "temperature": 67.65,
+          "vibration": 2.46,
+          "current": 16.12,
+          "power": 5.88
+        },
+        {
+          "timestamp": "2026-09-24T01:41:33.569567+00:00",
+          "temperature": 70.49,
+          "vibration": 2.32,
+          "current": 14.03,
+          "power": 6.08
+        },
+        {
+          "timestamp": "2026-09-24T01:56:33.569567+00:00",
+          "temperature": 74.94,
+          "vibration": 2.36,
+          "current": 15.26,
+          "power": 5.94
+        },
+        {
+          "timestamp": "2026-09-24T01:56:33.569567+00:00",
+          "temperature": 67.7,
+          "vibration": 1.75,
+          "current": 14.24,
+          "power": 5.35
+        },
+        {
+          "timestamp": "2026-09-24T02:11:33.569567+00:00",
+          "temperature": 73.46,
+          "vibration": 2.38,
+          "current": 15.32,
+          "power": 5.56
+        },
+        {
+          "timestamp": "2026-09-24T02:11:33.569567+00:00",
+          "temperature": 66.03,
+          "vibration": 2.26,
+          "current": 14.72,
+          "power": 6.17
+        },
+        {
+          "timestamp": "2026-09-24T02:26:33.569567+00:00",
+          "temperature": 72.99,
+          "vibration": 2.63,
+          "current": 12.51,
+          "power": 5.02
+        },
+        {
+          "timestamp": "2026-09-24T02:26:33.569567+00:00",
+          "temperature": 69.41,
+          "vibration": 2.14,
+          "current": 13.08,
+          "power": 6.07
+        },
+        {
+          "timestamp": "2026-09-24T02:41:33.569567+00:00",
+          "temperature": 67.31,
+          "vibration": 2.59,
+          "current": 14.87,
+          "power": 6.18
+        },
+        {
+          "timestamp": "2026-09-24T02:41:33.569567+00:00",
+          "temperature": 74.67,
+          "vibration": 2.6,
+          "current": 14.22,
+          "power": 5.92
+        },
+        {
+          "timestamp": "2026-09-24T02:56:33.569567+00:00",
+          "temperature": 75.43,
+          "vibration": 2.84,
+          "current": 14.59,
+          "power": 5.3
+        },
+        {
+          "timestamp": "2026-09-24T02:56:33.569567+00:00",
+          "temperature": 68.31,
+          "vibration": 2.11,
+          "current": 15.37,
+          "power": 6.69
+        },
+        {
+          "timestamp": "2026-09-24T03:11:33.569567+00:00",
+          "temperature": 68.15,
+          "vibration": 2.44,
+          "current": 15.27,
+          "power": 5.87
+        },
+        {
+          "timestamp": "2026-09-24T03:11:33.569567+00:00",
+          "temperature": 74.2,
+          "vibration": 2.16,
+          "current": 15.3,
+          "power": 6.83
+        },
+        {
+          "timestamp": "2026-09-24T03:26:33.569567+00:00",
+          "temperature": 72.02,
+          "vibration": 2.49,
+          "current": 14.37,
+          "power": 4.7
+        },
+        {
+          "timestamp": "2026-09-24T03:26:33.569567+00:00",
+          "temperature": 67.3,
+          "vibration": 2.01,
+          "current": 14.09,
+          "power": 6.18
+        },
+        {
+          "timestamp": "2026-09-24T03:41:33.569567+00:00",
+          "temperature": 67.22,
+          "vibration": 2.15,
+          "current": 15.26,
+          "power": 6.03
+        },
+        {
+          "timestamp": "2026-09-24T03:41:33.569567+00:00",
+          "temperature": 72.77,
+          "vibration": 1.87,
+          "current": 13.85,
+          "power": 6.06
+        },
+        {
+          "timestamp": "2026-09-24T03:56:33.569567+00:00",
+          "temperature": 75.35,
+          "vibration": 2.83,
+          "current": 14.16,
+          "power": 4.91
+        },
+        {
+          "timestamp": "2026-09-24T03:56:33.569567+00:00",
+          "temperature": 66.16,
+          "vibration": 1.64,
+          "current": 13.45,
+          "power": 5.19
+        },
+        {
+          "timestamp": "2026-09-24T04:11:33.569567+00:00",
+          "temperature": 66.63,
+          "vibration": 2.55,
+          "current": 14.84,
+          "power": 5.99
+        },
+        {
+          "timestamp": "2026-09-24T04:11:33.569567+00:00",
+          "temperature": 76.54,
+          "vibration": 2.45,
+          "current": 14.37,
+          "power": 6.01
+        },
+        {
+          "timestamp": "2026-09-24T04:26:33.569567+00:00",
+          "temperature": 65.38,
+          "vibration": 2.15,
+          "current": 12.32,
+          "power": 5.82
+        },
+        {
+          "timestamp": "2026-09-24T04:26:33.569567+00:00",
+          "temperature": 73.65,
+          "vibration": 2.36,
+          "current": 15.58,
+          "power": 5.29
+        },
+        {
+          "timestamp": "2026-09-24T04:41:33.569567+00:00",
+          "temperature": 68.67,
+          "vibration": 2.38,
+          "current": 14.0,
+          "power": 6.09
+        },
+        {
+          "timestamp": "2026-09-24T04:41:33.569567+00:00",
+          "temperature": 75.63,
+          "vibration": 1.97,
+          "current": 12.91,
+          "power": 4.56
+        },
+        {
+          "timestamp": "2026-09-24T04:56:33.569567+00:00",
+          "temperature": 73.0,
+          "vibration": 3.07,
+          "current": 15.61,
+          "power": 5.22
+        },
+        {
+          "timestamp": "2026-09-24T04:56:33.569567+00:00",
+          "temperature": 70.27,
+          "vibration": 2.08,
+          "current": 15.31,
+          "power": 6.21
+        },
+        {
+          "timestamp": "2026-09-24T05:11:33.569567+00:00",
+          "temperature": 68.89,
+          "vibration": 2.34,
+          "current": 13.74,
+          "power": 5.28
+        },
+        {
+          "timestamp": "2026-09-24T05:11:33.569567+00:00",
+          "temperature": 75.22,
+          "vibration": 2.37,
+          "current": 15.12,
+          "power": 5.6
+        },
+        {
+          "timestamp": "2026-09-24T05:26:33.569567+00:00",
+          "temperature": 68.21,
+          "vibration": 2.48,
+          "current": 13.26,
+          "power": 5.68
+        },
+        {
+          "timestamp": "2026-09-24T05:26:33.569567+00:00",
+          "temperature": 74.72,
+          "vibration": 3.34,
+          "current": 14.72,
+          "power": 6.66
+        },
+        {
+          "timestamp": "2026-09-24T05:41:33.569567+00:00",
+          "temperature": 66.27,
+          "vibration": 2.89,
+          "current": 14.65,
+          "power": 6.05
+        },
+        {
+          "timestamp": "2026-09-24T05:41:33.569567+00:00",
+          "temperature": 76.34,
+          "vibration": 2.23,
+          "current": 13.72,
+          "power": 6.06
+        },
+        {
+          "timestamp": "2026-09-24T05:56:33.569567+00:00",
+          "temperature": 75.74,
+          "vibration": 2.57,
+          "current": 15.59,
+          "power": 6.02
+        },
+        {
+          "timestamp": "2026-09-24T05:56:33.569567+00:00",
+          "temperature": 68.14,
+          "vibration": 2.88,
+          "current": 14.04,
+          "power": 6.48
+        },
+        {
+          "timestamp": "2026-09-24T06:11:33.569567+00:00",
+          "temperature": 65.08,
+          "vibration": 2.48,
+          "current": 15.95,
+          "power": 5.75
+        },
+        {
+          "timestamp": "2026-09-24T06:11:33.569567+00:00",
+          "temperature": 74.12,
+          "vibration": 2.67,
+          "current": 12.67,
+          "power": 5.6
+        },
+        {
+          "timestamp": "2026-09-24T06:26:33.569567+00:00",
+          "temperature": 66.49,
+          "vibration": 1.66,
+          "current": 13.59,
+          "power": 5.94
+        },
+        {
+          "timestamp": "2026-09-24T06:26:33.569567+00:00",
+          "temperature": 77.99,
+          "vibration": 2.66,
+          "current": 13.78,
+          "power": 4.9
+        },
+        {
+          "timestamp": "2026-09-24T06:41:33.569567+00:00",
+          "temperature": 67.87,
+          "vibration": 2.87,
+          "current": 14.74,
+          "power": 5.71
+        },
+        {
+          "timestamp": "2026-09-24T06:41:33.569567+00:00",
+          "temperature": 79.68,
+          "vibration": 2.47,
+          "current": 13.94,
+          "power": 6.08
+        },
+        {
+          "timestamp": "2026-09-24T06:56:33.569567+00:00",
+          "temperature": 67.51,
+          "vibration": 2.14,
+          "current": 13.1,
+          "power": 4.87
+        },
+        {
+          "timestamp": "2026-09-24T06:56:33.569567+00:00",
+          "temperature": 74.91,
+          "vibration": 2.27,
+          "current": 15.29,
+          "power": 6.01
+        },
+        {
+          "timestamp": "2026-09-24T07:11:33.569567+00:00",
+          "temperature": 67.25,
+          "vibration": 2.3,
+          "current": 15.29,
+          "power": 5.91
+        },
+        {
+          "timestamp": "2026-09-24T07:11:33.569567+00:00",
+          "temperature": 75.1,
+          "vibration": 2.95,
+          "current": 13.53,
+          "power": 5.27
+        },
+        {
+          "timestamp": "2026-09-24T07:26:33.569567+00:00",
+          "temperature": 70.03,
+          "vibration": 2.93,
+          "current": 14.99,
+          "power": 6.38
+        },
+        {
+          "timestamp": "2026-09-24T07:26:33.569567+00:00",
+          "temperature": 75.65,
+          "vibration": 2.12,
+          "current": 15.96,
+          "power": 5.88
+        },
+        {
+          "timestamp": "2026-09-24T07:41:33.569567+00:00",
+          "temperature": 68.91,
+          "vibration": 2.54,
+          "current": 15.02,
+          "power": 5.14
+        },
+        {
+          "timestamp": "2026-09-24T07:41:33.569567+00:00",
+          "temperature": 74.77,
+          "vibration": 1.92,
+          "current": 14.05,
+          "power": 6.07
+        },
+        {
+          "timestamp": "2026-09-24T07:56:33.569567+00:00",
+          "temperature": 73.93,
+          "vibration": 2.76,
+          "current": 12.11,
+          "power": 5.33
+        },
+        {
+          "timestamp": "2026-09-24T07:56:33.569567+00:00",
+          "temperature": 68.65,
+          "vibration": 2.82,
+          "current": 15.34,
+          "power": 6.69
+        },
+        {
+          "timestamp": "2026-09-24T08:11:33.569567+00:00",
+          "temperature": 68.08,
+          "vibration": 2.34,
+          "current": 14.58,
+          "power": 6.48
+        },
+        {
+          "timestamp": "2026-09-24T08:11:33.569567+00:00",
+          "temperature": 77.0,
+          "vibration": 2.23,
+          "current": 14.25,
+          "power": 5.7
+        },
+        {
+          "timestamp": "2026-09-24T08:26:33.569567+00:00",
+          "temperature": 67.39,
+          "vibration": 2.48,
+          "current": 14.5,
+          "power": 5.35
+        },
+        {
+          "timestamp": "2026-09-24T08:26:33.569567+00:00",
+          "temperature": 75.78,
+          "vibration": 2.57,
+          "current": 14.89,
+          "power": 6.13
+        },
+        {
+          "timestamp": "2026-09-24T08:41:33.569567+00:00",
+          "temperature": 66.36,
+          "vibration": 3.01,
+          "current": 14.4,
+          "power": 5.65
+        },
+        {
+          "timestamp": "2026-09-24T08:41:33.569567+00:00",
+          "temperature": 76.74,
+          "vibration": 2.18,
+          "current": 13.75,
+          "power": 5.18
+        },
+        {
+          "timestamp": "2026-09-24T08:56:33.569567+00:00",
+          "temperature": 69.48,
+          "vibration": 2.03,
+          "current": 15.88,
+          "power": 5.7
+        },
+        {
+          "timestamp": "2026-09-24T08:56:33.569567+00:00",
+          "temperature": 74.9,
+          "vibration": 1.94,
+          "current": 14.43,
+          "power": 6.0
+        },
+        {
+          "timestamp": "2026-09-24T09:11:33.569567+00:00",
+          "temperature": 75.37,
+          "vibration": 2.6,
+          "current": 14.34,
+          "power": 5.41
+        },
+        {
+          "timestamp": "2026-09-24T09:11:33.569567+00:00",
+          "temperature": 67.66,
+          "vibration": 2.26,
+          "current": 14.5,
+          "power": 6.83
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "chart_machine_telemetry_trend_4",
+      "chart_type": "line",
+      "title": "Machine Telemetry Over Time",
+      "description": "",
+      "x_axis": {
+        "field": "timestamp",
+        "label": "Time",
+        "data_type": "datetime"
+      },
+      "y_axis": {
+        "field": "rpm",
+        "label": "Rpm",
+        "data_type": "number"
+      },
+      "series": [
+        {
+          "id": "rpm",
+          "name": "Rpm",
+          "field": "rpm"
+        }
+      ],
+      "data": [
+        {
+          "timestamp": "2026-09-23T09:26:33.569567+00:00",
+          "rpm": 1455.0
+        },
+        {
+          "timestamp": "2026-09-23T09:26:33.569567+00:00",
+          "rpm": 1391.0
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569567+00:00",
+          "rpm": 1403.0
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569567+00:00",
+          "rpm": 1452.0
+        },
+        {
+          "timestamp": "2026-09-23T09:56:33.569567+00:00",
+          "rpm": 1416.0
+        },
+        {
+          "timestamp": "2026-09-23T09:56:33.569567+00:00",
+          "rpm": 1485.0
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569567+00:00",
+          "rpm": 1432.0
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569567+00:00",
+          "rpm": 1383.0
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569567+00:00",
+          "rpm": 1535.0
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569567+00:00",
+          "rpm": 1379.0
+        },
+        {
+          "timestamp": "2026-09-23T10:41:33.569567+00:00",
+          "rpm": 1471.0
+        },
+        {
+          "timestamp": "2026-09-23T10:41:33.569567+00:00",
+          "rpm": 1445.0
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569567+00:00",
+          "rpm": 1423.0
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569567+00:00",
+          "rpm": 1459.0
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569567+00:00",
+          "rpm": 1459.0
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569567+00:00",
+          "rpm": 1477.0
+        },
+        {
+          "timestamp": "2026-09-23T11:26:33.569567+00:00",
+          "rpm": 1425.0
+        },
+        {
+          "timestamp": "2026-09-23T11:26:33.569567+00:00",
+          "rpm": 1431.0
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569567+00:00",
+          "rpm": 1382.0
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569567+00:00",
+          "rpm": 1353.0
+        },
+        {
+          "timestamp": "2026-09-23T11:56:33.569567+00:00",
+          "rpm": 1436.0
+        },
+        {
+          "timestamp": "2026-09-23T11:56:33.569567+00:00",
+          "rpm": 1438.0
+        },
+        {
+          "timestamp": "2026-09-23T12:11:33.569567+00:00",
+          "rpm": 1477.0
+        },
+        {
+          "timestamp": "2026-09-23T12:11:33.569567+00:00",
+          "rpm": 1413.0
+        },
+        {
+          "timestamp": "2026-09-23T12:26:33.569567+00:00",
+          "rpm": 1380.0
+        },
+        {
+          "timestamp": "2026-09-23T12:26:33.569567+00:00",
+          "rpm": 1475.0
+        },
+        {
+          "timestamp": "2026-09-23T12:41:33.569567+00:00",
+          "rpm": 1405.0
+        },
+        {
+          "timestamp": "2026-09-23T12:41:33.569567+00:00",
+          "rpm": 1402.0
+        },
+        {
+          "timestamp": "2026-09-23T12:56:33.569567+00:00",
+          "rpm": 1476.0
+        },
+        {
+          "timestamp": "2026-09-23T12:56:33.569567+00:00",
+          "rpm": 1437.0
+        },
+        {
+          "timestamp": "2026-09-23T13:11:33.569567+00:00",
+          "rpm": 1397.0
+        },
+        {
+          "timestamp": "2026-09-23T13:11:33.569567+00:00",
+          "rpm": 1381.0
+        },
+        {
+          "timestamp": "2026-09-23T13:26:33.569567+00:00",
+          "rpm": 1460.0
+        },
+        {
+          "timestamp": "2026-09-23T13:26:33.569567+00:00",
+          "rpm": 1435.0
+        },
+        {
+          "timestamp": "2026-09-23T13:41:33.569567+00:00",
+          "rpm": 1483.0
+        },
+        {
+          "timestamp": "2026-09-23T13:41:33.569567+00:00",
+          "rpm": 1466.0
+        },
+        {
+          "timestamp": "2026-09-23T13:56:33.569567+00:00",
+          "rpm": 1452.0
+        },
+        {
+          "timestamp": "2026-09-23T13:56:33.569567+00:00",
+          "rpm": 1429.0
+        },
+        {
+          "timestamp": "2026-09-23T14:11:33.569567+00:00",
+          "rpm": 1409.0
+        },
+        {
+          "timestamp": "2026-09-23T14:11:33.569567+00:00",
+          "rpm": 1509.0
+        },
+        {
+          "timestamp": "2026-09-23T14:26:33.569567+00:00",
+          "rpm": 1508.0
+        },
+        {
+          "timestamp": "2026-09-23T14:26:33.569567+00:00",
+          "rpm": 1359.0
+        },
+        {
+          "timestamp": "2026-09-23T14:41:33.569567+00:00",
+          "rpm": 1475.0
+        },
+        {
+          "timestamp": "2026-09-23T14:41:33.569567+00:00",
+          "rpm": 1441.0
+        },
+        {
+          "timestamp": "2026-09-23T14:56:33.569567+00:00",
+          "rpm": 1529.0
+        },
+        {
+          "timestamp": "2026-09-23T14:56:33.569567+00:00",
+          "rpm": 1410.0
+        },
+        {
+          "timestamp": "2026-09-23T15:11:33.569567+00:00",
+          "rpm": 1417.0
+        },
+        {
+          "timestamp": "2026-09-23T15:11:33.569567+00:00",
+          "rpm": 1478.0
+        },
+        {
+          "timestamp": "2026-09-23T15:26:33.569567+00:00",
+          "rpm": 1443.0
+        },
+        {
+          "timestamp": "2026-09-23T15:26:33.569567+00:00",
+          "rpm": 1477.0
+        },
+        {
+          "timestamp": "2026-09-23T15:41:33.569567+00:00",
+          "rpm": 1390.0
+        },
+        {
+          "timestamp": "2026-09-23T15:41:33.569567+00:00",
+          "rpm": 1455.0
+        },
+        {
+          "timestamp": "2026-09-23T15:56:33.569567+00:00",
+          "rpm": 1535.0
+        },
+        {
+          "timestamp": "2026-09-23T15:56:33.569567+00:00",
+          "rpm": 1405.0
+        },
+        {
+          "timestamp": "2026-09-23T16:11:33.569567+00:00",
+          "rpm": 1456.0
+        },
+        {
+          "timestamp": "2026-09-23T16:11:33.569567+00:00",
+          "rpm": 1443.0
+        },
+        {
+          "timestamp": "2026-09-23T16:26:33.569567+00:00",
+          "rpm": 1497.0
+        },
+        {
+          "timestamp": "2026-09-23T16:26:33.569567+00:00",
+          "rpm": 1398.0
+        },
+        {
+          "timestamp": "2026-09-23T16:41:33.569567+00:00",
+          "rpm": 1470.0
+        },
+        {
+          "timestamp": "2026-09-23T16:41:33.569567+00:00",
+          "rpm": 1502.0
+        },
+        {
+          "timestamp": "2026-09-23T16:56:33.569567+00:00",
+          "rpm": 1457.0
+        },
+        {
+          "timestamp": "2026-09-23T16:56:33.569567+00:00",
+          "rpm": 1531.0
+        },
+        {
+          "timestamp": "2026-09-23T17:11:33.569567+00:00",
+          "rpm": 1467.0
+        },
+        {
+          "timestamp": "2026-09-23T17:11:33.569567+00:00",
+          "rpm": 1434.0
+        },
+        {
+          "timestamp": "2026-09-23T17:26:33.569567+00:00",
+          "rpm": 1378.0
+        },
+        {
+          "timestamp": "2026-09-23T17:26:33.569567+00:00",
+          "rpm": 1449.0
+        },
+        {
+          "timestamp": "2026-09-23T17:41:33.569567+00:00",
+          "rpm": 1504.0
+        },
+        {
+          "timestamp": "2026-09-23T17:41:33.569567+00:00",
+          "rpm": 1367.0
+        },
+        {
+          "timestamp": "2026-09-23T17:56:33.569567+00:00",
+          "rpm": 1465.0
+        },
+        {
+          "timestamp": "2026-09-23T17:56:33.569567+00:00",
+          "rpm": 1486.0
+        },
+        {
+          "timestamp": "2026-09-23T18:11:33.569567+00:00",
+          "rpm": 1471.0
+        },
+        {
+          "timestamp": "2026-09-23T18:11:33.569567+00:00",
+          "rpm": 1485.0
+        },
+        {
+          "timestamp": "2026-09-23T18:26:33.569567+00:00",
+          "rpm": 1457.0
+        },
+        {
+          "timestamp": "2026-09-23T18:26:33.569567+00:00",
+          "rpm": 1443.0
+        },
+        {
+          "timestamp": "2026-09-23T18:41:33.569567+00:00",
+          "rpm": 1445.0
+        },
+        {
+          "timestamp": "2026-09-23T18:41:33.569567+00:00",
+          "rpm": 1415.0
+        },
+        {
+          "timestamp": "2026-09-23T18:56:33.569567+00:00",
+          "rpm": 1420.0
+        },
+        {
+          "timestamp": "2026-09-23T18:56:33.569567+00:00",
+          "rpm": 1406.0
+        },
+        {
+          "timestamp": "2026-09-23T19:11:33.569567+00:00",
+          "rpm": 1414.0
+        },
+        {
+          "timestamp": "2026-09-23T19:11:33.569567+00:00",
+          "rpm": 1400.0
+        },
+        {
+          "timestamp": "2026-09-23T19:26:33.569567+00:00",
+          "rpm": 1406.0
+        },
+        {
+          "timestamp": "2026-09-23T19:26:33.569567+00:00",
+          "rpm": 1429.0
+        },
+        {
+          "timestamp": "2026-09-23T19:41:33.569567+00:00",
+          "rpm": 1519.0
+        },
+        {
+          "timestamp": "2026-09-23T19:41:33.569567+00:00",
+          "rpm": 1404.0
+        },
+        {
+          "timestamp": "2026-09-23T19:56:33.569567+00:00",
+          "rpm": 1451.0
+        },
+        {
+          "timestamp": "2026-09-23T19:56:33.569567+00:00",
+          "rpm": 1444.0
+        },
+        {
+          "timestamp": "2026-09-23T20:11:33.569567+00:00",
+          "rpm": 1512.0
+        },
+        {
+          "timestamp": "2026-09-23T20:11:33.569567+00:00",
+          "rpm": 1468.0
+        },
+        {
+          "timestamp": "2026-09-23T20:26:33.569567+00:00",
+          "rpm": 1421.0
+        },
+        {
+          "timestamp": "2026-09-23T20:26:33.569567+00:00",
+          "rpm": 1507.0
+        },
+        {
+          "timestamp": "2026-09-23T20:41:33.569567+00:00",
+          "rpm": 1446.0
+        },
+        {
+          "timestamp": "2026-09-23T20:41:33.569567+00:00",
+          "rpm": 1419.0
+        },
+        {
+          "timestamp": "2026-09-23T20:56:33.569567+00:00",
+          "rpm": 1488.0
+        },
+        {
+          "timestamp": "2026-09-23T20:56:33.569567+00:00",
+          "rpm": 1469.0
+        },
+        {
+          "timestamp": "2026-09-23T21:11:33.569567+00:00",
+          "rpm": 1450.0
+        },
+        {
+          "timestamp": "2026-09-23T21:11:33.569567+00:00",
+          "rpm": 1460.0
+        },
+        {
+          "timestamp": "2026-09-23T21:26:33.569567+00:00",
+          "rpm": 1392.0
+        },
+        {
+          "timestamp": "2026-09-23T21:26:33.569567+00:00",
+          "rpm": 1508.0
+        },
+        {
+          "timestamp": "2026-09-23T21:41:33.569567+00:00",
+          "rpm": 1433.0
+        },
+        {
+          "timestamp": "2026-09-23T21:41:33.569567+00:00",
+          "rpm": 1379.0
+        },
+        {
+          "timestamp": "2026-09-23T21:56:33.569567+00:00",
+          "rpm": 1447.0
+        },
+        {
+          "timestamp": "2026-09-23T21:56:33.569567+00:00",
+          "rpm": 1452.0
+        },
+        {
+          "timestamp": "2026-09-23T22:11:33.569567+00:00",
+          "rpm": 1448.0
+        },
+        {
+          "timestamp": "2026-09-23T22:11:33.569567+00:00",
+          "rpm": 1497.0
+        },
+        {
+          "timestamp": "2026-09-23T22:26:33.569567+00:00",
+          "rpm": 1452.0
+        },
+        {
+          "timestamp": "2026-09-23T22:26:33.569567+00:00",
+          "rpm": 1461.0
+        },
+        {
+          "timestamp": "2026-09-23T22:41:33.569567+00:00",
+          "rpm": 1496.0
+        },
+        {
+          "timestamp": "2026-09-23T22:41:33.569567+00:00",
+          "rpm": 1427.0
+        },
+        {
+          "timestamp": "2026-09-23T22:56:33.569567+00:00",
+          "rpm": 1403.0
+        },
+        {
+          "timestamp": "2026-09-23T22:56:33.569567+00:00",
+          "rpm": 1415.0
+        },
+        {
+          "timestamp": "2026-09-23T23:11:33.569567+00:00",
+          "rpm": 1513.0
+        },
+        {
+          "timestamp": "2026-09-23T23:11:33.569567+00:00",
+          "rpm": 1451.0
+        },
+        {
+          "timestamp": "2026-09-23T23:26:33.569567+00:00",
+          "rpm": 1358.0
+        },
+        {
+          "timestamp": "2026-09-23T23:26:33.569567+00:00",
+          "rpm": 1406.0
+        },
+        {
+          "timestamp": "2026-09-23T23:41:33.569567+00:00",
+          "rpm": 1426.0
+        },
+        {
+          "timestamp": "2026-09-23T23:41:33.569567+00:00",
+          "rpm": 1496.0
+        },
+        {
+          "timestamp": "2026-09-23T23:56:33.569567+00:00",
+          "rpm": 1427.0
+        },
+        {
+          "timestamp": "2026-09-23T23:56:33.569567+00:00",
+          "rpm": 1437.0
+        },
+        {
+          "timestamp": "2026-09-24T00:11:33.569567+00:00",
+          "rpm": 1415.0
+        },
+        {
+          "timestamp": "2026-09-24T00:11:33.569567+00:00",
+          "rpm": 1443.0
+        },
+        {
+          "timestamp": "2026-09-24T00:26:33.569567+00:00",
+          "rpm": 1444.0
+        },
+        {
+          "timestamp": "2026-09-24T00:26:33.569567+00:00",
+          "rpm": 1496.0
+        },
+        {
+          "timestamp": "2026-09-24T00:41:33.569567+00:00",
+          "rpm": 1450.0
+        },
+        {
+          "timestamp": "2026-09-24T00:41:33.569567+00:00",
+          "rpm": 1487.0
+        },
+        {
+          "timestamp": "2026-09-24T00:56:33.569567+00:00",
+          "rpm": 1441.0
+        },
+        {
+          "timestamp": "2026-09-24T00:56:33.569567+00:00",
+          "rpm": 1461.0
+        },
+        {
+          "timestamp": "2026-09-24T01:11:33.569567+00:00",
+          "rpm": 1385.0
+        },
+        {
+          "timestamp": "2026-09-24T01:11:33.569567+00:00",
+          "rpm": 1381.0
+        },
+        {
+          "timestamp": "2026-09-24T01:26:33.569567+00:00",
+          "rpm": 1430.0
+        },
+        {
+          "timestamp": "2026-09-24T01:26:33.569567+00:00",
+          "rpm": 1461.0
+        },
+        {
+          "timestamp": "2026-09-24T01:41:33.569567+00:00",
+          "rpm": 1409.0
+        },
+        {
+          "timestamp": "2026-09-24T01:41:33.569567+00:00",
+          "rpm": 1478.0
+        },
+        {
+          "timestamp": "2026-09-24T01:56:33.569567+00:00",
+          "rpm": 1471.0
+        },
+        {
+          "timestamp": "2026-09-24T01:56:33.569567+00:00",
+          "rpm": 1486.0
+        },
+        {
+          "timestamp": "2026-09-24T02:11:33.569567+00:00",
+          "rpm": 1470.0
+        },
+        {
+          "timestamp": "2026-09-24T02:11:33.569567+00:00",
+          "rpm": 1410.0
+        },
+        {
+          "timestamp": "2026-09-24T02:26:33.569567+00:00",
+          "rpm": 1390.0
+        },
+        {
+          "timestamp": "2026-09-24T02:26:33.569567+00:00",
+          "rpm": 1468.0
+        },
+        {
+          "timestamp": "2026-09-24T02:41:33.569567+00:00",
+          "rpm": 1393.0
+        },
+        {
+          "timestamp": "2026-09-24T02:41:33.569567+00:00",
+          "rpm": 1493.0
+        },
+        {
+          "timestamp": "2026-09-24T02:56:33.569567+00:00",
+          "rpm": 1426.0
+        },
+        {
+          "timestamp": "2026-09-24T02:56:33.569567+00:00",
+          "rpm": 1521.0
+        },
+        {
+          "timestamp": "2026-09-24T03:11:33.569567+00:00",
+          "rpm": 1455.0
+        },
+        {
+          "timestamp": "2026-09-24T03:11:33.569567+00:00",
+          "rpm": 1394.0
+        },
+        {
+          "timestamp": "2026-09-24T03:26:33.569567+00:00",
+          "rpm": 1487.0
+        },
+        {
+          "timestamp": "2026-09-24T03:26:33.569567+00:00",
+          "rpm": 1450.0
+        },
+        {
+          "timestamp": "2026-09-24T03:41:33.569567+00:00",
+          "rpm": 1400.0
+        },
+        {
+          "timestamp": "2026-09-24T03:41:33.569567+00:00",
+          "rpm": 1442.0
+        },
+        {
+          "timestamp": "2026-09-24T03:56:33.569567+00:00",
+          "rpm": 1492.0
+        },
+        {
+          "timestamp": "2026-09-24T03:56:33.569567+00:00",
+          "rpm": 1452.0
+        },
+        {
+          "timestamp": "2026-09-24T04:11:33.569567+00:00",
+          "rpm": 1466.0
+        },
+        {
+          "timestamp": "2026-09-24T04:11:33.569567+00:00",
+          "rpm": 1528.0
+        },
+        {
+          "timestamp": "2026-09-24T04:26:33.569567+00:00",
+          "rpm": 1449.0
+        },
+        {
+          "timestamp": "2026-09-24T04:26:33.569567+00:00",
+          "rpm": 1463.0
+        },
+        {
+          "timestamp": "2026-09-24T04:41:33.569567+00:00",
+          "rpm": 1428.0
+        },
+        {
+          "timestamp": "2026-09-24T04:41:33.569567+00:00",
+          "rpm": 1405.0
+        },
+        {
+          "timestamp": "2026-09-24T04:56:33.569567+00:00",
+          "rpm": 1463.0
+        },
+        {
+          "timestamp": "2026-09-24T04:56:33.569567+00:00",
+          "rpm": 1411.0
+        },
+        {
+          "timestamp": "2026-09-24T05:11:33.569567+00:00",
+          "rpm": 1428.0
+        },
+        {
+          "timestamp": "2026-09-24T05:11:33.569567+00:00",
+          "rpm": 1492.0
+        },
+        {
+          "timestamp": "2026-09-24T05:26:33.569567+00:00",
+          "rpm": 1454.0
+        },
+        {
+          "timestamp": "2026-09-24T05:26:33.569567+00:00",
+          "rpm": 1453.0
+        },
+        {
+          "timestamp": "2026-09-24T05:41:33.569567+00:00",
+          "rpm": 1454.0
+        },
+        {
+          "timestamp": "2026-09-24T05:41:33.569567+00:00",
+          "rpm": 1415.0
+        },
+        {
+          "timestamp": "2026-09-24T05:56:33.569567+00:00",
+          "rpm": 1438.0
+        },
+        {
+          "timestamp": "2026-09-24T05:56:33.569567+00:00",
+          "rpm": 1424.0
+        },
+        {
+          "timestamp": "2026-09-24T06:11:33.569567+00:00",
+          "rpm": 1442.0
+        },
+        {
+          "timestamp": "2026-09-24T06:11:33.569567+00:00",
+          "rpm": 1370.0
+        },
+        {
+          "timestamp": "2026-09-24T06:26:33.569567+00:00",
+          "rpm": 1502.0
+        },
+        {
+          "timestamp": "2026-09-24T06:26:33.569567+00:00",
+          "rpm": 1331.0
+        },
+        {
+          "timestamp": "2026-09-24T06:41:33.569567+00:00",
+          "rpm": 1467.0
+        },
+        {
+          "timestamp": "2026-09-24T06:41:33.569567+00:00",
+          "rpm": 1387.0
+        },
+        {
+          "timestamp": "2026-09-24T06:56:33.569567+00:00",
+          "rpm": 1476.0
+        },
+        {
+          "timestamp": "2026-09-24T06:56:33.569567+00:00",
+          "rpm": 1476.0
+        },
+        {
+          "timestamp": "2026-09-24T07:11:33.569567+00:00",
+          "rpm": 1423.0
+        },
+        {
+          "timestamp": "2026-09-24T07:11:33.569567+00:00",
+          "rpm": 1503.0
+        },
+        {
+          "timestamp": "2026-09-24T07:26:33.569567+00:00",
+          "rpm": 1499.0
+        },
+        {
+          "timestamp": "2026-09-24T07:26:33.569567+00:00",
+          "rpm": 1460.0
+        },
+        {
+          "timestamp": "2026-09-24T07:41:33.569567+00:00",
+          "rpm": 1478.0
+        },
+        {
+          "timestamp": "2026-09-24T07:41:33.569567+00:00",
+          "rpm": 1387.0
+        },
+        {
+          "timestamp": "2026-09-24T07:56:33.569567+00:00",
+          "rpm": 1382.0
+        },
+        {
+          "timestamp": "2026-09-24T07:56:33.569567+00:00",
+          "rpm": 1439.0
+        },
+        {
+          "timestamp": "2026-09-24T08:11:33.569567+00:00",
+          "rpm": 1435.0
+        },
+        {
+          "timestamp": "2026-09-24T08:11:33.569567+00:00",
+          "rpm": 1458.0
+        },
+        {
+          "timestamp": "2026-09-24T08:26:33.569567+00:00",
+          "rpm": 1440.0
+        },
+        {
+          "timestamp": "2026-09-24T08:26:33.569567+00:00",
+          "rpm": 1461.0
+        },
+        {
+          "timestamp": "2026-09-24T08:41:33.569567+00:00",
+          "rpm": 1366.0
+        },
+        {
+          "timestamp": "2026-09-24T08:41:33.569567+00:00",
+          "rpm": 1400.0
+        },
+        {
+          "timestamp": "2026-09-24T08:56:33.569567+00:00",
+          "rpm": 1501.0
+        },
+        {
+          "timestamp": "2026-09-24T08:56:33.569567+00:00",
+          "rpm": 1452.0
+        },
+        {
+          "timestamp": "2026-09-24T09:11:33.569567+00:00",
+          "rpm": 1471.0
+        },
+        {
+          "timestamp": "2026-09-24T09:11:33.569567+00:00",
+          "rpm": 1357.0
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "chart_machine_telemetry_machine_id_by_temperature",
+      "chart_type": "bar",
+      "title": "Temperature by Machine Id",
+      "description": "",
+      "x_axis": {
+        "field": "category",
+        "label": "Machine Id",
+        "data_type": "category"
+      },
+      "y_axis": {
+        "field": "value",
+        "label": "Temperature",
+        "data_type": "number"
+      },
+      "series": [
+        {
+          "id": "temperature",
+          "name": "Temperature",
+          "field": "value"
+        }
+      ],
+      "data": [
+        {
+          "category": "MC-101",
+          "value": 73.576
+        },
+        {
+          "category": "MC-102",
+          "value": 66.542
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "chart_machine_telemetry_machine_id_distribution",
+      "chart_type": "pie",
+      "title": "Machine Id Distribution",
+      "description": "",
+      "x_axis": null,
+      "y_axis": null,
+      "series": [
+        {
+          "id": "machine_id",
+          "name": "Machine Id",
+          "field": "value"
+        }
+      ],
+      "data": [
+        {
+          "category": "MC-101",
+          "value": 96
+        },
+        {
+          "category": "MC-102",
+          "value": 96
+        }
+      ],
+      "insights": []
+    },
+    {
+      "id": "chart_machine_telemetry_raw_table",
+      "chart_type": "table",
+      "title": "Machine Telemetry - Raw Records",
+      "description": "",
+      "x_axis": null,
+      "y_axis": null,
+      "series": [],
+      "data": [
+        {
+          "timestamp": "2026-09-23T09:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.51,
+          "vibration": 2.68,
+          "current": 12.55,
+          "power": 5.02,
+          "rpm": 1455
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.64,
+          "vibration": 1.96,
+          "current": 15.38,
+          "power": 6.27,
+          "rpm": 1452
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.53,
+          "vibration": 2.03,
+          "current": 15.72,
+          "power": 5.71,
+          "rpm": 1432
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.19,
+          "vibration": 2.09,
+          "current": 15.31,
+          "power": 5.94,
+          "rpm": 1379
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 70.86,
+          "vibration": 2.56,
+          "current": 15.24,
+          "power": 6.13,
+          "rpm": 1423
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.13,
+          "vibration": 2.39,
+          "current": 15.37,
+          "power": 5.93,
+          "rpm": 1477
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.68,
+          "vibration": 2.9,
+          "current": 13.63,
+          "power": 6.38,
+          "rpm": 1382
+        },
+        {
+          "timestamp": "2026-09-23T11:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 68.03,
+          "vibration": 2.14,
+          "current": 12.56,
+          "power": 5.61,
+          "rpm": 1438
+        },
+        {
+          "timestamp": "2026-09-23T12:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 65.57,
+          "vibration": 2.17,
+          "current": 14.36,
+          "power": 6.17,
+          "rpm": 1380
+        },
+        {
+          "timestamp": "2026-09-23T12:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.65,
+          "vibration": 2.04,
+          "current": 14.14,
+          "power": 5.57,
+          "rpm": 1402
+        },
+        {
+          "timestamp": "2026-09-23T13:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.65,
+          "vibration": 2.27,
+          "current": 12.81,
+          "power": 4.93,
+          "rpm": 1397
+        },
+        {
+          "timestamp": "2026-09-23T13:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.06,
+          "vibration": 1.94,
+          "current": 14.12,
+          "power": 6.58,
+          "rpm": 1435
+        },
+        {
+          "timestamp": "2026-09-23T13:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.66,
+          "vibration": 2.4,
+          "current": 13.91,
+          "power": 4.93,
+          "rpm": 1452
+        },
+        {
+          "timestamp": "2026-09-23T14:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 65.05,
+          "vibration": 2.13,
+          "current": 14.02,
+          "power": 6.27,
+          "rpm": 1509
+        },
+        {
+          "timestamp": "2026-09-23T14:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.79,
+          "vibration": 1.93,
+          "current": 14.11,
+          "power": 4.97,
+          "rpm": 1475
+        },
+        {
+          "timestamp": "2026-09-23T14:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 65.06,
+          "vibration": 1.89,
+          "current": 14.44,
+          "power": 6.43,
+          "rpm": 1410
+        },
+        {
+          "timestamp": "2026-09-23T15:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.9,
+          "vibration": 2.24,
+          "current": 15.57,
+          "power": 5.89,
+          "rpm": 1443
+        },
+        {
+          "timestamp": "2026-09-23T15:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 70.7,
+          "vibration": 2.11,
+          "current": 14.45,
+          "power": 6.86,
+          "rpm": 1455
+        },
+        {
+          "timestamp": "2026-09-23T16:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.05,
+          "vibration": 2.52,
+          "current": 14.31,
+          "power": 5.97,
+          "rpm": 1456
+        },
+        {
+          "timestamp": "2026-09-23T16:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.71,
+          "vibration": 2.48,
+          "current": 14.05,
+          "power": 5.06,
+          "rpm": 1398
+        },
+        {
+          "timestamp": "2026-09-23T16:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.71,
+          "vibration": 2.74,
+          "current": 14.93,
+          "power": 6.72,
+          "rpm": 1457
+        },
+        {
+          "timestamp": "2026-09-23T17:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.82,
+          "vibration": 2.96,
+          "current": 16.22,
+          "power": 5.69,
+          "rpm": 1434
+        },
+        {
+          "timestamp": "2026-09-23T17:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.66,
+          "vibration": 1.79,
+          "current": 16.18,
+          "power": 6.84,
+          "rpm": 1504
+        },
+        {
+          "timestamp": "2026-09-23T17:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.02,
+          "vibration": 1.81,
+          "current": 13.62,
+          "power": 5.6,
+          "rpm": 1486
+        },
+        {
+          "timestamp": "2026-09-23T18:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.61,
+          "vibration": 2.02,
+          "current": 14.28,
+          "power": 5.95,
+          "rpm": 1457
+        },
+        {
+          "timestamp": "2026-09-23T18:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.65,
+          "vibration": 2.39,
+          "current": 17.02,
+          "power": 6.93,
+          "rpm": 1415
+        },
+        {
+          "timestamp": "2026-09-23T19:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.14,
+          "vibration": 2.23,
+          "current": 13.44,
+          "power": 5.48,
+          "rpm": 1414
+        },
+        {
+          "timestamp": "2026-09-23T19:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.41,
+          "vibration": 2.22,
+          "current": 13.92,
+          "power": 5.95,
+          "rpm": 1429
+        },
+        {
+          "timestamp": "2026-09-23T19:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 67.53,
+          "vibration": 1.84,
+          "current": 12.38,
+          "power": 4.68,
+          "rpm": 1451
+        },
+        {
+          "timestamp": "2026-09-23T20:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.43,
+          "vibration": 2.19,
+          "current": 14.73,
+          "power": 5.47,
+          "rpm": 1468
+        },
+        {
+          "timestamp": "2026-09-23T20:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.54,
+          "vibration": 3.06,
+          "current": 14.54,
+          "power": 6.85,
+          "rpm": 1446
+        },
+        {
+          "timestamp": "2026-09-23T20:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.6,
+          "vibration": 1.86,
+          "current": 15.69,
+          "power": 5.96,
+          "rpm": 1469
+        },
+        {
+          "timestamp": "2026-09-23T21:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.45,
+          "vibration": 1.53,
+          "current": 15.17,
+          "power": 5.21,
+          "rpm": 1392
+        },
+        {
+          "timestamp": "2026-09-23T21:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.29,
+          "vibration": 2.37,
+          "current": 14.8,
+          "power": 5.58,
+          "rpm": 1379
+        },
+        {
+          "timestamp": "2026-09-23T22:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.38,
+          "vibration": 2.3,
+          "current": 14.28,
+          "power": 5.74,
+          "rpm": 1448
+        },
+        {
+          "timestamp": "2026-09-23T22:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 68.79,
+          "vibration": 1.86,
+          "current": 13.33,
+          "power": 5.14,
+          "rpm": 1461
+        },
+        {
+          "timestamp": "2026-09-23T22:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 75.13,
+          "vibration": 2.59,
+          "current": 12.93,
+          "power": 5.76,
+          "rpm": 1403
+        },
+        {
+          "timestamp": "2026-09-23T23:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 76.4,
+          "vibration": 2.56,
+          "current": 13.8,
+          "power": 5.19,
+          "rpm": 1451
+        },
+        {
+          "timestamp": "2026-09-23T23:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 74.12,
+          "vibration": 2.47,
+          "current": 16.12,
+          "power": 4.56,
+          "rpm": 1426
+        },
+        {
+          "timestamp": "2026-09-23T23:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.78,
+          "vibration": 2.51,
+          "current": 15.86,
+          "power": 4.67,
+          "rpm": 1437
+        },
+        {
+          "timestamp": "2026-09-24T00:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.46,
+          "vibration": 2.45,
+          "current": 15.5,
+          "power": 5.16,
+          "rpm": 1444
+        },
+        {
+          "timestamp": "2026-09-24T00:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 68.68,
+          "vibration": 2.54,
+          "current": 13.35,
+          "power": 5.75,
+          "rpm": 1487
+        },
+        {
+          "timestamp": "2026-09-24T01:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 75.17,
+          "vibration": 2.12,
+          "current": 14.61,
+          "power": 6.59,
+          "rpm": 1385
+        },
+        {
+          "timestamp": "2026-09-24T01:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.81,
+          "vibration": 1.98,
+          "current": 14.94,
+          "power": 6.11,
+          "rpm": 1461
+        },
+        {
+          "timestamp": "2026-09-24T01:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 74.94,
+          "vibration": 2.36,
+          "current": 15.26,
+          "power": 5.94,
+          "rpm": 1471
+        },
+        {
+          "timestamp": "2026-09-24T02:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.03,
+          "vibration": 2.26,
+          "current": 14.72,
+          "power": 6.17,
+          "rpm": 1410
+        },
+        {
+          "timestamp": "2026-09-24T02:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 67.31,
+          "vibration": 2.59,
+          "current": 14.87,
+          "power": 6.18,
+          "rpm": 1393
+        },
+        {
+          "timestamp": "2026-09-24T02:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 68.31,
+          "vibration": 2.11,
+          "current": 15.37,
+          "power": 6.69,
+          "rpm": 1521
+        },
+        {
+          "timestamp": "2026-09-24T03:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.02,
+          "vibration": 2.49,
+          "current": 14.37,
+          "power": 4.7,
+          "rpm": 1487
+        },
+        {
+          "timestamp": "2026-09-24T03:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.77,
+          "vibration": 1.87,
+          "current": 13.85,
+          "power": 6.06,
+          "rpm": 1442
+        },
+        {
+          "timestamp": "2026-09-24T04:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.63,
+          "vibration": 2.55,
+          "current": 14.84,
+          "power": 5.99,
+          "rpm": 1466
+        },
+        {
+          "timestamp": "2026-09-24T04:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.65,
+          "vibration": 2.36,
+          "current": 15.58,
+          "power": 5.29,
+          "rpm": 1463
+        },
+        {
+          "timestamp": "2026-09-24T04:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.0,
+          "vibration": 3.07,
+          "current": 15.61,
+          "power": 5.22,
+          "rpm": 1463
+        },
+        {
+          "timestamp": "2026-09-24T05:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 75.22,
+          "vibration": 2.37,
+          "current": 15.12,
+          "power": 5.6,
+          "rpm": 1492
+        },
+        {
+          "timestamp": "2026-09-24T05:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.27,
+          "vibration": 2.89,
+          "current": 14.65,
+          "power": 6.05,
+          "rpm": 1454
+        },
+        {
+          "timestamp": "2026-09-24T05:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 68.14,
+          "vibration": 2.88,
+          "current": 14.04,
+          "power": 6.48,
+          "rpm": 1424
+        },
+        {
+          "timestamp": "2026-09-24T06:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.49,
+          "vibration": 1.66,
+          "current": 13.59,
+          "power": 5.94,
+          "rpm": 1502
+        },
+        {
+          "timestamp": "2026-09-24T06:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 79.68,
+          "vibration": 2.47,
+          "current": 13.94,
+          "power": 6.08,
+          "rpm": 1387
+        },
+        {
+          "timestamp": "2026-09-24T07:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 67.25,
+          "vibration": 2.3,
+          "current": 15.29,
+          "power": 5.91,
+          "rpm": 1423
+        },
+        {
+          "timestamp": "2026-09-24T07:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 75.65,
+          "vibration": 2.12,
+          "current": 15.96,
+          "power": 5.88,
+          "rpm": 1460
+        },
+        {
+          "timestamp": "2026-09-24T07:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 73.93,
+          "vibration": 2.76,
+          "current": 12.11,
+          "power": 5.33,
+          "rpm": 1382
+        },
+        {
+          "timestamp": "2026-09-24T08:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 77.0,
+          "vibration": 2.23,
+          "current": 14.25,
+          "power": 5.7,
+          "rpm": 1458
+        },
+        {
+          "timestamp": "2026-09-24T08:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.36,
+          "vibration": 3.01,
+          "current": 14.4,
+          "power": 5.65,
+          "rpm": 1366
+        },
+        {
+          "timestamp": "2026-09-24T08:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 74.9,
+          "vibration": 1.94,
+          "current": 14.43,
+          "power": 6.0,
+          "rpm": 1452
+        }
+      ],
+      "insights": []
+    }
+  ],
+  "tables": [
+    {
+      "id": "table_influxdb_machine_telemetry",
+      "title": "Machine Telemetry - Sample Records",
+      "columns": [
+        "timestamp",
+        "machine_id",
+        "temperature",
+        "vibration",
+        "current",
+        "power",
+        "rpm"
+      ],
+      "rows": [
+        {
+          "timestamp": "2026-09-23T09:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.51,
+          "vibration": 2.68,
+          "current": 12.55,
+          "power": 5.02,
+          "rpm": 1455
+        },
+        {
+          "timestamp": "2026-09-23T09:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.53,
+          "vibration": 2.4,
+          "current": 13.6,
+          "power": 5.91,
+          "rpm": 1391
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.16,
+          "vibration": 2.2,
+          "current": 14.86,
+          "power": 4.35,
+          "rpm": 1403
+        },
+        {
+          "timestamp": "2026-09-23T09:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.64,
+          "vibration": 1.96,
+          "current": 15.38,
+          "power": 6.27,
+          "rpm": 1452
+        },
+        {
+          "timestamp": "2026-09-23T09:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 63.43,
+          "vibration": 2.59,
+          "current": 16.5,
+          "power": 5.09,
+          "rpm": 1416
+        },
+        {
+          "timestamp": "2026-09-23T09:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.28,
+          "vibration": 1.96,
+          "current": 14.87,
+          "power": 5.22,
+          "rpm": 1485
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.53,
+          "vibration": 2.03,
+          "current": 15.72,
+          "power": 5.71,
+          "rpm": 1432
+        },
+        {
+          "timestamp": "2026-09-23T10:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.69,
+          "vibration": 1.81,
+          "current": 14.75,
+          "power": 6.89,
+          "rpm": 1383
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.36,
+          "vibration": 2.45,
+          "current": 14.91,
+          "power": 6.06,
+          "rpm": 1535
+        },
+        {
+          "timestamp": "2026-09-23T10:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.19,
+          "vibration": 2.09,
+          "current": 15.31,
+          "power": 5.94,
+          "rpm": 1379
+        },
+        {
+          "timestamp": "2026-09-23T10:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.11,
+          "vibration": 2.81,
+          "current": 13.87,
+          "power": 5.42,
+          "rpm": 1471
+        },
+        {
+          "timestamp": "2026-09-23T10:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.3,
+          "vibration": 1.97,
+          "current": 15.12,
+          "power": 6.48,
+          "rpm": 1445
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 70.86,
+          "vibration": 2.56,
+          "current": 15.24,
+          "power": 6.13,
+          "rpm": 1423
+        },
+        {
+          "timestamp": "2026-09-23T10:56:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 65.48,
+          "vibration": 1.63,
+          "current": 15.04,
+          "power": 5.18,
+          "rpm": 1459
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 65.5,
+          "vibration": 1.98,
+          "current": 13.22,
+          "power": 6.23,
+          "rpm": 1459
+        },
+        {
+          "timestamp": "2026-09-23T11:11:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.13,
+          "vibration": 2.39,
+          "current": 15.37,
+          "power": 5.93,
+          "rpm": 1477
+        },
+        {
+          "timestamp": "2026-09-23T11:26:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 66.6,
+          "vibration": 2.12,
+          "current": 14.53,
+          "power": 5.96,
+          "rpm": 1425
+        },
+        {
+          "timestamp": "2026-09-23T11:26:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 72.13,
+          "vibration": 2.55,
+          "current": 13.04,
+          "power": 5.61,
+          "rpm": 1431
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569Z",
+          "machine_id": "MC-101",
+          "temperature": 71.68,
+          "vibration": 2.9,
+          "current": 13.63,
+          "power": 6.38,
+          "rpm": 1382
+        },
+        {
+          "timestamp": "2026-09-23T11:41:33.569Z",
+          "machine_id": "MC-102",
+          "temperature": 64.17,
+          "vibration": 2.14,
+          "current": 15.86,
+          "power": 5.18,
+          "rpm": 1353
+        }
+      ]
+    }
+  ],
+  "data_quality": {
+    "status": "complete",
+    "source_records": 192,
+    "missing_values": 0,
+    "invalid_values": 0,
+    "warnings": []
+  },
+  "sources": [
+    {
+      "database": "influxdb",
+      "source_name": "machine_telemetry",
+      "record_count": 192,
+      "status": "success"
+    }
+  ],
+  "metadata": {
+    "agent": "report_generator",
+    "research_id": "demo_75313715",
+    "report_version": "1.0",
+    "calculation_notes": [
+      "All numeric KPIs computed with pandas (mean/median/min/max/std/trend) -- no LLM involved.",
+      "Chart data uses structured objects per point, never stringified coordinate lists."
+    ],
+    "llm_used": false
+  }
+}

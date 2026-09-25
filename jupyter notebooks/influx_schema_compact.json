@@ -1,0 +1,78 @@
+{
+  "ECE2": {
+    "electrical_params": {
+      "tags": {
+        "device_id": [
+          "00WH9OUI",
+          "012ZY5SC"
+        ]
+      },
+      "fields": {
+        "BN_V": "float",
+        "BR_V": "float",
+        "B_Current": "float",
+        "Cumulative_Cycles": "float",
+        "Current_AVG": "float",
+        "Dry_Status": "float",
+        "Proxy_Count": "float",
+        "RN_V": "float",
+        "RY_V": "float",
+        "R_Current": "float",
+        "Temperature": "float",
+        "V_AVG": "float",
+        "Vibration": "float",
+        "YB_V": "float",
+        "YN_V": "float",
+        "Y_Current": "float"
+      }
+    }
+  },
+  "mps": {
+    "shared_schema": {
+      "tags": {},
+      "fields": {
+        "cycle_count": "float",
+        "good_count": "float",
+        "ideal_cycle_time": "float",
+        "reject_count": "float",
+        "run_status": "float",
+        "total_count": "float"
+      }
+    },
+    "measurements": [
+      "BM-01",
+      "BM-02",
+      "BM-03",
+      "BM-04",
+      "BM-05",
+      "BM-06",
+      "BM-07",
+      "BM-08",
+      "BM-09",
+      "BM-10",
+      "BM-11",
+      "BM-12",
+      "BM-13",
+      "CH-01",
+      "CH-02",
+      "CH-03",
+      "CH-04",
+      "CH-05",
+      "CH-06",
+      "FTR-01",
+      "FTR-02",
+      "FTR-03",
+      "FTR-04",
+      "FTR-05",
+      "FTR-06",
+      "FTR-07",
+      "FTR-08",
+      "FTR-09",
+      "FTR-10",
+      "FTR-11",
+      "FTR-12",
+      "FTR-13",
+      "FTR-14"
+    ]
+  }
+}
