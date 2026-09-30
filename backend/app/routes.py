@@ -29,6 +29,14 @@ from app.db import (
 )
 from app.db import MachineRecommendation, MachineIssue, MachineDocumentChunk
 from app.machine_rag import index_machine_document, query_machine_documents
+from app.agents.operations_agent import (
+    ALLOWED_EXTENSIONS as OPERATIONS_ALLOWED_EXTENSIONS,
+    MAX_UPLOAD_BYTES as OPERATIONS_MAX_UPLOAD_BYTES,
+    list_operations_documents,
+    read_operations_document_content,
+    run_operations_conversation,
+    save_operations_document,
+)
 from app.permission_engine import get_permission_catalog as get_permission_catalog_definitions, normalize_permission_rule
 from app.db import ChartSummary
 from app.llm_gateway import execute_completion, get_usage_audit
@@ -246,6 +254,10 @@ class RbacUserCreateRequest(BaseModel):
         return values
 
 class MaintenanceChatRequest(BaseModel):
+    message: str
+    thread_id: Optional[str] = None
+
+class OperationsChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
@@ -2701,6 +2713,65 @@ async def maintenance_chat(req: MaintenanceChatRequest):
         "reply": response["reply"],
         "visuals": response["visuals"],
     }
+
+@router.get("/api/operations/documents")
+async def get_operations_documents(request: Request, db: AsyncSession = Depends(get_db)):
+    await get_current_user(request, db)
+    return list_operations_documents()
+
+@router.get("/api/operations/documents/content")
+async def get_operations_document_content(
+    request: Request,
+    path: str,
+    db: AsyncSession = Depends(get_db),
+):
+    await get_current_user(request, db)
+    try:
+        return read_operations_document_content(path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+@router.post("/api/operations/upload", status_code=status.HTTP_201_CREATED)
+async def upload_operations_document(
+    request: Request,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    await get_current_user(request, db)
+    filename = (file.filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+    extension = Path(filename).suffix.lower()
+    if extension not in OPERATIONS_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=415, detail="Allowed file types: PDF, Markdown, and TXT.")
+    content = await file.read(OPERATIONS_MAX_UPLOAD_BYTES + 1)
+    if len(content) > OPERATIONS_MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Files must be 20 MB or smaller.")
+    try:
+        document = save_operations_document(filename, content)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    finally:
+        await file.close()
+    return {**document, **list_operations_documents()}
+
+@router.post("/api/operations/chat")
+async def operations_chat(
+    req: OperationsChatRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(request, db)
+    client_thread_id = req.thread_id or uuid.uuid4().hex
+    scoped_thread_id = f"operations-user-{user.id}-{hashlib.sha256(client_thread_id.encode()).hexdigest()}"
+    try:
+        response = await run_operations_conversation(req.message, thread_id=scoped_thread_id)
+        response["thread_id"] = client_thread_id
+        return response
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 @router.post("/api/agent/approve")
 async def approve_workflow(req: ApproveRequest):

@@ -7,6 +7,7 @@ import { agents, AGENT_INTEGRATION_DEPENDENCY } from '../data/mockData';
 import { useIntegrations } from '../services/IntegrationContext';
 
 const ACTIVE_AGENT_NAMES = new Set([
+  'Operations Agent',
   'Maintenance Agent',
   'Reporting Agent',
   'Safety & Quality Agent',
@@ -87,6 +88,8 @@ export const AgentsPage: React.FC = () => {
 
     if (agentName === 'Reporting Agent') {
       navigate('/agents/reporting');
+    } else if (agentName === 'Operations Agent') {
+      navigate('/agents/Operations');
     } else if (agentName === 'Maintenance Agent') {
       navigate('/agents/maintenance');
     } else if (agentName === 'Safety & Quality Agent') {

@@ -27,6 +27,7 @@ RUN grep -Ev '^(debugpy|ipykernel|ipython|ipython_pygments_lexers|jupyter_client
     && rm requirements.docker.txt
 
 COPY app ./app
+COPY data ./data
 COPY mes_catalog_full.json parsed_catalog.json ./
 
 RUN mkdir -p reports logs

@@ -7,6 +7,7 @@ import { UseCaseDetailPage } from './pages/UseCaseDetailPage';
 import { ExecutiveInsightsPage } from './pages/ExecutiveInsightsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { ReportingAgentPage } from './pages/ReportingAgentPage';
+import { OperationsAgentPage } from './pages/OperationsAgentPage';
 import { MaintenanceAgentPage } from './pages/MaintenanceAgentPage';
 import { SafetyQualityAgentPage } from './pages/SafetyQualityAgentPage';
 import { PPEVisionAgentPage } from './pages/PPEVisionAgentPage';
@@ -79,6 +80,7 @@ function App() {
             <Route path="use-cases/:id" element={<UseCaseDetailPage />} />
             <Route path="agents" element={<AgentsPage />} />
             <Route path="agents/reporting" element={<ReportingAgentPage />} />
+            <Route path="agents/Operations" element={<OperationsAgentPage />} />
             <Route path="agents/maintenance" element={<MaintenanceAgentPage />} />
             <Route path="agents/safety-quality" element={<SafetyQualityAgentPage />} />
             <Route path="agents/ppe-vision" element={<PPEVisionAgentPage />} />
