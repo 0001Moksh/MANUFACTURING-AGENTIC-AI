@@ -1,5 +1,5 @@
-// Local dev should hit the MAI backend directly; a Vite env var can still override this.
-const fallbackApiBaseUrl = 'http://localhost:8001/api';
+// Use the current origin so LAN clients reach the host's Vite/Nginx API proxy.
+const fallbackApiBaseUrl = '/api';
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || fallbackApiBaseUrl).replace(/\/$/, '');
 
