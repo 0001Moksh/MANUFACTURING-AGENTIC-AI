@@ -59,7 +59,8 @@ const SUGGESTED_QUERIES = [
 ];
 
 const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-const newThreadId = () => `operations-${crypto.randomUUID()}`;
+const newThreadId = () =>
+    `operations-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 const errorDetail = (e: unknown) =>
     (e as { response?: { data?: { detail?: string } } }).response?.data?.detail;
 
