@@ -6,7 +6,6 @@ import {
   Database,
   Sparkles,
   FileText,
-  ShieldCheck,
   ChevronDown,
 } from 'lucide-react';
 import { AgentChatConsole } from '../components/agents/ReportingAgentConsole';

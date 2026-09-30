@@ -417,6 +417,26 @@ export const OperationsAgentPage: React.FC = () => {
                         </button>
 
                         <button
+                            onClick={() => void handleShare()}
+                            className={heroBtn}
+                            title={linkCopied ? 'Chat link copied' : 'Copy chat link'}
+                            aria-label={linkCopied ? 'Chat link copied' : 'Copy chat link'}
+                        >
+                            {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{linkCopied ? 'Copied' : 'Share'}</span>
+                        </button>
+
+                        <button
+                            onClick={() => setIsExpanded((expanded) => !expanded)}
+                            className={heroBtn}
+                            title={isExpanded ? 'Exit expanded view' : 'Expand chat'}
+                            aria-label={isExpanded ? 'Exit expanded view' : 'Expand chat'}
+                        >
+                            {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                            <span className="hidden sm:inline">{isExpanded ? 'Collapse' : 'Expand'}</span>
+                        </button>
+
+                        <button
                             onClick={() => setHeroExpanded((v) => !v)}
                             className={heroBtn}
                             title={heroExpanded ? 'Hide details' : 'Show details'}
