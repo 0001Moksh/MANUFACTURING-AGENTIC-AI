@@ -14,3 +14,4 @@ This index catalogs the local Operations Agent knowledge base.
 |---|---|---|
 | SOP-OPS-001 — Daily Production Operations and Shift Reporting (SOP-OPS-001) | [SOP-OPS-001_Daily_Production_Operations_and_Shift_Reporting.md](./SOP-OPS-001_Daily_Production_Operations_and_Shift_Reporting.md) | MD |
 | SOP-OPS-002 — Work Order and Work-Step Compliance Verification (SOP-OPS-002) | [SOP-OPS-002_Work_Order_and_Work_Step_Compliance_Verification.md](./SOP-OPS-002_Work_Order_and_Work_Step_Compliance_Verification.md) | MD |
+| SOP-OPS-003_Machine_Line_Downtime_Recording_and_Escalation (SOP-OPS-003) | [SOP-OPS-003_Machine_Line_Downtime_Recording_and_Escalation.pdf](./uploads/SOP-OPS-003_Machine_Line_Downtime_Recording_and_Escalation.pdf) | PDF |

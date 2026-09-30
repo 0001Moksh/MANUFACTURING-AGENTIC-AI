@@ -453,8 +453,15 @@ def _write_index() -> None:
         lines.append(f"| {safe_title} ({document_id}) | [{path.name}](./{relative_path}) | {path.suffix[1:].upper()} |")
     index_path = KNOWLEDGE_DIRECTORY / "index.md"
     temporary_path = KNOWLEDGE_DIRECTORY / f".index-{uuid.uuid4().hex}.tmp"
-    temporary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    os.replace(temporary_path, index_path)
+    index_content = "\n".join(lines) + "\n"
+    temporary_path.write_text(index_content, encoding="utf-8")
+    try:
+        try:
+            os.replace(temporary_path, index_path)
+        except PermissionError:
+            index_path.write_text(index_content, encoding="utf-8")
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def read_operations_document_content(relative_path: str) -> dict[str, Any]:

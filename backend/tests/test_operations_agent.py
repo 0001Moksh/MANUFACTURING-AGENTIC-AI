@@ -40,6 +40,28 @@ def test_upload_saves_document_and_refreshes_okf_index(tmp_path, monkeypatch):
     assert any(document["name"] == "shift-notes.md" for document in listed["documents"])
 
 
+def test_upload_updates_index_when_windows_blocks_atomic_replace(tmp_path, monkeypatch):
+    monkeypatch.setattr(operations_agent, "KNOWLEDGE_DIRECTORY", tmp_path)
+
+    real_replace = operations_agent.os.replace
+
+    def deny_index_replace(source, destination):
+        if destination == tmp_path / "index.md":
+            raise PermissionError("index is temporarily locked")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(operations_agent.os, "replace", deny_index_replace)
+
+    uploaded = operations_agent.save_operations_document(
+        "shift-notes.md",
+        b"# Shift Notes\n\nApproved shift handover data validation procedure.\n",
+    )
+
+    assert (tmp_path / "index.md").is_file()
+    assert "shift-notes.md" in (tmp_path / "index.md").read_text(encoding="utf-8")
+    assert (tmp_path / uploaded["path"]).is_file()
+
+
 def test_upload_rejects_unsupported_and_invalid_text_files(tmp_path, monkeypatch):
     monkeypatch.setattr(operations_agent, "KNOWLEDGE_DIRECTORY", tmp_path)
 
