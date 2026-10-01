@@ -10,9 +10,10 @@ interface AgentCardProps {
   onClick?: () => void;
   isSelected?: boolean;
   isComingSoon?: boolean;
+  alwaysNavigable?: boolean;
 }
 
-export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected, isComingSoon = false }) => {
+export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected, isComingSoon = false, alwaysNavigable = false }) => {
   const navigate = useNavigate();
   const { integrationStates, agentStates, toggleAgentState } = useIntegrations();
   const isAgentEnabled = agentStates[agent.n] ?? true;
@@ -38,11 +39,11 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected
 
   return (
     <div
-      onClick={isBlocked || isComingSoon ? undefined : onClick}
+      onClick={isComingSoon || (isBlocked && !alwaysNavigable) ? undefined : onClick}
       className={`bg-panel border rounded-[13px] p-[16px_18px] flex flex-col transition-all duration-300 ${
         isComingSoon
           ? 'opacity-90 grayscale-0 cursor-not-allowed border-dashed border-border-color bg-[#F8F9FC]'
-          : isBlocked
+          : isBlocked && !alwaysNavigable
           ? 'opacity-60 grayscale-[0.3] cursor-not-allowed border-border-color bg-[#FAFBFD]'
           : isSelected
           ? 'border-teal shadow-md ring-1 ring-teal/20 hover:border-teal/50 hover:shadow-sm cursor-pointer'

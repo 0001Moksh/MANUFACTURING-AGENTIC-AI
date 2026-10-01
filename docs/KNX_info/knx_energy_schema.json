@@ -1,0 +1,1479 @@
+{
+  "source": {
+    "device": "Schneider Electric LSS100200",
+    "protocol": "KNX IoT 3rd Party API",
+    "api_version": "1.0.0",
+    "endpoint": "https://192.168.1.150/api/w4knx/3rdparty/v1/datapoints"
+  },
+  "summary": {
+    "total_datapoints": 48,
+    "energy_datapoints": 17,
+    "dpt_types": {
+      "urn:knx:dpt.switch": 14,
+      "urn:knx:dpt.scaling": 9,
+      "urn:knx:dpt.upDown": 3,
+      "urn:knx:dpt.step": 3,
+      "urn:knx:dpt.generic": 6,
+      "urn:knx:dpt.power": 5,
+      "urn:knx:dpt.energy": 6,
+      "urn:knx:dpt.uuid": 2
+    },
+    "value_types": {
+      "string": 48
+    }
+  },
+  "datapoint_schema": [
+    {
+      "id": "acbc7ca1-819e-435e-9599-23bf185bf183",
+      "type": "datapoint",
+      "title": "Pantry Light-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "0c4e66f8-8f3e-4193-af5c-6038c82920e3",
+        "name": "Lume1"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "177e24f3-f38f-4fbe-8bc9-1576efb7a275",
+      "type": "datapoint",
+      "title": "Cabin 1/2 Light-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "c3946996-2338-492d-8eeb-7b39a1ecbd61",
+        "name": "Lume1"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "0900491d-97f4-48ca-9865-a72ff3400ec7",
+      "type": "datapoint",
+      "title": "Meeting Light-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "68c1edb7-6b69-428b-8251-917c0de8173a",
+        "name": "Lume1"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "8db4fe67-98cf-42f5-8c5d-5d939caf3511",
+      "type": "datapoint",
+      "title": "Cabin 3 Light-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "fde66ad0-ba1b-4733-9432-1a075f2184aa",
+        "name": "Lume1"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "db3e1f07-561f-404f-8b0a-17bfe02c2d9e",
+      "type": "datapoint",
+      "title": "Lab Light-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "4a37d5fc-0da9-47c6-b493-99204461d5f9",
+        "name": "Lume1"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "6e5c973a-a089-4fdb-87ff-eaea7c61884d",
+      "type": "datapoint",
+      "title": "Cafe-EX Light-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "1f1e77e5-8c15-494f-9138-65b3515fad9e",
+        "name": "Lume1"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "11ac4a14-3fc9-4550-b84f-08dd59537f06",
+      "type": "datapoint",
+      "title": "Chandelier Strip -S",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "8cdb438f-38c5-4b8d-8897-fd138e3a7f2a",
+        "name": "Lume2"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "c459f657-05e7-4c8a-83c2-593ed5e986ba",
+      "type": "datapoint",
+      "title": "Experience Centre-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "f91731e0-b5de-40ad-a4b7-91c8a887d9b1",
+        "name": "Lume2"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "7001a5fc-dc05-482f-b717-ed50a294dfb7",
+      "type": "datapoint",
+      "title": "Fusion Lume-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "513f422a-f88a-4583-abce-4345db16f048",
+        "name": "Lume2"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "16928b8f-fc48-4aa5-852c-24c5f12fef3b",
+      "type": "datapoint",
+      "title": "Experience Centre-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "119f9f94-a9fa-4a0f-b4bf-8a0a5e3bd72c",
+        "name": "Lume2"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "f118260d-21e8-4fc9-88da-de9bd0eaf154",
+      "type": "datapoint",
+      "title": "Chandelier Lume -S",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.417.70",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "bde65b60-2fbc-4a91-9369-dda871ed777d",
+        "name": "Lume2"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "9911a422-161a-4bec-a4e5-83f33285daca",
+      "type": "datapoint",
+      "title": "RadiantZone-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.418.61",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "b7793f8e-6697-456c-8e40-88b5593d58ec",
+        "name": "Dali Light"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "726996b0-4fe0-442d-8fde-3b0f31e8eafa",
+      "type": "datapoint",
+      "title": "RadiantZone-VF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.418.63",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "b7793f8e-6697-456c-8e40-88b5593d58ec",
+        "name": "Dali Light"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "65365b71-a874-4205-86a7-3179efef3eb1",
+      "type": "datapoint",
+      "title": "FlareHub-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.418.61",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "b4c73b7c-21ef-4560-a722-61e312addefb",
+        "name": "Dali Light"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "e611d47d-36f3-4cb1-8abb-427c3e639a09",
+      "type": "datapoint",
+      "title": "FlareHub-VF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.418.63",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "b4c73b7c-21ef-4560-a722-61e312addefb",
+        "name": "Dali Light"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "25e59bbb-16db-4f52-97ee-020985819810",
+      "type": "datapoint",
+      "title": "LuxSphere-SF",
+      "description": "",
+      "value": "off",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.switch",
+      "dpt_metadata": [
+        "dic:dpa.418.61",
+        "urn:knx:dpt.switch"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "aa886122-7a5c-4be4-a031-ab56571327c6",
+        "name": "Dali Light"
+      },
+      "enum": [
+        "on",
+        "off"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "066b0104-8bbd-4c5f-80bc-498b51b1d0e0",
+      "type": "datapoint",
+      "title": "LuxSphere-VF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.418.63",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "name": "Lights"
+      },
+      "function": {
+        "id": "aa886122-7a5c-4be4-a031-ab56571327c6",
+        "name": "Dali Light"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": true
+    },
+    {
+      "id": "dbc27489-464e-4ed0-8d62-f5ef16e0f7e6",
+      "type": "datapoint",
+      "title": "Meeting-HPF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.800.65",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "a9849af4-de68-40da-9a05-f88dc87f0bf1",
+        "name": "Meeting"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "553438db-f739-4d1a-8066-6a8c692aa228",
+      "type": "datapoint",
+      "title": "Meeting-HPF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.800.66",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "a9849af4-de68-40da-9a05-f88dc87f0bf1",
+        "name": "Meeting"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "dd9bd9e0-c796-485e-a8a9-85b989222a3c",
+      "type": "datapoint",
+      "title": "Meeting-Open",
+      "description": "",
+      "value": "down",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.upDown",
+      "dpt_metadata": [
+        "dic:dpa.801.61",
+        "urn:knx:dpt.upDown"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "a9849af4-de68-40da-9a05-f88dc87f0bf1",
+        "name": "Meeting"
+      },
+      "enum": [
+        "down",
+        "up"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "0ed51663-9e4d-42fc-a81e-23c1c0a5bde7",
+      "type": "datapoint",
+      "title": "Meeting-close",
+      "description": "",
+      "value": "decrease",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.step",
+      "dpt_metadata": [
+        "dic:dpa.801.62",
+        "urn:knx:dpt.step"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "a9849af4-de68-40da-9a05-f88dc87f0bf1",
+        "name": "Meeting"
+      },
+      "enum": [
+        "increase",
+        "decrease"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "3cea5929-070a-4fa1-9dfe-20d081a632d2",
+      "type": "datapoint",
+      "title": "Experience Centre-HPF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.800.65",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "883b479b-bf28-4874-9946-5816927fe332",
+        "name": "Experience"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "faf69318-93aa-4e6e-861c-15c55c88132b",
+      "type": "datapoint",
+      "title": "Experience Centre-SPF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.800.66",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "883b479b-bf28-4874-9946-5816927fe332",
+        "name": "Experience"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "d93c1e6e-3b44-4bbe-903f-fa7075b1f286",
+      "type": "datapoint",
+      "title": "Experience Centre-Open",
+      "description": "",
+      "value": "up",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.upDown",
+      "dpt_metadata": [
+        "dic:dpa.801.61",
+        "urn:knx:dpt.upDown"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "883b479b-bf28-4874-9946-5816927fe332",
+        "name": "Experience"
+      },
+      "enum": [
+        "down",
+        "up"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "4d27b8a1-8437-426e-a1de-75175ce4c57a",
+      "type": "datapoint",
+      "title": "Experience Centre-Close",
+      "description": "",
+      "value": "increase",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.step",
+      "dpt_metadata": [
+        "dic:dpa.801.62",
+        "urn:knx:dpt.step"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "883b479b-bf28-4874-9946-5816927fe332",
+        "name": "Experience"
+      },
+      "enum": [
+        "increase",
+        "decrease"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "949a1404-8360-47d2-9a2d-ea4b845a2652",
+      "type": "datapoint",
+      "title": "Cabin1-HPF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.800.65",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "d851ad6a-99b3-4d14-ba97-eb4704436590",
+        "name": "Cabin1"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "fee70884-3e13-4ab3-97c2-c064116aaea9",
+      "type": "datapoint",
+      "title": "Cabin1-HPF",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.scaling",
+      "dpt_metadata": [
+        "dic:dpa.800.66",
+        "urn:knx:dpt.scaling"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "d851ad6a-99b3-4d14-ba97-eb4704436590",
+        "name": "Cabin1"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "0c3cf39a-9abf-416a-a754-1f457985bc01",
+      "type": "datapoint",
+      "title": "Cabin1-Open",
+      "description": "",
+      "value": "down",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.upDown",
+      "dpt_metadata": [
+        "dic:dpa.801.61",
+        "urn:knx:dpt.upDown"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "d851ad6a-99b3-4d14-ba97-eb4704436590",
+        "name": "Cabin1"
+      },
+      "enum": [
+        "down",
+        "up"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "48e21148-b7c9-40fb-968b-fda22fcd5fbf",
+      "type": "datapoint",
+      "title": "Cabin1-Close",
+      "description": "",
+      "value": "increase",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": true,
+      "dpt": "urn:knx:dpt.step",
+      "dpt_metadata": [
+        "dic:dpa.801.62",
+        "urn:knx:dpt.step"
+      ],
+      "unit": null,
+      "location": {
+        "id": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "name": "Curtains"
+      },
+      "function": {
+        "id": "d851ad6a-99b3-4d14-ba97-eb4704436590",
+        "name": "Cabin1"
+      },
+      "enum": [
+        "increase",
+        "decrease"
+      ],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "996de084-586f-49bf-9d4f-cab1d3f13539",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Voltage",
+      "description": "",
+      "value": "236.7200012207",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.generic",
+      "dpt_metadata": [
+        "dic:dpa.417.65",
+        "urn:knx:dpt.generic"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "d3f676de-5ff0-408f-a4b1-18442b89a442",
+        "name": "Voltage"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "6223c027-1b33-49d0-b038-b968afd2af1a",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Current L1",
+      "description": "",
+      "value": "7.1100001335144",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.generic",
+      "dpt_metadata": [
+        "dic:dpa.417.65",
+        "urn:knx:dpt.generic"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "2c76b347-8d2c-49b1-95e4-c1439a23ee54",
+        "name": "Current"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "6bf79109-640b-4e51-a134-b345af6b916d",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Frequency",
+      "description": "",
+      "value": "50.020000457764",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:07:58Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.generic",
+      "dpt_metadata": [
+        "dic:dpa.417.65",
+        "urn:knx:dpt.generic"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "e699c7c1-5ed3-4a02-9297-02d63f5e6711",
+        "name": "Frequency"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "ed892785-0542-4f37-9024-99dd908cf232",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Reactive Power L1",
+      "description": "",
+      "value": "322.29998779297",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.generic",
+      "dpt_metadata": [
+        "dic:dpa.417.65",
+        "urn:knx:dpt.generic"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "328f2b28-aeef-4b86-b6d3-23cb7a635489",
+        "name": "Reactive Power"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "9d9fe0d9-2875-4fb1-b72d-6681f692493f",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Active Power L1",
+      "description": "",
+      "value": "1621.4000244141",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.generic",
+      "dpt_metadata": [
+        "dic:dpa.417.65",
+        "urn:knx:dpt.generic"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "94f4431f-61a0-4142-9fc6-8c0283242e80",
+        "name": "Active Power"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "88a03d8b-3057-488f-98cc-3bc553e2f2a9",
+      "type": "datapoint",
+      "title": "Energy Monitoring - L1 Active Energy Received",
+      "description": "",
+      "value": "76460",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.generic",
+      "dpt_metadata": [
+        "dic:dpa.417.65",
+        "urn:knx:dpt.generic"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "5cf34c67-09a4-4442-9a9d-19638833cb45",
+        "name": "Apparent Power"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "6eb13609-1981-405b-8c89-6619e285ae50",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Active Power L1",
+      "description": "",
+      "value": "1621.4000244141",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.power",
+      "dpt_metadata": [
+        "dic:dpa.65531.51",
+        "urn:knx:dpt.power"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "0884c2cb-8034-4dc5-a0f8-0c527c7ef718",
+        "name": "Main Power"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "879108fa-b035-445a-bc5e-c528b166e005",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Partial L1 Active Energy Received",
+      "description": "",
+      "value": "76460",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.energy",
+      "dpt_metadata": [
+        "dic:dpa.65531.52",
+        "urn:knx:dpt.energy"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "0884c2cb-8034-4dc5-a0f8-0c527c7ef718",
+        "name": "Main Power"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "0e514719-dd4d-45d6-96d6-fe229ad6e561",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Partial L1 Active Energy Delivered",
+      "description": "",
+      "value": "1714070",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.energy",
+      "dpt_metadata": [
+        "dic:dpa.65531.54",
+        "urn:knx:dpt.energy"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "0884c2cb-8034-4dc5-a0f8-0c527c7ef718",
+        "name": "Main Power"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "72587c27-63af-4b75-9bb0-acdef49bdc94",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Active Power L2",
+      "description": "",
+      "value": "478.60000610352",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:09Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.power",
+      "dpt_metadata": [
+        "dic:dpa.65531.51",
+        "urn:knx:dpt.power"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "b0d37e7e-c7ab-4eed-9d3e-47545daf9baa",
+        "name": "LuxSphere AC"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "e1898927-c5a5-4693-91aa-04b2dacb9e51",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Partial L2 Active Energy Received",
+      "description": "",
+      "value": "26390",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.energy",
+      "dpt_metadata": [
+        "dic:dpa.65531.52",
+        "urn:knx:dpt.energy"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "b0d37e7e-c7ab-4eed-9d3e-47545daf9baa",
+        "name": "LuxSphere AC"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "bbfdd5cc-b4e0-4b57-a0da-6a4ee3bf9c92",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Active Power L3",
+      "description": "",
+      "value": "672.59997558594",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:10Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.power",
+      "dpt_metadata": [
+        "dic:dpa.65531.51",
+        "urn:knx:dpt.power"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "31d37cd4-d9cc-43f5-a9d1-17f29b444c27",
+        "name": "FlareHub AC"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "d1977029-b15f-4b0f-9f0b-fcc8c7df6cd4",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Partial L3 Active Energy Received",
+      "description": "",
+      "value": "35140",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.energy",
+      "dpt_metadata": [
+        "dic:dpa.65531.52",
+        "urn:knx:dpt.energy"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "31d37cd4-d9cc-43f5-a9d1-17f29b444c27",
+        "name": "FlareHub AC"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "b0132b91-3bf8-4cc3-82ca-759f0f82d42e",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Active Power L4",
+      "description": "",
+      "value": "279",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:08:10Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.power",
+      "dpt_metadata": [
+        "dic:dpa.65531.51",
+        "urn:knx:dpt.power"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "eff8ef3c-fa90-4e3a-9ddf-e754144e05bb",
+        "name": "RadiantZone Desk"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "eda3629e-dd0e-4c27-8329-8e65d63a2426",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Partial L4 Active Energy Received",
+      "description": "",
+      "value": "399.99996948242",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.energy",
+      "dpt_metadata": [
+        "dic:dpa.65531.52",
+        "urn:knx:dpt.energy"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "eff8ef3c-fa90-4e3a-9ddf-e754144e05bb",
+        "name": "RadiantZone Desk"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "7c571e7b-0385-45c0-9c47-04ae308bb509",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Active Power L5",
+      "description": "",
+      "value": "0",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.power",
+      "dpt_metadata": [
+        "dic:dpa.65531.51",
+        "urn:knx:dpt.power"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "e2c8725e-244b-4bd7-b966-4e5b314ef74e",
+        "name": "FlareHub Work Dessk"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "d1c77ba6-5799-4ff2-ba26-08124e185f0a",
+      "type": "datapoint",
+      "title": "Energy Monitoring - Partial L5 Active Energy Received",
+      "description": "",
+      "value": "1560",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.energy",
+      "dpt_metadata": [
+        "dic:dpa.65531.52",
+        "urn:knx:dpt.energy"
+      ],
+      "unit": "Wh",
+      "location": {
+        "id": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "name": "Energy Monitring"
+      },
+      "function": {
+        "id": "e2c8725e-244b-4bd7-b966-4e5b314ef74e",
+        "name": "FlareHub Work Dessk"
+      },
+      "enum": null,
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "11111111-0000-4000-0000-000000000001",
+      "type": "datapoint",
+      "title": "knx3rdpartyVirtualObjectsAutomationTrigger",
+      "description": "This object (group address) that holds information about the last time triggered automation. It is created by KNX IoT 3rd Party API app. ",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.uuid",
+      "dpt_metadata": [
+        "urn:knx:dpt.uuid",
+        "dic:dpa.809.51"
+      ],
+      "unit": null,
+      "location": {
+        "id": "cbb297c0-14a9-46bc-c691-456789101112",
+        "name": "Touch site id"
+      },
+      "function": {
+        "id": "11111111-0000-4000-0000-000000000002",
+        "name": "Automation triggered alarm"
+      },
+      "enum": [],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    },
+    {
+      "id": "11111111-0000-4000-0000-000000000003",
+      "type": "datapoint",
+      "title": "knx3rdpartyVirtualObjectsAutomationTrigger",
+      "description": "This object (group address) that holds information about the last time triggered automation. It is created by KNX IoT 3rd Party API app. ",
+      "value": "00000000-0000-0000-0000-000000000000",
+      "value_type": "string",
+      "timestamp": "2026-10-01T06:06:41Z",
+      "readable": true,
+      "writable": false,
+      "dpt": "urn:knx:dpt.uuid",
+      "dpt_metadata": [
+        "urn:knx:dpt.uuid",
+        "dic:dpa.809.52"
+      ],
+      "unit": null,
+      "location": {
+        "id": "cbb297c0-14a9-46bc-c691-456789101112",
+        "name": "Touch site id"
+      },
+      "function": {
+        "id": "11111111-0000-4000-0000-000000000002",
+        "name": "Automation triggered alarm"
+      },
+      "enum": [],
+      "condition": true,
+      "trigger": true,
+      "voice_control_enabled": false
+    }
+  ]
+}

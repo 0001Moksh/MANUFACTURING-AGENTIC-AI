@@ -1,0 +1,2023 @@
+{
+  "data": [
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "acbc7ca1-819e-435e-9599-23bf185bf183",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Pantry Light-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume1",
+        "schneider:parentFunction": "0c4e66f8-8f3e-4193-af5c-6038c82920e3"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/acbc7ca1-819e-435e-9599-23bf185bf183/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "177e24f3-f38f-4fbe-8bc9-1576efb7a275",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Cabin 1/2 Light-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume1",
+        "schneider:parentFunction": "c3946996-2338-492d-8eeb-7b39a1ecbd61"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/177e24f3-f38f-4fbe-8bc9-1576efb7a275/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "0900491d-97f4-48ca-9865-a72ff3400ec7",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Meeting Light-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume1",
+        "schneider:parentFunction": "68c1edb7-6b69-428b-8251-917c0de8173a"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/0900491d-97f4-48ca-9865-a72ff3400ec7/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "8db4fe67-98cf-42f5-8c5d-5d939caf3511",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Cabin 3 Light-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume1",
+        "schneider:parentFunction": "fde66ad0-ba1b-4733-9432-1a075f2184aa"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/8db4fe67-98cf-42f5-8c5d-5d939caf3511/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "db3e1f07-561f-404f-8b0a-17bfe02c2d9e",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Lab Light-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume1",
+        "schneider:parentFunction": "4a37d5fc-0da9-47c6-b493-99204461d5f9"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/db3e1f07-561f-404f-8b0a-17bfe02c2d9e/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "6e5c973a-a089-4fdb-87ff-eaea7c61884d",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Cafe-EX Light-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume1",
+        "schneider:parentFunction": "1f1e77e5-8c15-494f-9138-65b3515fad9e"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/6e5c973a-a089-4fdb-87ff-eaea7c61884d/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "11ac4a14-3fc9-4550-b84f-08dd59537f06",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Chandelier Strip -S",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume2",
+        "schneider:parentFunction": "8cdb438f-38c5-4b8d-8897-fd138e3a7f2a"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/11ac4a14-3fc9-4550-b84f-08dd59537f06/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "c459f657-05e7-4c8a-83c2-593ed5e986ba",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Experience Centre-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume2",
+        "schneider:parentFunction": "f91731e0-b5de-40ad-a4b7-91c8a887d9b1"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/c459f657-05e7-4c8a-83c2-593ed5e986ba/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "7001a5fc-dc05-482f-b717-ed50a294dfb7",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Fusion Lume-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume2",
+        "schneider:parentFunction": "513f422a-f88a-4583-abce-4345db16f048"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/7001a5fc-dc05-482f-b717-ed50a294dfb7/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "16928b8f-fc48-4aa5-852c-24c5f12fef3b",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Experience Centre-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume2",
+        "schneider:parentFunction": "119f9f94-a9fa-4a0f-b4bf-8a0a5e3bd72c"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/16928b8f-fc48-4aa5-852c-24c5f12fef3b/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.70",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "f118260d-21e8-4fc9-88da-de9bd0eaf154",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "Chandelier Lume -S",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Lume2",
+        "schneider:parentFunction": "bde65b60-2fbc-4a91-9369-dda871ed777d"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/f118260d-21e8-4fc9-88da-de9bd0eaf154/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.418.61",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "9911a422-161a-4bec-a4e5-83f33285daca",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "RadiantZone-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Dali Light",
+        "schneider:parentFunction": "b7793f8e-6697-456c-8e40-88b5593d58ec"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/9911a422-161a-4bec-a4e5-83f33285daca/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.418.63",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "726996b0-4fe0-442d-8fde-3b0f31e8eafa",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "RadiantZone-VF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Dali Light",
+        "schneider:parentFunction": "b7793f8e-6697-456c-8e40-88b5593d58ec"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/726996b0-4fe0-442d-8fde-3b0f31e8eafa/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.418.61",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "65365b71-a874-4205-86a7-3179efef3eb1",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "FlareHub-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Dali Light",
+        "schneider:parentFunction": "b4c73b7c-21ef-4560-a722-61e312addefb"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/65365b71-a874-4205-86a7-3179efef3eb1/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.418.63",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "e611d47d-36f3-4cb1-8abb-427c3e639a09",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "FlareHub-VF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Dali Light",
+        "schneider:parentFunction": "b4c73b7c-21ef-4560-a722-61e312addefb"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/e611d47d-36f3-4cb1-8abb-427c3e639a09/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.418.61",
+          "urn:knx:dpt.switch"
+        ]
+      },
+      "id": "25e59bbb-16db-4f52-97ee-020985819810",
+      "attributes": {
+        "enum": [
+          "on",
+          "off"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "off",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "LuxSphere-SF",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Dali Light",
+        "schneider:parentFunction": "aa886122-7a5c-4be4-a031-ab56571327c6"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/25e59bbb-16db-4f52-97ee-020985819810/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.418.63",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "066b0104-8bbd-4c5f-80bc-498b51b1d0e0",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": true,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Lights",
+        "schneider:parentLocation": "e03a8010-3e22-4d64-809d-1723a92dbfb1",
+        "readable": true,
+        "title": "LuxSphere-VF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Dali Light",
+        "schneider:parentFunction": "aa886122-7a5c-4be4-a031-ab56571327c6"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/066b0104-8bbd-4c5f-80bc-498b51b1d0e0/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.800.65",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "dbc27489-464e-4ed0-8d62-f5ef16e0f7e6",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Meeting-HPF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Meeting",
+        "schneider:parentFunction": "a9849af4-de68-40da-9a05-f88dc87f0bf1"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/dbc27489-464e-4ed0-8d62-f5ef16e0f7e6/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.800.66",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "553438db-f739-4d1a-8066-6a8c692aa228",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Meeting-HPF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Meeting",
+        "schneider:parentFunction": "a9849af4-de68-40da-9a05-f88dc87f0bf1"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/553438db-f739-4d1a-8066-6a8c692aa228/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.801.61",
+          "urn:knx:dpt.upDown"
+        ]
+      },
+      "id": "dd9bd9e0-c796-485e-a8a9-85b989222a3c",
+      "attributes": {
+        "enum": [
+          "down",
+          "up"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "down",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Meeting-Open",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Meeting",
+        "schneider:parentFunction": "a9849af4-de68-40da-9a05-f88dc87f0bf1"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/dd9bd9e0-c796-485e-a8a9-85b989222a3c/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.801.62",
+          "urn:knx:dpt.step"
+        ]
+      },
+      "id": "0ed51663-9e4d-42fc-a81e-23c1c0a5bde7",
+      "attributes": {
+        "enum": [
+          "increase",
+          "decrease"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "decrease",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Meeting-close",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Meeting",
+        "schneider:parentFunction": "a9849af4-de68-40da-9a05-f88dc87f0bf1"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/0ed51663-9e4d-42fc-a81e-23c1c0a5bde7/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.800.65",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "3cea5929-070a-4fa1-9dfe-20d081a632d2",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Experience Centre-HPF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Experience",
+        "schneider:parentFunction": "883b479b-bf28-4874-9946-5816927fe332"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/3cea5929-070a-4fa1-9dfe-20d081a632d2/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.800.66",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "faf69318-93aa-4e6e-861c-15c55c88132b",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Experience Centre-SPF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Experience",
+        "schneider:parentFunction": "883b479b-bf28-4874-9946-5816927fe332"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/faf69318-93aa-4e6e-861c-15c55c88132b/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.801.61",
+          "urn:knx:dpt.upDown"
+        ]
+      },
+      "id": "d93c1e6e-3b44-4bbe-903f-fa7075b1f286",
+      "attributes": {
+        "enum": [
+          "down",
+          "up"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "up",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Experience Centre-Open",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Experience",
+        "schneider:parentFunction": "883b479b-bf28-4874-9946-5816927fe332"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/d93c1e6e-3b44-4bbe-903f-fa7075b1f286/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.801.62",
+          "urn:knx:dpt.step"
+        ]
+      },
+      "id": "4d27b8a1-8437-426e-a1de-75175ce4c57a",
+      "attributes": {
+        "enum": [
+          "increase",
+          "decrease"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "increase",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Experience Centre-Close",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Experience",
+        "schneider:parentFunction": "883b479b-bf28-4874-9946-5816927fe332"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/4d27b8a1-8437-426e-a1de-75175ce4c57a/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.800.65",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "949a1404-8360-47d2-9a2d-ea4b845a2652",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Cabin1-HPF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Cabin1",
+        "schneider:parentFunction": "d851ad6a-99b3-4d14-ba97-eb4704436590"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/949a1404-8360-47d2-9a2d-ea4b845a2652/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.800.66",
+          "urn:knx:dpt.scaling"
+        ]
+      },
+      "id": "fee70884-3e13-4ab3-97c2-c064116aaea9",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "%",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Cabin1-HPF",
+        "writable": true,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Cabin1",
+        "schneider:parentFunction": "d851ad6a-99b3-4d14-ba97-eb4704436590"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/fee70884-3e13-4ab3-97c2-c064116aaea9/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.801.61",
+          "urn:knx:dpt.upDown"
+        ]
+      },
+      "id": "0c3cf39a-9abf-416a-a754-1f457985bc01",
+      "attributes": {
+        "enum": [
+          "down",
+          "up"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "down",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Cabin1-Open",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Cabin1",
+        "schneider:parentFunction": "d851ad6a-99b3-4d14-ba97-eb4704436590"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/0c3cf39a-9abf-416a-a754-1f457985bc01/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.801.62",
+          "urn:knx:dpt.step"
+        ]
+      },
+      "id": "48e21148-b7c9-40fb-968b-fda22fcd5fbf",
+      "attributes": {
+        "enum": [
+          "increase",
+          "decrease"
+        ],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "increase",
+        "valueType": "string",
+        "description": "",
+        "schneider:parentLocationName": "Curtains",
+        "schneider:parentLocation": "9114bd80-9d4f-444f-8c26-2b77de0217b6",
+        "readable": true,
+        "title": "Cabin1-Close",
+        "writable": true,
+        "schneider:trigger": true,
+        "schneider:parentFunctionName": "Cabin1",
+        "schneider:parentFunction": "d851ad6a-99b3-4d14-ba97-eb4704436590"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/48e21148-b7c9-40fb-968b-fda22fcd5fbf/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.65",
+          "urn:knx:dpt.generic"
+        ]
+      },
+      "id": "996de084-586f-49bf-9d4f-cab1d3f13539",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 250,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:32Z",
+        "value": "235.75999450684",
+        "schneider:resolution": 2,
+        "valueType": "string",
+        "description": "",
+        "unit": "V",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "readable": true,
+        "title": "Energy Monitoring - Voltage",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": 190,
+        "schneider:parentFunctionName": "Voltage",
+        "schneider:parentFunction": "d3f676de-5ff0-408f-a4b1-18442b89a442"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/996de084-586f-49bf-9d4f-cab1d3f13539/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.65",
+          "urn:knx:dpt.generic"
+        ]
+      },
+      "id": "6223c027-1b33-49d0-b038-b968afd2af1a",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 32,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:32Z",
+        "value": "7.2600002288818",
+        "schneider:resolution": 2,
+        "valueType": "string",
+        "description": "",
+        "unit": "A",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "readable": true,
+        "title": "Energy Monitoring - Current L1",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": 3,
+        "schneider:parentFunctionName": "Current",
+        "schneider:parentFunction": "2c76b347-8d2c-49b1-95e4-c1439a23ee54"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/6223c027-1b33-49d0-b038-b968afd2af1a/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.65",
+          "urn:knx:dpt.generic"
+        ]
+      },
+      "id": "6bf79109-640b-4e51-a134-b345af6b916d",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 55,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:11Z",
+        "value": "50.040000915527",
+        "schneider:resolution": 2,
+        "valueType": "string",
+        "description": "",
+        "unit": "Hz",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "readable": true,
+        "title": "Energy Monitoring - Frequency",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": 47,
+        "schneider:parentFunctionName": "Frequency",
+        "schneider:parentFunction": "e699c7c1-5ed3-4a02-9297-02d63f5e6711"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/6bf79109-640b-4e51-a134-b345af6b916d/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.65",
+          "urn:knx:dpt.generic"
+        ]
+      },
+      "id": "ed892785-0542-4f37-9024-99dd908cf232",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 2000,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:32Z",
+        "value": "325.89999389648",
+        "schneider:resolution": 2,
+        "valueType": "string",
+        "description": "",
+        "unit": "VAR",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "readable": true,
+        "title": "Energy Monitoring - Reactive Power L1",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": 5,
+        "schneider:parentFunctionName": "Reactive Power",
+        "schneider:parentFunction": "328f2b28-aeef-4b86-b6d3-23cb7a635489"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/ed892785-0542-4f37-9024-99dd908cf232/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.65",
+          "urn:knx:dpt.generic"
+        ]
+      },
+      "id": "9d9fe0d9-2875-4fb1-b72d-6681f692493f",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 5000,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:32Z",
+        "value": "1642.4000244141",
+        "schneider:resolution": 2,
+        "valueType": "string",
+        "description": "",
+        "unit": "W",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "readable": true,
+        "title": "Energy Monitoring - Active Power L1",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Active Power",
+        "schneider:parentFunction": "94f4431f-61a0-4142-9fc6-8c0283242e80"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/9d9fe0d9-2875-4fb1-b72d-6681f692493f/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.417.65",
+          "urn:knx:dpt.generic"
+        ]
+      },
+      "id": "88a03d8b-3057-488f-98cc-3bc553e2f2a9",
+      "attributes": {
+        "schneider:condition": true,
+        "maximum": 100000,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "76460",
+        "schneider:resolution": 2,
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "readable": true,
+        "title": "Energy Monitoring - L1 Active Energy Received",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": 0,
+        "schneider:parentFunctionName": "Apparent Power",
+        "schneider:parentFunction": "5cf34c67-09a4-4442-9a9d-19638833cb45"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/88a03d8b-3057-488f-98cc-3bc553e2f2a9/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.51",
+          "urn:knx:dpt.power"
+        ]
+      },
+      "id": "6eb13609-1981-405b-8c89-6619e285ae50",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "1",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:32Z",
+        "value": "1642.4000244141",
+        "valueType": "string",
+        "description": "",
+        "unit": "W",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": true,
+        "readable": true,
+        "title": "Energy Monitoring - Active Power L1",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "Main Power",
+        "schneider:parentFunction": "0884c2cb-8034-4dc5-a0f8-0c527c7ef718"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/6eb13609-1981-405b-8c89-6619e285ae50/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.52",
+          "urn:knx:dpt.energy"
+        ]
+      },
+      "id": "879108fa-b035-445a-bc5e-c528b166e005",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "1",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "76460",
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": true,
+        "readable": true,
+        "title": "Energy Monitoring - Partial L1 Active Energy Received",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "Main Power",
+        "schneider:parentFunction": "0884c2cb-8034-4dc5-a0f8-0c527c7ef718"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/879108fa-b035-445a-bc5e-c528b166e005/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.54",
+          "urn:knx:dpt.energy"
+        ]
+      },
+      "id": "0e514719-dd4d-45d6-96d6-fe229ad6e561",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "1",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:32Z",
+        "value": "1714029.875",
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": true,
+        "readable": true,
+        "title": "Energy Monitoring - Partial L1 Active Energy Delivered",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "Main Power",
+        "schneider:parentFunction": "0884c2cb-8034-4dc5-a0f8-0c527c7ef718"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/0e514719-dd4d-45d6-96d6-fe229ad6e561/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.51",
+          "urn:knx:dpt.power"
+        ]
+      },
+      "id": "72587c27-63af-4b75-9bb0-acdef49bdc94",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "744",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:33Z",
+        "value": "476.79998779297",
+        "valueType": "string",
+        "description": "",
+        "unit": "W",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Active Power L2",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "LuxSphere AC",
+        "schneider:parentFunction": "b0d37e7e-c7ab-4eed-9d3e-47545daf9baa"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/72587c27-63af-4b75-9bb0-acdef49bdc94/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.52",
+          "urn:knx:dpt.energy"
+        ]
+      },
+      "id": "e1898927-c5a5-4693-91aa-04b2dacb9e51",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "744",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "26390",
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Partial L2 Active Energy Received",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "LuxSphere AC",
+        "schneider:parentFunction": "b0d37e7e-c7ab-4eed-9d3e-47545daf9baa"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/e1898927-c5a5-4693-91aa-04b2dacb9e51/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.51",
+          "urn:knx:dpt.power"
+        ]
+      },
+      "id": "bbfdd5cc-b4e0-4b57-a0da-6a4ee3bf9c92",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "300",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:33Z",
+        "value": "666.40002441406",
+        "valueType": "string",
+        "description": "",
+        "unit": "W",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Active Power L3",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "FlareHub AC",
+        "schneider:parentFunction": "31d37cd4-d9cc-43f5-a9d1-17f29b444c27"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/bbfdd5cc-b4e0-4b57-a0da-6a4ee3bf9c92/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.52",
+          "urn:knx:dpt.energy"
+        ]
+      },
+      "id": "d1977029-b15f-4b0f-9f0b-fcc8c7df6cd4",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "300",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "35140",
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Partial L3 Active Energy Received",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "FlareHub AC",
+        "schneider:parentFunction": "31d37cd4-d9cc-43f5-a9d1-17f29b444c27"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/d1977029-b15f-4b0f-9f0b-fcc8c7df6cd4/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.51",
+          "urn:knx:dpt.power"
+        ]
+      },
+      "id": "b0132b91-3bf8-4cc3-82ca-759f0f82d42e",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "282",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:06:33Z",
+        "value": "349",
+        "valueType": "string",
+        "description": "",
+        "unit": "W",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Active Power L4",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "RadiantZone Desk",
+        "schneider:parentFunction": "eff8ef3c-fa90-4e3a-9ddf-e754144e05bb"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/b0132b91-3bf8-4cc3-82ca-759f0f82d42e/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.52",
+          "urn:knx:dpt.energy"
+        ]
+      },
+      "id": "eda3629e-dd0e-4c27-8329-8e65d63a2426",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "282",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "399.99996948242",
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Partial L4 Active Energy Received",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "RadiantZone Desk",
+        "schneider:parentFunction": "eff8ef3c-fa90-4e3a-9ddf-e754144e05bb"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/eda3629e-dd0e-4c27-8329-8e65d63a2426/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.51",
+          "urn:knx:dpt.power"
+        ]
+      },
+      "id": "7c571e7b-0385-45c0-9c47-04ae308bb509",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "151",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "0",
+        "valueType": "string",
+        "description": "",
+        "unit": "W",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Active Power L5",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "FlareHub Work Dessk",
+        "schneider:parentFunction": "e2c8725e-244b-4bd7-b966-4e5b314ef74e"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/7c571e7b-0385-45c0-9c47-04ae308bb509/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "dic:dpa.65531.52",
+          "urn:knx:dpt.energy"
+        ]
+      },
+      "id": "d1c77ba6-5799-4ff2-ba26-08124e185f0a",
+      "attributes": {
+        "schneider:condition": true,
+        "schneider:parentEquipmentId": "151",
+        "maximum": 2147483647,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "1560",
+        "valueType": "string",
+        "description": "",
+        "unit": "Wh",
+        "schneider:parentLocationName": "Energy Monitring",
+        "schneider:parentLocation": "93819131-3d96-4ce6-b0ec-0a37972fa3cd",
+        "schneider:energySelfConsumption": false,
+        "readable": true,
+        "title": "Energy Monitoring - Partial L5 Active Energy Received",
+        "writable": false,
+        "schneider:trigger": true,
+        "minimum": -2147483648,
+        "schneider:parentFunctionName": "FlareHub Work Dessk",
+        "schneider:parentFunction": "e2c8725e-244b-4bd7-b966-4e5b314ef74e"
+      },
+      "type": "datapoint",
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/d1c77ba6-5799-4ff2-ba26-08124e185f0a/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "urn:knx:dpt.uuid",
+          "dic:dpa.809.51"
+        ]
+      },
+      "id": "11111111-0000-4000-0000-000000000001",
+      "type": "datapoint",
+      "attributes": {
+        "enum": [],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "00000000-0000-0000-0000-000000000000",
+        "valueType": "string",
+        "description": "This object (group address) that holds information about the last time triggered automation. It is created by KNX IoT 3rd Party API app. ",
+        "schneider:parentFunctionName": "Automation triggered alarm",
+        "schneider:parentFunction": "11111111-0000-4000-0000-000000000002",
+        "readable": true,
+        "title": "knx3rdpartyVirtualObjectsAutomationTrigger",
+        "writable": false,
+        "schneider:trigger": true,
+        "schneider:parentLocation": "cbb297c0-14a9-46bc-c691-456789101112",
+        "schneider:parentLocationName": "Touch site id"
+      },
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/11111111-0000-4000-0000-000000000001/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    },
+    {
+      "meta": {
+        "@type": [
+          "urn:knx:dpt.uuid",
+          "dic:dpa.809.52"
+        ]
+      },
+      "id": "11111111-0000-4000-0000-000000000003",
+      "type": "datapoint",
+      "attributes": {
+        "enum": [],
+        "schneider:condition": true,
+        "schneider:voiceControlEnabled": false,
+        "timestamp": "2026-10-01T06:05:57Z",
+        "value": "00000000-0000-0000-0000-000000000000",
+        "valueType": "string",
+        "description": "This object (group address) that holds information about the last time triggered automation. It is created by KNX IoT 3rd Party API app. ",
+        "schneider:parentFunctionName": "Automation triggered alarm",
+        "schneider:parentFunction": "11111111-0000-4000-0000-000000000002",
+        "readable": true,
+        "title": "knx3rdpartyVirtualObjectsAutomationTrigger",
+        "writable": false,
+        "schneider:trigger": true,
+        "schneider:parentLocation": "cbb297c0-14a9-46bc-c691-456789101112",
+        "schneider:parentLocationName": "Touch site id"
+      },
+      "relationships": {
+        "datapointFunctions": {
+          "links": {
+            "related": "/datapoints/11111111-0000-4000-0000-000000000003/functions"
+          }
+        },
+        "typedescription": {
+          "links": {
+            "related": "https://schema.knx.org/2020/api"
+          }
+        }
+      }
+    }
+  ],
+  "meta": {
+    "collection": {
+      "offset": 0,
+      "items": 48,
+      "total": 48
+    }
+  }
+}

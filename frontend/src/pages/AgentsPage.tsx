@@ -11,6 +11,7 @@ const ACTIVE_AGENT_NAMES = new Set([
   'Maintenance Agent',
   'Reporting Agent',
   'Safety & Quality Agent',
+  'Energy Agent',
   'Permit-to-Work Agent',
   'PPE & Behavior Vision Agent',
   'Incident & Investigation Agent',
@@ -79,6 +80,10 @@ export const AgentsPage: React.FC = () => {
 
   const handleAgentClick = (agentName: string) => {
     if (!ACTIVE_AGENT_NAMES.has(agentName)) return;
+    if (agentName === 'Energy Agent') {
+      navigate('/agents/energy-agent');
+      return;
+    }
     // Guard: check if the required integration is disabled
     const blockReason = getBlockReason(agentName);
     if (blockReason) {
@@ -135,6 +140,7 @@ export const AgentsPage: React.FC = () => {
             agent={a}
             isSelected={activeAgentName === a.n}
             isComingSoon={!ACTIVE_AGENT_NAMES.has(a.n)}
+            alwaysNavigable={a.n === 'Energy Agent'}
             onClick={() => handleAgentClick(a.n)}
           />
         ))}

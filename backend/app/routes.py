@@ -9,14 +9,14 @@ import re
 import uuid
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, RedirectResponse, FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
 import json
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +53,7 @@ from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
 from app.agents.insights_summary_agent import generate_chart_summary as agent_generate_chart_summary
 from app.agents.maintenance_agent import run_maintenance_conversation
+from app.agents.energy_agent import EnergyAgentUnavailableError, run_energy_agent_conversation
 from app.agents.safety_quality_agent import run_safety_quality_conversation
 from app.agents.ppe_vision_agent import run_ppe_conversation
 from app.agents.safety_site_intelligence_agent import run_safety_site_intelligence_conversation
@@ -256,6 +257,15 @@ class RbacUserCreateRequest(BaseModel):
 class MaintenanceChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
+
+class EnergyAgentChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+class EnergyAgentChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=3000)
+    thread_id: Optional[str] = None
+    history: List[EnergyAgentChatMessage] = Field(default_factory=list, max_length=12)
 
 class OperationsChatRequest(BaseModel):
     message: str
@@ -2713,6 +2723,17 @@ async def maintenance_chat(req: MaintenanceChatRequest):
         "reply": response["reply"],
         "visuals": response["visuals"],
     }
+
+@router.post("/api/energy-agent/chat")
+async def energy_agent_chat(req: EnergyAgentChatRequest):
+    try:
+        return await run_energy_agent_conversation(
+            message=req.message,
+            thread_id=req.thread_id,
+            history=[message.model_dump() for message in req.history],
+        )
+    except EnergyAgentUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 @router.get("/api/operations/documents")
 async def get_operations_documents(request: Request, db: AsyncSession = Depends(get_db)):
