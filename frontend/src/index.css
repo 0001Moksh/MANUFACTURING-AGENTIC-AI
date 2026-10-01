@@ -70,3 +70,72 @@
     background: rgba(107, 118, 144, 0.4);
   }
 }
+
+.energy-agent-markdown > :first-child {
+  margin-top: 0;
+}
+
+.energy-agent-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.energy-agent-markdown h1,
+.energy-agent-markdown h2,
+.energy-agent-markdown h3 {
+  margin: 0.65rem 0 0.35rem;
+  color: #14213d;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.energy-agent-markdown p {
+  margin: 0.4rem 0;
+}
+
+.energy-agent-markdown ul,
+.energy-agent-markdown ol {
+  margin: 0.4rem 0;
+  padding-left: 1.15rem;
+}
+
+.energy-agent-markdown li {
+  margin: 0.2rem 0;
+  padding-left: 0.1rem;
+}
+
+.energy-agent-markdown strong {
+  color: #243c55;
+  font-weight: 700;
+}
+
+.energy-agent-markdown table {
+  display: block;
+  width: 100%;
+  margin: 0.6rem 0;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.energy-agent-markdown th,
+.energy-agent-markdown td {
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #d7e1eb;
+  text-align: left;
+}
+
+.energy-agent-markdown th {
+  background: #e7edf4;
+  color: #263b52;
+  font-weight: 700;
+}
+
+.energy-agent-markdown code {
+  border-radius: 3px;
+  background: #e7edf4;
+  padding: 0.05rem 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
