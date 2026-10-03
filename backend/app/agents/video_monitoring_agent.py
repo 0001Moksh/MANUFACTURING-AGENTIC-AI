@@ -6584,6 +6584,31 @@ def setup_agent(state: TeamState) -> Dict[str, Any]:
 
     query_lower = user_query.lower()
 
+    if _explicit_live_stream_query(query_lower):
+        target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        content = (
+            f"### Live Camera Stream — {target_cam}\n\n"
+            f"Live RTSP feed for **{target_cam}** is now available. "
+            "Use the player below to watch the stream."
+        )
+        trace = _create_trace_record(
+            "Video Agent",
+            "Supervisor -> Video Agent -> Live Stream Player",
+            "",
+            {"camera_name": target_cam},
+            0,
+            "success",
+            "Explicit live-stream request routed to the stream player",
+            0,
+            0,
+        )
+        return {
+            "messages": [AIMessage(content=content)],
+            "next_agent": "FINISH",
+            "execution_trace": trace,
+            "current_video_camera": target_cam,
+        }
+
     sys_prompt = SystemMessage(content="""
     You are the Setup Agent for Video Monitoring. You handle configuration updates, safety rule mutations,
     notification routing, user/camera/model management, and threshold adjustments.
