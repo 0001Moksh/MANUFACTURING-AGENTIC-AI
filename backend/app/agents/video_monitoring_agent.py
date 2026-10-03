@@ -37,6 +37,7 @@ import base64
 import json
 import os
 import re
+import threading
 import time
 from collections import Counter
 from datetime import datetime
@@ -5109,7 +5110,142 @@ def analyze_scene_context(camera_name: str, query: str) -> Dict[str, Any]:
 
 def _camera_id_for_name(camera_name: str) -> int:
     match = re.search(r"cam(?:era)?[-\s]?(\d+)", camera_name, re.IGNORECASE)
-    return int(match.group(1)) if match else 1
+    camera_hint = match.group(1) if match else ""
+    if engine is not None:
+        try:
+            with engine.connect() as conn:
+                row = conn.execute(text("""
+                    SELECT id
+                    FROM cameras
+                    WHERE (:camera_hint = '' OR id::text = :camera_hint OR camera_number::text = :camera_hint)
+                       OR name ILIKE :camera_name
+                    ORDER BY CASE WHEN lower(name) = lower(:exact_name) THEN 0 ELSE 1 END, id
+                    LIMIT 1
+                """), {
+                    "camera_hint": camera_hint,
+                    "camera_name": f"%{camera_name}%",
+                    "exact_name": camera_name,
+                }).fetchone()
+            if row:
+                return int(row[0])
+        except Exception as exc:
+            print(f"[Video Agent] Camera ID lookup failed for {camera_name}: {exc}")
+    return int(camera_hint) if camera_hint else 1
+
+
+_PERSON_YOLO_MODEL = None
+_PERSON_YOLO_MODEL_PATH = None
+_PERSON_YOLO_LOCK = threading.Lock()
+
+
+def _person_detections_for_frame(frame_bytes: bytes) -> Dict[str, Any]:
+    """Run the configured YOLO model and annotate real person boxes in pixel coordinates."""
+    try:
+        import cv2
+        import numpy as np
+        from ultralytics import YOLO
+    except ImportError as exc:
+        return {"status": "unavailable", "reason": f"YOLO dependencies are not installed: {exc.name}", "detections": []}
+
+    frame = cv2.imdecode(np.frombuffer(frame_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if frame is None:
+        return {"status": "unavailable", "reason": "The captured frame could not be decoded.", "detections": []}
+
+    height, width = frame.shape[:2]
+    annotated = frame.copy()
+    detections = []
+    model_path = os.getenv("VIDEO_YOLO_MODEL", "yolov8n.pt").strip() or "yolov8n.pt"
+    confidence_threshold = float(os.getenv("VIDEO_YOLO_CONFIDENCE", "0.25"))
+
+    try:
+        global _PERSON_YOLO_MODEL, _PERSON_YOLO_MODEL_PATH
+        with _PERSON_YOLO_LOCK:
+            if _PERSON_YOLO_MODEL is None or _PERSON_YOLO_MODEL_PATH != model_path:
+                _PERSON_YOLO_MODEL = YOLO(model_path)
+                _PERSON_YOLO_MODEL_PATH = model_path
+            model = _PERSON_YOLO_MODEL
+            results = model.predict(
+                source=frame,
+                conf=confidence_threshold,
+                verbose=False,
+                device=os.getenv("VIDEO_YOLO_DEVICE") or None,
+            )
+
+        for result in results:
+            names = result.names or {}
+            for box in result.boxes or []:
+                class_id = int(box.cls[0].item())
+                class_name = names.get(class_id, str(class_id)) if isinstance(names, dict) else names[class_id]
+                if str(class_name).casefold() != "person":
+                    continue
+
+                x1, y1, x2, y2 = [float(value) for value in box.xyxy[0].tolist()]
+                left = max(0, min(width - 1, int(round(x1))))
+                top = max(0, min(height - 1, int(round(y1))))
+                right = max(left, min(width - 1, int(round(x2))))
+                bottom = max(top, min(height - 1, int(round(y2))))
+                confidence = float(box.conf[0].item())
+                detection_id = f"person-{len(detections) + 1}"
+                center = {"x": round((left + right) / 2, 1), "y": round((top + bottom) / 2, 1)}
+                detections.append({
+                    "id": detection_id,
+                    "class": "person",
+                    "confidence": round(confidence, 4),
+                    "xyxy": [left, top, right, bottom],
+                    "center": center,
+                })
+
+                label = f"{detection_id} {confidence:.2f} center=({center['x']:.0f},{center['y']:.0f})"
+                cv2.rectangle(annotated, (left, top), (right, bottom), (34, 197, 94), 2)
+                text_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                label_top = max(0, top - text_size[1] - baseline - 6)
+                cv2.rectangle(annotated, (left, label_top), (min(width - 1, left + text_size[0] + 8), top), (22, 101, 52), -1)
+                cv2.putText(annotated, label, (left + 4, max(text_size[1], top - baseline - 3)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+        encoded_ok, encoded = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 88])
+        if not encoded_ok:
+            raise RuntimeError("Could not encode the annotated frame")
+        image_data_url = f"data:image/jpeg;base64,{base64.b64encode(encoded.tobytes()).decode('ascii')}"
+        return {
+            "status": "available",
+            "reason": None,
+            "model": model_path,
+            "image_width": width,
+            "image_height": height,
+            "annotated_image_data_url": image_data_url,
+            "detections": detections,
+        }
+    except Exception as exc:
+        print(f"[Video Agent] YOLO person detection unavailable: {type(exc).__name__}: {exc}")
+        return {
+            "status": "unavailable",
+            "reason": f"YOLO inference failed ({type(exc).__name__}).",
+            "model": model_path,
+            "image_width": width,
+            "image_height": height,
+            "detections": [],
+        }
+
+
+def _format_person_detection_summary(detection_result: Dict[str, Any]) -> str:
+    if detection_result.get("status") != "available":
+        return f"YOLO person locations are unavailable: {detection_result.get('reason') or 'model not configured.'}"
+    detections = detection_result.get("detections", [])
+    if not detections:
+        return "YOLO detected no people in the captured frame."
+
+    summary = f"YOLO detected **{len(detections)}** people.\n\n"
+    summary += "| Person | Confidence | Bounding box (xyxy, px) | Center (x, y, px) |\n|:---|---:|:---|:---|\n"
+    for detection in detections:
+        x1, y1, x2, y2 = detection["xyxy"]
+        center = detection["center"]
+        summary += (
+            f"| {detection['id']} | {detection['confidence']:.1%} "
+            f"| [{x1}, {y1}, {x2}, {y2}] | ({center['x']}, {center['y']}) |\n"
+        )
+    if detection_result.get("image_width") and detection_result.get("image_height"):
+        summary += f"\nCoordinates use a {detection_result['image_width']} × {detection_result['image_height']} px frame, origin at top-left."
+    return summary
 
 
 def _capture_live_frame_bytes(camera_id: int) -> Optional[bytes]:
@@ -5158,6 +5294,8 @@ def _vision_failure_data(camera_name: str, camera_id: int, user_query: str, vlm_
         "vlm_instruction": vlm_instruction,
         "vlm_response": f"Live frame analysis failed: {reason}",
         "detections": [],
+        "detection_status": "unavailable",
+        "detection_reason": "The camera frame could not be captured.",
         "capture_source": "RTSP snapshot unavailable",
     }
 
@@ -5181,6 +5319,7 @@ def analyze_live_frame_with_vlm(
             "data": _vision_failure_data(camera_name, camera_id, user_query, vlm_instruction, snapshot_url, captured_at, "camera capture is unavailable"),
         }
 
+    person_detection = _person_detections_for_frame(frame_bytes)
     vision_prompt = (
         "Answer only what is visible in the provided image. Do not assume industrial PPE, helmets, "
         "vests, forklifts, or factory context unless clearly visible. If it is an office, describe "
@@ -5200,10 +5339,24 @@ def analyze_live_frame_with_vlm(
         if not isinstance(vlm_response, str) or not vlm_response.strip():
             raise RuntimeError("vision model returned no text")
     except Exception as exc:
+        failure_data = _vision_failure_data(
+            camera_name, camera_id, user_query, vlm_instruction,
+            snapshot_url, captured_at, str(exc),
+        )
+        failure_data.update({
+            "detections": person_detection.get("detections", []),
+            "detection_status": person_detection.get("status", "unavailable"),
+            "detection_reason": person_detection.get("reason"),
+            "detection_model": person_detection.get("model"),
+            "annotated_image_data_url": person_detection.get("annotated_image_data_url"),
+            "image_width": person_detection.get("image_width"),
+            "image_height": person_detection.get("image_height"),
+            "capture_source": "RTSP live frame",
+        })
         return {
             "success": False,
             "message": f"Captured a frame from {camera_name}, but vision analysis failed.",
-            "data": _vision_failure_data(camera_name, camera_id, user_query, vlm_instruction, snapshot_url, captured_at, str(exc)),
+            "data": failure_data,
         }
 
     return _ok(f"Captured and analyzed one live frame from {camera_name}", {
@@ -5214,7 +5367,13 @@ def analyze_live_frame_with_vlm(
         "user_query": user_query,
         "vlm_instruction": vlm_instruction,
         "vlm_response": vlm_response.strip(),
-        "detections": [],
+        "detections": person_detection.get("detections", []),
+        "detection_status": person_detection.get("status", "unavailable"),
+        "detection_reason": person_detection.get("reason"),
+        "detection_model": person_detection.get("model"),
+        "annotated_image_data_url": person_detection.get("annotated_image_data_url"),
+        "image_width": person_detection.get("image_width"),
+        "image_height": person_detection.get("image_height"),
         "capture_source": "RTSP snapshot endpoint",
     })
 
@@ -7056,6 +7215,7 @@ def _is_live_visual_query(query_lower: str) -> bool:
         "without helmet", "without hardhat", "wearing vest", "without vest", "ppe",
         "how many", "count", "activity", "motion", "hazard", "obstruction", "which one",
         "who looks", "looks focused", "focused on work", "too focused", "from the live camera",
+        "yolo", "person location", "person position", "bounding box", "bbox",
     ])
 
 
@@ -7088,6 +7248,54 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             break
 
     query_lower = user_query.lower()
+
+    if _explicit_live_stream_query(query_lower):
+        started = time.perf_counter()
+        target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        camera_id = _camera_id_for_name(target_cam)
+        captured_at = datetime.now().isoformat()
+        frame_bytes = _capture_live_frame_bytes(camera_id)
+        detection = _person_detections_for_frame(frame_bytes) if frame_bytes else {
+            "status": "unavailable",
+            "reason": "The requested camera frame could not be captured.",
+            "detections": [],
+        }
+        snapshot = {
+            "camera_id": camera_id,
+            "camera_name": target_cam,
+            "captured_at": captured_at,
+            "snapshot_url": f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}",
+            "capture_source": "RTSP live frame",
+            "detections": detection.get("detections", []),
+            "detection_status": detection.get("status", "unavailable"),
+            "detection_reason": detection.get("reason"),
+            "detection_model": detection.get("model"),
+            "annotated_image_data_url": detection.get("annotated_image_data_url"),
+            "image_width": detection.get("image_width"),
+            "image_height": detection.get("image_height"),
+        }
+        detection_note = _format_person_detection_summary(detection)
+        trace = _create_trace_record(
+            "Video Agent",
+            "Supervisor -> Video Agent -> Live Stream + YOLO",
+            "detect_people_yolo",
+            {"camera_id": camera_id, "camera_name": target_cam},
+            (time.perf_counter() - started) * 1000,
+            "success" if snapshot["detection_status"] == "available" else "unavailable",
+            "Captured live frame and ran YOLO person detection",
+            0,
+            0,
+        )
+        return {
+            "messages": [AIMessage(content=(
+                f"### Live Camera Stream — {target_cam}\n\n"
+                f"The live player is ready for **{target_cam}**. {detection_note}"
+            ))],
+            "next_agent": "FINISH",
+            "execution_trace": trace,
+            "current_video_camera": target_cam,
+            "last_snapshot": snapshot,
+        }
 
     sys_prompt = SystemMessage(content="""
     You are the Video Agent for Video Monitoring. You handle live RTSP stream requests, camera visual feeds,
@@ -7129,6 +7337,7 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             150,
         )
         content = f"### Live Camera Analysis - {target_cam}\n\n{vlm_response}"
+        content += f"\n\n### YOLO Person Locations\n\n{_format_person_detection_summary(snapshot)}"
         return {
             "messages": [AIMessage(content=content)],
             "next_agent": "FINISH",
@@ -7336,6 +7545,7 @@ def _supervisor_keyword_fallback(input_lower: str, remembered_camera: str) -> Di
         "yolo", "vlm", "scene context", "visual inspection", "motion detect", "detect motion",
         "snapshot", "live snapshot", "find person by", "frame analysis",
         "how many person", "how many people", "how many worker", "persons visible", "people visible",
+        "person location", "person locations", "people location", "people locations", "person position", "bounding box", "bbox",
         "wearing helmet", "wearing hardhat", "not wearing", "without helmet", "without hardhat",
         "wearing vest", "without vest", "ppe check", "ppe on camera",
         "what is happening", "what is going on", "what do you see", "describe the scene",
@@ -7591,6 +7801,12 @@ def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Option
         "vlm_instruction": snapshot.get("vlm_instruction"),
         "vlm_response": snapshot.get("vlm_response"),
         "detections": snapshot.get("detections", []),
+        "detection_status": snapshot.get("detection_status", "unavailable"),
+        "detection_reason": snapshot.get("detection_reason"),
+        "detection_model": snapshot.get("detection_model"),
+        "annotated_image_data_url": snapshot.get("annotated_image_data_url"),
+        "image_width": snapshot.get("image_width"),
+        "image_height": snapshot.get("image_height"),
     }
 
 
@@ -7673,19 +7889,33 @@ async def stream_video_monitoring_events(
     camera_query = _camera_query(message, final_state)
 
     # Every camera question gets one current frame before agent-specific widgets.
-    if camera_query:
+    is_stream_request = active_agent == "video_agent" and _explicit_live_stream_query(input_lower)
+    if camera_query and not is_stream_request:
         snapshot_widget = _camera_snapshot_widget(message, final_state)
         yield f"event: widget\ndata: {json.dumps(snapshot_widget)}\n\n"
 
     # ── Video Agent → Live Stream Player Widget ──────────────────────────────
-    if active_agent == "video_agent" and _explicit_live_stream_query(input_lower):
+    if is_stream_request:
         cam_id, cam_display = _camera_snapshot_target(message, final_state)
+        snapshot = final_state.get("last_snapshot") or {}
+        cam_id = snapshot.get("camera_id", cam_id)
+        cam_display = snapshot.get("camera_name", cam_display)
         live_stream_widget = {
             "type": "live_stream_player",
             "title": f"Live Camera Stream — {cam_display}",
             "camera_name": cam_display,
             "camera_location": "Live camera feed",
             "stream_url": f"/api/video-monitoring/stream/{cam_id}",
+            "snapshot_url": snapshot.get("snapshot_url"),
+            "captured_at": snapshot.get("captured_at"),
+            "capture_source": snapshot.get("capture_source"),
+            "annotated_image_data_url": snapshot.get("annotated_image_data_url"),
+            "detections": snapshot.get("detections", []),
+            "detection_status": snapshot.get("detection_status", "unavailable"),
+            "detection_reason": snapshot.get("detection_reason"),
+            "detection_model": snapshot.get("detection_model"),
+            "image_width": snapshot.get("image_width"),
+            "image_height": snapshot.get("image_height"),
             "status": "STREAMING",
         }
         yield f"event: widget\ndata: {json.dumps(live_stream_widget)}\n\n"

@@ -16,6 +16,14 @@ export interface SnapshotGalleryItem {
   status: string;
 }
 
+interface PersonDetection {
+  id: string;
+  class: string;
+  confidence: number;
+  xyxy: [number, number, number, number];
+  center: { x: number; y: number };
+}
+
 export interface WidgetPayload {
   type: 'evidence_gallery' | 'snapshot_evidence_widget' | 'data_table' | 'hitl_actions' | 'live_stream_player' | 'snapshot_gallery';
   title?: string;
@@ -49,6 +57,12 @@ export interface WidgetPayload {
   vlm_instruction?: string;
   vlm_response?: string;
   detections?: Array<Record<string, unknown>>;
+  detection_status?: 'available' | 'unavailable';
+  detection_reason?: string | null;
+  detection_model?: string | null;
+  annotated_image_data_url?: string | null;
+  image_width?: number | null;
+  image_height?: number | null;
   vlm_detections?: Array<{
     entity: string;
     class: string;
@@ -71,6 +85,40 @@ const SEVERITY_STYLES: Record<string, { badge: string; border: string; dot: stri
   MAJOR:    { badge: 'bg-orange-600/90 text-white',    border: 'border-orange-500/50', dot: 'bg-orange-500' },
   WARNING:  { badge: 'bg-yellow-600/90 text-white',    border: 'border-yellow-500/50', dot: 'bg-yellow-400' },
   NORMAL:   { badge: 'bg-slate-600/90 text-slate-200', border: 'border-slate-600/50',  dot: 'bg-slate-400' },
+};
+
+const PersonDetectionDetails: React.FC<{ payload: WidgetPayload }> = ({ payload }) => {
+  const detections = (payload.detections || []) as unknown as PersonDetection[];
+  return (
+    <section className="mt-2 border-t border-slate-700 pt-2">
+      <div className="flex items-center justify-between gap-2 text-[10px]">
+        <span className="font-semibold uppercase tracking-wide text-cyan-300">YOLO person locations</span>
+        <span className={payload.detection_status === 'available' ? 'text-emerald-400' : 'text-amber-300'}>
+          {payload.detection_status === 'available' ? `${detections.length} detected` : 'Unavailable'}
+        </span>
+      </div>
+      {payload.detection_status === 'unavailable' ? (
+        <p className="mb-0 mt-1 text-[10px] leading-4 text-amber-200">{payload.detection_reason || 'Configure a YOLO model and weights to enable person detection.'}</p>
+      ) : detections.length ? (
+        <div className="mt-1.5 max-h-32 overflow-auto">
+          <table className="w-full text-left text-[10px] text-slate-300">
+            <thead className="text-slate-500"><tr><th className="py-1 pr-2">Person</th><th className="py-1 pr-2">Confidence</th><th className="py-1 pr-2">xyxy (px)</th><th className="py-1">Center (px)</th></tr></thead>
+            <tbody>{detections.map((detection, index) => (
+              <tr key={detection.id || index} className="border-t border-slate-800">
+                <td className="py-1 pr-2 font-medium text-emerald-300">{detection.id || `Person ${index + 1}`}</td>
+                <td className="py-1 pr-2">{(detection.confidence * 100).toFixed(1)}%</td>
+                <td className="py-1 pr-2 font-mono">[{detection.xyxy.join(', ')}]</td>
+                <td className="py-1 font-mono">({detection.center.x}, {detection.center.y})</td>
+              </tr>
+            ))}</tbody>
+          </table>
+          <div className="mt-1 text-[9px] text-slate-500">Frame: {payload.image_width} × {payload.image_height} px · origin at top-left{payload.detection_model ? ` · ${payload.detection_model}` : ''}</div>
+        </div>
+      ) : (
+        <p className="mb-0 mt-1 text-[10px] text-slate-400">No people detected in the captured frame.</p>
+      )}
+    </section>
+  );
 };
 
 export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload, onActionClick }) => {
@@ -314,6 +362,8 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
   }
 
   if (payload.type === 'snapshot_evidence_widget') {
+    const evidenceImage = payload.annotated_image_data_url || payload.snapshot_url || null;
+    const personDetections = (payload.detections || []) as unknown as PersonDetection[];
     return (
       <div className="mt-3 w-full max-w-[430px] p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 mb-2.5 text-emerald-400 font-semibold text-xs uppercase tracking-wider">
@@ -323,16 +373,16 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
         </div>
         <div className="relative w-full max-w-[400px] max-h-[225px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700">
           <img
-            src={payload.snapshot_url}
-            alt={`Captured live snapshot — ${payload.camera_name}`}
-            className="w-full h-full max-w-[400px] max-h-[225px] object-cover rounded-lg cursor-pointer"
-            onClick={() => setSelectedImage(payload.snapshot_url || null)}
+            src={evidenceImage || undefined}
+            alt={`Captured live snapshot with person detections — ${payload.camera_name}`}
+            className="w-full h-full max-w-[400px] max-h-[225px] object-contain rounded-lg cursor-pointer"
+            onClick={() => setSelectedImage(evidenceImage)}
           />
           <button
             type="button"
             aria-label="Expand snapshot"
             title="Expand snapshot"
-            onClick={() => setSelectedImage(payload.snapshot_url || null)}
+            onClick={() => setSelectedImage(evidenceImage)}
             className="absolute right-2 top-2 rounded-md bg-slate-950/80 p-1.5 text-white hover:bg-slate-800 transition-colors"
           >
             <Maximize2 className="w-3.5 h-3.5" />
@@ -344,6 +394,34 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
         <div className="mt-2 flex justify-between text-[10px] text-slate-400 font-mono">
           <span>{payload.capture_source || 'RTSP live frame'}</span>
           <span>{payload.captured_at ? new Date(payload.captured_at).toLocaleTimeString() : 'Just captured'}</span>
+        </div>
+        <div className="mt-2 border-t border-slate-700 pt-2">
+          <div className="flex items-center justify-between gap-2 text-[10px]">
+            <span className="font-semibold uppercase tracking-wide text-cyan-300">YOLO person detection</span>
+            <span className={payload.detection_status === 'available' ? 'text-emerald-400' : 'text-amber-300'}>
+              {payload.detection_status === 'available' ? `${personDetections.length} detected` : 'Unavailable'}
+            </span>
+          </div>
+          {payload.detection_status === 'unavailable' ? (
+            <p className="mb-0 mt-1 text-[10px] leading-4 text-amber-200">{payload.detection_reason || 'Configure YOLO model dependencies and weights to enable detections.'}</p>
+          ) : personDetections.length > 0 ? (
+            <div className="mt-1.5 max-h-28 overflow-y-auto">
+              <table className="w-full text-left text-[10px] text-slate-300">
+                <thead className="text-slate-500"><tr><th className="py-1 pr-2">Person</th><th className="py-1 pr-2">Confidence</th><th className="py-1 pr-2">xyxy (px)</th><th className="py-1">Center (px)</th></tr></thead>
+                <tbody>{personDetections.map((detection, index) => (
+                  <tr key={detection.id || index} className="border-t border-slate-800">
+                    <td className="py-1 pr-2 font-medium text-emerald-300">{detection.id || `Person ${index + 1}`}</td>
+                    <td className="py-1 pr-2">{(detection.confidence * 100).toFixed(1)}%</td>
+                    <td className="py-1 pr-2 font-mono">[{detection.xyxy.join(', ')}]</td>
+                    <td className="py-1 font-mono">({detection.center.x}, {detection.center.y})</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+              <div className="mt-1 text-[9px] text-slate-500">Frame: {payload.image_width} × {payload.image_height} px · origin at top-left{payload.detection_model ? ` · ${payload.detection_model}` : ''}</div>
+            </div>
+          ) : (
+            <p className="mb-0 mt-1 text-[10px] text-slate-400">No people detected in this frame.</p>
+          )}
         </div>
         {payload.vlm_response && (
           <div className="mt-2 border-t border-slate-700 pt-2 prose prose-invert prose-xs max-w-none text-slate-200 leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_strong]:text-emerald-300">
@@ -447,6 +525,17 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
             <div className="absolute bottom-8 right-0 w-6 h-6 border-r-2 border-b-2 border-cyan-400/50" />
           </div>
         </div>
+        {payload.annotated_image_data_url && (
+          <div className="mb-2 border border-emerald-500/30 bg-slate-950/70 p-2">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">YOLO annotated captured frame</div>
+            <img
+              src={payload.annotated_image_data_url}
+              alt={`YOLO person detections on ${payload.camera_name}`}
+              className="max-h-64 w-full bg-black object-contain"
+            />
+          </div>
+        )}
+        <PersonDetectionDetails payload={payload} />
       </div>
     );
   }
