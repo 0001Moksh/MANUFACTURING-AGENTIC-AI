@@ -5117,7 +5117,7 @@ def _camera_id_for_name(camera_name: str) -> int:
                 row = conn.execute(text("""
                     SELECT id
                     FROM cameras
-                    WHERE (:camera_hint = '' OR id::text = :camera_hint OR camera_number::text = :camera_hint)
+                    WHERE (:camera_hint <> '' AND (id::text = :camera_hint OR camera_number::text = :camera_hint))
                        OR name ILIKE :camera_name
                     ORDER BY CASE WHEN lower(name) = lower(:exact_name) THEN 0 ELSE 1 END, id
                     LIMIT 1
@@ -7166,6 +7166,8 @@ def _resolve_video_target_camera(query_lower: str, previous_camera: str = "") ->
         return "CAM-05 High Bay Crane"
     if uses_relative_ref and previous_camera:
         return previous_camera
+    if previous_camera:
+        return previous_camera
     return "CAM-01 Luxsphere Entrance Gate"
 
 
@@ -7215,8 +7217,18 @@ def _is_live_visual_query(query_lower: str) -> bool:
         "without helmet", "without hardhat", "wearing vest", "without vest", "ppe",
         "how many", "count", "activity", "motion", "hazard", "obstruction", "which one",
         "who looks", "looks focused", "focused on work", "too focused", "from the live camera",
-        "yolo", "person location", "person position", "bounding box", "bbox",
-    ])
+        "yolo", "person location", "person position", "annotated frame", "annotate frame",
+        "bounding box", "bbox", "coordinates",
+    ]) or bool(re.search(r"\bperson\b", query_lower))
+
+
+def _is_person_detection_query(query_lower: str) -> bool:
+    mentions_people = bool(re.search(r"\b(person|people|persons|human)\b", query_lower))
+    asks_for_detection = any(term in query_lower for term in (
+        "detect", "where", "location", "position", "bounding box", "bbox",
+        "annotat", "coordinate", "confidence", "each person", "all people",
+    ))
+    return mentions_people and asks_for_detection
 
 
 def _is_relative_camera_followup(query_lower: str) -> bool:
@@ -7290,6 +7302,53 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             "messages": [AIMessage(content=(
                 f"### Live Camera Stream — {target_cam}\n\n"
                 f"The live player is ready for **{target_cam}**. {detection_note}"
+            ))],
+            "next_agent": "FINISH",
+            "execution_trace": trace,
+            "current_video_camera": target_cam,
+            "last_snapshot": snapshot,
+        }
+
+    if _is_person_detection_query(query_lower):
+        started = time.perf_counter()
+        target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        camera_id = _camera_id_for_name(target_cam)
+        captured_at = datetime.now().isoformat()
+        frame_bytes = _capture_live_frame_bytes(camera_id)
+        detection = _person_detections_for_frame(frame_bytes) if frame_bytes else {
+            "status": "unavailable",
+            "reason": "The requested camera frame could not be captured.",
+            "detections": [],
+        }
+        snapshot = {
+            "camera_id": camera_id,
+            "camera_name": target_cam,
+            "captured_at": captured_at,
+            "snapshot_url": f"/api/video-monitoring/snapshot/{camera_id}?capture={captured_at}",
+            "capture_source": "RTSP live frame",
+            "detections": detection.get("detections", []),
+            "detection_status": detection.get("status", "unavailable"),
+            "detection_reason": detection.get("reason"),
+            "detection_model": detection.get("model"),
+            "annotated_image_data_url": detection.get("annotated_image_data_url"),
+            "image_width": detection.get("image_width"),
+            "image_height": detection.get("image_height"),
+        }
+        trace = _create_trace_record(
+            "Video Agent",
+            "Supervisor -> Video Agent -> YOLO Person Detection",
+            "detect_people_yolo",
+            {"camera_id": camera_id, "camera_name": target_cam},
+            (time.perf_counter() - started) * 1000,
+            "success" if snapshot["detection_status"] == "available" else "unavailable",
+            "Captured a live frame and returned model-derived person locations",
+            0,
+            0,
+        )
+        return {
+            "messages": [AIMessage(content=(
+                f"### YOLO Person Detection — {target_cam}\n\n"
+                f"{_format_person_detection_summary(detection)}"
             ))],
             "next_agent": "FINISH",
             "execution_trace": trace,

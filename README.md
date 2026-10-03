@@ -79,6 +79,7 @@ If you prefer to run services individually without Docker:
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
+   pip install "ultralytics>=8.3,<9"
    ```
 4. Create a `.env` file from the example:
    ```bash
