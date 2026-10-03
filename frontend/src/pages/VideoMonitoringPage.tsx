@@ -729,7 +729,7 @@ export const VideoMonitoringPage: React.FC = () => {
                 >
                   Open Chart Library to Add Widgets
                 </button>
-              </div>
+              </div> 
             )}
           </div>
         )}
