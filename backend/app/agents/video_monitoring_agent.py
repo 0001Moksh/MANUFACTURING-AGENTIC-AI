@@ -58,6 +58,15 @@ from app.agents.investigator_tools import (
     resolve_relative_date,
     get_available_alert_dates,
 )
+from app.agents.video_ml_tools import (
+    init_ml_tools,
+    list_ml_models,
+    run_ml_detection,
+    run_multi_model_scan,
+    is_ml_detection_query,
+    select_model_for_query,
+    run_ml_detection_impl,
+)
 
 import litellm
 
@@ -114,6 +123,11 @@ for attempt in range(1, _DB_MAX_RETRIES + 1):
 
 # Kept as an alias since some tool bodies below refer to `construction_engine`.
 construction_engine = engine
+
+try:
+    init_ml_tools(engine, build_rtsp_url)
+except Exception as exc:
+    print(f"[Video Monitoring Multi-Agent] ML tool init skipped: {exc}")
 
 
 def get_db_health() -> Dict[str, Any]:
@@ -6040,63 +6054,62 @@ video_agent_tools_registry = [
     filter_live_detections, get_high_confidence_detections, detect_specific_objects,
     get_raw_bbox_coordinates, set_yolo_confidence_threshold, get_detection_counts_by_class,
 
-    # 3. VLM Scene & PPE
+    # 3. ML model-based detection
+    list_ml_models,
+    run_ml_detection,
+    run_multi_model_scan,
+
+    # 4. VLM Scene & PPE
     analyze_scene_context, analyze_live_frame_with_vlm, describe_current_scene, list_observable_hazards,
     explain_worker_gathering, describe_environmental_conditions, visual_scene_audit,
     check_clear_of_drop_zone, describe_technician_activity, assess_machinery_safety,
     generate_gate_scene_summary, check_emergency_exit_clear, ask_vlm_custom,
 
-    # 4. Historical Semantic Search
+    # 5. Historical Semantic Search
     semantic_search_scene_history, find_worker_with_object, search_vehicle_at_night,
     search_unsafe_sitting_behavior, search_ppe_and_object, search_vehicle_in_restricted_zone,
     search_person_carrying_object, search_missing_vest_near_line, search_oversized_load,
     search_open_gate_duration,
 
-    # 5. Stream Health
+    # 6. Stream Health
     get_live_stream_health, get_stream_metrics, check_plant_stream_health,
     report_stream_problems, get_full_rtsp_diagnostic, find_low_inference_fps,
     verify_basler_stream_health, get_bandwidth_consumption, detect_optical_issues,
     get_reconnect_status, get_ingest_pipeline_stats,
 
-    # 6. Snapshots
+    # 7. Snapshots
     capture_live_snapshot, capture_vehicle_snapshot, capture_annotated_snapshot,
     attach_snapshot_to_incident, configure_auto_snapshots, capture_zone_snapshots,
     retrieve_historical_frame, capture_thermal_snapshot, export_snapshot_with_metadata,
     delete_old_temp_snapshots,
 
-    # 7. Motion & ROI
+    # 8. Motion & ROI
     detect_motion_in_stream, detect_motion_in_roi, show_motion_heatmap,
     set_after_hours_motion_alert, show_optical_flow, set_custom_motion_roi,
     show_background_subtraction, detect_unusual_speed, analyze_motion_frequency,
     ignore_conveyor_motion, get_roi_motion_logs,
 
-    # 8. Multi-camera Counting
+    # 9. Multi-camera Counting
     get_live_people_count_multi_camera, get_cross_camera_count, calculate_building_occupancy,
     get_zone_crossing_counts, show_crowd_density_map, get_perimeter_line_counts,
     get_total_headcount, analyze_occupancy_trend, set_occupancy_alert,
     export_daily_counting_analytics,
 
-    # 9. Live Person Search / Re-ID
+    # 10. Live Person Search / Re-ID
     find_person_by_description_live, find_person_by_profile_id, track_visitor_live,
     search_suspect_live, reidentify_last_entry, find_contractor_live,
     search_by_clothing_details, track_across_cameras, find_person_with_object_live,
     locate_unauthorized_clothing,
 
-    # 10. Zone PPE Compliance
+    # 11. Zone PPE Compliance
     get_live_ppe_compliance_check, check_helmet_vest_compliance, list_non_compliant_workers,
     get_zone_wise_ppe_breakdown, flag_missing_arc_flash_gear, get_vest_compliance_rate,
     detect_unfastened_chin_straps, show_ppe_compliance_score_map, alert_missing_chemical_ppe,
     get_non_compliant_snapshots, generate_hourly_ppe_summary, get_ppe_trend,
 ]
-
-# Live visual analysis is executed through the grounded frame pipeline; legacy
-# placeholder tools are intentionally not exposed to the LLM.
-video_agent_tools_registry = [
-    analyze_live_frame_with_vlm,
-]
 # ════════════════════════════════════════════════════════════════════════════
 # 📋 MASTER TOOL REGISTRY + RBAC COMPONENT MAP
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════
 all_system_tools = (
     general_agent_tools_registry
     + system_agent_tools_registry
@@ -6139,6 +6152,9 @@ TOOL_TO_COMPONENT_MAP: Dict[str, str] = {
     "analyze_video_feed": "Live Streaming",
     "analyze_scene_context": "Live Streaming",
     "analyze_live_frame_with_vlm": "Live Streaming",
+    "list_ml_models": "Live Streaming",
+    "run_ml_detection": "Live Streaming",
+    "run_multi_model_scan": "Live Streaming",
     "semantic_search_scene_history": "Live Streaming",
     "get_live_stream_health": "Live Streaming",
     "capture_live_snapshot": "Live Streaming",
@@ -7024,6 +7040,11 @@ def build_vlm_instruction(messages: List[BaseMessage], user_query: str, camera_n
     )
 
 
+def _is_ml_detection_request(query_lower: str) -> bool:
+    """Compatibility wrapper for the ML tool routing check used by the video agent."""
+    return is_ml_detection_query(query_lower)
+
+
 def _is_live_visual_query(query_lower: str) -> bool:
     return any(term in query_lower for term in [
         "what is happening", "what is going on", "what do you see", "describe the scene", "scene", "visual",
@@ -7079,6 +7100,38 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
         response = None
 
     elapsed_ms = (time.perf_counter() - start_t) * 1000
+
+    if _is_ml_detection_request(query_lower):
+        target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        model_name = select_model_for_query(user_query)
+        tool_name = "run_ml_detection"
+        tool_args = {
+            "camera_name": target_cam,
+            "model_name": model_name,
+            "user_query": user_query,
+            "confidence": 0.4,
+        }
+        pipeline_result = run_ml_detection.invoke(tool_args)
+        payload = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
+        summary = payload.get("summary") or pipeline_result.get("message", "ML detection completed")
+        trace = _create_trace_record(
+            "Video Agent",
+            f"Supervisor -> Video Agent -> {tool_name}",
+            tool_name,
+            tool_args,
+            elapsed_ms,
+            "success" if isinstance(pipeline_result, dict) and pipeline_result.get("success", False) else "error",
+            "YOLO model inference on one live frame",
+            170,
+            150,
+        )
+        return {
+            "messages": [AIMessage(content=summary)],
+            "next_agent": "FINISH",
+            "execution_trace": trace,
+            "current_video_camera": target_cam,
+            "last_snapshot": payload,
+        }
 
     if _is_live_visual_query(query_lower):
         target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")

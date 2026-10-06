@@ -73,6 +73,13 @@ const SEVERITY_STYLES: Record<string, { badge: string; border: string; dot: stri
   NORMAL:   { badge: 'bg-slate-600/90 text-slate-200', border: 'border-slate-600/50',  dot: 'bg-slate-400' },
 };
 
+const resolveMediaUrl = (url?: string) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || /^data:/i.test(url)) return url;
+  if (url.startsWith('//')) return `${window.location.protocol}${url}`;
+  return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload, onActionClick }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SnapshotGalleryItem | null>(null);
@@ -323,16 +330,16 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
         </div>
         <div className="relative w-full max-w-[400px] max-h-[225px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700">
           <img
-            src={payload.snapshot_url}
+            src={resolveMediaUrl(payload.snapshot_url)}
             alt={`Captured live snapshot — ${payload.camera_name}`}
             className="w-full h-full max-w-[400px] max-h-[225px] object-cover rounded-lg cursor-pointer"
-            onClick={() => setSelectedImage(payload.snapshot_url || null)}
+            onClick={() => setSelectedImage(resolveMediaUrl(payload.snapshot_url) || null)}
           />
           <button
             type="button"
             aria-label="Expand snapshot"
             title="Expand snapshot"
-            onClick={() => setSelectedImage(payload.snapshot_url || null)}
+            onClick={() => setSelectedImage(resolveMediaUrl(payload.snapshot_url) || null)}
             className="absolute right-2 top-2 rounded-md bg-slate-950/80 p-1.5 text-white hover:bg-slate-800 transition-colors"
           >
             <Maximize2 className="w-3.5 h-3.5" />
@@ -353,7 +360,7 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
         {selectedImage && (
           <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
             <div className="relative max-w-4xl w-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden p-2" onClick={(event) => event.stopPropagation()}>
-              <img src={selectedImage} alt={`Expanded snapshot — ${payload.camera_name}`} className="w-full h-auto max-h-[85vh] object-contain rounded-lg" />
+              <img src={resolveMediaUrl(selectedImage || undefined)} alt={`Expanded snapshot — ${payload.camera_name}`} className="w-full h-auto max-h-[85vh] object-contain rounded-lg" />
               <button
                 type="button"
                 onClick={() => setSelectedImage(null)}
@@ -409,7 +416,7 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
         <div className={`relative w-full ${streamFullscreen ? 'h-[calc(100vh-90px)] max-w-none' : 'max-w-[400px]'} aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700 mb-2.5`}>
           {!streamError ? (
             <img
-              src={payload.stream_url}
+              src={resolveMediaUrl(payload.stream_url)}
               alt={`Live stream — ${payload.camera_name}`}
               className="w-full h-full object-cover rounded-lg"
               onError={() => setStreamError(true)}
@@ -417,7 +424,7 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           ) : (
             /* Fallback snapshot when MJPEG stream fails to load */
             <img
-              src={payload.snapshot_url}
+              src={resolveMediaUrl(payload.snapshot_url)}
               alt={`Snapshot — ${payload.camera_name}`}
               className="w-full h-full object-cover opacity-80 rounded-lg"
             />

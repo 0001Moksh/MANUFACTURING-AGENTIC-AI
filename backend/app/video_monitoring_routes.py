@@ -890,6 +890,19 @@ async def alert_stream(db: AsyncSession = Depends(get_va_db)):
 import cv2
 
 
+@router.get("/ml-snapshot/{filename}")
+async def ml_snapshot_file(filename: str):
+    """Serve the annotated YOLO/ML snapshot generated for detection responses."""
+    safe_name = os.path.basename(filename)
+    snapshot_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "storage", "ml_snapshots"))
+    file_path = os.path.join(snapshot_dir, safe_name)
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="ML snapshot not found")
+    return FileResponse(file_path, media_type="image/jpeg", headers={
+        "Cache-Control": "no-store, max-age=0",
+    })
+
+
 @router.get("/snapshot/{device_id}")
 async def video_frame_snapshot(device_id: int, db: AsyncSession = Depends(get_va_db)):
     """Capture exactly one current frame from the camera RTSP stream."""
