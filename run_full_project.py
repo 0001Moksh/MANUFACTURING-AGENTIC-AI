@@ -218,13 +218,12 @@ def start_backend() -> subprocess.Popen:
 
 
 def wait_for_backend(proc: subprocess.Popen, timeout: int = BACKEND_STARTUP_TIMEOUT) -> None:
-    """Wait until TCP port is open (and optionally HTTP /docs responds)."""
+    """Wait until TCP port is open, without blocking on stdout reads from the child process."""
     deadline = time.time() + timeout
     last_lines: list[str] = []
 
     while time.time() < deadline:
         if proc.poll() is not None:
-            # Drain remaining output for diagnostics
             if proc.stdout is not None:
                 try:
                     rest = proc.stdout.read()
@@ -238,7 +237,6 @@ def wait_for_backend(proc: subprocess.Popen, timeout: int = BACKEND_STARTUP_TIME
             )
 
         if port_in_use(BACKEND_PORT):
-            # Optional HTTP probe — don't fail hard if /docs is slow
             try:
                 import urllib.request
                 with urllib.request.urlopen(
@@ -249,22 +247,8 @@ def wait_for_backend(proc: subprocess.Popen, timeout: int = BACKEND_STARTUP_TIME
                         print("Backend is ready.")
                         return
             except Exception:
-                # Port open is enough to proceed; frontend can retry
                 print("Backend port open (HTTP probe skipped/failed). Starting frontend.")
                 return
-
-        # Non-blocking peek at a few lines during wait
-        if proc.stdout is not None:
-            try:
-                line = proc.stdout.readline()
-                if line:
-                    text = line.rstrip()
-                    print(f"{LOG_PREFIX['backend']} {text}")
-                    last_lines.append(line)
-                    if len(last_lines) > 40:
-                        last_lines = last_lines[-40:]
-            except Exception:
-                pass
 
         time.sleep(0.6)
 
@@ -310,9 +294,8 @@ def main() -> int:
 
     try:
         backend_proc = start_backend()
-        wait_for_backend(backend_proc)
 
-        # Switch backend logs to background thread after ready
+        # Start log streaming before readiness checks to avoid blocking on stdout.readline().
         t_be = threading.Thread(
             target=stream_output,
             args=(backend_proc, "backend", stop_event),
@@ -320,6 +303,8 @@ def main() -> int:
         )
         t_be.start()
         log_threads.append(t_be)
+
+        wait_for_backend(backend_proc)
 
         frontend_proc = start_frontend()
         t_fe = threading.Thread(
