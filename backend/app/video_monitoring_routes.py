@@ -212,9 +212,25 @@ import os
 
 import urllib.parse
 
-DEFAULT_STORAGE_BASE = r"C:\Users\Administrator\Desktop\denso code\backend"
+
+def _resolve_storage_base(raw_env_path: str | None = None) -> str:
+    """Prefer the active backend project directory and fall back to the env value if needed."""
+    backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    candidates = [backend_root, os.path.abspath(os.path.join(backend_root, ".."))]
+    if raw_env_path:
+        env_path = urllib.parse.unquote(raw_env_path).replace("%20", " ")
+        env_path = os.path.normpath(env_path)
+        if env_path not in candidates:
+            candidates.insert(1, env_path)
+    for candidate in candidates:
+        if candidate and os.path.isdir(candidate):
+            return candidate
+    return backend_root
+
+
+DEFAULT_STORAGE_BASE = _resolve_storage_base(os.getenv("STORAGE_BASE_PATH"))
 raw_env_storage = os.getenv("STORAGE_BASE_PATH", DEFAULT_STORAGE_BASE)
-STORAGE_BASE_PATH = urllib.parse.unquote(raw_env_storage).replace("%20", " ")
+STORAGE_BASE_PATH = _resolve_storage_base(raw_env_storage)
 
 def resolve_local_snapshot_path(raw_path: str) -> str | None:
     r"""
@@ -894,10 +910,33 @@ import cv2
 async def ml_snapshot_file(filename: str):
     """Serve the annotated YOLO/ML snapshot generated for detection responses."""
     safe_name = os.path.basename(filename)
-    snapshot_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "storage", "ml_snapshots"))
-    file_path = os.path.join(snapshot_dir, safe_name)
-    if not os.path.exists(file_path) or not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="ML snapshot not found")
+
+    try:
+        from app.agents.video_ml_tools import ML_SNAPSHOT_DIR as SHARED_ML_SNAPSHOT_DIR
+    except Exception:
+        SHARED_ML_SNAPSHOT_DIR = None
+
+    candidate_dirs = []
+    if SHARED_ML_SNAPSHOT_DIR:
+        candidate_dirs.append(os.path.normpath(SHARED_ML_SNAPSHOT_DIR))
+    candidate_dirs.extend([
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "storage", "ml_snapshots")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "storage", "ml_snapshots")),
+        os.path.join(STORAGE_BASE_PATH, "storage", "ml_snapshots"),
+    ])
+
+    file_path = None
+    for directory in candidate_dirs:
+        if not directory:
+            continue
+        candidate = os.path.join(directory, safe_name)
+        if os.path.exists(candidate) and os.path.isfile(candidate):
+            file_path = candidate
+            break
+
+    if file_path is None:
+        raise HTTPException(status_code=404, detail=f"ML snapshot not found: {safe_name}")
+
     return FileResponse(file_path, media_type="image/jpeg", headers={
         "Cache-Control": "no-store, max-age=0",
     })

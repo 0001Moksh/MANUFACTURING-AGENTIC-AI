@@ -16,8 +16,27 @@ from sqlalchemy import text
 _engine = None
 _build_rtsp_url = None
 
-DEFAULT_STORAGE_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-STORAGE_BASE = urllib.parse.unquote(os.getenv("STORAGE_BASE_PATH", DEFAULT_STORAGE_BASE)).replace("%20", " ")
+
+def _resolve_storage_base(raw_env_path: Optional[str] = None) -> str:
+    """Prefer the current project backend directory over stale env values copied from another machine."""
+    backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    candidates = [backend_root, os.path.abspath(os.path.join(backend_root, ".."))]
+    if raw_env_path:
+        env_path = urllib.parse.unquote(raw_env_path).replace("%20", " ")
+        env_path = os.path.normpath(env_path)
+        if env_path not in candidates:
+            candidates.insert(1, env_path)
+    for candidate in candidates:
+        if not candidate:
+            continue
+        candidate = os.path.normpath(candidate)
+        if os.path.isdir(candidate):
+            return candidate
+    return backend_root
+
+
+DEFAULT_STORAGE_BASE = _resolve_storage_base(os.getenv("STORAGE_BASE_PATH"))
+STORAGE_BASE = _resolve_storage_base(os.getenv("STORAGE_BASE_PATH", DEFAULT_STORAGE_BASE))
 ML_SNAPSHOT_DIR = os.path.join(STORAGE_BASE, "storage", "ml_snapshots")
 
 _MODEL_CACHE: Dict[str, Any] = {}
@@ -40,6 +59,7 @@ _ML_QUERY_TERMS = [
 ]
 
 _MODEL_COLORS = [(0, 200, 255), (60, 220, 60), (255, 120, 40), (200, 60, 220), (40, 80, 255)]
+_DEFAULT_CONFIDENCE = 0.2
 
 
 def init_ml_tools(engine, build_rtsp_url) -> None:
@@ -298,7 +318,7 @@ def run_ml_detection_impl(
     camera_name: str,
     model_names: Optional[List[str]] = None,
     user_query: Optional[str] = None,
-    confidence: float = 0.4,
+    confidence: float = _DEFAULT_CONFIDENCE,
     classes: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Capture ONE frame, run one or more registry models on it, return detections + annotated snapshot."""
@@ -370,7 +390,7 @@ def run_ml_detection(
     camera_name: str,
     model_name: Optional[str] = None,
     user_query: Optional[str] = None,
-    confidence: float = 0.4,
+    confidence: float = _DEFAULT_CONFIDENCE,
     classes: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run ONE registered YOLO model (e.g. 'Fire Detection', 'Spill Detection', 'PPE Kit Office', 'Base Model')
@@ -384,7 +404,7 @@ def run_ml_detection(
 def run_multi_model_scan(
     camera_name: str,
     model_names: Optional[str] = "Fire Detection,Spill Detection,PPE Kit Office",
-    confidence: float = 0.4,
+    confidence: float = _DEFAULT_CONFIDENCE,
 ) -> Dict[str, Any]:
     """Run several registered models (comma-separated names) on the SAME live frame for a full hazard scan
     (fire + spill + PPE by default). Returns combined detections and one annotated snapshot."""

@@ -37,6 +37,7 @@ export interface WidgetPayload {
     variant?: 'success' | 'danger' | 'secondary' | 'primary';
   }>;
   // Live Stream Player fields
+  camera_id?: number;
   camera_name?: string;
   camera_location?: string;
   stream_url?: string;
@@ -321,6 +322,12 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
   }
 
   if (payload.type === 'snapshot_evidence_widget') {
+    const imageUrl = resolveMediaUrl(
+      payload.snapshot_url ||
+      (payload.camera_id ? `/api/video-monitoring/snapshot/${payload.camera_id}?capture=${payload.captured_at || new Date().toISOString()}` : '')
+    );
+    const detectionRows = Array.isArray(payload.detections) ? payload.detections : [];
+
     return (
       <div className="mt-3 w-full max-w-[430px] p-3 bg-slate-900/95 border border-emerald-500/30 rounded-xl shadow-xl overflow-hidden">
         <div className="flex items-center gap-2 mb-2.5 text-emerald-400 font-semibold text-xs uppercase tracking-wider">
@@ -329,21 +336,32 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           <span className="ml-auto text-[10px] text-slate-400 normal-case">1 frame</span>
         </div>
         <div className="relative w-full max-w-[400px] max-h-[225px] aspect-video rounded-lg overflow-hidden bg-slate-950 border border-slate-700">
-          <img
-            src={resolveMediaUrl(payload.snapshot_url)}
-            alt={`Captured live snapshot — ${payload.camera_name}`}
-            className="w-full h-full max-w-[400px] max-h-[225px] object-cover rounded-lg cursor-pointer"
-            onClick={() => setSelectedImage(resolveMediaUrl(payload.snapshot_url) || null)}
-          />
-          <button
-            type="button"
-            aria-label="Expand snapshot"
-            title="Expand snapshot"
-            onClick={() => setSelectedImage(resolveMediaUrl(payload.snapshot_url) || null)}
-            className="absolute right-2 top-2 rounded-md bg-slate-950/80 p-1.5 text-white hover:bg-slate-800 transition-colors"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={`Captured live snapshot — ${payload.camera_name}`}
+              className="w-full h-full max-w-[400px] max-h-[225px] object-cover rounded-lg cursor-pointer"
+              onClick={() => setSelectedImage(imageUrl || null)}
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.onerror = null;
+                img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22225%22%3E%3Crect fill=%22%231e293b%22 width=%22400%22 height=%22225%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%2364748b%22 font-size=%2213%22%3ESnapshot unavailable%3C/text%3E%3C/svg%3E';
+              }}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-[11px] text-slate-400">No snapshot available</div>
+          )}
+          {imageUrl && (
+            <button
+              type="button"
+              aria-label="Expand snapshot"
+              title="Expand snapshot"
+              onClick={() => setSelectedImage(imageUrl || null)}
+              className="absolute right-2 top-2 rounded-md bg-slate-950/80 p-1.5 text-white hover:bg-slate-800 transition-colors"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           <span className="absolute bottom-2 left-2 px-1.5 py-0.5 text-[10px] font-mono text-white bg-slate-950/80 rounded">
             {payload.camera_name}
           </span>
@@ -352,6 +370,35 @@ export const ChatWidgetRenderer: React.FC<ChatWidgetRendererProps> = ({ payload,
           <span>{payload.capture_source || 'RTSP live frame'}</span>
           <span>{payload.captured_at ? new Date(payload.captured_at).toLocaleTimeString() : 'Just captured'}</span>
         </div>
+
+        {detectionRows.length > 0 && (
+          <div className="mt-3 border-t border-slate-700 pt-2">
+            <div className="mb-1 text-[10px] uppercase tracking-wider text-emerald-300 font-semibold">Detected objects</div>
+            <div className="space-y-1.5 text-[11px] text-slate-200">
+              {detectionRows.slice(0, 6).map((detection, index) => {
+                const item = detection as Record<string, unknown>;
+                const className = String(item.class_name ?? item.class ?? item.label ?? `Object ${index + 1}`);
+                const confidence = Number(item.confidence ?? 0);
+                const x1 = item.x1 ?? item.x ?? null;
+                const y1 = item.y1 ?? item.y ?? null;
+                const x2 = item.x2 ?? null;
+                const y2 = item.y2 ?? null;
+                const bbox = x1 !== null && y1 !== null && x2 !== null && y2 !== null
+                  ? `[${x1}, ${y1}, ${x2}, ${y2}]`
+                  : (Array.isArray(item.bbox) ? `[${String(item.bbox)}]` : '');
+
+                return (
+                  <div key={`${className}-${index}`} className="flex items-center justify-between gap-2 rounded-md border border-slate-700 bg-slate-950/60 px-2 py-1">
+                    <span className="font-medium text-slate-100">{className}</span>
+                    <span className="text-slate-400">{Number.isFinite(confidence) ? `${confidence.toFixed(2)}` : 'n/a'}</span>
+                    {bbox && <span className="font-mono text-[10px] text-cyan-300">{bbox}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {payload.vlm_response && (
           <div className="mt-2 border-t border-slate-700 pt-2 prose prose-invert prose-xs max-w-none text-slate-200 leading-relaxed [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_strong]:text-emerald-300">
             <ReactMarkdown remarkPlugins={[remarkGfm as any]}>{payload.vlm_response}</ReactMarkdown>

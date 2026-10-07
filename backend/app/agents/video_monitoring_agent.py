@@ -5002,117 +5002,7 @@ def set_stream_audio(camera_name: str, muted: bool = True) -> Dict[str, Any]:
 
 
 # ════════════════════════════════════════════════
-# 2. REAL-TIME YOLO OBJECT DETECTION (12 tools)
-# ════════════════════════════════════════════════
-
-@tool
-def analyze_video_feed(camera_name: str, classes: Optional[str] = None) -> Dict[str, Any]:
-    """Run YOLO object detection on the current frame. Optional class filter (comma-separated)."""
-    return _ok(f"YOLO detection on {camera_name}", {
-        "camera_name": camera_name,
-        "detections": [
-            {"class": "person", "confidence": 0.95, "count": 3, "bboxes": []},
-            {"class": "forklift", "confidence": 0.88, "count": 1, "bboxes": []}
-        ],
-        "timestamp": datetime.now().isoformat()
-    })
-
-
-@tool
-def draw_bounding_boxes(camera_name: str, classes: Optional[str] = None) -> Dict[str, Any]:
-    """Detect and draw bounding boxes for vehicles, workers, forklifts, etc. on the live feed."""
-    return _ok(f"Bounding boxes drawn on {camera_name}", {
-        "camera_name": camera_name, "classes": classes, "overlay_active": True
-    })
-
-
-@tool
-def get_detection_confidence_scores(camera_name: str) -> Dict[str, Any]:
-    """Show YOLO object detection class confidence scores on a live feed."""
-    return _ok(f"Confidence scores for {camera_name}", {
-        "camera_name": camera_name,
-        "scores": [
-            {"class": "person", "avg_confidence": 0.93},
-            {"class": "forklift", "avg_confidence": 0.87}
-        ]
-    })
-
-
-@tool
-def highlight_objects(camera_name: str, object_classes: str) -> Dict[str, Any]:
-    """Highlight specific object classes (e.g. pallets, cardboard boxes) on the live feed."""
-    return _ok(f"Highlighted {object_classes} on {camera_name}", {
-        "camera_name": camera_name, "object_classes": object_classes.split(",")
-    })
-
-
-@tool
-def run_yolo_inference(camera_name: str, model: str = "YOLOv8") -> Dict[str, Any]:
-    """Run a specific YOLO model inference (YOLOv8 / custom industrial model)."""
-    return _ok(f"{model} inference completed on {camera_name}", {
-        "camera_name": camera_name, "model": model, "detections": []
-    })
-
-
-@tool
-def toggle_yolo_overlay(camera_name: str, enabled: bool = True) -> Dict[str, Any]:
-    """Toggle YOLO bounding-box overlays on/off for a camera."""
-    state = "enabled" if enabled else "disabled"
-    return _ok(f"YOLO overlay {state} on {camera_name}")
-
-
-@tool
-def filter_live_detections(camera_name: str, allowed_classes: str) -> Dict[str, Any]:
-    """Filter live object detection to show only specific classes (e.g. person,truck)."""
-    return _ok(f"Live detection filtered to {allowed_classes}", {
-        "camera_name": camera_name, "allowed_classes": allowed_classes.split(",")
-    })
-
-
-@tool
-def get_high_confidence_detections(camera_name: str, min_confidence: float = 0.70) -> Dict[str, Any]:
-    """Show only bounding-box predictions above a minimum confidence threshold."""
-    return _ok(f"High-confidence detections (>={min_confidence})", {
-        "camera_name": camera_name, "min_confidence": min_confidence, "detections": []
-    })
-
-
-@tool
-def detect_specific_objects(camera_name: str, objects: str) -> Dict[str, Any]:
-    """Detect specific industrial objects (handheld tools, safety cones, etc.)."""
-    return _ok(f"Detected {objects} on {camera_name}", {
-        "camera_name": camera_name, "objects": objects.split(","), "results": []
-    })
-
-
-@tool
-def get_raw_bbox_coordinates(camera_name: str) -> Dict[str, Any]:
-    """Display raw bounding-box coordinate outputs for all detected objects."""
-    return _ok(f"Raw bbox coordinates from {camera_name}", {
-        "camera_name": camera_name,
-        "bboxes": [
-            {"class": "person", "xyxy": [120, 45, 300, 510], "confidence": 0.95}
-        ]
-    })
-
-
-@tool
-def set_yolo_confidence_threshold(camera_name: str, threshold: float) -> Dict[str, Any]:
-    """Set the minimum confidence threshold used by YOLO on a camera."""
-    return _ok(f"YOLO confidence threshold set to {threshold} on {camera_name}")
-
-
-@tool
-def get_detection_counts_by_class(camera_name: str) -> Dict[str, Any]:
-    """Return current live count of each detected class on a camera."""
-    return _ok(f"Class counts on {camera_name}", {
-        "camera_name": camera_name,
-        "counts": {"person": 4, "forklift": 1, "pallet": 7}
-    })
-
-
-# ════════════════════════════════════════════════
-# 3. VLM SCENE & PPE VISUAL ANALYSIS (12 tools)
+# 2. VLM SCENE & PPE VISUAL ANALYSIS (12 tools)
 # ════════════════════════════════════════════════
 
 @tool
@@ -6048,18 +5938,12 @@ video_agent_tools_registry = [
     set_stream_resolution, show_side_by_side_streams, switch_to_high_bitrate,
     get_all_rtsp_links, restart_streaming_service, set_stream_audio,
 
-    # 2. YOLO Detection
-    analyze_video_feed, draw_bounding_boxes, get_detection_confidence_scores,
-    highlight_objects, run_yolo_inference, toggle_yolo_overlay,
-    filter_live_detections, get_high_confidence_detections, detect_specific_objects,
-    get_raw_bbox_coordinates, set_yolo_confidence_threshold, get_detection_counts_by_class,
-
-    # 3. ML model-based detection
+    # 2. ML model-based detection
     list_ml_models,
     run_ml_detection,
     run_multi_model_scan,
 
-    # 4. VLM Scene & PPE
+    # 3. VLM Scene & PPE
     analyze_scene_context, analyze_live_frame_with_vlm, describe_current_scene, list_observable_hazards,
     explain_worker_gathering, describe_environmental_conditions, visual_scene_audit,
     check_clear_of_drop_zone, describe_technician_activity, assess_machinery_safety,
@@ -7045,6 +6929,27 @@ def _is_ml_detection_request(query_lower: str) -> bool:
     return is_ml_detection_query(query_lower)
 
 
+def _is_people_count_query(query_lower: str) -> bool:
+    return any(term in query_lower for term in [
+        "count the number of people",
+        "count people",
+        "how many people",
+        "how many persons",
+        "how many workers",
+        "number of people",
+        "people count",
+        "person count",
+        "people visible",
+        "persons visible",
+        "workers visible",
+        "people in the frame",
+        "persons in the frame",
+        "people in this camera",
+        "people in luxsphere",
+        "count the people",
+    ])
+
+
 def _is_live_visual_query(query_lower: str) -> bool:
     return any(term in query_lower for term in [
         "what is happening", "what is going on", "what do you see", "describe the scene", "scene", "visual",
@@ -7101,6 +7006,38 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
 
     elapsed_ms = (time.perf_counter() - start_t) * 1000
 
+    if _is_people_count_query(query_lower):
+        target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
+        tool_name = "run_ml_detection"
+        tool_args = {
+            "camera_name": target_cam,
+            "model_name": "Base Model",
+            "user_query": user_query,
+            "confidence": 0.2,
+            "classes": "person",
+        }
+        pipeline_result = run_ml_detection.invoke(tool_args)
+        payload = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
+        summary = payload.get("summary") or pipeline_result.get("message", "Person count detection completed")
+        trace = _create_trace_record(
+            "Video Agent",
+            f"Supervisor -> Video Agent -> {tool_name}",
+            tool_name,
+            tool_args,
+            elapsed_ms,
+            "success" if isinstance(pipeline_result, dict) and pipeline_result.get("success", False) else "error",
+            "Person-count detection on one live frame",
+            170,
+            150,
+        )
+        return {
+            "messages": [AIMessage(content=summary)],
+            "next_agent": "FINISH",
+            "execution_trace": trace,
+            "current_video_camera": target_cam,
+            "last_snapshot": payload,
+        }
+
     if _is_ml_detection_request(query_lower):
         target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
         model_name = select_model_for_query(user_query)
@@ -7109,7 +7046,7 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             "camera_name": target_cam,
             "model_name": model_name,
             "user_query": user_query,
-            "confidence": 0.4,
+            "confidence": 0.2,
         }
         pipeline_result = run_ml_detection.invoke(tool_args)
         payload = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
