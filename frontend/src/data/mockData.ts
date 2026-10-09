@@ -110,6 +110,10 @@ export const useCases: UseCase[] = [
    desc:"Real-time equipment health monitoring, InfluxDB time-series telemetry streams, and automated agent root-cause analysis for plant machinery.",
    impact:"Zero unplanned machine downtime; automated LLM agent root-cause investigation & predictive maintenance alerts.",
    poweredBy:["Maintenance Agent","Operations Agent","Reporting Agent"]},
+  {id:26,pillar:"opex",title:"Voice Assistant Deva",tags:["VOICE","GENAI","AGENTIC"],status:"live",
+   desc:"A multilingual voice assistant for natural Hindi, Hinglish, and English conversations, with speech input and playback, conversational memory, useful tools, and interruption-aware follow-ups.",
+   impact:"Hands-free conversational access to assistance, with recognized speech sent automatically and interruptions handled in context.",
+   poweredBy:[]},
 ];
 
 export const pillarMeta: Record<string, { label: string }> = {

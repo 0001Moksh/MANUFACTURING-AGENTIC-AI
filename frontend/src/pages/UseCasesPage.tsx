@@ -5,7 +5,7 @@ import { UseCaseCard } from '../components/usecases/UseCaseCard';
 import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
 
-const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25]);
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26]);
 
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
@@ -72,6 +72,10 @@ export const UseCasesPage: React.FC = () => {
               }
               if (u.id === 25) {
                 navigate('/machine-monitoring');
+                return;
+              }
+              if (u.id === 26) {
+                navigate('/use-cases/voice-agent');
                 return;
               }
               navigate(`/use-cases/${u.id}`);

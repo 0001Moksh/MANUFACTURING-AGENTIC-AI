@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/layout/Layout';
 import { OverviewPage } from './pages/OverviewPage';
 import { UseCasesPage } from './pages/UseCasesPage';
 import { UseCaseDetailPage } from './pages/UseCaseDetailPage';
+import { VoiceAgentPage } from './pages/VoiceAgentPage';
 import { ExecutiveInsightsPage } from './pages/ExecutiveInsightsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { ReportingAgentPage } from './pages/ReportingAgentPage';
@@ -75,9 +76,11 @@ function App() {
             <Route path="use-cases/executive-insights" element={<ExecutiveInsightsPage />} />
             <Route path="use-cases/safety-site-intelligence" element={<SafetySiteIntelligencePage />} />
             <Route path="use-cases/video-monitoring" element={<VideoMonitoringPage />} />
+            <Route path="use-cases/voice-agent" element={<VoiceAgentPage />} />
             <Route path="use-cases/machine-monitoring" element={<MachineMonitoringPage />} />
             <Route path="machine-monitoring" element={<MachineMonitoringPage />} />
             <Route path="machine-monitoring/:id" element={<MachineDetailPage />} />
+            <Route path="use-cases/26" element={<Navigate to="/use-cases/voice-agent" replace />} />
             <Route path="use-cases/:id" element={<UseCaseDetailPage />} />
             <Route path="agents" element={<AgentsPage />} />
             <Route path="agents/reporting" element={<ReportingAgentPage />} />

@@ -80,6 +80,7 @@ from app.integrations_service import (
     get_grafana_health_status_sync,
 )
 from app.voice.manager import VoiceConversationManager
+from app.voice_agent_graph import VoiceAgentUnavailableError, run_voice_agent_turn
 from app.license_control import (
     get_active_license_path,
     get_installation_id,
@@ -136,6 +137,11 @@ class QueryRequest(BaseModel):
     model: str = "auto"
     email_to: Optional[str] = None
     agent: Optional[str] = None
+
+
+class VoiceAgentChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    thread_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
 
 class ApproveRequest(BaseModel):
     state: Dict[str, Any]
@@ -2499,6 +2505,26 @@ def _require_integration(name: str) -> None:
 
 
 # --- WEBSOCKET ROUTE ---
+
+@router.post("/api/voice-agent/chat")
+async def chat_with_voice_agent(
+    req: VoiceAgentChatRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    user = await get_current_user(request, db)
+    thread_id = f"user-{user.id}-{req.thread_id}"
+    try:
+        reply = await asyncio.wait_for(
+            run_voice_agent_turn(req.message.strip(), thread_id),
+            timeout=95,
+        )
+    except VoiceAgentUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Deva took too long to respond. Please try again.") from exc
+    return {"reply": reply, "thread_id": req.thread_id}
+
 
 @router.websocket("/api/ws/telemetry")
 async def websocket_endpoint(websocket: WebSocket):

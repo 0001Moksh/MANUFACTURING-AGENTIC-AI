@@ -72,11 +72,15 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
+  const welcomeText = useCaseName === 'Voice Assistant Deva'
+    ? 'Namaste! I am Deva, your multilingual voice assistant. Ask me about plant operations, safety, or maintenance in Hindi, Hinglish, or English. You can speak or type, and I will respond aloud.'
+    : 'Hello sir! I am Deva, your Voice Interaction Layer. You can speak or type your query in English or Hindi. I will query the live agent database tools, display the results, and speak the response back to you.';
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'msg-0',
       sender: 'agent',
-      text: `Hello sir! I am Deva, your Voice Interaction Layer. You can speak or type your query in English or Hindi. I will query the live agent database tools, display the results, and speak the response back to you.`,
+      text: welcomeText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       agentName: 'Voice Assistant (Deva)',
     },
@@ -326,7 +330,9 @@ export const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
       {
         id: `welcome-${Date.now()}`,
         sender: 'agent',
-        text: 'New conversation started. You can speak or type your query in English or Hindi.',
+        text: useCaseName === 'Voice Assistant Deva'
+          ? 'New conversation started. You can speak or type in Hindi, Hinglish, or English.'
+          : 'New conversation started. You can speak or type your query in English or Hindi.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         agentName: 'Voice Assistant (Deva)',
       },
