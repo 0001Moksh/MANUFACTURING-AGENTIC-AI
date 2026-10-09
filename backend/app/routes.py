@@ -2638,6 +2638,12 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
             }
         else:
             state = await run_agent_workflow(req.query, is_approved=False)
+
+        if state.get("error_message"):
+            raise HTTPException(
+                status_code=502,
+                detail=f"Report generation failed: {state['error_message']}",
+            )
         
         # If it requires human approval, store it and return status
         if state.get("requires_hitl") and not state.get("is_approved"):
@@ -2727,9 +2733,10 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
             "error_message": state.get("error_message", ""),
             "cost_usd": get_usage_audit()[-1].get("estimated_cost_usd", 0.0) if get_usage_audit() else 0.0
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        logging.getLogger("routes").exception("Agent query workflow failed")
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {e}")
 
 @router.post("/api/maintenance/chat")

@@ -26,6 +26,21 @@ import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
 import { createEstimatedTelemetry } from '../../utils/telemetryHelper';
 import { reportPdfUrl } from '../../config/api';
 
+const getRequestErrorMessage = (error: any, fallback: string) => {
+  const responseData = error?.response?.data;
+  const detail = responseData?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (detail && typeof detail === 'object') return JSON.stringify(detail);
+
+  const message = responseData?.message || responseData?.error;
+  if (typeof message === 'string' && message.trim()) {
+    const code = responseData?.code ? `${responseData.code}: ` : '';
+    return `${code}${message}`;
+  }
+  if (typeof error?.message === 'string' && error.message.trim()) return error.message;
+  return fallback;
+};
+
 export const AgentChatConsole: React.FC = () => {
   const { explainableLogs, humanInLoop, reportingAgentState, setReportingAgentState, resetReportingAgentState } = useStore();
   const [loading, setLoading] = useState(false);
@@ -84,7 +99,7 @@ export const AgentChatConsole: React.FC = () => {
     } catch (err: any) {
       setReportingAgentState({
         status: 'error',
-        errorMsg: err.response?.data?.detail || 'An error occurred during multi-source workflow execution.'
+        errorMsg: getRequestErrorMessage(err, 'An error occurred during multi-source workflow execution.')
       });
     } finally {
       setLoading(false);
@@ -113,7 +128,7 @@ export const AgentChatConsole: React.FC = () => {
       });
     } catch (err: any) {
       setReportingAgentState({
-        errorMsg: err.response?.data?.detail || 'Failed to approve report.'
+        errorMsg: getRequestErrorMessage(err, 'Failed to approve report.')
       });
     } finally {
       setLoading(false);
@@ -130,7 +145,7 @@ export const AgentChatConsole: React.FC = () => {
     } catch (err: any) {
       setReportingAgentState({
         status: 'error',
-        errorMsg: err.response?.data?.detail || 'Failed to execute database write action.'
+        errorMsg: getRequestErrorMessage(err, 'Failed to execute database write action.')
       });
     } finally {
       setLoading(false);
