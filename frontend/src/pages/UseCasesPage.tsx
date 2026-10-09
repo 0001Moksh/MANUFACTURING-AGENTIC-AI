@@ -14,6 +14,7 @@ export const UseCasesPage: React.FC = () => {
   const navigate = useNavigate();
 
   const filtered = useCases.filter(u => {
+    if (u.id === 2) return false;
     if (activePillar !== 'all' && u.pillar !== activePillar) return false;
     if (activeType !== 'all' && !u.tags.includes(activeType)) return false;
     if (searchQuery) {
