@@ -24,28 +24,39 @@ import { useStore } from '../../store';
 import { AgentExecutionIndicator } from '../common/AgentExecutionIndicator';
 import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
 import { createEstimatedTelemetry } from '../../utils/telemetryHelper';
+import { reportPdfUrl } from '../../config/api';
 
 export const AgentChatConsole: React.FC = () => {
   const { explainableLogs, humanInLoop, reportingAgentState, setReportingAgentState, resetReportingAgentState } = useStore();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'pdf' | 'insights' | 'queries' | 'data'>('pdf');
   const [isFullscreenPdf, setIsFullscreenPdf] = useState(false);
+  const [pdfActionError, setPdfActionError] = useState('');
 
   const { query, model, status, result, errorMsg, showLogs } = reportingAgentState;
 
-  const handleDownloadPdf = (pdfUrl: string) => {
+  const handleDownloadPdf = async (pdfUrl: string) => {
     if (!pdfUrl) return;
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.download = pdfUrl.split('/').pop() || 'operations_report.pdf';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    setPdfActionError('');
+    try {
+      const response = await fetch(reportPdfUrl(pdfUrl));
+      if (!response.ok) throw new Error(`PDF download failed (${response.status}).`);
+      const downloadUrl = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = new URL(pdfUrl, window.location.origin).pathname.split('/').pop() || 'operations_report.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    } catch (error) {
+      console.error('Unable to download operations report PDF:', error);
+      setPdfActionError(error instanceof Error ? error.message : 'Unable to download the report PDF.');
+    }
   };
 
   const handleOpenPdfNewTab = (pdfUrl: string) => {
-    if (pdfUrl) window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    if (pdfUrl) window.open(reportPdfUrl(pdfUrl), '_blank', 'noopener,noreferrer');
   };
 
   const handleQuery = async (e: React.FormEvent) => {
@@ -84,12 +95,20 @@ export const AgentChatConsole: React.FC = () => {
     if (!result?.approval_key) return;
     setLoading(true);
     try {
-      await reportApprovalService.decide(result.approval_key, 'approve', 'Approved via Reporting Agent Console');
+      const decision = await reportApprovalService.decide(
+        result.approval_key,
+        'approve',
+        'Approved via Reporting Agent Console'
+      );
       setReportingAgentState({
         status: 'success',
         result: {
           ...result,
-          insights: result.insights || 'Report successfully approved and released for dispatch.',
+          insights: decision.message || (
+            decision.status === 'SENT'
+              ? 'Report successfully approved and sent.'
+              : 'Report approved. Email delivery status: ' + (decision.email_status || 'unknown') + '.'
+          ),
         }
       });
     } catch (err: any) {
@@ -118,7 +137,8 @@ export const AgentChatConsole: React.FC = () => {
     }
   };
 
-  const pdfFilename = result?.pdf_url ? result.pdf_url.split('/').pop() : '';
+  const pdfUrl = reportPdfUrl(result?.pdf_url);
+  const pdfFilename = pdfUrl ? new URL(pdfUrl).pathname.split('/').pop() : '';
 
   return (
     <div className="bg-panel border border-border-color rounded-[14px] p-5 md:p-6 mt-4 shadow-sm">
@@ -272,13 +292,18 @@ export const AgentChatConsole: React.FC = () => {
       )}
 
       {/* ── Result Area with Live PDF Preview, Tabs & Insights ── */}
-      {(status === 'success' || (status === 'requires_approval' && result?.pdf_url)) && result && (
+      {(status === 'success' || (status === 'requires_approval' && pdfUrl)) && result && (
         <div className="flex flex-col gap-4 mt-2">
+          {pdfActionError && (
+            <div role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-800">
+              {pdfActionError}
+            </div>
+          )}
           {/* Top Bar with Tabs and Download Actions */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-color pb-3">
             {/* View Mode Navigation Tabs */}
             <div className="flex items-center gap-1 bg-[#F1F3F9] p-1 rounded-xl">
-              {result.pdf_url && (
+              {pdfUrl && (
                 <button
                   type="button"
                   onClick={() => setActiveTab('pdf')}
@@ -331,7 +356,7 @@ export const AgentChatConsole: React.FC = () => {
             </div>
 
             {/* Quick Action Buttons */}
-            {result.pdf_url && (
+            {pdfUrl && (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -343,7 +368,7 @@ export const AgentChatConsole: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleOpenPdfNewTab(result.pdf_url)}
+                  onClick={() => handleOpenPdfNewTab(pdfUrl)}
                   className="flex items-center gap-1.5 bg-surface hover:bg-white text-ink border border-border-color px-2.5 py-1.5 rounded-lg text-[11.5px] font-semibold cursor-pointer transition-colors shadow-2xs"
                   title="Open PDF in new browser window"
                 >
@@ -351,7 +376,7 @@ export const AgentChatConsole: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDownloadPdf(result.pdf_url)}
+                  onClick={() => void handleDownloadPdf(pdfUrl)}
                   className="bg-teal hover:bg-teal-deep text-white border-none rounded-lg px-3 py-1.5 text-[11.5px] font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-sm"
                 >
                   <FileDown className="w-3.5 h-3.5" /> Download PDF
@@ -361,7 +386,7 @@ export const AgentChatConsole: React.FC = () => {
           </div>
 
           {/* ── TAB 1: Live Interactive PDF Report Preview ── */}
-          {activeTab === 'pdf' && result.pdf_url && (
+          {activeTab === 'pdf' && pdfUrl && (
             <div className="border border-border-color rounded-[12px] overflow-hidden bg-white shadow-sm flex flex-col">
               {/* PDF Preview Top Meta Bar */}
               <div className="bg-[#F8F9FD] border-b border-border-color px-4 py-2.5 flex items-center justify-between">
@@ -384,7 +409,7 @@ export const AgentChatConsole: React.FC = () => {
               {/* Embedded PDF Viewer Frame */}
               <div className="w-full relative bg-[#525659] flex items-center justify-center min-h-[640px]">
                 <iframe
-                  src={`${result.pdf_url}#toolbar=1&navpanes=0&view=FitH`}
+                  src={`${pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
                   className="w-full h-[660px] border-none"
                   title="Manufacturing Operations Report Preview"
                 />
@@ -397,7 +422,7 @@ export const AgentChatConsole: React.FC = () => {
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleDownloadPdf(result.pdf_url)}
+                  onClick={() => void handleDownloadPdf(pdfUrl)}
                   className="text-teal hover:text-teal-deep font-bold underline bg-transparent border-none cursor-pointer p-0"
                 >
                   Save a copy locally →
@@ -498,7 +523,7 @@ export const AgentChatConsole: React.FC = () => {
       )}
 
       {/* ── Fullscreen PDF Viewer Modal ── */}
-      {isFullscreenPdf && result?.pdf_url && (
+      {isFullscreenPdf && pdfUrl && (
         <div className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-sm flex flex-col p-4 md:p-6 animate-fadeIn">
           {/* Modal Header */}
           <div className="bg-[#101423] text-white rounded-t-[14px] px-5 py-3 flex items-center justify-between border-b border-[#2C324A]">
@@ -512,7 +537,7 @@ export const AgentChatConsole: React.FC = () => {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={() => handleDownloadPdf(result.pdf_url)}
+                onClick={() => void handleDownloadPdf(pdfUrl)}
                 className="flex items-center gap-1.5 bg-teal hover:bg-teal-deep text-white border-none px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition-colors"
               >
                 <FileDown className="w-3.5 h-3.5" /> Download
@@ -531,7 +556,7 @@ export const AgentChatConsole: React.FC = () => {
           {/* Modal Body / Iframe */}
           <div className="flex-1 bg-[#525659] rounded-b-[14px] overflow-hidden">
             <iframe
-              src={`${result.pdf_url}#toolbar=1&navpanes=1&view=FitH`}
+              src={`${pdfUrl}#toolbar=1&navpanes=1&view=FitH`}
               className="w-full h-full border-none"
               title="Fullscreen PDF Preview"
             />

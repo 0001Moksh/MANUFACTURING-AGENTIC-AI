@@ -16,6 +16,7 @@ from app.license_control import get_installation_id, get_license_validator, read
 from app.routes import router, stream_agent_events
 from app.video_monitoring_routes import router as vm_router
 from app.scheduler import start_scheduler, stop_scheduler
+from app.report_urls import REPORTS_DIR
 
 logger = logging.getLogger("mai.startup")
 DATABASE_STARTUP_TIMEOUT_SECONDS = float(os.getenv("DATABASE_STARTUP_TIMEOUT_SECONDS", "30"))
@@ -94,8 +95,8 @@ app.add_middleware(
 # Include routes
 from fastapi.staticfiles import StaticFiles
 
-os.makedirs("reports", exist_ok=True)
-app.mount("/reports", StaticFiles(directory="reports"), name="reports")
+os.makedirs(REPORTS_DIR, exist_ok=True)
+app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 
 app.include_router(router)
 app.include_router(vm_router)

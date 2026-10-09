@@ -6135,13 +6135,13 @@ def _normalize_system_query(query: str) -> str:
     for source, target in {
         "voliation": "violation",
         "perople": "people",
+        "perokple": "people",
         "huwa": "hua",
         "systeam": "system",
         "invesatigation": "investigation",
         "nhi": "nahi",
         "pichle": "past",
         "din": "days",
-        "perople": "people",
     }.items():
         normalized = normalized.replace(source, target)
     return normalized
@@ -6197,6 +6197,22 @@ def general_agent(state: TeamState) -> Dict[str, Any]:
             "execution_trace": _create_trace_record("General Agent", "General -> System redirect", "", {}, 0, "redirect", "Operational query redirected to System Agent"),
         }
 
+    query_lower = user_query.lower().strip()
+    is_greeting = bool(re.fullmatch(
+        r"(?:hi|hello|hey|good morning|good afternoon|good evening|greetings)[.!?]*",
+        query_lower,
+    ))
+    if is_greeting:
+        content = (
+            "Hello! I'm **Deva**, your AI Safety Assistant for video monitoring operations. "
+            "Ask me about camera status, live feeds, safety alerts, PPE compliance, or incident investigations."
+        )
+        trace = _create_trace_record(
+            "General Agent", "Supervisor -> General Agent", "general_overview", {},
+            0, "success", "Greeting delivered", 40, 35,
+        )
+        return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
+
     sys_prompt = SystemMessage(content="""
     You are the Deva AI Safety Assistant (General Agent) for Industrial & Video Monitoring operations.
     You respond to greetings, operator profile inquiries, capabilities overviews, and general navigation questions.
@@ -6222,28 +6238,18 @@ def general_agent(state: TeamState) -> Dict[str, Any]:
 
     # Fallback response for General Agent — concise, token-optimized greeting.
     # Detect if this is a simple greeting vs. a capabilities/help request.
-    query_lower = user_query.lower().strip()
-    is_greeting = any(g in query_lower for g in ["hi", "hello", "hey", "good morning", "good afternoon", "good evening", "greetings"])
-
-    if is_greeting and not any(h in query_lower for h in ["help", "what can", "who are", "about you", "capabilities"]):
-        # Short greeting — no capability dump
-        content = (
-            "Hello! I'm **Deva**, your AI Safety Assistant for video monitoring operations. "
-            "Ask me about camera status, live feeds, safety alerts, PPE compliance, or incident investigations."
-        )
-    else:
-        # Capabilities overview (requested explicitly)
-        content = (
-            "### Deva AI Safety Assistant\n\n"
-            "I coordinate a 5-agent specialist mesh for video monitoring:\n\n"
-            "| Agent | Capabilities |\n"
-            "|:---|:---|\n"
-            "| **System** | Camera fleet status, alerts, incidents, PPE compliance metrics |\n"
-            "| **Setup** | Zone/rule/notification configuration (HITL-governed) |\n"
-            "| **Investigator** | Forensic timelines, root cause analysis, evidence snapshots |\n"
-            "| **Video** | Live RTSP streams, VLM scene analysis, YOLO detections |\n"
-            "| **General** | Profile lookup, system overview |\n"
-        )
+    # Capabilities overview (requested explicitly).
+    content = (
+        "### Deva AI Safety Assistant\n\n"
+        "I coordinate a 5-agent specialist mesh for video monitoring:\n\n"
+        "| Agent | Capabilities |\n"
+        "|:---|:---|\n"
+        "| **System** | Camera fleet status, alerts, incidents, PPE compliance metrics |\n"
+        "| **Setup** | Zone/rule/notification configuration (HITL-governed) |\n"
+        "| **Investigator** | Forensic timelines, root cause analysis, evidence snapshots |\n"
+        "| **Video** | Live RTSP streams, VLM scene analysis, YOLO detections |\n"
+        "| **General** | Profile lookup, system overview |\n"
+    )
     trace = _create_trace_record("General Agent", "Supervisor -> General Agent", "general_overview", {}, elapsed_ms, "success", "Greeting delivered", 40, 35)
     return {"messages": [AIMessage(content=content)], "next_agent": "FINISH", "execution_trace": trace}
 
@@ -6930,6 +6936,7 @@ def _is_ml_detection_request(query_lower: str) -> bool:
 
 
 def _is_people_count_query(query_lower: str) -> bool:
+    query_lower = _normalize_system_query(query_lower)
     return any(term in query_lower for term in [
         "count the number of people",
         "count people",
@@ -6980,6 +6987,46 @@ def _explicit_live_stream_query(query_lower: str) -> bool:
     ])
 
 
+def _is_ml_model_failure(result: Any) -> bool:
+    """Return true only when the ML inference itself failed, not camera setup/capture."""
+    if not isinstance(result, dict) or result.get("success"):
+        return False
+
+    data = result.get("data")
+    model_results = data.get("results") if isinstance(data, dict) else None
+    if not isinstance(model_results, list) or not model_results:
+        return False
+
+    errors = [
+        item.get("error", "").lower()
+        for item in model_results
+        if isinstance(item, dict) and isinstance(item.get("error"), str)
+    ]
+    return (
+        len(errors) == len(model_results)
+        and any(error.startswith("inference failed:") or "model file not found" in error for error in errors)
+    )
+
+
+def _run_ml_detection_with_vlm_fallback(
+    tool_args: Dict[str, Any],
+    messages: List[BaseMessage],
+    user_query: str,
+    camera_name: str,
+) -> Tuple[Dict[str, Any], str, Dict[str, Any]]:
+    """Use live-frame VLM analysis only when the selected ML model cannot run."""
+    ml_result = run_ml_detection.invoke(tool_args)
+    if not _is_ml_model_failure(ml_result):
+        return ml_result, "run_ml_detection", tool_args
+
+    vlm_args = {
+        "camera_name": camera_name,
+        "vlm_instruction": build_vlm_instruction(messages, user_query, camera_name),
+        "user_query": user_query,
+    }
+    return analyze_live_frame_with_vlm.invoke(vlm_args), "analyze_live_frame_with_vlm", vlm_args
+
+
 def video_agent(state: TeamState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     user_query = ""
@@ -6988,7 +7035,7 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             user_query = getattr(msg, "content", "")
             break
 
-    query_lower = user_query.lower()
+    query_lower = _normalize_system_query(user_query)
 
     sys_prompt = SystemMessage(content="""
     You are the Video Agent for Video Monitoring. You handle live RTSP stream requests, camera visual feeds,
@@ -6997,14 +7044,8 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
     Never output unicode emojis.
     """)
 
-    start_t = time.perf_counter()
-    llm = base_llm.bind_tools(video_agent_tools_registry)
-    try:
-        response = llm.invoke([sys_prompt] + messages)
-    except Exception:
-        response = None
-
-    elapsed_ms = (time.perf_counter() - start_t) * 1000
+    agent_start_t = time.perf_counter()
+    elapsed_ms = 0.0
 
     if _is_people_count_query(query_lower):
         target_cam = _resolve_video_target_camera(query_lower, state.get("current_video_camera") or "")
@@ -7016,9 +7057,16 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             "confidence": 0.2,
             "classes": "person",
         }
-        pipeline_result = run_ml_detection.invoke(tool_args)
+        pipeline_result, tool_name, tool_args = _run_ml_detection_with_vlm_fallback(
+            tool_args, messages, user_query, target_cam
+        )
+        elapsed_ms = (time.perf_counter() - agent_start_t) * 1000
         payload = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
-        summary = payload.get("summary") or pipeline_result.get("message", "Person count detection completed")
+        if tool_name == "analyze_live_frame_with_vlm":
+            summary = payload.get("vlm_response") or pipeline_result.get("message", "Live frame analysis completed")
+            summary = f"### Live Camera Analysis - {target_cam}\n\n{summary}"
+        else:
+            summary = payload.get("summary") or pipeline_result.get("message", "Person count detection completed")
         trace = _create_trace_record(
             "Video Agent",
             f"Supervisor -> Video Agent -> {tool_name}",
@@ -7026,7 +7074,7 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             tool_args,
             elapsed_ms,
             "success" if isinstance(pipeline_result, dict) and pipeline_result.get("success", False) else "error",
-            "Person-count detection on one live frame",
+            "Person-count detection on one live frame" if tool_name == "run_ml_detection" else "VLM fallback after ML inference failure",
             170,
             150,
         )
@@ -7048,9 +7096,16 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             "user_query": user_query,
             "confidence": 0.2,
         }
-        pipeline_result = run_ml_detection.invoke(tool_args)
+        pipeline_result, tool_name, tool_args = _run_ml_detection_with_vlm_fallback(
+            tool_args, messages, user_query, target_cam
+        )
+        elapsed_ms = (time.perf_counter() - agent_start_t) * 1000
         payload = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
-        summary = payload.get("summary") or pipeline_result.get("message", "ML detection completed")
+        if tool_name == "analyze_live_frame_with_vlm":
+            summary = payload.get("vlm_response") or pipeline_result.get("message", "Live frame analysis completed")
+            summary = f"### Live Camera Analysis - {target_cam}\n\n{summary}"
+        else:
+            summary = payload.get("summary") or pipeline_result.get("message", "ML detection completed")
         trace = _create_trace_record(
             "Video Agent",
             f"Supervisor -> Video Agent -> {tool_name}",
@@ -7058,7 +7113,7 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             tool_args,
             elapsed_ms,
             "success" if isinstance(pipeline_result, dict) and pipeline_result.get("success", False) else "error",
-            "YOLO model inference on one live frame",
+            "YOLO model inference on one live frame" if tool_name == "run_ml_detection" else "VLM fallback after ML inference failure",
             170,
             150,
         )
@@ -7080,6 +7135,7 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             "user_query": user_query,
         }
         pipeline_result = analyze_live_frame_with_vlm.invoke(tool_args)
+        elapsed_ms = (time.perf_counter() - agent_start_t) * 1000
         snapshot = pipeline_result.get("data", {}) if isinstance(pipeline_result, dict) else {}
         vlm_response = snapshot.get("vlm_response") or pipeline_result.get("message", "Live frame analysis completed")
         trace = _create_trace_record(
@@ -7101,6 +7157,15 @@ def video_agent(state: TeamState) -> Dict[str, Any]:
             "current_video_camera": target_cam,
             "last_snapshot": snapshot,
         }
+
+    start_t = time.perf_counter()
+    llm = base_llm.bind_tools(video_agent_tools_registry)
+    try:
+        response = llm.invoke([sys_prompt] + messages)
+    except Exception:
+        response = None
+
+    elapsed_ms = (time.perf_counter() - start_t) * 1000
 
     if response and getattr(response, "tool_calls", None):
         return {"messages": [response], "next_agent": "FINISH"}
@@ -7334,6 +7399,16 @@ def supervisor_node(state: TeamState) -> Dict[str, Any]:
 
     input_lower = _normalize_system_query(last_human_query) if isinstance(last_human_query, str) else ""
     remembered_camera = state.get("current_video_camera") or ""
+
+    if re.fullmatch(
+        r"(?:hi|hello|hey|good morning|good afternoon|good evening|greetings)[.!?]*",
+        input_lower,
+    ):
+        return {"next_agent": "general_agent", "supervisor_instruction": ""}
+
+    keyword_route = _supervisor_keyword_fallback(input_lower, remembered_camera)
+    if keyword_route.get("next_agent") == "video_agent":
+        return keyword_route
 
     # ── LLM-based routing: supervisor understands intent and crafts a precise
     # instruction for the target specialist agent. ──────────────────────────

@@ -43,6 +43,7 @@ from datetime import datetime, timedelta, timezone
 from difflib import get_close_matches
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+from app.report_urls import REPORTS_DIR, build_report_url
 
 # --------------------------------------------------------------------------
 # Third-party libs
@@ -709,6 +710,10 @@ def _find_categorical_column(cols: List[str], col_types: Optional[Dict[str, str]
 
 def customize_and_split_query(user_query: str) -> Dict[str, Any]:
     tokens = extract_tokens(user_query)
+    broad_daily_report = (
+        bool(re.search(r"\breports?\b", user_query, re.IGNORECASE))
+        and any(term in tokens for term in {"daily", "operation", "operations", "operational", "shift"})
+    )
     agg_fn = detect_aggregation(user_query)
     result: Dict[str, Any] = {
         "raw_user_query": user_query,
@@ -720,6 +725,10 @@ def customize_and_split_query(user_query: str) -> Dict[str, Any]:
         cfg = DB_REGISTRY[db_name]
         vocab = DOMAIN_VOCABULARY.get(db_name, {})
         matched = find_matched_keywords(tokens, vocab)
+        if broad_daily_report and db_name == "mes":
+            matched.update({"machine", "utilization", "production"})
+        elif broad_daily_report and db_name == "video_analytics":
+            matched.update({"camera", "configuration"})
         if not matched:
             continue
         candidates = []
@@ -2530,10 +2539,10 @@ def process_query_and_generate_full_dict(
     data_context = prepare_llm_context(execution)
     llm_sections, llm_usage = call_llm_with_fallback(user_query, data_context, execution_result=execution)
 
-    os.makedirs("reports", exist_ok=True)
+    os.makedirs(REPORTS_DIR, exist_ok=True)
     if not pdf_path:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pdf_path = os.path.abspath(f"reports/report_{ts}.pdf")
+        pdf_path = os.path.join(REPORTS_DIR, f"report_{ts}.pdf")
 
     pdf_file = generate_pdf_from_llm_sections(execution, llm_sections, output_path=pdf_path, llm_usage=llm_usage)
 
@@ -2583,8 +2592,7 @@ def process_query_and_generate_full_dict(
             })
 
     pdf_filename = os.path.basename(pdf_file)
-    public_api_url = os.getenv("PUBLIC_API_URL", "http://localhost:8001").rstrip("/")
-    pdf_url = f"{public_api_url}/reports/{pdf_filename}" if pdf_filename else ""
+    pdf_url = build_report_url(pdf_filename) if pdf_filename else ""
 
     dbs_display = ", ".join(selected_dbs) if selected_dbs else "MES, video_analytics, influxdb"
     execution_steps = [
@@ -2608,4 +2616,3 @@ def process_query_and_generate_full_dict(
         "is_approved": is_approved,
         "error_message": ""
     }
-

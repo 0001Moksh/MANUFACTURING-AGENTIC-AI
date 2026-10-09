@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, CheckCheck, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import { useStore } from '../../store';
+import { reportPdfUrl } from '../../config/api';
 
 interface NotificationItem {
   id: number;
@@ -28,8 +29,9 @@ export const Topbar: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [approvalActionError, setApprovalActionError] = useState('');
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!token) return;
     try {
       const [notificationResponse, approvalResponse] = await Promise.all([
@@ -41,13 +43,13 @@ export const Topbar: React.FC = () => {
     } catch {
       /* API is the source of truth; leave the last known state visible. */
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     void loadNotifications();
     const timer = window.setInterval(() => void loadNotifications(), 30_000);
     return () => window.clearInterval(timer);
-  }, [token]);
+  }, [loadNotifications]);
 
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
@@ -76,15 +78,19 @@ export const Topbar: React.FC = () => {
   };
 
   const decide = async (approvalKey: string, decision: 'approve' | 'reject') => {
-    await api.post(`/report-approvals/${approvalKey}/${decision}`, { note: '' });
-    setApprovals((items) =>
-      items.map((item) =>
+    setApprovalActionError('');
+    try {
+      const response = await api.post(`/report-approvals/${approvalKey}/${decision}`, { note: '' });
+      setApprovals((items) => items.map((item) =>
         item.approval_key === approvalKey
-          ? { ...item, status: decision === 'approve' ? 'SENT' : 'REJECTED' }
+          ? { ...item, status: response.data.status || (decision === 'approve' ? 'APPROVED' : 'REJECTED') }
           : item
-      )
-    );
-    await loadNotifications();
+      ));
+      await loadNotifications();
+    } catch (error) {
+      console.error(`Unable to ${decision} report approval:`, error);
+      setApprovalActionError(`Unable to ${decision} the report. Please retry from Admin Console notifications.`);
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
@@ -136,6 +142,12 @@ export const Topbar: React.FC = () => {
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {approvalActionError && (
+            <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-[11px] text-red-700">
+              {approvalActionError}
+            </div>
+          )}
 
           {/* List */}
           <div className="max-h-[420px] overflow-y-auto">
@@ -190,6 +202,17 @@ export const Topbar: React.FC = () => {
 
                     {approval && (
                       <div className="mt-2.5 ml-[18px] flex items-center gap-2">
+                        {approval.report_url && (
+                          <a
+                            href={reportPdfUrl(approval.report_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className="text-[10.5px] font-bold text-teal"
+                          >
+                            Review PDF
+                          </a>
+                        )}
                         <button
                           onClick={() => void decide(approval.approval_key, 'reject')}
                           className="rounded-[7px] border border-amber/50 bg-panel px-2.5 py-1 text-[10.5px] font-bold text-[#805300] cursor-pointer"

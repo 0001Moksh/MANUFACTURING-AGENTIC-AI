@@ -21,7 +21,10 @@ This guide runs the Manufacturing Agentic AI platform with Docker Compose. The c
 ### Required settings
 
 - `APP_PORT`: host port for the frontend; default `8080`.
-- `FRONTEND_URL` and `FRONTEND_URLS`: browser origin(s), normally `http://localhost:8080`.
+- `FRONTEND_URL`: externally reachable frontend origin used after email approval decisions (for example, `http://192.168.10.8:8080`); use the public HTTPS frontend URL in public deployments.
+- `FRONTEND_URLS`: comma-separated browser origin(s) allowed to call the backend directly; include the frontend and public origins when bypassing the same-origin frontend proxy.
+- `PUBLIC_API_URL`: externally reachable backend origin used for report and approval-email links (for example, `http://192.168.10.8:8001`). Set this to the public HTTPS API URL when deploying behind a public hostname or reverse proxy.
+- `BACKEND_PORT`: optional host port for the backend; defaults to `8001` and must match the port in `PUBLIC_API_URL`.
 - `POSTGRES_MANUFACTURING_*`: MAI PostgreSQL database, user, and password.
 - `POSTGRES_VIDEO_*`: Video Analytics PostgreSQL database, user, and password.
 - `SQLSERVER_DATABASE`: MES database name, normally `mes_new`.
@@ -31,6 +34,8 @@ This guide runs the Manufacturing Agentic AI platform with Docker Compose. The c
 - `MAIL_*`: optional SMTP settings for email features.
 
 ## Start the platform
+
+PDFs are served from the backend `/reports/` route. The bundled Nginx frontend proxies that route, so browser previews use the frontend's current origin; configure `PUBLIC_API_URL` for absolute links in generated reports and approval emails. If the browser calls the backend directly from another origin, include the frontend origin in `FRONTEND_URLS` so CORS permits it.
 
 This repository currently builds the application images locally because no Docker Hub namespace has been configured:
 

@@ -178,8 +178,9 @@ services:
       DB_TRUST_SERVER_CERTIFICATE: "yes"
       SQLSERVER_USER: ${SQLSERVER_USER:-sa}
       SQLSERVER_PASSWORD: ${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
-      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8080}
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL in .env}
+      FRONTEND_URLS: ${FRONTEND_URLS:?Set FRONTEND_URLS in .env}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:?Set PUBLIC_API_URL in .env}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       REPORT_APPROVAL_EMAIL_SECRET: ${REPORT_APPROVAL_EMAIL_SECRET:?Set REPORT_APPROVAL_EMAIL_SECRET in .env}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -202,6 +203,8 @@ services:
         condition: service_completed_successfully
       init-sqlserver:
         condition: service_completed_successfully
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
     networks:
       - mai_internal
     healthcheck:

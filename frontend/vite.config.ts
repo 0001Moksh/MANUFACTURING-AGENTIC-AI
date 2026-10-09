@@ -22,6 +22,13 @@ export default defineConfig({
         timeout: 20000,
         proxyTimeout: 20000,
       },
+      '/reports': {
+        target: backendTarget,
+        changeOrigin: true,
+        secure: false,
+        timeout: 20000,
+        proxyTimeout: 20000,
+      },
     },
   },
 })

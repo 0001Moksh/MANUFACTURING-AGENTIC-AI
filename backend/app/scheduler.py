@@ -12,15 +12,13 @@ from app.db import (
 from app.agents.agent_workflow import run_agent_workflow
 from app.email_service import send_pdf_report_email, send_html_email
 from app.machine_monitoring import run_machine_monitoring_cycle
+from app.report_urls import build_report_url, get_public_api_url, summarize_report_sources
 import secrets
 
 logger = logging.getLogger("scheduler")
 
 scheduler = AsyncIOScheduler()
 REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", "IIOT_MANUFACTURING_SECRET_KEY_JWT")
-PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8001").rstrip("/")
-
-
 async def _notify_verified_super_admins(approval_key: str, report_url: str, delivery_time: str) -> int:
     """
     Email configured HITL approval recipients.
@@ -62,8 +60,9 @@ async def _notify_verified_super_admins(approval_key: str, report_url: str, deli
         expires = datetime.utcnow() + timedelta(hours=24)
         approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
         reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm="HS256")
-        approve_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={approve_token}"
-        reject_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={reject_token}"
+        public_api_url = get_public_api_url()
+        approve_url = f"{public_api_url}/api/report-approvals/email-action?token={approve_token}"
+        reject_url = f"{public_api_url}/api/report-approvals/email-action?token={reject_token}"
         text_body = f"{body}\n\nApprove: {approve_url}\nReject: {reject_url}\n\nThese signed links expire in 24 hours and can be used only once."
         html_body = f"""<div style='font-family:Arial,sans-serif;color:#17324d;max-width:600px'><h2>Daily Operations report approval required</h2><p>A PDF has been generated and is waiting for your Human-in-the-Loop decision.</p><p><b>Scheduled delivery:</b> {delivery_time}<br><b>Report reference:</b> {approval_key}<br><a href='{report_url}'>Review PDF</a></p><p><a href='{approve_url}' style='display:inline-block;background:#0e6b52;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:bold'>Approve &amp; Send Report</a>&nbsp;<a href='{reject_url}' style='display:inline-block;background:#fff;color:#a12b2b;padding:12px 18px;border:1px solid #d39a9a;border-radius:6px;text-decoration:none;font-weight:bold'>Reject Report</a></p><p style='font-size:12px;color:#667'>These signed links expire in 24 hours and the decision can be applied only once.</p></div>"""
         if send_html_email(target_email, subject, text_body, html_body):
@@ -97,13 +96,11 @@ async def check_and_run_daily_report():
             # Generate the report. Approval is evaluated after the immutable PDF has been written.
             workflow_result = await run_agent_workflow(settings.prompt, is_approved=False)
             
-            # workflow_result["pdf_url"] is like "http://localhost:8001/reports/filename.pdf"
-            # We need the local file path to attach it.
-            pdf_filename = ""
-            if workflow_result.get("pdf_url"):
-                pdf_filename = workflow_result["pdf_url"].split("/")[-1]
-            
-            local_pdf_path = workflow_result.get("pdf_path") or os.path.abspath(os.path.join("reports", pdf_filename))
+            local_pdf_path = workflow_result.get("pdf_path")
+            if not local_pdf_path:
+                logger.error("Scheduled report returned no local PDF path; refusing delivery.")
+                return
+            report_url = build_report_url(os.path.basename(local_pdf_path))
             
             # Verify that the query returned real data before sending
             has_data = False
@@ -146,17 +143,20 @@ async def check_and_run_daily_report():
                     approval_session.add(ReportApproval(
                         approval_key=approval_key, status="PENDING_APPROVAL", use_case_key="daily_operations_reporting",
                         recipient_email=final_recipient, report_path=local_pdf_path,
-                        report_url=workflow_result.get("pdf_url", ""), query=settings.prompt or "Scheduled daily report",
+                        report_url=report_url, query=settings.prompt or "Scheduled daily report",
                     ))
                     approval_session.add(PlatformNotification(
                         recipient_user_id=None, category="human_intervention", title="Daily Operations report requires approval",
-                        message=f"PDF generated for scheduled delivery at {settings.schedule_time}. Review before dispatch.",
+                        message=(
+                            f"{summarize_report_sources(workflow_result.get('sql_result'))} "
+                            f"PDF generated for scheduled delivery at {settings.schedule_time}. Review before dispatch."
+                        )[:1000],
                         source_type="report_approval", source_id=approval_key,
                     ))
                     await approval_session.commit()
                     logger.info("Created scheduled ReportApproval %s with recipient=%s", approval_key, final_recipient)
                     emailed_admins = await _notify_verified_super_admins(
-                        approval_key, workflow_result.get("pdf_url", ""), settings.schedule_time
+                        approval_key, report_url, settings.schedule_time
                     )
                     if not emailed_admins:
                         logger.warning("Scheduled report %s is pending, but no verified Super Admin email received the approval request.", approval_key)

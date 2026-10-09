@@ -95,4 +95,4 @@ For a fully offline client, additionally save and distribute the upstream images
 - If an initializer fails, inspect `docker compose logs init-postgres-manufacturing`, `docker compose logs init-postgres-video`, or `docker compose logs init-sqlserver`.
 - If the app is unavailable, run `docker compose ps` and `docker compose logs --tail=200 backend frontend`.
 - SQL Server needs sufficient Docker memory; allocate at least 4 GB to Docker Desktop.
-- If port 8080 is occupied, set `APP_PORT` in `.env` and use that port in `FRONTEND_URL` and `PUBLIC_API_URL`.
+- If port 8080 is occupied, set `APP_PORT` in `.env` and use that port in `FRONTEND_URL`. Set `PUBLIC_API_URL` to the externally reachable backend origin (default example: `http://192.168.10.8:8001`); for a public deployment, use its reachable HTTPS URL.

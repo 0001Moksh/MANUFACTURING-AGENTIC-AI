@@ -51,6 +51,12 @@ from app.influx_telemetry import (
 from app.machine_monitoring import get_machine_ai_payload, monitor_machine, regenerate_machine_summary
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
+from app.report_urls import (
+    build_report_url,
+    get_public_api_url,
+    get_public_frontend_url,
+    summarize_report_sources,
+)
 from app.agents.insights_summary_agent import generate_chart_summary as agent_generate_chart_summary
 from app.agents.maintenance_agent import run_maintenance_conversation
 from app.agents.energy_agent import EnergyAgentUnavailableError, run_energy_agent_conversation
@@ -87,8 +93,6 @@ router = APIRouter()
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "IIOT_MANUFACTURING_SECRET_KEY_JWT")
 ALGORITHM = "HS256"
 REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_KEY)
-PUBLIC_API_URL = os.getenv("PUBLIC_API_URL", "http://127.0.0.1:8001").rstrip("/")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://192.168.10.8:3000").rstrip("/")
 
 # Models for Request/Response
 class LoginRequest(BaseModel):
@@ -576,8 +580,9 @@ async def _send_hitl_approval_request(db: AsyncSession, approval_key: str, repor
         expires = datetime.utcnow() + timedelta(hours=24)
         approve_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "approve", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
         reject_token = jwt.encode({"scope": "report_approval_email", "approval_key": approval_key, "decision": "reject", "user_id": 0, "exp": expires}, REPORT_APPROVAL_EMAIL_SECRET, algorithm=ALGORITHM)
-        approve_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={approve_token}"
-        reject_url = f"{PUBLIC_API_URL}/api/report-approvals/email-action?token={reject_token}"
+        public_api_url = get_public_api_url()
+        approve_url = f"{public_api_url}/api/report-approvals/email-action?token={approve_token}"
+        reject_url = f"{public_api_url}/api/report-approvals/email-action?token={reject_token}"
         body = f"A Daily Operations report PDF is awaiting Human-in-the-Loop approval.\n\nReport reference: {approval_key}\nReview PDF: {report_url or 'Available in the MAI Admin Console'}\n\nApprove: {approve_url}\nReject: {reject_url}\n\nThe links expire in 24 hours and can be used only once."
         html = f"""<div style='font-family:Arial,sans-serif;color:#17324d;max-width:600px'><h2>Daily Operations report approval required</h2><p>A PDF has been generated and is waiting for your Human-in-the-Loop decision.</p><p><b>Report reference:</b> {approval_key}<br><a href='{report_url}'>Review PDF</a></p><p><a href='{approve_url}' style='display:inline-block;background:#0e6b52;color:#fff;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:bold'>Approve &amp; Send Report</a>&nbsp;<a href='{reject_url}' style='display:inline-block;background:#fff;color:#a12b2b;padding:12px 18px;border:1px solid #d39a9a;border-radius:6px;text-decoration:none;font-weight:bold'>Reject Report</a></p><p style='font-size:12px;color:#667'>These signed links expire in 24 hours and the decision can be applied only once.</p></div>"""
         if send_html_email(target_email, "Approval required: Daily Operations report", body, html):
@@ -1069,7 +1074,7 @@ async def create_rbac_user(req: RbacUserCreateRequest, request: Request, db: Asy
         send_text_email(
             email,
             "Your MAI access has been created",
-            f"Welcome {profile_name}.\n\nEmployee ID: {employee_id}\nFull Name: {full_name}\nTemporary password: {temp_password}\nPortal: {FRONTEND_URL}\n\nPlease change your password after first login."
+            f"Welcome {profile_name}.\n\nEmployee ID: {employee_id}\nFull Name: {full_name}\nTemporary password: {temp_password}\nPortal: {get_public_frontend_url()}\n\nPlease change your password after first login."
         )
 
     await db.commit()
@@ -2358,7 +2363,7 @@ async def list_report_approvals(request: Request, db: AsyncSession = Depends(get
         "approval_key": approval.approval_key,
         "status": approval.status,
         "query": approval.query,
-        "report_url": approval.report_url,
+        "report_url": build_report_url(Path(approval.report_path).name),
         "created_at": approval.created_at.isoformat(),
         "decision_note": approval.decision_note,
         "recipient_email": getattr(approval, 'recipient_email', None),
@@ -2392,7 +2397,18 @@ async def decide_report_approval(approval_key: str, decision: str, req: Approval
         approval.status = "SENT" if delivered else "APPROVED"
     await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered or not approval.recipient_email else "Daily report approved; delivery failed", message="The approved PDF was dispatched to the recipient." if delivered else ("The report has been approved." if not approval.recipient_email else "The PDF remains approved but SMTP delivery failed. Check mail configuration."), source_type="report_approval", source_id=approval.approval_key)
     await db.commit()
-    return {"status": approval.status, "email_status": "sent" if delivered else "not_configured"}
+    email_status = "sent" if delivered else "failed" if approval.recipient_email else "not_configured"
+    return {
+        "status": approval.status,
+        "email_status": email_status,
+        "message": (
+            "The approved PDF was sent to the configured recipient."
+            if delivered
+            else "The report is approved, but SMTP delivery failed. Check mail configuration."
+            if approval.recipient_email
+            else "The report is approved; no recipient email is configured."
+        ),
+    }
 
 
 @router.api_route("/api/report-approvals/email-action", methods=["GET", "POST"], response_class=HTMLResponse)
@@ -2434,7 +2450,7 @@ async def decide_report_from_email(token: str, request: Request, db: AsyncSessio
         approval.status = "REJECTED"
         await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="human_intervention", title="Daily report rejected", message="A report requires revision before it can be dispatched.", source_type="report_approval", source_id=approval.approval_key)
         await db.commit()
-        return RedirectResponse(url=f"{FRONTEND_URL}/admin?pane=notifications&approval={approval_key}", status_code=303)
+        return RedirectResponse(url=f"{get_public_frontend_url()}/admin?pane=notifications&approval={approval_key}", status_code=303)
 
     if not approval.recipient_email:
         return HTMLResponse("<h2>Cannot send report</h2><p>No recipient email was configured for this report.</p>", status_code=409)
@@ -2444,7 +2460,7 @@ async def decide_report_from_email(token: str, request: Request, db: AsyncSessio
     await _create_notification(db, recipient_user_id=approval.requested_by_user_id, category="system", title="Daily report approved" if delivered else "Daily report approved; delivery failed", message="The approved PDF was sent to the configured recipient." if delivered else "The PDF remains approved but SMTP delivery failed. Check mail configuration.", source_type="report_approval", source_id=approval.approval_key)
     await db.commit()
     if delivered:
-        return RedirectResponse(url=f"{FRONTEND_URL}/admin?pane=notifications&approval={approval_key}", status_code=303)
+        return RedirectResponse(url=f"{get_public_frontend_url()}/admin?pane=notifications&approval={approval_key}", status_code=303)
     return HTMLResponse("<h2>Report approved, but delivery failed</h2><p>The report remains approved. Check SMTP configuration before retrying delivery.</p>", status_code=502)
 
 
@@ -2664,7 +2680,10 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
                 await _create_notification(
                     db, recipient_user_id=None, category="human_intervention",
                     title="Daily Operations report requires approval",
-                    message="A generated PDF is awaiting a Super Admin decision before it is dispatched.",
+                    message=(
+                        f"{summarize_report_sources(state.get('sql_result'))} "
+                        "A generated PDF is awaiting a Super Admin decision before dispatch."
+                    )[:1000],
                     source_type="report_approval", source_id=approval_key,
                 )
                 await db.commit()
@@ -3627,7 +3646,3 @@ async def update_video_monitoring_governance(req: VideoGovernanceSettingsRequest
         "message": "Governance settings updated successfully.",
         "settings": req.dict()
     }
-
-
-
-

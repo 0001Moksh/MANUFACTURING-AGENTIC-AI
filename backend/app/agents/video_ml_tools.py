@@ -309,8 +309,6 @@ def _summarise(camera_label: str, results: List[Dict[str, Any]], confidence: flo
             if r["violation_classes"]:
                 line += " Possible violations: " + ", ".join(f"{v} x {k}" for k, v in r["violation_classes"].items()) + "."
             lines.append(line)
-    lines.append("")
-    lines.append("_Results come from a single captured frame and reflect model output, not human verification._")
     return "\n".join(lines)
 
 

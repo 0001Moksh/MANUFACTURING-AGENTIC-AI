@@ -25,7 +25,7 @@ PORTS_TO_CLEAR = [FRONTEND_PORT, BACKEND_PORT]
 BACKEND_PYTHON = BACKEND_DIR / "venv" / "Scripts" / "python.exe"
 NPM_CMD = Path(r"C:\Program Files\nodejs\npm.cmd")
 
-BACKEND_STARTUP_TIMEOUT = 90   # seconds
+BACKEND_STARTUP_TIMEOUT = 300   # seconds
 HEALTH_CHECK_PATH = "/docs"    # FastAPI docs — cheap existence check
 LOG_PREFIX = {
     "backend":  "[backend ]",

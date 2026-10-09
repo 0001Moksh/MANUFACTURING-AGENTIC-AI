@@ -17,11 +17,11 @@ Core Features:
 
 import asyncio
 import logging
-import os
 import uuid
 from typing import Any, Dict, List, Optional, TypedDict
 
 from app.agents.report_generator_v3 import process_query_and_generate_full_dict
+from app.report_urls import REPORTS_DIR
 
 logger = logging.getLogger("agent_workflow")
 
@@ -51,9 +51,8 @@ async def run_agent_workflow(query: str, is_approved: bool = False) -> Dict[str,
     Runs the multi-database pipeline asynchronously without blocking the event loop.
     """
     logger.info("Executing v3 Agentic Operations & Resources Report Generator for query: %s", query)
-    os.makedirs("reports", exist_ok=True)
-    pdf_filename = f"reports/report_{uuid.uuid4().hex[:8]}.pdf"
-    pdf_target_path = os.path.abspath(pdf_filename)
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    pdf_target_path = os.path.join(REPORTS_DIR, f"report_{uuid.uuid4().hex[:8]}.pdf")
 
     try:
         # Run the v3 pipeline in thread pool to ensure non-blocking async execution
@@ -67,7 +66,6 @@ async def run_agent_workflow(query: str, is_approved: bool = False) -> Dict[str,
         return result
     except Exception as e:
         logger.exception("Error executing v3 report generator workflow: %s", e)
-        public_api_url = os.getenv("PUBLIC_API_URL", "http://localhost:8001").rstrip("/")
         return {
             "sql_query": "-- Error occurred during pipeline execution",
             "sql_result": [],
