@@ -1,0 +1,27 @@
+model_list:
+- model_name: voice-agent
+  litellm_params:
+    model: gemini/gemini-3.5-flash
+    api_key: os.environ/GEMINI_API_KEY
+    order: 1
+- model_name: voice-agent-fallback-1
+  litellm_params:
+    model: groq/qwen/qwen3.8-27b
+    api_key: os.environ/GROQ_API_KEY
+    order: 2
+- model_name: voice-agent-fallback-2
+  litellm_params:
+    model: groq/openai/gpt-oss-120b
+    api_key: os.environ/GROQ_API_KEY
+    order: 3
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  timeout: 60
+litellm_settings:
+  request_timeout: 60
+  fallbacks:
+  - voice-agent:
+    - voice-agent-fallback-1
+  - voice-agent-fallback-1:
+    - voice-agent-fallback-2
