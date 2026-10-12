@@ -21,6 +21,7 @@ SYSTEM_PROMPT = """You are Deva, a Smart IIIoT Maintenance Assistant.
 Address the user as 'sir'.
 
 Use the available tools to answer questions about:
+- the total and active machine counts
 - machine health status
 - predictive maintenance schedules / windows
 - maintenance-related work orders
@@ -67,6 +68,17 @@ def get_machine_status(machine_code: Optional[str] = None, status: Optional[str]
         query += " AND LOWER(Status) = LOWER(:status)"
         params["status"] = status
     return _execute_query(query, params)
+
+
+@tool
+def get_machine_count() -> str:
+    """Count total registered and active machines; use this when asked how many machines there are."""
+    query = """
+        SELECT COUNT(*) AS TotalMachineCount,
+               COALESCE(SUM(CASE WHEN IsActive = 1 THEN 1 ELSE 0 END), 0) AS ActiveMachineCount
+        FROM dbo.MachineMaster
+    """
+    return _execute_query(query)
 
 
 @tool
@@ -129,6 +141,7 @@ def get_machine_health_summary() -> str:
 
 mes_tools = [
     get_machine_status,
+    get_machine_count,
     get_machine_health_summary,
     get_maintenance_windows,
     get_active_maintenance_work_orders,

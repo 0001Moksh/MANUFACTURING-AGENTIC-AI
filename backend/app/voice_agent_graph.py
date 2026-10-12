@@ -106,9 +106,10 @@ AGENT_SPECS = [
     ),
     AgentSpec(
         "maintenance", "Maintenance",
-        "Machine health and status, maintenance work orders and schedules, unresolved MES alerts and breakdowns.",
+        "Total and active machine fleet counts, machine health and status, maintenance work orders and schedules, "
+        "unresolved MES alerts and breakdowns.",
         f"{_AGENTS_PKG}.maintenance_agent", "mes_tools",
-        ("machine", "maintenance", "breakdown", "mes", "downtime", "marammat", "kharab"),
+        ("machine", "मशीन", "maintenance", "breakdown", "mes", "downtime", "marammat", "kharab"),
     ),
     AgentSpec(
         "general", "General assistant",
