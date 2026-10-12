@@ -15,7 +15,6 @@ const ACTIVE_AGENT_NAMES = new Set([
   'Permit-to-Work Agent',
   'PPE & Behavior Vision Agent',
   'Incident & Investigation Agent',
-  'Insights Summary Agent',
 ]);
 
 // ─── Simple toast helper ──────────────────────────────────────────────────────

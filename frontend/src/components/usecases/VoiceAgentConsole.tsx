@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
+import { AgentSelector, useEnabledAgents } from './VoiceAgentSelector';
 
 type VoiceLanguage = 'auto' | 'hi-IN' | 'en-IN' | 'en-US';
 type TranscriptResult = { isFinal: boolean; 0: { transcript: string } };
@@ -182,6 +183,12 @@ export const VoiceAgentConsole: React.FC = () => {
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [latencies, setLatencies] = useState<number[]>([]);
 
+  // Multi-agent selection (persisted in localStorage). The ref keeps sendMessage
+  // from using a stale selection when it is called from the speech recognizer.
+  const { enabledAgents, setEnabledAgents } = useEnabledAgents();
+  const enabledAgentsRef = useRef(enabledAgents);
+  enabledAgentsRef.current = enabledAgents;
+
   // Latest settings live in refs so callbacks created earlier (e.g. the running
   // speech recognizer) never use stale language / speed / volume values.
   const languageRef = useRef<VoiceLanguage>('auto');
@@ -345,6 +352,8 @@ export const VoiceAgentConsole: React.FC = () => {
           language: selected,
           language_instruction: option.instruction,
           thread_id: threadIdRef.current,
+          // Which specialist agents the supervisor is allowed to route to for this request.
+          enabled_agents: enabledAgentsRef.current,
         });
         const elapsed = Math.round(performance.now() - startedAt);
         setLatencies((current) => [...current, elapsed].slice(-MAX_LATENCY_POINTS));
@@ -992,6 +1001,9 @@ export const VoiceAgentConsole: React.FC = () => {
           >
             ▶ Test voice with these settings
           </button>
+
+          {/* Multi-agent enable / disable */}
+          <AgentSelector enabled={enabledAgents} onChange={setEnabledAgents} />
 
           <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-4">
             <div>
