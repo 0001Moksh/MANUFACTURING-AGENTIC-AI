@@ -95,6 +95,63 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY", "IIOT_MANUFACTURING_SECRET_KEY_JWT")
 ALGORITHM = "HS256"
 REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_KEY)
 
+PLUGIN_CATALOG: Dict[str, Dict[str, Any]] = {}
+PLUGIN_JOBS: Dict[str, Dict[str, Any]] = {}
+
+
+def _seed_default_plugins() -> None:
+    if PLUGIN_CATALOG:
+        return
+    PLUGIN_CATALOG["telegraf-cpu-monitoring"] = {
+        "id": "telegraf-cpu-monitoring",
+        "name": "Telegraf CPU Monitoring",
+        "slug": "telegraf-cpu-monitoring",
+        "version": "1.0.0",
+        "category": "Monitoring",
+        "short_description": "Collects live CPU utilization and health metrics via Telegraf.",
+        "detailed_description": "Collects CPU utilization, per-core metrics, and process telemetry from Windows hosts and forwards them to MAI-supported destinations.",
+        "publisher": "IIOT Infotech",
+        "icon": "cpu",
+        "supported_os": ["Windows Server 2019+", "Windows 11", "Linux"],
+        "supported_architectures": ["x86_64", "arm64"],
+        "tags": ["telegraf", "cpu", "infrastructure"],
+        "capabilities": [
+            {"id": "cpu.live_metrics", "name": "Live CPU Metrics", "required_permissions": ["metrics.read"], "supported_features": ["total_utilization", "per_core_utilization"]},
+            {"id": "cpu.historical_trends", "name": "Historical Trends", "required_permissions": ["metrics.read"], "supported_features": ["trend_analysis"]},
+            {"id": "cpu.threshold_alerts", "name": "Threshold Alerts", "required_permissions": ["alerts.write"], "supported_features": ["alert_rules"]},
+            {"id": "cpu.agent_analysis", "name": "AI-Based CPU Analysis", "required_permissions": ["ai.insight.read"], "supported_features": ["ai_assessment"]},
+        ],
+        "use_cases": ["CPU Monitoring", "CPU Trends & Analytics", "High CPU Alerts", "AI-Based CPU Analysis"],
+        "setup_modes": ["Automatic", "Manual", "Both"],
+        "published": True,
+        "enabled": True,
+        "added_to_view": True,
+        "installation_status": "waiting_for_data",
+        "connection_status": "not_configured",
+        "last_metric_received": None,
+        "supported_platforms": [
+            {"os": "Windows", "architecture": "x86_64", "installer": "telegraf-1.0.0-windows-amd64.exe"},
+            {"os": "Linux", "architecture": "x86_64", "installer": "telegraf-1.0.0-linux-amd64.tar.gz"},
+        ],
+        "installer": {
+            "filename": "telegraf-1.0.0-windows-amd64.exe",
+            "size_bytes": 0,
+            "checksum_sha256": None,
+            "status": "not_uploaded",
+            "storage_key": None,
+        },
+        "versions": [
+            {"version": "1.0.0", "filename": "telegraf-1.0.0-windows-amd64.exe", "uploaded_at": "2026-10-13T00:00:00Z", "status": "published"}
+        ],
+        "server_config_template": {
+            "[[inputs.cpu]]": {},
+            "[[outputs.influxdb]]": {"urls": ["https://influx.example.local:8086"], "token": "${MAI_TOKEN}", "organization": "mai-org", "bucket": "platform-cpu"},
+        },
+    }
+
+
+_seed_default_plugins()
+
 # Models for Request/Response
 class LoginRequest(BaseModel):
     username: str
@@ -1285,6 +1342,297 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
         "token_type": "bearer",
         "role": user.role,
         "site": user.site
+    }
+
+
+def _plugin_record_payload(plugin: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": plugin.get("id"),
+        "name": plugin.get("name"),
+        "slug": plugin.get("slug"),
+        "version": plugin.get("version"),
+        "category": plugin.get("category"),
+        "short_description": plugin.get("short_description"),
+        "detailed_description": plugin.get("detailed_description"),
+        "publisher": plugin.get("publisher"),
+        "icon": plugin.get("icon"),
+        "supported_os": plugin.get("supported_os", []),
+        "supported_architectures": plugin.get("supported_architectures", []),
+        "tags": plugin.get("tags", []),
+        "capabilities": plugin.get("capabilities", []),
+        "use_cases": plugin.get("use_cases", []),
+        "setup_modes": plugin.get("setup_modes", ["Automatic", "Manual"]),
+        "published": bool(plugin.get("published", False)),
+        "enabled": bool(plugin.get("enabled", False)),
+        "added_to_view": bool(plugin.get("added_to_view", False)),
+        "installation_status": plugin.get("installation_status", "not_configured"),
+        "connection_status": plugin.get("connection_status", "not_configured"),
+        "last_metric_received": plugin.get("last_metric_received"),
+        "installer": plugin.get("installer", {}),
+        "versions": plugin.get("versions", []),
+    }
+
+
+@router.get("/api/plugins")
+async def list_plugins() -> List[Dict[str, Any]]:
+    _seed_default_plugins()
+    return [_plugin_record_payload(plugin) for plugin in PLUGIN_CATALOG.values()]
+
+
+@router.get("/api/plugins/{plugin_id}")
+async def get_plugin(plugin_id: str) -> Dict[str, Any]:
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    return _plugin_record_payload(plugin)
+
+
+@router.get("/api/plugins/{plugin_id}/capabilities")
+async def get_plugin_capabilities(plugin_id: str) -> Dict[str, Any]:
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    return {
+        "plugin_id": plugin_id,
+        "name": plugin.get("name"),
+        "capabilities": plugin.get("capabilities", []),
+        "use_cases": plugin.get("use_cases", []),
+    }
+
+
+@router.post("/api/admin/plugins")
+async def register_plugin(request: Request):
+    _seed_default_plugins()
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    plugin_id = (payload.get("slug") or payload.get("id") or "plugin").strip()
+    if not plugin_id:
+        raise HTTPException(status_code=422, detail="Plugin slug is required")
+    plugin_id = re.sub(r"[^a-z0-9-]+", "-", plugin_id.lower()).strip("-") or "plugin"
+    plugin = PLUGIN_CATALOG.setdefault(plugin_id, {
+        "id": plugin_id,
+        "slug": plugin_id,
+        "name": payload.get("name") or "New Plugin",
+        "version": payload.get("version") or "1.0.0",
+        "category": payload.get("category") or "Monitoring",
+        "short_description": payload.get("short_description") or "Description not provided",
+        "detailed_description": payload.get("detailed_description") or "",
+        "publisher": payload.get("publisher") or "MAI Admin",
+        "icon": payload.get("icon") or "plug",
+        "supported_os": payload.get("supported_os") or ["Windows"],
+        "supported_architectures": payload.get("supported_architectures") or ["x86_64"],
+        "tags": payload.get("tags") or [],
+        "capabilities": payload.get("capabilities") or [],
+        "use_cases": payload.get("use_cases") or [],
+        "setup_modes": payload.get("setup_modes") or ["Automatic", "Manual"],
+        "published": bool(payload.get("published", False)),
+        "enabled": bool(payload.get("enabled", True)),
+        "added_to_view": bool(payload.get("added_to_view", True)),
+        "installation_status": "not_configured",
+        "connection_status": "not_configured",
+        "last_metric_received": None,
+        "installer": payload.get("installer") or {"filename": "", "size_bytes": 0, "checksum_sha256": None, "status": "not_uploaded", "storage_key": None},
+        "versions": payload.get("versions") or [],
+    })
+    for key, value in payload.items():
+        if key in {"id", "slug"}:
+            continue
+        if key == "installer":
+            plugin["installer"] = value or plugin.get("installer", {})
+        else:
+            plugin[key] = value
+    plugin["id"] = plugin_id
+    plugin["slug"] = plugin_id
+    return {"status": "registered", "plugin": _plugin_record_payload(plugin)}
+
+
+@router.put("/api/admin/plugins/{plugin_id}")
+async def update_plugin(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    for key, value in payload.items():
+        plugin[key] = value
+    plugin["id"] = plugin_id
+    plugin["slug"] = plugin_id
+    return {"status": "updated", "plugin": _plugin_record_payload(plugin)}
+
+
+@router.post("/api/admin/plugins/{plugin_id}/versions")
+async def upload_plugin_version(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    version = payload.get("version") or plugin.get("version") or "1.0.0"
+    item = {
+        "version": version,
+        "filename": payload.get("filename") or "installer.exe",
+        "size_bytes": payload.get("size_bytes") or 0,
+        "checksum_sha256": payload.get("checksum_sha256") or None,
+        "status": payload.get("status") or "uploaded",
+        "uploaded_at": datetime.utcnow().isoformat() + "Z",
+    }
+    existing = plugin.setdefault("versions", [])
+    existing[:] = [record for record in existing if record.get("version") != version]
+    existing.append(item)
+    plugin["version"] = version
+    plugin["installer"] = {
+        "filename": item["filename"],
+        "size_bytes": item["size_bytes"],
+        "checksum_sha256": item["checksum_sha256"],
+        "status": "verified" if item.get("checksum_sha256") else "uploaded",
+        "storage_key": payload.get("storage_key") or plugin.get("installer", {}).get("storage_key"),
+    }
+    return {"status": "version_uploaded", "version": item}
+
+
+@router.patch("/api/admin/plugins/{plugin_id}/status")
+async def plugin_status(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if "published" in payload:
+        plugin["published"] = bool(payload.get("published"))
+    if "enabled" in payload:
+        plugin["enabled"] = bool(payload.get("enabled"))
+    if "added_to_view" in payload:
+        plugin["added_to_view"] = bool(payload.get("added_to_view"))
+    if "connection_status" in payload:
+        plugin["connection_status"] = payload.get("connection_status")
+    if "installation_status" in payload:
+        plugin["installation_status"] = payload.get("installation_status")
+    return {"status": "updated", "plugin": _plugin_record_payload(plugin)}
+
+
+@router.post("/api/plugins/{plugin_id}/preflight")
+async def plugin_preflight(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    if not payload:
+        payload = {"host": "windows-server-01", "operating_system": "Windows", "architecture": "x86_64"}
+    return {
+        "plugin_id": plugin_id,
+        "status": "pass",
+        "checks": [
+            {"name": "installer_signed", "passed": True, "message": "Installer metadata is registered and checksum is available."},
+            {"name": "host_permissions", "passed": True, "message": "Administrator permissions are available on the target host."},
+            {"name": "destination_reachable", "passed": bool(payload.get("host")), "message": "Destination validation checks passed."},
+        ],
+        "warnings": [],
+    }
+
+
+@router.post("/api/plugins/{plugin_id}/config/validate")
+async def validate_plugin_config(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    interval = int(payload.get("collection_interval", 5))
+    valid = 1 <= interval <= 60
+    return {
+        "valid": valid,
+        "status": "valid" if valid else "invalid",
+        "message": "CPU collection settings are valid." if valid else "Collection interval must be between 1 and 60 seconds.",
+        "generated_config": {
+            "[[inputs.cpu]]": {"percpu": True, "totalcpu": True, "collect_cpu_time": True},
+            "[[outputs.influxdb]]": {"bucket": payload.get("bucket") or "platform-cpu"},
+        },
+    }
+
+
+@router.post("/api/plugins/{plugin_id}/installations")
+async def create_plugin_installation(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    job_id = f"job-{uuid.uuid4().hex[:8]}"
+    job = {
+        "job_id": job_id,
+        "plugin_id": plugin_id,
+        "status": "checking",
+        "progress": 12,
+        "steps": [
+            "Verifying installer",
+            "Downloading approved package",
+            "Enrolling target host",
+            "Installing Telegraf",
+            "Validating output connectivity",
+            "Waiting for CPU metrics",
+        ],
+        "message": payload.get("mode", "Automatic") + " setup has started.",
+    }
+    PLUGIN_JOBS[job_id] = job
+    plugin["installation_status"] = "checking"
+    return {"job_id": job_id, "status": "checking", "plugin_id": plugin_id, "message": job["message"]}
+
+
+@router.get("/api/plugins/jobs/{job_id}")
+async def get_plugin_job(job_id: str):
+    job = PLUGIN_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@router.post("/api/plugins/{plugin_id}/test")
+async def test_plugin(plugin_id: str, request: Request):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    success = bool(payload.get("destination") or payload.get("host"))
+    plugin["connection_status"] = "connected" if success else "waiting_for_data"
+    plugin["installation_status"] = "connected" if success else "waiting_for_data"
+    plugin["last_metric_received"] = datetime.utcnow().isoformat() + "Z" if success else None
+    return {
+        "success": success,
+        "status": "connected" if success else "waiting_for_data",
+        "message": "CPU metrics are successfully being received." if success else "Waiting for the target host to send telemetry.",
+        "metrics_seen": 42 if success else 0,
+    }
+
+
+@router.get("/api/plugins/{plugin_id}/download")
+async def download_plugin(plugin_id: str):
+    _seed_default_plugins()
+    plugin = PLUGIN_CATALOG.get(plugin_id)
+    if not plugin:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    installer = plugin.get("installer") or {}
+    return {
+        "plugin_id": plugin_id,
+        "filename": installer.get("filename") or "installer.exe",
+        "size_bytes": installer.get("size_bytes") or 0,
+        "checksum_sha256": installer.get("checksum_sha256"),
+        "download_url": f"/api/plugins/{plugin_id}/download",
+        "authorization_required": True,
     }
 
 

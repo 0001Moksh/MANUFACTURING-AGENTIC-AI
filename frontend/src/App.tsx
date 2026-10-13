@@ -30,6 +30,8 @@ import { RoleDetailPage } from './pages/RoleDetailPage';
 import { RoleEditPage } from './pages/RoleEditPage';
 import { MachineMonitoringPage } from './pages/MachineMonitoringPage';
 import { MachineDetailPage } from './pages/MachineDetailPage';
+import { PluginsPage } from './pages/PluginsPage';
+import { PluginSettingsPage } from './pages/PluginSettingsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
@@ -108,6 +110,8 @@ function App() {
             <Route path="admin/users/:id/edit" element={<UserEditPage />} />
             <Route path="admin/roles/:id" element={<RoleDetailPage />} />
             <Route path="admin/roles/:id/edit" element={<RoleEditPage />} />
+            <Route path="plugins" element={<PluginsPage />} />
+            <Route path="plugins/settings" element={<PluginSettingsPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

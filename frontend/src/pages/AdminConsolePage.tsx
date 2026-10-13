@@ -299,7 +299,21 @@ export const AdminConsolePage: React.FC = () => {
             </div>
           )}
 
-          {activePane === 'integrations' && <ConnectorsGrid />}
+          {activePane === 'integrations' && (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-border-color bg-panel p-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.5px] text-muted font-bold">System integrations</div>
+                  <div className="mt-1 text-[12px] text-muted">Registered connections and plugin catalog status.</div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => navigate('/plugins')} className="rounded-xl bg-navy-900 px-3.5 py-2 text-[12px] font-bold text-white cursor-pointer">Plugins</button>
+                  <button onClick={() => navigate('/plugins/settings')} className="rounded-xl border border-border-color bg-white px-3.5 py-2 text-[12px] font-bold text-ink cursor-pointer">Plugin Settings</button>
+                </div>
+              </div>
+              <ConnectorsGrid />
+            </div>
+          )}
           
           {activePane === 'guardrails' && (
             <div className="flex flex-col gap-6">

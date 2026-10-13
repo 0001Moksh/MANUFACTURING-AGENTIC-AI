@@ -30,7 +30,7 @@ function formatCost(value: number) {
 export const EnergyAgentChatWidget: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [threadId, setThreadId] = useState(createThreadId);
+  const [threadId, setThreadId] = useState<string>(createThreadId());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);

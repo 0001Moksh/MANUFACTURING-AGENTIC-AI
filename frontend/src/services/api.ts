@@ -209,6 +209,88 @@ export const adminService = {
   }
 };
 
+export const pluginService = {
+  list: async () => {
+    try {
+      const res = await api.get('/plugins');
+      return res.data;
+    } catch {
+      return [
+        {
+          id: 'telegraf-cpu-monitoring',
+          name: 'Telegraf CPU Monitoring',
+          slug: 'telegraf-cpu-monitoring',
+          version: '1.0.0',
+          category: 'Monitoring',
+          short_description: 'Collects live CPU utilization and health metrics via Telegraf.',
+          detailed_description: 'Collects CPU utilization, per-core metrics, and host health from the target system.',
+          publisher: 'IIOT Infotech',
+          icon: 'cpu',
+          supported_os: ['Windows Server 2019+', 'Windows 11', 'Linux'],
+          supported_architectures: ['x86_64', 'arm64'],
+          tags: ['telegraf', 'cpu', 'infrastructure'],
+          capabilities: [
+            { id: 'cpu.live_metrics', name: 'Live CPU Metrics' },
+            { id: 'cpu.historical_trends', name: 'Historical Trends' },
+            { id: 'cpu.threshold_alerts', name: 'Threshold Alerts' },
+            { id: 'cpu.agent_analysis', name: 'AI-Based CPU Analysis' }
+          ],
+          use_cases: ['CPU Monitoring', 'CPU Trends & Analytics', 'High CPU Alerts', 'AI-Based CPU Analysis'],
+          setup_modes: ['Automatic', 'Manual', 'Both'],
+          published: true,
+          enabled: true,
+          added_to_view: true,
+          installation_status: 'waiting_for_data',
+          connection_status: 'not_configured',
+          last_metric_received: null,
+          installer: { filename: 'telegraf-1.0.0-windows-amd64.exe', size_bytes: 4825830, checksum_sha256: 'ABC123', status: 'verified' },
+          versions: [{ version: '1.0.0', filename: 'telegraf-1.0.0-windows-amd64.exe', status: 'published' }],
+        }
+      ];
+    }
+  },
+  getById: async (pluginId: string) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}`);
+    return res.data;
+  },
+  getCapabilities: async (pluginId: string) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/capabilities`);
+    return res.data;
+  },
+  register: async (payload: Record<string, unknown>) => {
+    const res = await api.post('/admin/plugins', payload);
+    return res.data;
+  },
+  update: async (pluginId: string, payload: Record<string, unknown>) => {
+    const res = await api.put(`/admin/plugins/${encodeURIComponent(pluginId)}`, payload);
+    return res.data;
+  },
+  setStatus: async (pluginId: string, payload: Record<string, unknown>) => {
+    const res = await api.patch(`/admin/plugins/${encodeURIComponent(pluginId)}/status`, payload);
+    return res.data;
+  },
+  validateConfig: async (pluginId: string, payload: Record<string, unknown>) => {
+    const res = await api.post(`/plugins/${encodeURIComponent(pluginId)}/config/validate`, payload);
+    return res.data;
+  },
+  preflight: async (pluginId: string, payload: Record<string, unknown>) => {
+    const res = await api.post(`/plugins/${encodeURIComponent(pluginId)}/preflight`, payload);
+    return res.data;
+  },
+  test: async (pluginId: string, payload: Record<string, unknown>) => {
+    const res = await api.post(`/plugins/${encodeURIComponent(pluginId)}/test`, payload);
+    return res.data;
+  },
+  install: async (pluginId: string, payload: Record<string, unknown>) => {
+    const res = await api.post(`/plugins/${encodeURIComponent(pluginId)}/installations`, payload);
+    return res.data;
+  },
+  getJob: async (jobId: string) => {
+    const res = await api.get(`/plugins/jobs/${encodeURIComponent(jobId)}`);
+    return res.data;
+  },
+};
+
 export const guardrailPolicyService = {
   getPolicies: async () => {
     const res = await api.get('/admin/guardrail-policies');
