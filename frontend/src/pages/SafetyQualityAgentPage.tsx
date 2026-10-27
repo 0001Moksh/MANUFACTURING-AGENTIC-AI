@@ -21,6 +21,7 @@ import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndi
 import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
 import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
 import { createEstimatedTelemetry } from '../utils/telemetryHelper';
+import { PromptInjectionDemoButton } from '../components/agents/PromptInjectionDemoButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -322,7 +323,11 @@ export const SafetyQualityAgentPage: React.FC = () => {
     try {
       const res = await safetyQualityService.chat(prompt, threadId);
       const elapsedSec = (performance.now() - startTime) / 1000;
-      setActiveSteps((prev) => prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec })));
+      setActiveSteps(
+        res.status === 'blocked'
+          ? []
+          : (prev) => prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec })),
+      );
 
       setMessages((prev) => [
         ...prev,
@@ -331,15 +336,17 @@ export const SafetyQualityAgentPage: React.FC = () => {
           role: 'assistant',
           text: res.reply,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          telemetry: createEstimatedTelemetry(
-            elapsedSec,
-            [
-              { name: 'get_today_quality_inspection_reports', status: 'completed' },
-              { name: 'get_material_defect_analytics', status: 'completed' },
-            ],
-            prompt,
-            res.reply
-          ),
+          telemetry: res.status === 'blocked'
+            ? undefined
+            : createEstimatedTelemetry(
+                elapsedSec,
+                [
+                  { name: 'get_today_quality_inspection_reports', status: 'completed' },
+                  { name: 'get_material_defect_analytics', status: 'completed' },
+                ],
+                prompt,
+                res.reply
+              ),
         },
       ]);
     } catch {
@@ -524,6 +531,10 @@ export const SafetyQualityAgentPage: React.FC = () => {
               </button>
             ))}
           </div>
+          <PromptInjectionDemoButton
+            onSubmit={(prompt) => void send(prompt)}
+            disabled={loading}
+          />
 
           <div className="flex gap-2 items-end">
             <textarea

@@ -15,10 +15,12 @@ export type MaintenanceVisual = {
 };
 
 export type MaintenanceResponse = {
-  status: 'success';
+  status: 'success' | 'blocked';
   thread_id: string;
   reply: string;
   visuals: MaintenanceVisual[];
+  reason?: string;
+  guardrail?: { stage: string; reason: string };
 };
 
 export const maintenanceInsightsService = {

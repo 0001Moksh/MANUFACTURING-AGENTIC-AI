@@ -51,6 +51,7 @@ from app.influx_telemetry import (
 from app.machine_monitoring import get_machine_ai_payload, monitor_machine, regenerate_machine_summary
 from app.guardrails_firewall import validate_query_safety
 from app.agents.agent_workflow import run_agent_workflow, AgentState
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 from app.report_urls import (
     build_report_url,
     get_public_api_url,
@@ -97,6 +98,13 @@ REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_
 
 PLUGIN_CATALOG: Dict[str, Dict[str, Any]] = {}
 PLUGIN_JOBS: Dict[str, Dict[str, Any]] = {}
+
+
+def _agent_input_block(message: str, agent_name: str, thread_id: Optional[str] = None):
+    blocked, reason, details = check_prompt_injection(message)
+    if not blocked:
+        return None
+    return blocked_prompt_response(agent_name, reason, details, thread_id)
 
 
 def _seed_default_plugins() -> None:
@@ -2945,6 +2953,38 @@ async def websocket_voice_endpoint(websocket: WebSocket, agent: Optional[str] = 
 @router.post("/api/agent/query")
 async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = Depends(get_db)):
     current_user = await get_current_user(request, db)
+    agent_id = (getattr(req, "agent", None) or "").lower()
+    agent_names = {
+        "maintenance": "Maintenance Agent",
+        "permit-to-work": "Permit-to-Work Agent",
+        "ptw": "Permit-to-Work Agent",
+        "permit": "Permit-to-Work Agent",
+        "incident-investigation": "Incident & Investigation Agent",
+        "incident": "Incident & Investigation Agent",
+        "investigation": "Incident & Investigation Agent",
+        "forensic": "Incident & Investigation Agent",
+        "operations": "Operations Agent",
+    }
+    prompt_blocked, prompt_reason, prompt_details = check_prompt_injection(req.query)
+    if prompt_blocked:
+        blocked = blocked_prompt_response(
+            agent_names.get(agent_id, "Reporting Agent"),
+            prompt_reason,
+            prompt_details,
+        )
+        return {
+            **blocked,
+            "insights": blocked["reply"],
+            "sql_query": "",
+            "sql_result": "",
+            "execution_steps": [],
+            "pdf_url": "",
+            "email_status": None,
+            "error_message": "",
+            "cost_usd": 0.0,
+            "visuals": [],
+        }
+
     # 1. Run Cybersecurity Firewall Checks
     is_blocked, status_str, reason = await validate_query_safety(req.query)
     if is_blocked:
@@ -2970,6 +3010,19 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
 
         if agent_id == "maintenance":
             maintenance = await run_maintenance_conversation(req.query)
+            if maintenance.get("status") == "blocked":
+                return {
+                    **maintenance,
+                    "insights": maintenance.get("reply", ""),
+                    "sql_query": "",
+                    "sql_result": "",
+                    "execution_steps": [],
+                    "pdf_url": "",
+                    "email_status": None,
+                    "error_message": "",
+                    "cost_usd": 0.0,
+                    "visuals": maintenance.get("visuals", []),
+                }
             return {
                 "status": "success",
                 "sql_query": "",
@@ -2984,6 +3037,19 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
             }
         elif getattr(req, "agent", None) in ["permit-to-work", "ptw", "permit"]:
             ptw_res = await run_ptw_conversation(req.query)
+            if ptw_res.get("status") == "blocked":
+                return {
+                    **ptw_res,
+                    "insights": ptw_res.get("reply", ""),
+                    "sql_query": "",
+                    "sql_result": "",
+                    "execution_steps": [],
+                    "pdf_url": "",
+                    "email_status": None,
+                    "error_message": "",
+                    "cost_usd": 0.0,
+                    "visuals": [],
+                }
             return {
                 "status": "success",
                 "sql_query": "",
@@ -2998,6 +3064,19 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
             }
         elif getattr(req, "agent", None) in ["incident-investigation", "incident", "investigation", "forensic"]:
             inv_res = await run_incident_investigation_conversation(req.query)
+            if inv_res.get("status") == "blocked":
+                return {
+                    **inv_res,
+                    "insights": inv_res.get("reply", ""),
+                    "sql_query": "",
+                    "sql_result": "",
+                    "execution_steps": [],
+                    "pdf_url": "",
+                    "email_status": None,
+                    "error_message": "",
+                    "cost_usd": 0.0,
+                    "visuals": [],
+                }
             return {
                 "status": "success",
                 "sql_query": "",
@@ -3012,6 +3091,20 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
             }
         else:
             state = await run_agent_workflow(req.query, is_approved=False)
+
+        if state.get("status") == "blocked":
+            return {
+                **state,
+                "insights": state.get("insights") or state.get("reply", ""),
+                "sql_query": state.get("sql_query", ""),
+                "sql_result": state.get("sql_result", ""),
+                "execution_steps": state.get("execution_steps", []),
+                "pdf_url": state.get("pdf_url", ""),
+                "email_status": None,
+                "error_message": "",
+                "cost_usd": 0.0,
+                "visuals": [],
+            }
 
         if state.get("error_message"):
             raise HTTPException(
@@ -3115,8 +3208,18 @@ async def query_agent(req: QueryRequest, request: Request, db: AsyncSession = De
 
 @router.post("/api/maintenance/chat")
 async def maintenance_chat(req: MaintenanceChatRequest):
+    blocked = _agent_input_block(
+        req.message,
+        "Maintenance Agent",
+        req.thread_id or "maintenance-default",
+    )
+    if blocked:
+        blocked["visuals"] = []
+        return blocked
     _require_integration("MES")
     response = await run_maintenance_conversation(req.message, thread_id=req.thread_id)
+    if response.get("status") == "blocked":
+        return response
     return {
         "status": "success",
         "thread_id": req.thread_id or f"maint-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
@@ -3709,8 +3812,17 @@ async def update_reporting_settings(req: ReportingSettingsRequest):
 @router.post("/api/safety-agent/chat")
 async def safety_quality_chat(req: SafetyQualityChatRequest):
     """Chat endpoint for the Deva Safety & Quality LangGraph agent."""
+    blocked = _agent_input_block(
+        req.message,
+        "Safety & Quality Agent",
+        req.thread_id or "safety-quality-default",
+    )
+    if blocked:
+        return blocked
     _require_integration("Video Analytics")
     result = await run_safety_quality_conversation(req.message, req.thread_id)
+    if result.get("status") == "blocked":
+        return result
     return {
         "status": "success",
         "thread_id": result["thread_id"],
@@ -3723,8 +3835,17 @@ async def safety_quality_chat(req: SafetyQualityChatRequest):
 @router.post("/api/ppe-agent/chat")
 async def ppe_vision_chat(req: PPEVisionChatRequest):
     """Chat endpoint for the Deva PPE & Behavior Vision LangGraph agent."""
+    blocked = _agent_input_block(
+        req.message,
+        "PPE & Behavior Vision Agent",
+        req.thread_id or "ppe-vision-default",
+    )
+    if blocked:
+        return blocked
     _require_integration("Video Analytics")
     result = await run_ppe_conversation(req.message, req.thread_id)
+    if result.get("status") == "blocked":
+        return result
     return {
         "status": "success",
         "thread_id": result["thread_id"],
@@ -3756,8 +3877,17 @@ async def safety_site_intelligence_chat(req: SafetySiteIntelligenceChatRequest):
 @router.post("/api/ptw-agent/chat")
 async def permit_to_work_chat(req: PermitToWorkChatRequest):
     """Chat endpoint for the Deva Permit-to-Work LangGraph agent (54 tools)."""
+    blocked = _agent_input_block(
+        req.message,
+        "Permit-to-Work Agent",
+        req.thread_id or "ptw-default",
+    )
+    if blocked:
+        return blocked
     _require_integration("MES")
     result = await run_ptw_conversation(req.message, req.thread_id)
+    if result.get("status") == "blocked":
+        return result
     return {
         "status": "success",
         "thread_id": result["thread_id"],
@@ -3937,6 +4067,13 @@ async def get_safety_spatial_heatmap(time_filter: str = "30_DAYS"):
 @router.post("/api/incident-investigation/chat")
 async def incident_investigation_chat(req: IncidentInvestigationChatRequest):
     """Chat endpoint for Deva Incident & Investigation Agent with full telemetry."""
+    blocked = _agent_input_block(
+        req.message,
+        "Incident & Investigation Agent",
+        req.thread_id or f"incident-inv-{uuid.uuid4().hex[:12]}",
+    )
+    if blocked:
+        return blocked
     _require_integration("MES")
     result = await run_incident_investigation_conversation(req.message, req.thread_id)
     return result
@@ -3945,6 +4082,16 @@ async def incident_investigation_chat(req: IncidentInvestigationChatRequest):
 @router.post("/api/incident-investigation/stream")
 async def incident_investigation_stream(req: IncidentInvestigationChatRequest):
     """Streaming SSE endpoint for real-time tool animation, token generation, and response telemetry."""
+    if _agent_input_block(req.message, "Incident & Investigation Agent", req.thread_id):
+        return StreamingResponse(
+            stream_incident_investigation_events(req.message, req.thread_id),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
     _require_integration("MES")
     return StreamingResponse(
         stream_incident_investigation_events(req.message, req.thread_id),

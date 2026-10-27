@@ -20,6 +20,8 @@ from langgraph.prebuilt import ToolNode
 from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+
 # ── Database engine for construction_ai ──────────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
     "CONSTRUCTION_DB_URL")
@@ -1310,6 +1312,15 @@ print("[Safety Agent] Deva Safety & Quality Agent LangGraph compiled successfull
 
 async def run_safety_quality_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     """Async entry-point for the FastAPI route."""
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response(
+            "Safety & Quality Agent",
+            reason,
+            details,
+            thread_id or "safety-quality-default",
+        )
+
     config = {"configurable": {"thread_id": thread_id or "safety-quality-default"}}
     final_state = await asyncio.to_thread(
         lambda: deva_safety_quality_agent.invoke(

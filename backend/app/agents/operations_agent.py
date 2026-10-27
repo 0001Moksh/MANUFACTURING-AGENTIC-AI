@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import operator
 import os
 import re
@@ -35,6 +36,45 @@ CHUNK_CHARACTERS = 1400
 _index_lock = threading.RLock()
 _chunk_cache_signature: tuple[tuple[str, int, int], ...] | None = None
 _chunk_cache: list["RetrievedChunk"] = []
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# LangKit globals (lazy-loaded)
+# ---------------------------------------------------------------------------
+_langkit_extract = None
+_langkit_injections = None
+_langkit_themes = None
+_langkit_toxicity = None
+_langkit_pii = None
+_langkit_input_output = None
+_langkit_load_attempted = False
+
+# Higher scores mean greater similarity / risk.
+# Lexical rules act as a deterministic safety net while LangKit models load.
+LANGKIT_INJECTION_THRESHOLD = float(os.getenv("OPERATIONS_LANGKIT_INJECTION_THRESHOLD", "0.70"))
+LANGKIT_JAILBREAK_THRESHOLD = float(os.getenv("OPERATIONS_LANGKIT_JAILBREAK_THRESHOLD", "0.65"))
+LANGKIT_TOXICITY_INPUT_THRESHOLD = float(os.getenv("OPERATIONS_LANGKIT_TOXICITY_INPUT_THRESHOLD", "0.65"))
+LANGKIT_TOXICITY_OUTPUT_THRESHOLD = float(os.getenv("OPERATIONS_LANGKIT_TOXICITY_OUTPUT_THRESHOLD", "0.55"))
+LANGKIT_RELEVANCE_MIN_THRESHOLD = float(os.getenv("OPERATIONS_LANGKIT_RELEVANCE_MIN_THRESHOLD", "0.25"))
+
+_PROMPT_INJECTION_PATTERNS = (
+    re.compile(r"\bignore\s+(?:all\s+)?(?:previous|prior|above)\s+(?:instructions|rules|prompts?)\b", re.IGNORECASE),
+    re.compile(r"\b(?:reveal|show|print|repeat|dump)\s+(?:the\s+)?(?:system|developer)\s+(?:prompt|message|instructions?)\b", re.IGNORECASE),
+    re.compile(r"\b(?:bypass|override|disable)\s+(?:the\s+)?(?:guardrails?|safety|security|restrictions?)\b", re.IGNORECASE),
+    re.compile(r"\b(?:act|behave)\s+as\s+(?:an?\s+)?(?:unrestricted|unfiltered|jailbroken)\b", re.IGNORECASE),
+)
+
+_GUARDRAIL_BLOCK_REPLY = (
+    "Your message was blocked by the Operations Agent security guardrail because it "
+    "appears to contain a prompt-injection, jailbreak, toxic, or policy-violating attempt. "
+    "Please ask a question about the Operations SOPs without changing the agent's instructions."
+)
+
+_OUTPUT_GUARDRAIL_BLOCK_REPLY = (
+    "The generated response was blocked by the Operations Agent security guardrail "
+    "because it violated content safety policies (toxicity, PII leakage, or low relevance). "
+    "Please rephrase your question about the Operations SOPs."
+)
 
 _STOP_WORDS = {
     "about", "after", "again", "and", "are", "could", "does", "from", "have",
@@ -79,6 +119,188 @@ def _smalltalk_reply(message: str) -> str | None:
             "percentage, handover requirements, or work-step verification."
         )
     return None
+
+
+def _ensure_langkit_loaded() -> bool:
+    """Lazy-load LangKit modules. Returns True if extract is available."""
+    global _langkit_extract, _langkit_injections, _langkit_themes
+    global _langkit_toxicity, _langkit_pii, _langkit_input_output
+    global _langkit_load_attempted
+
+    if _langkit_load_attempted:
+        return _langkit_extract is not None
+
+    _langkit_load_attempted = True
+    try:
+        from langkit import extract as langkit_extract
+        from langkit import injections as langkit_injections
+        from langkit import themes as langkit_themes
+        from langkit import toxicity as langkit_toxicity
+        from langkit import pii as langkit_pii
+        from langkit import input_output as langkit_input_output
+
+        _langkit_extract = langkit_extract
+        _langkit_injections = langkit_injections
+        _langkit_themes = langkit_themes
+        _langkit_toxicity = langkit_toxicity
+        _langkit_pii = langkit_pii
+        _langkit_input_output = langkit_input_output
+        logger.info("LangKit modules loaded successfully")
+        return True
+    except Exception as exc:
+        logger.warning("LangKit is unavailable: %s", exc)
+        _langkit_extract = None
+        return False
+
+
+def _safe_extract_score(result: dict, key: str) -> float | None:
+    """Safely pull a numeric score from a LangKit extract result."""
+    try:
+        values = result.get(key)
+        if values is None:
+            return None
+        if hasattr(values, "iloc"):
+            value = values.iloc[0]
+        elif isinstance(values, (list, tuple)):
+            value = values[0]
+        else:
+            value = values
+        return float(value)
+    except Exception:
+        return None
+
+
+def _langkit_input_scores(message: str) -> dict[str, float | None]:
+    """
+    Run LangKit metrics on the user message.
+    Returns a dict with keys: injection, jailbreak, toxicity, pii_count.
+    """
+    scores: dict[str, float | None] = {
+        "injection": None,
+        "jailbreak": None,
+        "toxicity": None,
+        "pii_count": None,
+    }
+    if not _ensure_langkit_loaded() or _langkit_extract is None:
+        return scores
+
+    try:
+        result = _langkit_extract({"prompt": message})
+
+        # Injection score (prompt.injection or injection)
+        scores["injection"] = _safe_extract_score(result, "prompt.injection")
+        if scores["injection"] is None:
+            scores["injection"] = _safe_extract_score(result, "injection")
+
+        # Jailbreak similarity
+        scores["jailbreak"] = _safe_extract_score(result, "prompt.jailbreak_similarity")
+        if scores["jailbreak"] is None:
+            scores["jailbreak"] = _safe_extract_score(result, "jailbreak_similarity")
+
+        # Toxicity
+        scores["toxicity"] = _safe_extract_score(result, "prompt.toxicity")
+        if scores["toxicity"] is None:
+            scores["toxicity"] = _safe_extract_score(result, "toxicity")
+
+        # PII entity count
+        pii_count = _safe_extract_score(result, "prompt.pii_presidio.entities_count")
+        if pii_count is None:
+            pii_count = _safe_extract_score(result, "pii_presidio.entities_count")
+        scores["pii_count"] = pii_count
+
+    except Exception as exc:
+        logger.warning("LangKit input scoring failed: %s", exc)
+
+    return scores
+
+
+def _langkit_output_scores(prompt: str, response: str) -> dict[str, float | None]:
+    """
+    Run LangKit metrics on the generated response.
+    Returns toxicity, relevance, pii_count.
+    """
+    scores: dict[str, float | None] = {
+        "toxicity": None,
+        "relevance": None,
+        "pii_count": None,
+    }
+    if not _ensure_langkit_loaded() or _langkit_extract is None:
+        return scores
+
+    try:
+        result = _langkit_extract({"prompt": prompt, "response": response})
+
+        scores["toxicity"] = _safe_extract_score(result, "response.toxicity")
+        if scores["toxicity"] is None:
+            scores["toxicity"] = _safe_extract_score(result, "toxicity")
+        scores["relevance"] = _safe_extract_score(result, "response.relevance_to_prompt")
+        if scores["relevance"] is None:
+            scores["relevance"] = _safe_extract_score(result, "relevance_to_prompt")
+        pii_count = _safe_extract_score(result, "response.pii_presidio.entities_count")
+        if pii_count is None:
+            pii_count = _safe_extract_score(result, "pii_presidio.entities_count")
+        scores["pii_count"] = pii_count
+
+    except Exception as exc:
+        logger.warning("LangKit output scoring failed: %s", exc)
+
+    return scores
+
+
+def _operations_input_guardrail(message: str) -> tuple[bool, str, dict[str, Any]]:
+    """
+    Block prompt injection, jailbreak, toxic, or PII-heavy inputs
+    before retrieval, memory, tools, or an LLM see them.
+    """
+    details: dict[str, Any] = {}
+
+    # 1. Deterministic regex patterns (always available)
+    if any(pattern.search(message) for pattern in _PROMPT_INJECTION_PATTERNS):
+        return True, "deterministic_prompt_injection", details
+
+    # 2. LangKit scores
+    scores = _langkit_input_scores(message)
+    details["langkit_scores"] = {k: round(v, 4) if v is not None else None for k, v in scores.items()}
+
+    if scores["injection"] is not None and scores["injection"] >= LANGKIT_INJECTION_THRESHOLD:
+        return True, "langkit_prompt_injection", details
+
+    if scores["jailbreak"] is not None and scores["jailbreak"] >= LANGKIT_JAILBREAK_THRESHOLD:
+        return True, "langkit_jailbreak", details
+
+    if scores["toxicity"] is not None and scores["toxicity"] >= LANGKIT_TOXICITY_INPUT_THRESHOLD:
+        return True, "langkit_toxicity_input", details
+
+    # PII: block if any sensitive entities are detected (count > 0)
+    if scores["pii_count"] is not None and scores["pii_count"] > 0:
+        return True, "langkit_pii_input", details
+
+    return False, "", details
+
+
+def _operations_output_guardrail(prompt: str, response: str) -> tuple[bool, str, dict[str, Any]]:
+    """
+    Check the LLM-generated response for toxicity, PII leakage, and relevance.
+    """
+    details: dict[str, Any] = {}
+    scores = _langkit_output_scores(prompt, response)
+    details["langkit_scores"] = {k: round(v, 4) if v is not None else None for k, v in scores.items()}
+
+    if scores["toxicity"] is not None and scores["toxicity"] >= LANGKIT_TOXICITY_OUTPUT_THRESHOLD:
+        return True, "langkit_toxicity_output", details
+
+    if scores["pii_count"] is not None and scores["pii_count"] > 0:
+        return True, "langkit_pii_output", details
+
+    # Low relevance can indicate the model drifted or hallucinated
+    if (
+        scores["relevance"] is not None
+        and scores["relevance"] < LANGKIT_RELEVANCE_MIN_THRESHOLD
+        and len(response.strip()) > 40  # ignore very short safe replies
+    ):
+        return True, "langkit_low_relevance", details
+
+    return False, "", details
 
 
 class Citation(TypedDict):
@@ -380,6 +602,24 @@ async def run_operations_conversation(message: str, thread_id: str | None = None
     if not clean_message:
         raise ValueError("Message cannot be empty.")
     conversation_id = (thread_id or f"operations-{uuid.uuid4().hex}")[:128]
+
+    # ---------- INPUT GUARDRAIL ----------
+    is_blocked, guardrail_reason, guardrail_details = _operations_input_guardrail(clean_message)
+    if is_blocked:
+        response: dict[str, Any] = {
+            "status": "blocked",
+            "thread_id": conversation_id,
+            "reply": _GUARDRAIL_BLOCK_REPLY,
+            "citations": [],
+            "guardrail": {
+                "stage": "input",
+                "reason": guardrail_reason,
+                **guardrail_details,
+            },
+        }
+        return response
+
+    # ---------- SMALLTALK ----------
     smalltalk_reply = _smalltalk_reply(clean_message)
     if smalltalk_reply:
         return {
@@ -388,6 +628,8 @@ async def run_operations_conversation(message: str, thread_id: str | None = None
             "reply": smalltalk_reply,
             "citations": [],
         }
+
+    # ---------- MAIN AGENT ----------
     config = {"configurable": {"thread_id": conversation_id}}
     result = await asyncio.to_thread(
         operations_agent.invoke,
@@ -398,10 +640,29 @@ async def run_operations_conversation(message: str, thread_id: str | None = None
         (item for item in reversed(result["messages"]) if isinstance(item, AIMessage)),
         None,
     )
+    reply_text = final_message.content if final_message else "Unable to verify from the available Operations SOPs."
+
+    # ---------- OUTPUT GUARDRAIL ----------
+    is_output_blocked, output_reason, output_details = _operations_output_guardrail(
+        clean_message, str(reply_text)
+    )
+    if is_output_blocked:
+        return {
+            "status": "blocked",
+            "thread_id": conversation_id,
+            "reply": _OUTPUT_GUARDRAIL_BLOCK_REPLY,
+            "citations": [],
+            "guardrail": {
+                "stage": "output",
+                "reason": output_reason,
+                **output_details,
+            },
+        }
+
     return {
         "status": "success",
         "thread_id": conversation_id,
-        "reply": final_message.content if final_message else "Unable to verify from the available Operations SOPs.",
+        "reply": reply_text,
         "citations": result.get("citations", []),
     }
 

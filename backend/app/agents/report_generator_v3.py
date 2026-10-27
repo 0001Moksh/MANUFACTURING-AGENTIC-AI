@@ -2520,6 +2520,24 @@ def process_query_and_generate_full_dict(
     is_approved: bool = False,
     limit_per_table: int = 50
 ) -> Dict[str, Any]:
+    from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+
+    blocked, reason, details = check_prompt_injection(user_query)
+    if blocked:
+        response = blocked_prompt_response("Reporting Agent", reason, details)
+        return {
+            **response,
+            "sql_query": "",
+            "sql_result": "",
+            "insights": response["reply"],
+            "execution_steps": [],
+            "pdf_path": "",
+            "pdf_url": "",
+            "requires_hitl": False,
+            "is_approved": is_approved,
+            "error_message": "",
+        }
+
     t0 = time.time()
     log.info("Processing query in v3 pipeline: %s", user_query)
 

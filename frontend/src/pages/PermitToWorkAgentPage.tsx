@@ -17,6 +17,7 @@ import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndi
 import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
 import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
 import { createEstimatedTelemetry } from '../utils/telemetryHelper';
+import { PromptInjectionDemoButton } from '../components/agents/PromptInjectionDemoButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -346,8 +347,10 @@ export const PermitToWorkAgentPage: React.FC = () => {
     try {
       const res = await permitToWorkService.chat(query, threadId);
       const elapsedSec = (performance.now() - startTime) / 1000;
-      setActiveSteps((prev) =>
-        prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec }))
+      setActiveSteps(
+        res.status === 'blocked'
+          ? []
+          : (prev) => prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsedSec })),
       );
 
       const assistantMsg: ChatMessage = {
@@ -355,15 +358,17 @@ export const PermitToWorkAgentPage: React.FC = () => {
         role: 'assistant',
         text: res.reply || 'No response returned from the Permit-to-Work engine.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        telemetry: createEstimatedTelemetry(
-          elapsedSec,
-          [
-            { name: 'get_active_high_risk_permits', status: 'completed' },
-            { name: 'validate_permit_authorization', status: 'completed' },
-          ],
-          query,
-          res.reply || ''
-        ),
+        telemetry: res.status === 'blocked'
+          ? undefined
+          : createEstimatedTelemetry(
+              elapsedSec,
+              [
+                { name: 'get_active_high_risk_permits', status: 'completed' },
+                { name: 'validate_permit_authorization', status: 'completed' },
+              ],
+              query,
+              res.reply || ''
+            ),
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -557,6 +562,10 @@ export const PermitToWorkAgentPage: React.FC = () => {
               </button>
             ))}
           </div>
+          <PromptInjectionDemoButton
+            onSubmit={(prompt) => void handleSend(prompt)}
+            disabled={loading}
+          />
 
           {/* Text Input & Controls */}
           <div className="flex gap-2 items-end">

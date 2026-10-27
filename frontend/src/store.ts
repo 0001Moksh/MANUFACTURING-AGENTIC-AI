@@ -59,7 +59,7 @@ interface PlatformState {
   reportingAgentState: {
     query: string;
     model: string;
-    status: 'idle' | 'running' | 'success' | 'requires_approval' | 'error';
+    status: 'idle' | 'running' | 'success' | 'requires_approval' | 'error' | 'blocked';
     result: any;
     errorMsg: string;
     showLogs: boolean;
@@ -167,4 +167,3 @@ export const useStore = create<PlatformState>((set) => {
 });
 
 export const useAppStore = useStore;
-

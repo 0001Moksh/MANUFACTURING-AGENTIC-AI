@@ -22,10 +22,11 @@ type OperationsDocumentsResponse = {
 };
 
 export type OperationsChatResponse = {
-  status: 'success';
+  status: 'success' | 'blocked';
   thread_id: string;
   reply: string;
   citations: OperationsCitation[];
+  guardrail?: { stage: string; reason: string };
 };
 
 export type OperationsDocumentContent = Pick<OperationsDocument, 'name' | 'path' | 'document_id'> & {

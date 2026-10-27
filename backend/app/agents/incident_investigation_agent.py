@@ -25,6 +25,8 @@ from langgraph.prebuilt import ToolNode
 from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+
 # ── Database engine for construction_ai ──────────────────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
     "CONSTRUCTION_DB_URL")
@@ -746,6 +748,17 @@ async def run_incident_investigation_conversation(
     """
     start_time = time.perf_counter()
     tid = thread_id or f"incident-inv-{int(time.time() * 1000)}"
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        result = blocked_prompt_response("Incident & Investigation Agent", reason, details, tid)
+        result.update({
+            "tools_used": [],
+            "execution_time_sec": round(time.perf_counter() - start_time, 2),
+            "tokens": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "cost_usd": 0.0,
+        })
+        return result
+
     config = {"configurable": {"thread_id": tid}}
     
     tools_used = []
@@ -811,6 +824,13 @@ async def stream_incident_investigation_events(
     """
     start_time = time.perf_counter()
     tid = thread_id or f"incident-stream-{int(time.time() * 1000)}"
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        result = blocked_prompt_response("Incident & Investigation Agent", reason, details, tid)
+        yield f"data: {json.dumps({'type': 'blocked', **result})}\n\n"
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return
+
     config = {"configurable": {"thread_id": tid}}
     
     tools_invoked = []

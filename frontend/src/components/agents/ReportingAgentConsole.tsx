@@ -24,6 +24,7 @@ import { AgentExecutionIndicator } from '../common/AgentExecutionIndicator';
 import { AgentTelemetryFooter } from '../common/AgentTelemetryFooter';
 import { createEstimatedTelemetry } from '../../utils/telemetryHelper';
 import { reportPdfUrl } from '../../config/api';
+import { PromptInjectionDemoButton } from './PromptInjectionDemoButton';
 
 const getRequestErrorMessage = (error: any, fallback: string) => {
   const responseData = error?.response?.data;
@@ -59,16 +60,18 @@ export const AgentChatConsole: React.FC = () => {
     if (pdfUrl) window.open(reportPdfUrl(pdfUrl), '_blank', 'noopener,noreferrer');
   };
 
-  const handleQuery = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const handleQuery = async (e?: React.FormEvent, queryOverride?: string) => {
+    e?.preventDefault();
+    const queryToSubmit = queryOverride ?? query;
+    if (!queryToSubmit.trim()) return;
+    if (queryOverride) setReportingAgentState({ query: queryOverride });
 
     setLoading(true);
     setReportingAgentState({ status: 'running', result: null, errorMsg: '' });
     setActiveTab('pdf');
 
     try {
-      let data = await agentService.query(query, model, 'reporting');
+      let data = await agentService.query(queryToSubmit, model, 'reporting');
       if (data.status === 'requires_approval') {
         if (!humanInLoop) {
           data = await agentService.approve(data);
@@ -78,8 +81,8 @@ export const AgentChatConsole: React.FC = () => {
         }
       } else if (data.status === 'blocked') {
         setReportingAgentState({
-          status: 'error',
-          errorMsg: `Blocked by AI Security Firewall: ${data.reason}`,
+          status: 'blocked',
+          errorMsg: `Guardrail blocked this prompt: ${data.reason || data.insights || 'prompt injection detected'}`,
         });
       } else {
         setReportingAgentState({ result: data, status: 'success' });
@@ -211,6 +214,12 @@ export const AgentChatConsole: React.FC = () => {
           </button>
         </div>
       </form>
+      <div className="mb-4">
+        <PromptInjectionDemoButton
+          onSubmit={(prompt) => void handleQuery(undefined, prompt)}
+          disabled={loading}
+        />
+      </div>
 
       {/* ── State Machine Trace Logs ── */}
       {status !== 'idle' && explainableLogs && (
@@ -246,11 +255,13 @@ export const AgentChatConsole: React.FC = () => {
       )}
 
       {/* ── Error Notification ── */}
-      {status === 'error' && errorMsg && (
-        <div className="bg-red-tint border border-red/40 text-red rounded-xl p-4 flex gap-3 items-start mb-4">
+      {(status === 'error' || status === 'blocked') && errorMsg && (
+        <div className={`rounded-xl p-4 flex gap-3 items-start mb-4 ${status === 'blocked' ? 'bg-amber-50 border border-amber-300 text-amber-900' : 'bg-red-tint border border-red/40 text-red'}`}>
           <AlertTriangle className="w-[18px] h-[18px] shrink-0 mt-0.5" />
           <div>
-            <div className="font-bold text-[13.5px]">Access Denied / Query Failed</div>
+            <div className="font-bold text-[13.5px]">
+              {status === 'blocked' ? 'Prompt Blocked by Guardrail' : 'Access Denied / Query Failed'}
+            </div>
             <div className="text-[12.5px] mt-0.5 leading-relaxed opacity-90">{errorMsg}</div>
           </div>
         </div>

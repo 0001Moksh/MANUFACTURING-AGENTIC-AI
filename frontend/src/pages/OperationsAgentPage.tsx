@@ -30,6 +30,7 @@ import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter'
 import { parseMarkdown } from '../utils/markdownParser';
 import type { TurnTelemetry, ActiveToolStep } from '../types/telemetry';
 import { createEstimatedTelemetry } from '../utils/telemetryHelper';
+import { PromptInjectionDemoButton } from '../components/agents/PromptInjectionDemoButton';
 
 // ─── Types & constants ────────────────────────────────────────────────────────
 
@@ -289,19 +290,30 @@ export const OperationsAgentPage: React.FC = () => {
         try {
             const res = await operationsAgentService.chat(prompt, threadId);
             const elapsed = (performance.now() - start) / 1000;
-            setActiveSteps((prev) => prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsed })));
+            setActiveSteps(
+                res.status === 'blocked'
+                    ? []
+                    : (prev) => prev.map((s) => ({ ...s, status: 'completed', durationSec: elapsed })),
+            );
             setMessages((prev) => [
                 ...prev,
                 {
                     id: `a-${Date.now()}`,
                     role: 'assistant',
                     text: res.reply,
-                    citations: res.citations,
+                    citations: res.citations ?? [],
                     timestamp: now(),
-                    telemetry: createEstimatedTelemetry(elapsed, [{ name: 'search_sop_documents', status: 'completed' }], prompt, res.reply),
+                    telemetry: res.status === 'blocked'
+                        ? undefined
+                        : createEstimatedTelemetry(
+                            elapsed,
+                            [{ name: 'search_sop_documents', status: 'completed' }],
+                            prompt,
+                            res.reply,
+                        ),
                 },
             ]);
-            if (res.citations?.length) {
+            if (res.status !== 'blocked' && res.citations?.length) {
                 setActiveCitations(
                     selectedSOP ? res.citations.filter((c) => c.document_id === selectedSOP.document_id) : res.citations,
                 );
@@ -585,6 +597,10 @@ export const OperationsAgentPage: React.FC = () => {
                                 ))}
                             </div>
                         )}
+                        <PromptInjectionDemoButton
+                            onSubmit={(prompt) => void handleSend(prompt)}
+                            disabled={loading}
+                        />
                         <div className="flex gap-2 items-end">
                             <textarea
                                 ref={textareaRef}

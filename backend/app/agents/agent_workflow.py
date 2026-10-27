@@ -22,6 +22,7 @@ import uuid
 from typing import Any, Dict, List, Optional, TypedDict
 
 from app.agents.report_generator_v3 import process_query_and_generate_full_dict
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 from app.report_urls import REPORTS_DIR
 
 logger = logging.getLogger("agent_workflow")
@@ -51,6 +52,22 @@ async def run_agent_workflow(query: str, is_approved: bool = False) -> Dict[str,
     Executes the v3 Manufacturing & Video-Analytics Intelligent Report Generator.
     Runs the multi-database pipeline asynchronously without blocking the event loop.
     """
+    blocked, reason, details = check_prompt_injection(query)
+    if blocked:
+        response = blocked_prompt_response("Reporting Agent", reason, details)
+        return {
+            **response,
+            "sql_query": "",
+            "sql_result": "",
+            "insights": response["reply"],
+            "execution_steps": [],
+            "pdf_path": "",
+            "pdf_url": "",
+            "requires_hitl": False,
+            "is_approved": is_approved,
+            "error_message": "",
+        }
+
     logger.info("Executing v3 Agentic Operations & Resources Report Generator for query: %s", query)
     os.makedirs(REPORTS_DIR, exist_ok=True)
     pdf_target_path = os.path.join(REPORTS_DIR, f"report_{uuid.uuid4().hex[:8]}.pdf")

@@ -26,6 +26,8 @@ from langgraph.prebuilt import ToolNode
 from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+
 # Load environment variables
 load_dotenv()
 
@@ -1179,6 +1181,10 @@ print(f"[PTW Agent] Permit-to-Work Agent compiled successfully with {len(ptw_too
 async def run_ptw_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     """Async entry-point for FastAPI route execution."""
     tid = thread_id or "ptw-default"
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response("Permit-to-Work Agent", reason, details, tid)
+
     config = {"configurable": {"thread_id": tid}}
 
     try:

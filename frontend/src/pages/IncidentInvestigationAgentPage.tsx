@@ -21,6 +21,7 @@ import {
 import { AgentExecutionIndicator } from '../components/common/AgentExecutionIndicator';
 import { AgentTelemetryFooter } from '../components/common/AgentTelemetryFooter';
 import type { ActiveToolStep } from '../types/telemetry';
+import { PromptInjectionDemoButton } from '../components/agents/PromptInjectionDemoButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -448,12 +449,14 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
                     ? {
                       ...m,
                       text: res.reply,
-                      telemetry: {
-                        execution_time_sec: res.execution_time_sec,
-                        tools_used: res.tools_used,
-                        tokens: res.tokens,
-                        cost_usd: res.cost_usd,
-                      },
+                      telemetry: res.status === 'blocked'
+                        ? undefined
+                        : {
+                            execution_time_sec: res.execution_time_sec,
+                            tools_used: res.tools_used,
+                            tokens: res.tokens,
+                            cost_usd: res.cost_usd,
+                          },
                     }
                     : m
                 )
@@ -649,6 +652,10 @@ export const IncidentInvestigationAgentPage: React.FC = () => {
               </button>
             ))}
           </div>
+          <PromptInjectionDemoButton
+            onSubmit={(prompt) => void handleSend(prompt)}
+            disabled={loading}
+          />
 
           <form
             onSubmit={(e) => {

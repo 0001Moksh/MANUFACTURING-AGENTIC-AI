@@ -6,6 +6,7 @@ import {
   Maximize2, Minimize2, Send, X, Zap,
 } from 'lucide-react';
 import { energyAgentService, type EnergyAgentTrace, type EnergyAgentHistoryMessage } from '../../services/energyAgentService';
+import { PromptInjectionDemoButton } from './PromptInjectionDemoButton';
 
 type ChatMessage = EnergyAgentHistoryMessage & {
   id: string;
@@ -237,6 +238,12 @@ export const EnergyAgentChatWidget: React.FC = () => {
 
           <form onSubmit={(event) => { event.preventDefault(); void sendMessage(draft); }} className="border-t border-[#E5EBF2] bg-white p-3">
             <div className={column}>
+              <div className="mb-2">
+                <PromptInjectionDemoButton
+                  onSubmit={(prompt) => void sendMessage(prompt)}
+                  disabled={sending}
+                />
+              </div>
               <div className="flex items-end gap-2 border border-[#DDE6EF] bg-white px-2.5 py-2 focus-within:border-teal">
                 <textarea
                   ref={textareaRef}

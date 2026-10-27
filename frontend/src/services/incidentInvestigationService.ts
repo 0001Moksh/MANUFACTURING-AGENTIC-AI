@@ -122,6 +122,10 @@ export const incidentInvestigationService = {
                 });
               } else if (event.type === 'token') {
                 callbacks.onToken?.(event.content);
+              } else if (event.type === 'blocked') {
+                callbacks.onToken?.(
+                  `${event.reply || 'This prompt was blocked by the security guardrail.'}${event.reason ? `\n\nReason: ${event.reason}` : ''}`
+                );
               } else if (event.type === 'telemetry') {
                 callbacks.onTelemetry?.({
                   execution_time_sec: event.execution_time_sec,

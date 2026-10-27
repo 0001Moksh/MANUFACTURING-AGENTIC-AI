@@ -15,6 +15,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_litellm import ChatLiteLLM
 
 from app.db import AlertMaster, MachineMaster, WorkOrder, sync_mes_engine
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 
 
 SYSTEM_PROMPT = """You are Deva, a Smart IIIoT Maintenance Assistant.
@@ -207,6 +208,17 @@ deva_maintenance_agent = workflow.compile(checkpointer=memory)
 
 
 async def run_maintenance_conversation(message: str, thread_id: Optional[str] = None) -> dict:
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        result = blocked_prompt_response(
+            "Maintenance Agent",
+            reason,
+            details,
+            thread_id or "maintenance-default",
+        )
+        result["visuals"] = []
+        return result
+
     config = {"configurable": {"thread_id": thread_id or "maintenance-default"}}
     final_state = await asyncio.to_thread(
         lambda: deva_maintenance_agent.invoke(

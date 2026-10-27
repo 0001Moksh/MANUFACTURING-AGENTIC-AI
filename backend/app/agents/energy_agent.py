@@ -13,6 +13,7 @@ from typing import Any
 
 from app.influx_telemetry import get_machine_telemetry
 from app.llm_gateway import execute_completion
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 
 logger = logging.getLogger("energy_agent")
 
@@ -384,6 +385,25 @@ async def run_energy_agent_conversation(
 ) -> dict[str, Any]:
     started = time.perf_counter()
     thread = thread_id or f"energy-{uuid.uuid4()}"
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        elapsed = round(time.perf_counter() - started, 2)
+        trace = {
+            "thread_id": thread,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "model": "input-guardrail",
+            "tools_used": [],
+            "tokens": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "cost_usd": 0.0,
+            "execution_time_sec": elapsed,
+            "data_source": "not queried",
+            "telemetry_range": os.getenv("INFLUX_TELEMETRY_RANGE", "24h"),
+        }
+        result = blocked_prompt_response("Energy Agent", reason, details, thread)
+        result.update(trace)
+        result["trace"] = trace
+        return result
+
     try:
         machines = await asyncio.to_thread(get_machine_telemetry)
     except Exception as exc:

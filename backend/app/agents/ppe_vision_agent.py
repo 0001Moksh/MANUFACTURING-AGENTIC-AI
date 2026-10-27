@@ -20,6 +20,8 @@ from langgraph.prebuilt import ToolNode
 from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+
 # ── Re-use the shared construction_ai engine ─────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
     "CONSTRUCTION_DB_URL")
@@ -974,6 +976,15 @@ print("[PPE Agent] Deva PPE & Behavior Vision Agent LangGraph compiled successfu
 
 async def run_ppe_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     """Async entry-point for the FastAPI route."""
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response(
+            "PPE & Behavior Vision Agent",
+            reason,
+            details,
+            thread_id or "ppe-vision-default",
+        )
+
     config = {"configurable": {"thread_id": thread_id or "ppe-vision-default"}}
     final_state = await asyncio.to_thread(
         lambda: deva_ppe_agent.invoke(

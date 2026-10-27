@@ -1,9 +1,11 @@
 import { api } from './api';
 
 export type PPEVisionResponse = {
-  status: 'success';
+  status: 'success' | 'blocked';
   thread_id: string;
   reply: string;
+  reason?: string;
+  guardrail?: { stage: string; reason: string };
 };
 
 export const ppeVisionService = {
