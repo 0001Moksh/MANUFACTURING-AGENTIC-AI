@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 # ── Re-use the shared construction_ai engine ─────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
@@ -974,6 +975,7 @@ print("[PPE Agent] Deva PPE & Behavior Vision Agent LangGraph compiled successfu
 # PUBLIC API
 # =============================================================================
 
+@trace_agent("PPE & Behavior Vision Agent")
 async def run_ppe_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     """Async entry-point for the FastAPI route."""
     blocked, reason, details = check_prompt_injection(message)
@@ -985,7 +987,7 @@ async def run_ppe_conversation(message: str, thread_id: Optional[str] = None) ->
             thread_id or "ppe-vision-default",
         )
 
-    config = {"configurable": {"thread_id": thread_id or "ppe-vision-default"}}
+    config = graph_trace_config("PPE & Behavior Vision Agent", thread_id or "ppe-vision-default")
     final_state = await asyncio.to_thread(
         lambda: deva_ppe_agent.invoke(
             {"messages": [HumanMessage(content=message)]},

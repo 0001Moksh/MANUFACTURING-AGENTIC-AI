@@ -17,6 +17,7 @@ from langchain_core.tools import tool
 from langchain_litellm import ChatLiteLLM
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 try:
     from pypdf import PdfReader
@@ -597,6 +598,7 @@ _workflow.add_edge("answer", END)
 operations_agent = _workflow.compile(checkpointer=MemorySaver())
 
 
+@trace_agent("Operations Agent")
 async def run_operations_conversation(message: str, thread_id: str | None = None) -> dict[str, Any]:
     clean_message = message.strip()
     if not clean_message:
@@ -630,7 +632,7 @@ async def run_operations_conversation(message: str, thread_id: str | None = None
         }
 
     # ---------- MAIN AGENT ----------
-    config = {"configurable": {"thread_id": conversation_id}}
+    config = graph_trace_config("Operations Agent", conversation_id)
     result = await asyncio.to_thread(
         operations_agent.invoke,
         {"messages": [HumanMessage(content=clean_message)]},

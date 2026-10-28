@@ -14,6 +14,7 @@ from typing import Any
 from app.influx_telemetry import get_machine_telemetry
 from app.llm_gateway import execute_completion
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import trace_agent
 
 logger = logging.getLogger("energy_agent")
 
@@ -378,6 +379,7 @@ def _format_device_energy_answer(machine: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+@trace_agent("Energy Agent")
 async def run_energy_agent_conversation(
     message: str,
     thread_id: str | None = None,

@@ -27,6 +27,7 @@ from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 # Load environment variables
 load_dotenv()
@@ -1178,6 +1179,7 @@ print(f"[PTW Agent] Permit-to-Work Agent compiled successfully with {len(ptw_too
 # PUBLIC ASYNC CONVERSATION RUNNER
 # ─────────────────────────────────────────────────────────────────────────────
 
+@trace_agent("Permit-to-Work Agent")
 async def run_ptw_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     """Async entry-point for FastAPI route execution."""
     tid = thread_id or "ptw-default"
@@ -1185,7 +1187,7 @@ async def run_ptw_conversation(message: str, thread_id: Optional[str] = None) ->
     if blocked:
         return blocked_prompt_response("Permit-to-Work Agent", reason, details, tid)
 
-    config = {"configurable": {"thread_id": tid}}
+    config = graph_trace_config("Permit-to-Work Agent", tid)
 
     try:
         final_state = await asyncio.to_thread(

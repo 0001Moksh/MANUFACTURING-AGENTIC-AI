@@ -46,6 +46,10 @@ To launch the database, caching layer, backend API, and React client concurrentl
    ```bash
    GEMINI_API_KEY=your-gemini-key
    OPENAI_API_KEY=your-openai-key
+   # Optional LangSmith tracing for named agent runs and nested tool/LLM logs
+   LANGSMITH_TRACING=true
+   LANGSMITH_API_KEY=your-langsmith-key
+   LANGSMITH_PROJECT=manufacturing-agentic-ai
    ```
 
 2. **Run Docker Compose**:

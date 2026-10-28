@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 # ── Database engine for construction_ai ──────────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
@@ -1310,6 +1311,7 @@ print("[Safety Agent] Deva Safety & Quality Agent LangGraph compiled successfull
 # PUBLIC API
 # ─────────────────────────────────────────────────────────────────────────────
 
+@trace_agent("Safety & Quality Agent")
 async def run_safety_quality_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     """Async entry-point for the FastAPI route."""
     blocked, reason, details = check_prompt_injection(message)
@@ -1321,7 +1323,7 @@ async def run_safety_quality_conversation(message: str, thread_id: Optional[str]
             thread_id or "safety-quality-default",
         )
 
-    config = {"configurable": {"thread_id": thread_id or "safety-quality-default"}}
+    config = graph_trace_config("Safety & Quality Agent", thread_id or "safety-quality-default")
     final_state = await asyncio.to_thread(
         lambda: deva_safety_quality_agent.invoke(
             {"messages": [HumanMessage(content=message)]},

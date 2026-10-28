@@ -26,6 +26,7 @@ from sqlalchemy import create_engine, text
 from typing_extensions import TypedDict
 
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 # ── Database engine for construction_ai ──────────────────────────────────────
 _CONSTRUCTION_DB_URL = os.getenv(
@@ -738,6 +739,7 @@ print("[Incident & Investigation Agent] LangGraph StateGraph compiled successful
 # PUBLIC ASYNC RUNNERS & STREAMING
 # ─────────────────────────────────────────────────────────────────────────────
 
+@trace_agent("Incident & Investigation Agent")
 async def run_incident_investigation_conversation(
     message: str,
     thread_id: Optional[str] = None,
@@ -759,7 +761,7 @@ async def run_incident_investigation_conversation(
         })
         return result
 
-    config = {"configurable": {"thread_id": tid}}
+    config = graph_trace_config("Incident & Investigation Agent", tid)
     
     tools_used = []
     
@@ -831,7 +833,7 @@ async def stream_incident_investigation_events(
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         return
 
-    config = {"configurable": {"thread_id": tid}}
+    config = graph_trace_config("Incident & Investigation Agent", tid)
     
     tools_invoked = []
     accumulated_text = ""

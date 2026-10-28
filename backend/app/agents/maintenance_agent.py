@@ -16,6 +16,7 @@ from langchain_litellm import ChatLiteLLM
 
 from app.db import AlertMaster, MachineMaster, WorkOrder, sync_mes_engine
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 # LangSmith is already configured via environment variables
 # (LANGSMITH_TRACING, LANGSMITH_API_KEY, LANGSMITH_PROJECT)
@@ -208,6 +209,7 @@ memory = MemorySaver()
 deva_maintenance_agent = workflow.compile(checkpointer=memory)
 
 
+@trace_agent("Maintenance Agent")
 async def run_maintenance_conversation(message: str, thread_id: Optional[str] = None) -> dict:
     blocked, reason, details = check_prompt_injection(message)
     if blocked:
@@ -220,11 +222,7 @@ async def run_maintenance_conversation(message: str, thread_id: Optional[str] = 
         result["visuals"] = []
         return result
 
-    config = {
-        "configurable": {"thread_id": thread_id or "maintenance-default"},
-        "run_name": "Maintenance Agent",
-        "tags": ["deva", "maintenance"],
-    }
+    config = graph_trace_config("Maintenance Agent", thread_id or "maintenance-default")
 
     final_state = await asyncio.to_thread(
         lambda: deva_maintenance_agent.invoke(

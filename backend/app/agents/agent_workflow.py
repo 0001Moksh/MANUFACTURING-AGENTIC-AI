@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 from app.agents.report_generator_v3 import process_query_and_generate_full_dict
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 from app.report_urls import REPORTS_DIR
+from app.langsmith_tracing import trace_agent
 
 logger = logging.getLogger("agent_workflow")
 
@@ -47,6 +48,7 @@ class AgentState(TypedDict, total=False):
     execution_steps: List[str]
 
 
+@trace_agent("Reporting Agent")
 async def run_agent_workflow(query: str, is_approved: bool = False) -> Dict[str, Any]:
     """
     Executes the v3 Manufacturing & Video-Analytics Intelligent Report Generator.
