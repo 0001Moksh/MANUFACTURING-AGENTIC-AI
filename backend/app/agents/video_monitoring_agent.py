@@ -1,5 +1,5 @@
 """
-Video Monitoring Multi-Agent System — AI Safety Assistant
+ Video Monitoring Multi-Agent Usecase System — AI Safety Assistant
 Created by IIIOT InfoTech.
 
 LangGraph 5-Agent Supervisor Mesh for Video Monitoring & Industrial Safety:
@@ -70,8 +70,8 @@ from app.agents.video_ml_tools import (
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 from app.langsmith_tracing import graph_trace_config, trace_agent
 
-LANGSMITH_RUN_NAME = "Video Monitoring Multi-Agent"
-USE_CASE_NAME = "Video Monitoring Multi-Agent usecase"
+LANGSMITH_RUN_NAME = " Video Monitoring Multi-Agent Usecase Chain"
+USE_CASE_NAME = " Video Monitoring Multi-Agent Usecase Chain"
 VIDEO_MONITORING_TRACE_TAGS = [
     "video-monitoring",
     "multi-agent",
@@ -121,15 +121,15 @@ for attempt in range(1, _DB_MAX_RETRIES + 1):
         )
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        print(f"[Video Monitoring Multi-Agent] Connected to PostgreSQL (attempt {attempt}/{_DB_MAX_RETRIES})")
+        print(f"[ Video Monitoring Multi-Agent Usecase] Connected to PostgreSQL (attempt {attempt}/{_DB_MAX_RETRIES})")
         break
     except Exception as e:
         engine = None
-        print(f"[Video Monitoring Multi-Agent WARNING] DB connection attempt {attempt}/{_DB_MAX_RETRIES} failed: {e}")
+        print(f"[ Video Monitoring Multi-Agent Usecase WARNING] DB connection attempt {attempt}/{_DB_MAX_RETRIES} failed: {e}")
         if attempt < _DB_MAX_RETRIES:
             time.sleep(_DB_RETRY_DELAY_SECONDS)
         else:
-            print("[Video Monitoring Multi-Agent WARNING] DB unavailable after all retries. Database-backed responses will report the outage.")
+            print("[ Video Monitoring Multi-Agent Usecase WARNING] DB unavailable after all retries. Database-backed responses will report the outage.")
 
 # Kept as an alias since some tool bodies below refer to `construction_engine`.
 construction_engine = engine
@@ -137,7 +137,7 @@ construction_engine = engine
 try:
     init_ml_tools(engine, build_rtsp_url)
 except Exception as exc:
-    print(f"[Video Monitoring Multi-Agent] ML tool init skipped: {exc}")
+    print(f"[ Video Monitoring Multi-Agent Usecase] ML tool init skipped: {exc}")
 
 
 def get_db_health() -> Dict[str, Any]:
@@ -7549,12 +7549,12 @@ video_monitoring_graph = workflow.compile(checkpointer=memory_checkpoint)
 # ════════════════════════════════════════════════════════════════════════════
 # 🌐 PUBLIC ASYNC API RUNNERS
 # ════════════════════════════════════════════════════════════════════════════
-@trace_agent("Video Monitoring Multi-Agent")
+@trace_agent(" Video Monitoring Multi-Agent Usecase")
 async def run_video_monitoring_conversation(message: str, thread_id: str = "default", user_id: str = "operator_1") -> Dict[str, Any]:
     blocked, reason, details = check_prompt_injection(message)
     if blocked:
         return blocked_prompt_response(
-            "Video Monitoring Multi-Agent",
+            " Video Monitoring Multi-Agent Usecase",
             reason,
             details,
             thread_id,
@@ -7661,7 +7661,7 @@ def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Option
     }
 
 
-@trace_agent("Video Monitoring Multi-Agent")
+@trace_agent(" Video Monitoring Multi-Agent Usecase")
 async def stream_video_monitoring_events(
     message: str,
     thread_id: str = "default",
@@ -7679,7 +7679,7 @@ async def stream_video_monitoring_events(
     blocked, reason, details = check_prompt_injection(message)
     if blocked:
         result = blocked_prompt_response(
-            "Video Monitoring Multi-Agent",
+            " Video Monitoring Multi-Agent Usecase",
             reason,
             details,
             thread_id,
