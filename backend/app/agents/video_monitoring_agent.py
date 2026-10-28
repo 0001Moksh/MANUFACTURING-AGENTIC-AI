@@ -70,6 +70,14 @@ from app.agents.video_ml_tools import (
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 from app.langsmith_tracing import graph_trace_config, trace_agent
 
+LANGSMITH_RUN_NAME = "Video Monitoring Multi-Agent"
+USE_CASE_NAME = "Video Monitoring Multi-Agent usecase"
+VIDEO_MONITORING_TRACE_TAGS = [
+    "video-monitoring",
+    "multi-agent",
+    "use-case:video-monitoring-multi-agent",
+]
+
 import litellm
 
 try:
@@ -7552,7 +7560,14 @@ async def run_video_monitoring_conversation(message: str, thread_id: str = "defa
             thread_id,
         )
 
-    config = graph_trace_config("Video Monitoring Multi-Agent", thread_id)
+    config = graph_trace_config(
+        LANGSMITH_RUN_NAME,
+        thread_id,
+        use_case_name=USE_CASE_NAME,
+        application="Video Monitoring",
+        graph_name=LANGSMITH_RUN_NAME,
+        extra_tags=VIDEO_MONITORING_TRACE_TAGS,
+    )
     initial_state = {
         "messages": [HumanMessage(content=message)],
         "user_id": user_id,
@@ -7673,7 +7688,14 @@ async def stream_video_monitoring_events(
         yield f"event: done\ndata: {json.dumps({'thread_id': thread_id, 'status': 'blocked'})}\n\n"
         return
 
-    config = graph_trace_config("Video Monitoring Multi-Agent", thread_id)
+    config = graph_trace_config(
+        LANGSMITH_RUN_NAME,
+        thread_id,
+        use_case_name=USE_CASE_NAME,
+        application="Video Monitoring",
+        graph_name=LANGSMITH_RUN_NAME,
+        extra_tags=VIDEO_MONITORING_TRACE_TAGS,
+    )
 
     initial_state = {
         "messages": [HumanMessage(content=message)],

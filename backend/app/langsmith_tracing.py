@@ -16,9 +16,17 @@ def trace_agent(agent_name: str) -> Callable[[Any], Any]:
     )
 
 
-def graph_trace_config(agent_name: str, thread_id: str) -> dict[str, Any]:
-    """Build the LangGraph config used to group child runs under an agent trace."""
-    return {
+def graph_trace_config(
+    agent_name: str,
+    thread_id: str,
+    *,
+    use_case_name: str | None = None,
+    application: str | None = None,
+    graph_name: str | None = None,
+    extra_tags: list[str] | None = None,
+) -> dict[str, Any]:
+    """Build a LangGraph config with optional filterable use-case context."""
+    config = {
         "configurable": {"thread_id": thread_id},
         "run_name": agent_name,
         "tags": ["agent", agent_name],
@@ -27,3 +35,14 @@ def graph_trace_config(agent_name: str, thread_id: str) -> dict[str, Any]:
             "langsmith_project": os.getenv("LANGSMITH_PROJECT", ""),
         },
     }
+    if use_case_name:
+        config["metadata"].update({
+            "use_case": use_case_name,
+            "application": application or agent_name,
+            "graph": graph_name or agent_name,
+            "thread_id": thread_id,
+        })
+    for tag in extra_tags or []:
+        if tag not in config["tags"]:
+            config["tags"].append(tag)
+    return config
