@@ -17,17 +17,17 @@ from langchain_litellm import ChatLiteLLM
 from app.db import AlertMaster, MachineMaster, WorkOrder, sync_mes_engine
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 
+# LangSmith is already configured via environment variables
+# (LANGSMITH_TRACING, LANGSMITH_API_KEY, LANGSMITH_PROJECT)
 
 SYSTEM_PROMPT = """You are Deva, a Smart IIIoT Maintenance Assistant.
 Address the user as 'sir'.
-
 Use the available tools to answer questions about:
 - the total and active machine counts
 - machine health status
 - predictive maintenance schedules / windows
 - maintenance-related work orders
 - unresolved alerts and breakdowns
-
 If the user asks for a chart or visualization, you should still answer using the same tools, then provide a concise summary.
 For machine health or work order questions, use the database tools to fetch live data before responding.
 Keep replies concise, practical, and operational.
@@ -180,6 +180,7 @@ def agent_node(state: MaintenanceState):
     messages = state["messages"]
     if not any(isinstance(m, SystemMessage) for m in messages):
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + messages
+
     response = invoke_with_fallback(
         orchestrator_llm_primary,
         orchestrator_llm_fallback,
@@ -219,7 +220,12 @@ async def run_maintenance_conversation(message: str, thread_id: Optional[str] = 
         result["visuals"] = []
         return result
 
-    config = {"configurable": {"thread_id": thread_id or "maintenance-default"}}
+    config = {
+        "configurable": {"thread_id": thread_id or "maintenance-default"},
+        "run_name": "Maintenance Agent",
+        "tags": ["deva", "maintenance"],
+    }
+
     final_state = await asyncio.to_thread(
         lambda: deva_maintenance_agent.invoke(
             {"messages": [HumanMessage(content=message)]},
