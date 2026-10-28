@@ -63,15 +63,15 @@ from app.agents.video_ml_tools import (
     list_ml_models,
     run_ml_detection,
     run_multi_model_scan,
-    is_ml_detection_query,
+    is_ml_detection_query, 
     select_model_for_query,
     run_ml_detection_impl,
 )
 from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
 from app.langsmith_tracing import graph_trace_config, trace_agent
 
-LANGSMITH_RUN_NAME = " Video Monitoring Multi-Agent Usecase Chain"
-USE_CASE_NAME = " Video Monitoring Multi-Agent Usecase Chain"
+LANGSMITH_RUN_NAME = "Video Monitoring Multi-Agent usecase"
+USE_CASE_NAME = "Video Monitoring Multi-Agent usecase"
 VIDEO_MONITORING_TRACE_TAGS = [
     "video-monitoring",
     "multi-agent",
@@ -7549,7 +7549,7 @@ video_monitoring_graph = workflow.compile(checkpointer=memory_checkpoint)
 # ════════════════════════════════════════════════════════════════════════════
 # 🌐 PUBLIC ASYNC API RUNNERS
 # ════════════════════════════════════════════════════════════════════════════
-@trace_agent(" Video Monitoring Multi-Agent Usecase")
+@trace_agent("Video Monitoring Multi-Agent usecase")
 async def run_video_monitoring_conversation(message: str, thread_id: str = "default", user_id: str = "operator_1") -> Dict[str, Any]:
     blocked, reason, details = check_prompt_injection(message)
     if blocked:
@@ -7661,7 +7661,7 @@ def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Option
     }
 
 
-@trace_agent(" Video Monitoring Multi-Agent Usecase")
+@trace_agent("Video Monitoring Multi-Agent usecase")
 async def stream_video_monitoring_events(
     message: str,
     thread_id: str = "default",

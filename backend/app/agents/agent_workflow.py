@@ -48,7 +48,7 @@ class AgentState(TypedDict, total=False):
     execution_steps: List[str]
 
 
-@trace_agent("Reporting Agent")
+@trace_agent("Agentic Daily Operations & Resources Reporting usecase")
 async def run_agent_workflow(query: str, is_approved: bool = False) -> Dict[str, Any]:
     """
     Executes the v3 Manufacturing & Video-Analytics Intelligent Report Generator.

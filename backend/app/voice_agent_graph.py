@@ -41,6 +41,8 @@ from langchain_core.tools import tool
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, MessagesState, StateGraph
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 load_dotenv()
 litellm.suppress_debug_info = True
@@ -708,16 +710,34 @@ voice_agent_graph = _builder.compile(checkpointer=MemorySaver())
 # =============================================================================
 # 8. PUBLIC API
 # =============================================================================
+@trace_agent("Voice Assistant Deva usecase")
 async def run_voice_agent_turn(message: str, thread_id: str, enabled_agents: Optional[list[str]] = None) -> str:
     """Run one assistant turn through supervisor -> specialist agent(s) -> finalize.
 
     enabled_agents=None => admin settings (get_enabled_agents) use hoti hain.
     """
-    configurable: dict = {"thread_id": thread_id}
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response(
+            "Voice Assistant Deva usecase",
+            reason,
+            details,
+            thread_id,
+        )["reply"]
+
+    config = graph_trace_config(
+        "Voice Assistant Deva usecase",
+        thread_id,
+        use_case_name="Voice Assistant Deva usecase",
+        application="Voice Assistant Deva",
+        graph_name="Voice Assistant Deva",
+        extra_tags=["voice-assistant", "deva", "use-case:voice-assistant-deva"],
+    )
+    configurable: dict = config["configurable"]
     if enabled_agents is not None:
         configurable["enabled_agents"] = list(enabled_agents)
     result = await voice_agent_graph.ainvoke(
         {"messages": [HumanMessage(content=message)]},
-        config={"configurable": configurable},
+        config={**config, "configurable": configurable},
     )
     return str(result["messages"][-1].content)

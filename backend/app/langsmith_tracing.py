@@ -8,11 +8,20 @@ from langsmith import traceable
 
 def trace_agent(agent_name: str) -> Callable[[Any], Any]:
     """Create a named root trace while respecting LangSmith environment settings."""
+    is_use_case = agent_name.lower().endswith(" usecase")
+    tags = ["agent", agent_name]
+    metadata = {
+        "agent_name": agent_name,
+        "langsmith_project": os.getenv("LANGSMITH_PROJECT", ""),
+    }
+    if is_use_case:
+        tags.append("use-case")
+        metadata["use_case"] = agent_name
     return traceable(
         name=agent_name,
         run_type="chain",
-        tags=["agent", agent_name],
-        metadata={"agent_name": agent_name},
+        tags=tags,
+        metadata=metadata,
     )
 
 

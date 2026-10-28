@@ -22,6 +22,7 @@ from app.db import (
 from app.machine_rag import retrieve_machine_evidence
 from app.influx_telemetry import InfluxTelemetryError, get_machine_telemetry
 from app.llm_gateway import execute_completion
+from app.langsmith_tracing import trace_agent
 
 logger = logging.getLogger("machine_monitoring")
 
@@ -216,6 +217,7 @@ def _response_text(response: Dict[str, Any]) -> str:
     return str(content or "").strip()
 
 
+@trace_agent("Continuous Machine Monitoring usecase")
 async def _generate_summary(
     session: AsyncSession,
     telemetry: Dict[str, Any],

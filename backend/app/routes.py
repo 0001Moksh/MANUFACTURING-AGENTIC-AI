@@ -82,6 +82,7 @@ from app.integrations_service import (
 )
 from app.voice.manager import VoiceConversationManager
 from app.voice_agent_graph import VoiceAgentUnavailableError, run_voice_agent_turn
+from app.langsmith_tracing import trace_agent, graph_trace_config
 from app.license_control import (
     get_active_license_path,
     get_installation_id,
@@ -3653,7 +3654,15 @@ async def _parse_executive_intent(message: str) -> ExecutiveIntent:
             return ExecutiveIntent(reply_type="chart", topic="general", chart_type="bar", wants_visual=True)
         return ExecutiveIntent(reply_type="text", topic="general", wants_visual=False)
 
+@trace_agent("Chat with Data: Executive Insights usecase")
 async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response(
+            "Chat with Data: Executive Insights usecase",
+            reason,
+            details,
+        )
     query = message.lower().strip()
     if not query:
         return {
@@ -3751,6 +3760,8 @@ async def _build_executive_insights_response(message: str) -> Dict[str, Any]:
 @router.post("/api/executive-insights/chat")
 async def executive_insights_chat(req: ExecutiveInsightsRequest):
     response = await _build_executive_insights_response(req.message)
+    if response.get("status") == "blocked":
+        return response
     return {
         "status": "success",
         "thread_id": req.thread_id or f"exec-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
@@ -3762,6 +3773,10 @@ async def executive_insights_chat(req: ExecutiveInsightsRequest):
 async def executive_insights_stream(req: ExecutiveInsightsRequest):
     async def event_generator():
         response = await _build_executive_insights_response(req.message)
+        if response.get("status") == "blocked":
+            yield f"data: {json.dumps({'type': 'blocked', **response})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'status': 'blocked'})}\n\n"
+            return
         yield f"data: {json.dumps({'type': 'message', 'text': response['message']})}\n\n"
         for visual in response["visuals"]:
             await asyncio.sleep(0.15)

@@ -21,6 +21,8 @@ from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 # Import tools from both specialized sub-agents
 from app.agents.safety_quality_agent import quality_inspection_tools
@@ -114,13 +116,35 @@ print("[Multi-Agent] Deva Safety & Site Intelligence Multi-Agent Graph compiled 
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
+@trace_agent("Computer Vision Safety & Site Intelligence usecase")
 async def run_safety_site_intelligence_conversation(
     message: str,
     thread_id: Optional[str] = None,
     ui_context: Optional[dict] = None,
 ) -> dict:
     """Async entry-point for FastAPI endpoint with UI context injection."""
-    config = {"configurable": {"thread_id": thread_id or "safety-site-intel-default"}}
+    tid = thread_id or "safety-site-intel-default"
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response(
+            "Computer Vision Safety & Site Intelligence usecase",
+            reason,
+            details,
+            tid,
+        )
+
+    config = graph_trace_config(
+        "Computer Vision Safety & Site Intelligence usecase",
+        tid,
+        use_case_name="Computer Vision Safety & Site Intelligence usecase",
+        application="Computer Vision Safety & Site Intelligence",
+        graph_name="Safety & Site Intelligence Multi-Agent",
+        extra_tags=[
+            "computer-vision",
+            "safety-site-intelligence",
+            "use-case:computer-vision-safety-site-intelligence",
+        ],
+    )
     
     # Inject UI Context if user is interacting with a specific zone/heatmap state
     input_content = message
@@ -151,5 +175,5 @@ async def run_safety_site_intelligence_conversation(
             reply = msg.content
     return {
         "reply": reply or "I could not generate a response at this time, sir.",
-        "thread_id": thread_id or "safety-site-intel-default",
+        "thread_id": tid,
     }
