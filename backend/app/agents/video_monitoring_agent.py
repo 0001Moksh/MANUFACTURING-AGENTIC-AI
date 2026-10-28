@@ -67,6 +67,8 @@ from app.agents.video_ml_tools import (
     select_model_for_query,
     run_ml_detection_impl,
 )
+from app.agents.prompt_guardrails import blocked_prompt_response, check_prompt_injection
+from app.langsmith_tracing import graph_trace_config, trace_agent
 
 import litellm
 
@@ -7539,8 +7541,18 @@ video_monitoring_graph = workflow.compile(checkpointer=memory_checkpoint)
 # ════════════════════════════════════════════════════════════════════════════
 # 🌐 PUBLIC ASYNC API RUNNERS
 # ════════════════════════════════════════════════════════════════════════════
+@trace_agent("Video Monitoring Multi-Agent")
 async def run_video_monitoring_conversation(message: str, thread_id: str = "default", user_id: str = "operator_1") -> Dict[str, Any]:
-    config = {"configurable": {"thread_id": thread_id}}
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        return blocked_prompt_response(
+            "Video Monitoring Multi-Agent",
+            reason,
+            details,
+            thread_id,
+        )
+
+    config = graph_trace_config("Video Monitoring Multi-Agent", thread_id)
     initial_state = {
         "messages": [HumanMessage(content=message)],
         "user_id": user_id,
@@ -7634,6 +7646,7 @@ def _camera_snapshot_widget(message: str, final_state: Dict[str, Any]) -> Option
     }
 
 
+@trace_agent("Video Monitoring Multi-Agent")
 async def stream_video_monitoring_events(
     message: str,
     thread_id: str = "default",
@@ -7648,7 +7661,19 @@ async def stream_video_monitoring_events(
     - event: widget
     - event: done
     """
-    config = {"configurable": {"thread_id": thread_id}}
+    blocked, reason, details = check_prompt_injection(message)
+    if blocked:
+        result = blocked_prompt_response(
+            "Video Monitoring Multi-Agent",
+            reason,
+            details,
+            thread_id,
+        )
+        yield f"event: blocked\ndata: {json.dumps(result)}\n\n"
+        yield f"event: done\ndata: {json.dumps({'thread_id': thread_id, 'status': 'blocked'})}\n\n"
+        return
+
+    config = graph_trace_config("Video Monitoring Multi-Agent", thread_id)
 
     initial_state = {
         "messages": [HumanMessage(content=message)],
