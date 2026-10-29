@@ -625,6 +625,34 @@ class IntegrationConfig(Base):
     details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class PluginRegistration(Base):
+    """Durable plugin catalog and installer location stored in the MAI database."""
+    __tablename__ = "plugin_registrations"
+
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    version: Mapped[str] = mapped_column(String(50), default="1.0.0", nullable=False)
+    category: Mapped[str] = mapped_column(String(80), default="Monitoring", nullable=False)
+    short_description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    detailed_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    target_os: Mapped[str] = mapped_column(String(30), nullable=False)
+    architecture: Mapped[str] = mapped_column(String(20), nullable=False)
+    installer_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    installer_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    installer_size_bytes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    installer_checksum_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    bundle_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    bundle_path: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    bundle_size_bytes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bundle_checksum_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    installation_status: Mapped[str] = mapped_column(String(40), default="registered", nullable=False)
+    connection_status: Mapped[str] = mapped_column(String(40), default="not_configured", nullable=False)
+    last_metric_received: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 class ChartSummary(Base):
     __tablename__ = "chart_summaries"
 
@@ -894,6 +922,10 @@ async def init_db():
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'UNTESTED';",
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP;",
             "ALTER TABLE \"IntegrationConfig\" ADD COLUMN IF NOT EXISTS details TEXT;",
+            "ALTER TABLE plugin_registrations ADD COLUMN IF NOT EXISTS bundle_filename VARCHAR(255);",
+            "ALTER TABLE plugin_registrations ADD COLUMN IF NOT EXISTS bundle_path VARCHAR(1000);",
+            "ALTER TABLE plugin_registrations ADD COLUMN IF NOT EXISTS bundle_size_bytes INTEGER;",
+            "ALTER TABLE plugin_registrations ADD COLUMN IF NOT EXISTS bundle_checksum_sha256 VARCHAR(64);",
             "ALTER TABLE machine_ai_summaries ADD COLUMN IF NOT EXISTS snapshot_context JSON;",
             "ALTER TABLE machine_ai_summaries ADD COLUMN IF NOT EXISTS llm_trace JSON;",
             "ALTER TABLE machine_issues ADD COLUMN IF NOT EXISTS operator_action_taken TEXT;",

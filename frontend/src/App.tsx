@@ -31,6 +31,7 @@ import { RoleEditPage } from './pages/RoleEditPage';
 import { MachineMonitoringPage } from './pages/MachineMonitoringPage';
 import { MachineDetailPage } from './pages/MachineDetailPage';
 import { PluginsPage } from './pages/PluginsPage';
+import { CpuUtilizationPage } from './pages/CpuUtilizationPage';
 import { PluginSettingsPage } from './pages/PluginSettingsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -80,6 +81,7 @@ function App() {
             <Route path="use-cases/video-monitoring" element={<VideoMonitoringPage />} />
             <Route path="use-cases/voice-agent" element={<VoiceAgentPage />} />
             <Route path="use-cases/machine-monitoring" element={<MachineMonitoringPage />} />
+            <Route path="use-cases/cpu-utilization" element={<CpuUtilizationPage />} />
             <Route path="machine-monitoring" element={<MachineMonitoringPage />} />
             <Route path="machine-monitoring/:id" element={<MachineDetailPage />} />
             <Route path="use-cases/26" element={<Navigate to="/use-cases/voice-agent" replace />} />

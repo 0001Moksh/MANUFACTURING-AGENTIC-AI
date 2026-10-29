@@ -1,19 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FilterBar } from '../components/usecases/FilterBar';
 import { UseCaseCard } from '../components/usecases/UseCaseCard';
 import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
+import { pluginService } from '../services/api';
 
-const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26]);
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27]);
+
+const CPU_USE_CASE = {
+  id: 27,
+  pillar: 'sustain',
+  title: 'CPU Utilization Monitoring',
+  tags: ['IOT', 'ML'],
+  status: 'live' as const,
+  desc: 'Live host and per-core CPU utilization collected by the connected Telegraf plugin and stored in PostgreSQL.',
+  impact: 'One live view of overall and per-core CPU load, user time, system time and idle capacity.',
+};
 
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [cpuPluginConnected, setCpuPluginConnected] = useState(false);
   const navigate = useNavigate();
 
-  const filtered = useCases.filter(u => {
+  useEffect(() => {
+    let active = true;
+    void pluginService.list().then((plugins: Array<{ id?: string; slug?: string; connection_status?: string }>) => {
+      if (!active) return;
+      const telegraf = plugins.find(plugin => plugin.id === 'telegraf-cpu-monitoring' || plugin.slug === 'telegraf-cpu-monitoring');
+      setCpuPluginConnected(telegraf?.connection_status === 'connected');
+    });
+    return () => { active = false; };
+  }, []);
+
+  const availableUseCases = useMemo(
+    () => cpuPluginConnected ? [...useCases, CPU_USE_CASE] : useCases,
+    [cpuPluginConnected],
+  );
+
+  const filtered = availableUseCases.filter(u => {
     if (u.id === 2) return false;
     if (activePillar !== 'all' && u.pillar !== activePillar) return false;
     if (activeType !== 'all' && !u.tags.includes(activeType)) return false;
@@ -77,6 +104,10 @@ export const UseCasesPage: React.FC = () => {
               }
               if (u.id === 26) {
                 navigate('/use-cases/voice-agent');
+                return;
+              }
+              if (u.id === 27) {
+                navigate('/use-cases/cpu-utilization');
                 return;
               }
               navigate(`/use-cases/${u.id}`);

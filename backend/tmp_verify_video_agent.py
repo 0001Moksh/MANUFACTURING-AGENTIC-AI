@@ -1,5 +1,7 @@
 import sys
-sys.path.insert(0, r"c:\Users\Administrator\Desktop\MAI (19-08-26)\New folder\backend")
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.agents.video_monitoring_agent import video_agent
 

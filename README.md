@@ -67,6 +67,28 @@ To launch the database, caching layer, backend API, and React client concurrentl
 
 If you prefer to run services individually without Docker:
 
+### Fedora prerequisite setup
+
+The backend is pinned to Python 3.11 because several AI/ML dependencies do not
+yet publish wheels for newer Python releases. On Fedora, run:
+
+```bash
+chmod +x scripts/setup-backend-fedora.sh
+./scripts/setup-backend-fedora.sh
+```
+
+This installs the native compiler/ODBC prerequisites, creates `backend/venv`,
+and installs the Python dependencies. If you use SQL Server directly from the
+host, also install Microsoft's `msodbcsql18` package. Docker Compose includes
+that driver inside the backend image already.
+
+For the complete containerized stack on Fedora, fill in `.env` and run:
+
+```bash
+chmod +x scripts/start.sh
+./scripts/start.sh
+```
+
 ### 1. Database & Backend Setup
 1. Navigate to the `backend` folder:
    ```bash
@@ -74,7 +96,7 @@ If you prefer to run services individually without Docker:
    ```
 2. Create and activate a Python virtual environment:
    ```bash
-   python -m venv venv
+   python3.11 -m venv venv
    # On Windows:
    venv\Scripts\activate
    # On Linux/macOS:
@@ -111,6 +133,46 @@ If you prefer to run services individually without Docker:
 4. Access the web dashboard at [http://localhost:5173](http://localhost:5173). Log in with:
    - **Username**: `mfg_head`
    - **Password**: `mfg123`
+
+### Telegraf CPU plugin registration
+
+Prepare the target-specific vendor installer by executing the notebook from the
+repository root. The notebook downloads the official Telegraf package. For
+example, on Fedora/x86_64:
+
+```bash
+TARGET_OS=linux-rpm \
+ARCHITECTURE=x86_64 \
+backend/venv/bin/jupyter nbconvert --execute --to notebook \
+  --output /tmp/cpu-plugin-executed.ipynb \
+  'jupyter notebooks/cpu-plugin.ipynb'
+```
+
+Set `TELEGRAF_SOURCE` only when using a package that is already present locally
+or a specific package URL. Relative local paths are resolved from the repository
+root. `TELEGRAF_VERSION` can override the default packaged version.
+
+The prepared Telegraf file is written to `generated_plugins/` by default. In
+the UI, use **Add Plugin** to upload that file. This is distinct from the
+overall MAI plugin bundle, which is generated and stored under
+`backend/plugin/telegraf-cpu-monitoring/bundles/` when **Download Bundle** is
+clicked in the Setup Wizard.
+
+The bundle uses Telegraf's PostgreSQL output and writes CPU samples to
+`public.telegraf_cpu` in the MAI platform database. Before running the bundle
+installer, provide a PostgreSQL URL that is reachable from the target machine:
+
+```bash
+export POSTGRES_DSN='postgresql://postgres:password@localhost:5432/manufacturing_ai?sslmode=disable'
+./install.sh
+unset POSTGRES_DSN
+```
+
+Use the real database credentials and host. The DSN must start with
+`postgresql://`; remove SQLAlchemy-only driver suffixes such as `+asyncpg`.
+The database user must be allowed to connect, create/update the
+`public.telegraf_cpu` table, and insert rows. After the service starts, use
+**Confirm Installation** and then **Verify Plugin** in the Setup Wizard.
 
 ---
 
