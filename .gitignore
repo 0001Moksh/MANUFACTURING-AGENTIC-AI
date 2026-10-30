@@ -98,7 +98,7 @@ backend/plugin/
 
 # Target-specific Telegraf packages prepared by cpu-plugin.ipynb
 generated_plugins/
-run_full_project.py
+
 password.txt
 /scripts
 
