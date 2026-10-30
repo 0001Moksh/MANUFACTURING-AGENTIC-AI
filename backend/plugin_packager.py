@@ -148,12 +148,20 @@ echo "MAI Telegraf CPU plugin files installed. Start or restart Telegraf, then v
 def _windows_installer(package_name: str) -> str:
     return f'''$ErrorActionPreference = "Stop"
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {{
-  Start-Process powershell.exe -ArgumentList @("-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"") -Verb RunAs
+  Start-Process powershell.exe -ArgumentList @("-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"") -Verb RunAs -Wait
   exit
 }}
 $BundleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Package = Join-Path $BundleDir "{package_name}"
-if (-not $env:POSTGRES_DSN) {{ throw "Set POSTGRES_DSN before running this installer." }}
+if (-not $env:POSTGRES_DSN) {{
+  Add-Type -AssemblyName Microsoft.VisualBasic
+  $env:POSTGRES_DSN = [Microsoft.VisualBasic.Interaction]::InputBox(
+    "Enter the PostgreSQL connection URL used by the MAI CPU plugin.",
+    "MAI Telegraf CPU Monitoring",
+    "postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable"
+  )
+}}
+if ([string]::IsNullOrWhiteSpace($env:POSTGRES_DSN)) {{ throw "A PostgreSQL connection URL is required." }}
 
 if ($Package.EndsWith(".msi")) {{
   Start-Process msiexec.exe -ArgumentList @("/i", $Package, "/qn") -Wait -Verb RunAs
@@ -180,6 +188,18 @@ if ($TelegrafExe) {{
 }}
 Write-Host "MAI Telegraf CPU plugin installed. Start or restart the Telegraf service, then verify in MAI."
 '''
+
+
+def _build_windows_executable(staging: Path, bundle_path: Path, architecture: str) -> None:
+    architecture_name = "arm64" if architecture == "arm64" else "amd64"
+    stub = Path(__file__).resolve().parent / "installer_assets" / f"windows-bootstrapper-{architecture_name}.exe"
+    if not stub.is_file():
+        raise RuntimeError(f"Windows {architecture_name} installer bootstrapper is missing")
+    shutil.copy2(stub, bundle_path)
+    with zipfile.ZipFile(bundle_path, "a", zipfile.ZIP_DEFLATED) as archive:
+        for path in staging.rglob("*"):
+            if path.is_file():
+                archive.write(path, Path("payload") / path.relative_to(staging))
 
 
 def _installation_readme(target_os: str) -> str:
@@ -239,11 +259,8 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         if target_os == "windows":
             script = staging / "install.ps1"
             script.write_text(_windows_installer(installer.name), encoding="utf-8")
-            bundle_path = output_dir / f"{bundle_base}.zip"
-            with zipfile.ZipFile(bundle_path, "w", zipfile.ZIP_DEFLATED) as archive:
-                for path in staging.rglob("*"):
-                    if path.is_file():
-                        archive.write(path, path.relative_to(staging.parent))
+            bundle_path = output_dir / f"{bundle_base}.exe"
+            _build_windows_executable(staging, bundle_path, architecture)
         else:
             script = staging / "install.sh"
             script.write_text(_macos_installer(installer.name) if target_os == "macos" else _linux_installer(installer.name), encoding="utf-8")

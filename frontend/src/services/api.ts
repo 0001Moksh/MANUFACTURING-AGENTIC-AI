@@ -262,6 +262,10 @@ export const pluginService = {
     const res = await api.post('/admin/plugins', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
     return res.data;
   },
+  remove: async (pluginId: string) => {
+    const res = await api.delete(`/admin/plugins/${encodeURIComponent(pluginId)}`);
+    return res.data;
+  },
   getCurrentSystem: async () => {
     const res = await api.get('/plugins/system/current');
     return res.data;

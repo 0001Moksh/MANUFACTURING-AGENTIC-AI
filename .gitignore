@@ -101,3 +101,5 @@ generated_plugins/
 run_full_project.py
 password.txt
 /scripts
+
+/backend/reports

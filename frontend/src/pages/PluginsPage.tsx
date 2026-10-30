@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, CheckCircle2, Cpu, Database, Download, Monitor, Plus, Settings, Sparkles, X } from 'lucide-react';
+import { Activity, CheckCircle2, Cpu, Database, Download, Monitor, Plus, Settings, Sparkles, Trash2, X } from 'lucide-react';
 import { pluginService } from '../services/api';
 
 interface SimplePlugin {
@@ -82,6 +82,7 @@ export const PluginsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [removingPluginId, setRemovingPluginId] = useState<string | null>(null);
 
   const loadPlugins = async () => {
     setLoading(true);
@@ -133,6 +134,20 @@ export const PluginsPage: React.FC = () => {
     }
   };
 
+  const handleRemove = async (plugin: SimplePlugin) => {
+    if (!window.confirm(`Remove ${plugin.name}? It will also be removed from the Use-Case Library.`)) return;
+    setRemovingPluginId(plugin.id);
+    try {
+      await pluginService.remove(plugin.id);
+      setPlugins((current) => current.filter((item) => item.id !== plugin.id));
+      if (wizardPlugin?.id === plugin.id) setWizardPlugin(null);
+    } catch (error: any) {
+      window.alert(error?.response?.data?.detail || 'Unable to remove the plugin.');
+    } finally {
+      setRemovingPluginId(null);
+    }
+  };
+
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -147,7 +162,7 @@ export const PluginsPage: React.FC = () => {
         {(['connected', 'new'] as const).map((value) => <button key={value} onClick={() => setTab(value)} className={`rounded-lg px-4 py-2 text-[12.5px] font-bold cursor-pointer ${tab === value ? 'bg-navy-900 text-white' : 'text-muted'}`}>{value === 'connected' ? 'Connected Plugins' : 'New Plugins'}</button>)}
       </div>
 
-      {loading ? <div className="rounded-2xl border border-border-color bg-panel p-10 text-center text-[13px] text-muted">Loading plugin catalog…</div> : <PluginGrid plugins={tab === 'connected' ? connectedPlugins : newPlugins} connected={tab === 'connected'} onSetup={setWizardPlugin} />}
+      {loading ? <div className="rounded-2xl border border-border-color bg-panel p-10 text-center text-[13px] text-muted">Loading plugin catalog…</div> : <PluginGrid plugins={tab === 'connected' ? connectedPlugins : newPlugins} connected={tab === 'connected'} onSetup={setWizardPlugin} onRemove={handleRemove} removingPluginId={removingPluginId} />}
 
       {showRegister && <RegisterPluginDialog form={form} setForm={setForm} installerFile={installerFile} setInstallerFile={setInstallerFile} busy={registering} error={registerError} onClose={() => { setShowRegister(false); setRegisterError(null); }} onRegister={handleRegister} />}
       {wizardPlugin && <PluginSetupDialog plugin={wizardPlugin} onClose={() => setWizardPlugin(null)} onUpdated={upsertPlugin} />}
@@ -155,7 +170,7 @@ export const PluginsPage: React.FC = () => {
   );
 };
 
-const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onSetup: (plugin: SimplePlugin) => void }> = ({ plugins, connected, onSetup }) => (
+const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onSetup: (plugin: SimplePlugin) => void; onRemove: (plugin: SimplePlugin) => void; removingPluginId: string | null }> = ({ plugins, connected, onSetup, onRemove, removingPluginId }) => (
   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
     {plugins.length === 0 ? <div className="col-span-full rounded-2xl border border-dashed border-border-color bg-panel p-10 text-center text-[13px] text-muted">{connected ? 'No verified connected plugins yet. Use Add Plugin to upload the Telegraf installer.' : 'No registered plugins are waiting for setup.'}</div> : plugins.map((plugin) => {
       const Icon = iconFor(plugin.name);
@@ -165,7 +180,7 @@ const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onSetu
         <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{plugin.short_description}</p>
         <div className="mt-4 flex flex-wrap gap-2 text-[10.5px]"><span className="rounded-full bg-[#EEF6FF] px-2.5 py-1 text-[#0B63E5]">{plugin.category || 'Monitoring'}</span><span className="rounded-full bg-[#F7F3FF] px-2.5 py-1 text-[#7C4DFF]">{targetOsLabel(plugin.target_os)}</span><span className="rounded-full bg-[#F3F7F5] px-2.5 py-1 text-green">{plugin.supported_architectures?.[0] || 'x86_64'}</span></div>
         <div className="mt-4 space-y-2 rounded-xl bg-canvas p-3 text-[11.5px] text-muted"><div className="flex justify-between gap-3"><span>Installer</span><span className="truncate font-semibold text-ink">{plugin.installer?.filename || 'Upload required'}</span></div><div className="flex justify-between gap-3"><span>Last metric</span><span className="font-semibold text-ink">{plugin.last_metric_received ? new Date(plugin.last_metric_received).toLocaleString() : 'Awaiting data'}</span></div></div>
-        <button onClick={() => onSetup(plugin)} className="mt-5 w-full rounded-xl bg-teal px-3 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer">{connected ? 'Manage Plugin' : 'Setup'}</button>
+        <div className="mt-5 flex gap-2"><button onClick={() => onSetup(plugin)} className="flex-1 rounded-xl bg-teal px-3 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer">{connected ? 'Manage Plugin' : 'Setup'}</button>{connected && <button onClick={() => onRemove(plugin)} disabled={removingPluginId === plugin.id} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] font-bold text-red-600 cursor-pointer hover:bg-red-100 disabled:cursor-wait disabled:opacity-60" title="Remove plugin"><Trash2 className="h-4 w-4" />{removingPluginId === plugin.id ? 'Removing…' : 'Remove'}</button>}</div>
       </div>;
     })}
   </div>
@@ -176,7 +191,7 @@ const RegisterPluginDialog: React.FC<{ form: typeof defaultPluginForm; setForm: 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B0F19]/50 p-4"><div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[20px] border border-border-color bg-white p-5 shadow-xl">
     <div className="mb-5 flex items-center justify-between"><div><div className="text-[11px] font-bold uppercase tracking-[0.5px] text-muted">Connected Plugins</div><h3 className="mt-1 font-head text-[24px] font-extrabold text-ink">Add Telegraf Plugin</h3></div><button onClick={onClose} className="rounded-lg border border-border-color p-2 text-muted cursor-pointer"><X className="h-4 w-4" /></button></div>
     <div className="grid gap-4 md:grid-cols-2">
-      <Field label="Plugin name"><input value={form.name} readOnly className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5 text-muted" /></Field>
+      <Field label="Plugin name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5 text-ink outline-none transition-colors focus:border-teal focus:ring-2 focus:ring-teal/15" /></Field>
       <Field label="Version"><input value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field>
       <Field label="Category"><input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field>
       <Field label="Target OS / package"><select value={form.target_os} onChange={(e) => { setForm({ ...form, target_os: e.target.value }); setInstallerFile(null); }} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5">{TARGET_OS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
@@ -207,7 +222,7 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
   const packageMatches = !!system && (system.operating_system !== 'linux' || system.supported_package_types.includes(plugin.target_os || ''));
   const architectureMatches = !!system && plugin.supported_architectures?.[0] === system.architecture;
   const compatible = osMatches && packageMatches && architectureMatches;
-  const bundleExtension = plugin.target_os === 'windows' ? 'zip' : 'tar.gz';
+  const bundleExtension = plugin.target_os === 'windows' ? 'exe' : 'tar.gz';
   const expectedBundleName = `mai-telegraf-cpu-${plugin.target_os}-${plugin.supported_architectures?.[0]}.${bundleExtension}`;
 
   const download = async () => {

@@ -1569,8 +1569,9 @@ async def register_plugin(
     db: AsyncSession = Depends(get_db),
 ):
     _seed_default_plugins()
-    if name.strip().lower() != "telegraf cpu monitoring":
-        raise HTTPException(status_code=422, detail="Only the Telegraf CPU Monitoring plugin can be registered")
+    display_name = name.strip()
+    if not display_name:
+        raise HTTPException(status_code=422, detail="Plugin name is required")
     target_os = target_os.strip().lower()
     architecture = architecture.strip().lower()
     if target_os not in PLUGIN_ALLOWED_EXTENSIONS:
@@ -1608,7 +1609,7 @@ async def register_plugin(
     if not row:
         row = PluginRegistration(
             id=TELEGRAF_PLUGIN_ID,
-            name="Telegraf CPU Monitoring",
+            name=display_name,
             target_os=target_os,
             architecture=architecture,
             installer_filename=filename,
@@ -1617,6 +1618,7 @@ async def register_plugin(
         )
         db.add(row)
     row.version = version.strip() or "1.0.0"
+    row.name = display_name
     row.category = category.strip() or "Monitoring"
     row.short_description = short_description.strip() or "Collects live CPU utilization and health metrics via Telegraf."
     row.detailed_description = detailed_description.strip()
@@ -1639,6 +1641,23 @@ async def register_plugin(
     plugin = _plugin_from_db(row)
     PLUGIN_CATALOG[TELEGRAF_PLUGIN_ID] = plugin
     return {"status": "registered", "plugin": _plugin_record_payload(plugin)}
+
+
+@router.delete("/api/admin/plugins/{plugin_id}")
+async def remove_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    if plugin_id != TELEGRAF_PLUGIN_ID:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plugin is not registered")
+    await db.delete(row)
+    await db.commit()
+
+    # Restore only the unregistered catalog template. Uploaded packages remain on
+    # disk so an administrator can recover or re-register them if needed.
+    PLUGIN_CATALOG.pop(plugin_id, None)
+    _seed_default_plugins()
+    return {"status": "removed", "plugin_id": plugin_id}
 
 
 @router.put("/api/admin/plugins/{plugin_id}")
@@ -1962,13 +1981,19 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Registered Telegraf installer is not available")
     existing_path = Path(row.bundle_path).resolve() if row.bundle_path else None
     bundle_is_postgresql = (row.metadata_json or {}).get("telemetry_destination") == "postgresql"
-    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql:
+    expected_bundle_suffix = ".exe" if row.target_os == "windows" else ".tar.gz"
+    bundle_has_current_format = bool(existing_path and str(existing_path).lower().endswith(expected_bundle_suffix))
+    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format:
         bundle = _generate_plugin_bundle(row)
         row.bundle_filename = str(bundle["filename"])
         row.bundle_path = str(bundle["path"])
         row.bundle_size_bytes = int(bundle["size_bytes"])
         row.bundle_checksum_sha256 = str(bundle["checksum_sha256"])
-        row.metadata_json = {**(row.metadata_json or {}), "telemetry_destination": "postgresql"}
+        row.metadata_json = {
+            **(row.metadata_json or {}),
+            "telemetry_destination": "postgresql",
+            "bundle_format": "single-executable" if row.target_os == "windows" else "archive",
+        }
         await db.commit()
         await db.refresh(row)
         plugin = _plugin_from_db(row)
