@@ -162,6 +162,14 @@ if (-not $env:POSTGRES_DSN) {{
   )
 }}
 if ([string]::IsNullOrWhiteSpace($env:POSTGRES_DSN)) {{ throw "A PostgreSQL connection URL is required." }}
+$DatabaseUri = $null
+if (-not [Uri]::TryCreate($env:POSTGRES_DSN, [UriKind]::Absolute, [ref]$DatabaseUri) -or
+    $DatabaseUri.Scheme -notin @("postgres", "postgresql") -or
+    $DatabaseUri.Host -in @("", "HOST") -or
+    $DatabaseUri.AbsolutePath -in @("", "/", "/DATABASE") -or
+    $DatabaseUri.UserInfo -match '(^USER:|:PASSWORD$)') {{
+  throw "Enter a real PostgreSQL URL for the MAI database. Replace USER, PASSWORD, HOST and DATABASE; do not use a +asyncpg URL."
+}}
 
 if ($Package.EndsWith(".msi")) {{
   Start-Process msiexec.exe -ArgumentList @("/i", $Package, "/qn") -Wait -Verb RunAs
@@ -180,11 +188,18 @@ New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
 $ConfigTemplate = Get-Content (Join-Path $BundleDir "mai-cpu.conf") -Raw
 $ConfigTemplate.Replace('${{POSTGRES_DSN}}', $env:POSTGRES_DSN) | Set-Content (Join-Path $ConfigDir "mai-cpu.conf") -Encoding UTF8
 $TelegrafExe = Get-ChildItem (Join-Path $env:ProgramFiles "Telegraf") -Filter "telegraf.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $TelegrafExe) {{ throw "telegraf.exe was not found after installation." }}
 if ($TelegrafExe) {{
   $Service = Get-Service -Name "telegraf" -ErrorAction SilentlyContinue
-  if (-not $Service) {{ & $TelegrafExe.FullName --service install --config (Join-Path $ConfigDir "mai-cpu.conf") }}
-  Start-Service -Name "telegraf" -ErrorAction SilentlyContinue
-  Restart-Service -Name "telegraf" -Force
+  if ($Service) {{
+    Stop-Service -Name "telegraf" -Force
+    & $TelegrafExe.FullName --service uninstall
+    if ($LASTEXITCODE -ne 0) {{ throw "Could not update the existing Telegraf service." }}
+  }}
+  & $TelegrafExe.FullName --service install --config (Join-Path $ConfigDir "mai-cpu.conf")
+  if ($LASTEXITCODE -ne 0) {{ throw "Could not install the Telegraf service." }}
+  Start-Service -Name "telegraf"
+  (Get-Service -Name "telegraf").WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
 }}
 Write-Host "MAI Telegraf CPU plugin installed. Start or restart the Telegraf service, then verify in MAI."
 '''

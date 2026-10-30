@@ -7,7 +7,6 @@ import secrets
 import mimetypes
 import uuid
 import platform
-import psutil
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +21,8 @@ import json
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select, update, func, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.cpu_processes import process_snapshots
 
 from app.db import (
     get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot,
@@ -1830,6 +1831,16 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
     try:
+        table_exists = (await db.execute(text("SELECT to_regclass('public.telegraf_cpu')"))).scalar()
+        if not table_exists:
+            return {
+                "success": False,
+                "status": "waiting_for_data",
+                "message": "Telegraf has not created the CPU telemetry table in the MAI database yet.",
+                "metrics_seen": 0,
+                "last_metric_received": None,
+                "verification_error": "Check that the Telegraf service is running and its PostgreSQL URL points to the same database as MAI. Replace example HOST/DATABASE values and ensure the database user can create tables in the public schema, then retry verification.",
+            }
         result = await db.execute(text('''
             SELECT "time", host, cpu
             FROM public.telegraf_cpu
@@ -1876,26 +1887,30 @@ async def get_telegraf_cpu_utilization(
     minutes = max(1, min(minutes, 24 * 60))
     limit = max(1, min(limit, 5000))
     try:
-        result = await db.execute(
-            text('''
-                SELECT "time", host, cpu,
-                       usage_active, usage_user, usage_system, usage_idle,
-                       usage_iowait, usage_steal, usage_nice,
-                       usage_irq, usage_softirq, usage_guest, usage_guest_nice
-                FROM public.telegraf_cpu
-                WHERE "time" >= NOW() - make_interval(mins => :minutes)
-                ORDER BY "time" DESC
-                LIMIT :limit
-            '''),
-            {"minutes": minutes, "limit": limit},
-        )
-        rows = list(result.mappings().all())
+        async with asyncio.timeout(8):
+            result = await db.execute(
+                text('''
+                    SELECT "time", host, cpu,
+                           usage_active, usage_user, usage_system, usage_idle,
+                           usage_iowait, usage_steal, usage_nice,
+                           usage_irq, usage_softirq, usage_guest, usage_guest_nice
+                    FROM public.telegraf_cpu
+                    WHERE "time" >= NOW() - make_interval(mins => :minutes)
+                    ORDER BY "time" DESC
+                    LIMIT :limit
+                '''),
+                {"minutes": minutes, "limit": limit},
+            )
+            rows = list(result.mappings().all())
     except Exception as exc:
         await db.rollback()
-        raise HTTPException(
-            status_code=503,
-            detail=f"CPU telemetry could not be read from PostgreSQL: {exc}",
-        ) from exc
+        detail = (
+            "PostgreSQL CPU telemetry did not respond within 8 seconds. Retrying on the next refresh."
+            if isinstance(exc, TimeoutError)
+            else "CPU telemetry could not be read from PostgreSQL. Check database connectivity and Telegraf ingestion."
+        )
+        logging.getLogger(__name__).warning("CPU telemetry query failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail=detail) from exc
 
     number_fields = (
         "usage_active", "usage_user", "usage_system", "usage_idle", "usage_iowait",
@@ -1916,45 +1931,7 @@ async def get_telegraf_cpu_utilization(
 
     hosts = sorted({sample["host"] for sample in samples})
 
-    process_handles = []
-    for process in psutil.process_iter(["pid", "name", "memory_info", "status", "username", "cmdline"]):
-        try:
-            process.cpu_percent(interval=None)
-            process_handles.append(process)
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
-    await asyncio.sleep(0.12)
-
-    processes: List[Dict[str, Any]] = []
-    for process in process_handles:
-        try:
-            info = process.info
-            memory_info = info.get("memory_info")
-            command = info.get("cmdline") or []
-            processes.append({
-                "pid": info.get("pid"),
-                "name": info.get("name") or "Unknown process",
-                "command": " ".join(command[:3]),
-                "cpu_percent": round(float(process.cpu_percent(interval=None)), 2),
-                "memory_bytes": int(memory_info.rss) if memory_info else 0,
-                "status": info.get("status") or "unknown",
-                "username": info.get("username"),
-            })
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
-    processes.sort(key=lambda item: (item["cpu_percent"], item["memory_bytes"]), reverse=True)
-
-    service_map: Dict[str, Dict[str, Any]] = {}
-    for process in processes:
-        service = service_map.setdefault(process["name"], {
-            "name": process["name"], "instances": 0, "cpu_percent": 0.0, "memory_bytes": 0,
-        })
-        service["instances"] += 1
-        service["cpu_percent"] += process["cpu_percent"]
-        service["memory_bytes"] += process["memory_bytes"]
-    services = sorted(service_map.values(), key=lambda item: (item["cpu_percent"], item["memory_bytes"]), reverse=True)
-    for service in services:
-        service["cpu_percent"] = round(service["cpu_percent"], 2)
+    process_snapshot = await process_snapshots.get()
 
     return {
         "plugin_id": TELEGRAF_PLUGIN_ID,
@@ -1962,9 +1939,7 @@ async def get_telegraf_cpu_utilization(
         "sample_count": len(samples),
         "hosts": hosts,
         "samples": samples,
-        "process_count": len(processes),
-        "processes": processes,
-        "services": services,
+        **process_snapshot,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 

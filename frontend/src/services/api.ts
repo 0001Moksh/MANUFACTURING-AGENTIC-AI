@@ -298,9 +298,11 @@ export const pluginService = {
     const res = await api.post(`/plugins/${encodeURIComponent(pluginId)}/test`, payload);
     return res.data;
   },
-  getCpuUtilization: async (minutes = 30, limit = 5000) => {
+  getCpuUtilization: async (minutes = 30, limit = 5000, signal?: AbortSignal) => {
     const res = await api.get('/plugins/telegraf-cpu-monitoring/cpu-utilization', {
       params: { minutes, limit },
+      signal,
+      timeout: 15000,
     });
     return res.data;
   },

@@ -21,6 +21,14 @@ export default defineConfig({
         ws: true,
         timeout: 20000,
         proxyTimeout: 20000,
+        configure: (proxy) => {
+          proxy.on('error', (_error, _request, response) => {
+            if ('writeHead' in response && !response.headersSent && !response.writableEnded) {
+              response.writeHead(503, { 'Content-Type': 'application/json' });
+              response.end(JSON.stringify({ detail: 'The backend is temporarily unavailable. Please retry shortly.' }));
+            }
+          });
+        },
       },
       '/reports': {
         target: backendTarget,

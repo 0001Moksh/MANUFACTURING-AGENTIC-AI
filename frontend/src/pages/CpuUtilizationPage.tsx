@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Clock3, Cpu, Download, Gauge, Leaf, RefreshCw, Server } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { pluginService } from '../services/api';
@@ -41,18 +41,34 @@ export const CpuUtilizationPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [metricTab, setMetricTab] = useState<'core' | 'process' | 'service'>('core');
+  const activeRequest = useRef<AbortController | null>(null);
 
   const load = useCallback(async (silent = false) => {
+    if (activeRequest.current) return;
+    const controller = new AbortController();
+    activeRequest.current = controller;
     if (!silent) setLoading(true);
     try {
+      const payload = await pluginService.getCpuUtilization(rangeMinutes, 5000, controller.signal) as CpuPayload;
+      if (controller.signal.aborted) return;
+      setData(payload);
       setError('');
-      setData(await pluginService.getCpuUtilization(rangeMinutes, 5000) as CpuPayload);
     } catch (requestError: any) {
-      setError(requestError?.response?.data?.detail || requestError?.message || 'CPU telemetry could not be loaded.');
-    } finally { setLoading(false); }
+      if (!controller.signal.aborted) {
+        setError(requestError?.response?.data?.detail || 'CPU monitoring could not reach the backend. Retrying on the next refresh; displayed readings may be out of date.');
+      }
+    } finally {
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+        setLoading(false);
+      }
+    }
   }, [rangeMinutes]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => { activeRequest.current?.abort(); activeRequest.current = null; };
+  }, [load]);
   useEffect(() => {
     if (refreshSeconds <= 0) return;
     const timer = window.setInterval(() => void load(true), refreshSeconds * 1000);
@@ -136,7 +152,7 @@ export const CpuUtilizationPage: React.FC = () => {
         <label className="flex items-center gap-2 rounded-lg border border-[#DEE6F0] bg-white px-3 py-2 text-xs font-semibold text-slate-600"><Clock3 className="h-4 w-4" /><select value={rangeMinutes} onChange={event => setRangeMinutes(Number(event.target.value))} className="bg-transparent outline-none">{RANGES.map(range => <option key={range.value} value={range.value}>{range.label}</option>)}</select></label>
         <div className="flex items-center overflow-hidden rounded-lg border border-[#DEE6F0] bg-white text-xs"><span className="flex items-center gap-1.5 px-2.5 text-slate-500"><RefreshCw className="h-3.5 w-3.5" />Auto</span><input aria-label="Auto refresh seconds" type="number" min="0" max="3600" value={refreshInput} onChange={event => setRefreshInput(event.target.value)} onBlur={applyRefresh} onKeyDown={event => event.key === 'Enter' && applyRefresh()} className="w-14 border-x border-[#DEE6F0] px-2 py-2 text-center font-bold outline-none" /><span className="px-2 text-slate-400">sec</span></div>
         <button onClick={() => void load()} className="rounded-lg border border-[#DEE6F0] bg-white p-2.5 text-slate-600" title="Refresh now"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
-        <span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-600"><span className="h-2 w-2 rounded-full bg-emerald-500" />Live</span>
+        <span className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ${error ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-600'}`}><span className={`h-2 w-2 rounded-full ${error ? 'bg-amber-500' : 'bg-emerald-500'}`} />{error ? 'Reconnecting' : refreshSeconds > 0 ? 'Live' : 'Paused'}</span>
       </div>
     </header>
 
