@@ -304,6 +304,12 @@ export const pluginService = {
     });
     return res.data;
   },
+  getConnectorTelemetry: async (pluginId: string, minutes = 30, limit = 5000, signal?: AbortSignal) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/telemetry`, {
+      params: { minutes, limit }, signal, timeout: 15000,
+    });
+    return res.data;
+  },
   getCpuUtilization: async (minutes = 30, limit = 5000, signal?: AbortSignal) => {
     const res = await api.get('/plugins/telegraf-cpu-monitoring/cpu-utilization', {
       params: { minutes, limit },

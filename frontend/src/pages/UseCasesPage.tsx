@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
 import { pluginService } from '../services/api';
 
-const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27, 28]);
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
 
 const CPU_USE_CASE = {
   id: 27,
@@ -24,12 +24,21 @@ const MEMORY_USE_CASE = {
   impact: 'Track memory capacity, usage trends and hosts with high memory utilization.',
 };
 
+const CONNECTOR_USE_CASES = [
+  { id: 29, pluginId: 'telegraf-disk-monitoring', pillar: 'sustain', title: 'Disk Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Filesystem capacity, inode utilization, and disk I/O collected by Telegraf.', impact: 'Detect low storage capacity and storage performance bottlenecks.' },
+  { id: 30, pluginId: 'telegraf-network-monitoring', pillar: 'sustain', title: 'Network Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Interface traffic, errors, and dropped packets collected by Telegraf.', impact: 'Track network throughput and identify unhealthy interfaces.' },
+  { id: 31, pluginId: 'telegraf-mqtt-consumer', pillar: 'connect', title: 'MQTT Device Telemetry', tags: ['IOT'], status: 'live' as const, desc: 'IoT and gateway messages consumed from configured MQTT topics.', impact: 'Bring device and gateway telemetry into the MAI data pipeline.' },
+  { id: 32, pluginId: 'telegraf-modbus', pillar: 'connect', title: 'Modbus Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Industrial registers polled from configured Modbus equipment.', impact: 'Monitor PLCs, meters, drives, and sensors over Modbus.' },
+  { id: 33, pluginId: 'telegraf-opcua', pillar: 'connect', title: 'OPC UA Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Process tags read from configured OPC UA servers.', impact: 'Connect PLC, SCADA, historian, and Kepware data to MAI.' },
+];
+
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [cpuPluginConnected, setCpuPluginConnected] = useState(false);
   const [memoryPluginConnected, setMemoryPluginConnected] = useState(false);
+  const [connectedPluginIds, setConnectedPluginIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,13 +48,14 @@ export const UseCasesPage: React.FC = () => {
       const telegraf = plugins.find(plugin => plugin.id === 'telegraf-cpu-monitoring' || plugin.slug === 'telegraf-cpu-monitoring');
       setCpuPluginConnected(telegraf?.connection_status === 'connected');
       setMemoryPluginConnected(plugins.some(plugin => plugin.id === 'telegraf-memory-monitoring' && plugin.connection_status === 'connected'));
+      setConnectedPluginIds(new Set(plugins.filter(plugin => plugin.connection_status === 'connected').map(plugin => plugin.id || '')));
     });
     return () => { active = false; };
   }, []);
 
   const availableUseCases = useMemo(
-    () => [...useCases, ...(cpuPluginConnected ? [CPU_USE_CASE] : []), ...(memoryPluginConnected ? [MEMORY_USE_CASE] : [])],
-    [cpuPluginConnected, memoryPluginConnected],
+    () => [...useCases, ...(cpuPluginConnected ? [CPU_USE_CASE] : []), ...(memoryPluginConnected ? [MEMORY_USE_CASE] : []), ...CONNECTOR_USE_CASES.filter(item => connectedPluginIds.has(item.pluginId))],
+    [cpuPluginConnected, memoryPluginConnected, connectedPluginIds],
   );
 
   const filtered = availableUseCases.filter(u => {
@@ -115,6 +125,8 @@ export const UseCasesPage: React.FC = () => {
                 return;
               }
               if (u.id === 28) { navigate('/use-cases/memory-utilization'); return; }
+              const connector = CONNECTOR_USE_CASES.find(item => item.id === u.id);
+              if (connector) { navigate(`/use-cases/connectors/${connector.pluginId}`); return; }
               if (u.id === 27) {
                 navigate('/use-cases/cpu-utilization');
                 return;

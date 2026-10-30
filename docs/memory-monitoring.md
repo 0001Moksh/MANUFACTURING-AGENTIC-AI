@@ -28,9 +28,9 @@ before replacing its binary and restart it with the shared configuration.
   and plugin settings use the existing routes and UI. The registration request
   adds `plugin_id`, defaulting to CPU for older clients. Only the two supported
   IDs are accepted. Each has its own registration and bundle directory.
-- `plugin_packager.py` accepts `--plugin cpu|memory`, defaulting to CPU. Both bundles
-  collect CPU and memory in the legacy `mai-cpu.conf` file with one PostgreSQL
-  output. This avoids competing services or duplicate outputs when adding memory.
+- `plugin_packager.py` accepts all supported connector kinds and defaults to CPU.
+  Revision 3 bundles install a CPU/Memory baseline, one shared PostgreSQL output,
+  and separate connector files so later connector installs preserve earlier ones.
 - `public.telegraf_cpu` remains the CPU destination; `public.telegraf_mem` is the
   memory destination. Telegraf creates/extends the table using the existing output.
   No application database migration is required.

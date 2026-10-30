@@ -161,7 +161,7 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
       )}
 
       <div className="flex justify-between items-center mt-[2px] text-[11.5px] text-teal-deep font-bold border-t border-border-color/40 pt-2">
-        <span>{pillarMeta[useCase.pillar].label}</span>
+        <span>{pillarMeta[useCase.pillar]?.label ?? 'Manufacturing Operations'}</span>
         {!isBlocked && <span>Details →</span>}
       </div>
     </motion.div>

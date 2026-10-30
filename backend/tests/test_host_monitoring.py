@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.memory_telemetry import memory_sample
-from app.host_telemetry import latest_plugin_metric, memory_payload
-from plugin_packager import build_bundle, _telegraf_config
+from app.host_telemetry import connector_payload, latest_plugin_metric, memory_payload
+from plugin_packager import PLUGINS, build_bundle, _connector_config, _host_base_config, _output_config, _telegraf_config
 
 
 class MemoryNormalizationTests(unittest.TestCase):
@@ -105,6 +105,21 @@ class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
     async def test_database_failures_propagate_for_route_503(self):
         with self.assertRaises(TimeoutError): await memory_payload(FakeDB(TimeoutError()))
 
+    async def test_connector_payload_combines_disk_and_diskio(self):
+        db = FakeDB(
+            'telegraf_disk', [{'time': '2026-10-30T10:00:00Z', 'host': 'a', 'fields': {'time': 'x', 'host': 'a', 'used_percent': 65}}],
+            'telegraf_diskio', [{'time': '2026-10-30T10:00:01Z', 'host': 'a', 'fields': {'time': 'x', 'host': 'a', 'reads': 9}}],
+        )
+        payload = await connector_payload(db, 'telegraf-disk-monitoring', ['telegraf_disk', 'telegraf_diskio'])
+        self.assertEqual(payload['measurements'], ['disk', 'diskio'])
+        self.assertEqual(payload['sample_count'], 2)
+        self.assertNotIn('time', payload['samples'][0]['fields'])
+        self.assertNotIn('host', payload['samples'][0]['fields'])
+
+    async def test_connector_table_allowlist(self):
+        with self.assertRaises(ValueError):
+            await connector_payload(FakeDB(), 'bad', ['injected_table'])
+
 
 class BundleTests(unittest.TestCase):
     def test_shared_config_has_one_output_and_both_collectors(self):
@@ -114,33 +129,55 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(config['inputs']['cpu'][0]['name_override'], 'telegraf_cpu')
         self.assertEqual(config['inputs']['mem'][0]['name_override'], 'telegraf_mem')
 
-    def test_bundles_for_both_plugins_and_all_target_formats(self):
+    def test_every_connector_config_parses_as_toml(self):
+        expected = {
+            'disk': {'disk', 'diskio'}, 'network': {'net'}, 'mqtt': {'mqtt_consumer'},
+            'modbus': {'modbus'}, 'opcua': {'opcua'},
+        }
+        replacements = {
+            '${MQTT_BROKER}': 'tcp://localhost:1883', '${MQTT_TOPIC}': 'sensors/#', '${MQTT_USERNAME}': '', '${MQTT_PASSWORD}': '', '${MQTT_DATA_FORMAT}': 'json',
+            '${MODBUS_DEVICE}': 'meter', '${MODBUS_CONTROLLER}': 'tcp://localhost:502', '${MODBUS_SLAVE_ID}': '1', '${MODBUS_FIELD}': 'value', '${MODBUS_ADDRESS}': '0', '${MODBUS_BYTE_ORDER}': 'AB', '${MODBUS_DATA_TYPE}': 'UINT16', '${MODBUS_SCALE}': '1.0',
+            '${OPCUA_ENDPOINT}': 'opc.tcp://localhost:4840', '${OPCUA_SECURITY_POLICY}': 'None', '${OPCUA_SECURITY_MODE}': 'None', '${OPCUA_AUTH_METHOD}': 'Anonymous', '${OPCUA_USERNAME}': '', '${OPCUA_PASSWORD}': '', '${OPCUA_NODE_NAME}': 'state', '${OPCUA_NODE_ID}': 'ns=0;i=2259',
+            '${POSTGRES_DSN}': 'postgresql://u:p@localhost/db',
+        }
+        for plugin, inputs in expected.items():
+            config = _telegraf_config(plugin)
+            for source, value in replacements.items(): config = config.replace(source, value)
+            parsed = tomllib.loads(config)
+            self.assertTrue(inputs.issubset(parsed['inputs']))
+
+    def test_bundles_for_all_plugins_and_target_formats(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for target, extension in [('linux-deb', '.deb'), ('linux-rpm', '.rpm'), ('linux-archive', '.tar.gz'), ('macos', '.dmg'), ('windows', '.zip')]:
                 installer = root / ('telegraf' + extension)
                 installer.write_bytes(b'test vendor package')
-                for plugin in ['cpu', 'memory']:
+                plugins = sorted(PLUGINS) if target == 'linux-rpm' else ['cpu']
+                for plugin in plugins:
                     for arch in ['x86_64', 'arm64']:
                         with self.subTest(target=target, plugin=plugin, arch=arch):
                             result = build_bundle(target, arch, installer, root / 'bundles', plugin)
                             if target == 'windows':
                                 with zipfile.ZipFile(result['path']) as archive:
-                                    config = archive.read('payload/mai-cpu.conf').decode()
+                                    base = archive.read('payload/mai-host-base.conf').decode()
+                                    output = archive.read('payload/mai-output.conf').decode()
+                                    connector = archive.read('payload/mai-connector.conf').decode()
                                     manifest = json.loads(archive.read('payload/manifest.json'))
                                     script = archive.read('payload/install.ps1').decode()
-                                    self.assertIn('--config (Join-Path $ConfigDir "mai-cpu.conf")', script)
+                                    self.assertIn('--config-directory $ConfigDir', script)
                             else:
                                 with tarfile.open(result['path']) as archive:
                                     prefix = f'mai-telegraf-{plugin}-{target}-{arch}'
-                                    config = archive.extractfile(prefix + '/mai-cpu.conf').read().decode()
+                                    base = archive.extractfile(prefix + '/mai-host-base.conf').read().decode()
+                                    output = archive.extractfile(prefix + '/mai-output.conf').read().decode()
+                                    connector = archive.extractfile(prefix + '/mai-connector.conf').read().decode()
                                     manifest = json.load(archive.extractfile(prefix + '/manifest.json'))
                                     script = archive.extractfile(prefix + '/install.sh').read().decode()
                                     subprocess.run(['bash', '-n'], input=script, text=True, check=True)
-                            self.assertEqual(config, _telegraf_config())
-                            self.assertEqual(manifest['measurement'], 'telegraf_cpu' if plugin == 'cpu' else 'telegraf_mem')
-                            self.assertEqual(manifest['measurements'], ['telegraf_cpu', 'telegraf_mem'])
-                            self.assertEqual(manifest['bundle_revision'], 2)
+                            self.assertEqual(base, _host_base_config())
+                            self.assertEqual(output, _output_config())
+                            self.assertEqual(connector, _connector_config(plugin))
+                            self.assertEqual(manifest['bundle_revision'], 4)
                             self.assertIn(f'mai-telegraf-{plugin}-', result['filename'])
 
     def test_invalid_plugin_rejected(self):

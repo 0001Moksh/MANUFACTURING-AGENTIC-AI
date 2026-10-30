@@ -175,18 +175,18 @@ The database user must be allowed to connect, create/update the
 `public.telegraf_cpu` and `public.telegraf_mem` tables, and insert rows. After the service starts, use
 **Confirm Installation** and then **Verify Plugin** in the Setup Wizard.
 
-Both bundles now use one shared `mai-cpu.conf` (the legacy filename is retained
-for existing installations), containing `inputs.cpu`, `inputs.mem`, and one
-PostgreSQL output. Installing either new bundle enables both collectors; each
-plugin is registered and verified independently in MAI. CPU installation details
-are not overwritten by registering Memory. Existing cached bundles regenerate
-on download to include the new configuration. Do not run an old CPU-only bundle
-after upgrading, as that older installer can overwrite the shared configuration.
+Revision 3 bundles use separate files for the CPU/Memory baseline, the shared
+PostgreSQL output, and each connector. Installing Disk, Network, MQTT, Modbus, or
+OPC UA preserves connectors already installed. Existing cached bundles regenerate
+on download. Do not run an older combined bundle after upgrading because it can
+replace the newer connector layout.
 
 Once Memory verification succeeds, **Memory Utilization Monitoring** appears in
 the Use-Case Library at `/use-cases/memory-utilization`. See
 [Memory monitoring implementation and activation](docs/memory-monitoring.md)
 for metrics, API behavior, shared components, testing, and deployment limits.
+See [Telegraf connector bundles](docs/telegraf-connectors.md) for Disk, Network,
+MQTT, Modbus, and OPC UA installation variables and API behavior.
 
 
 ---

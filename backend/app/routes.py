@@ -108,9 +108,19 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent / "plugin"
 PLUGIN_PACKAGER = Path(__file__).resolve().parent.parent / "plugin_packager.py"
 TELEGRAF_PLUGIN_ID = "telegraf-cpu-monitoring"
 MEMORY_PLUGIN_ID = "telegraf-memory-monitoring"
+DISK_PLUGIN_ID = "telegraf-disk-monitoring"
+NETWORK_PLUGIN_ID = "telegraf-network-monitoring"
+MQTT_PLUGIN_ID = "telegraf-mqtt-consumer"
+MODBUS_PLUGIN_ID = "telegraf-modbus"
+OPCUA_PLUGIN_ID = "telegraf-opcua"
 HOST_PLUGIN_SPECS = {
-    TELEGRAF_PLUGIN_ID: {"kind": "cpu", "input": "cpu", "table": "telegraf_cpu", "label": "CPU"},
-    MEMORY_PLUGIN_ID: {"kind": "memory", "input": "mem", "table": "telegraf_mem", "label": "Memory"},
+    TELEGRAF_PLUGIN_ID: {"kind": "cpu", "input": "cpu", "table": "telegraf_cpu", "tables": ["telegraf_cpu"], "label": "CPU"},
+    MEMORY_PLUGIN_ID: {"kind": "memory", "input": "mem", "table": "telegraf_mem", "tables": ["telegraf_mem"], "label": "Memory"},
+    DISK_PLUGIN_ID: {"kind": "disk", "input": "disk", "table": "telegraf_disk", "tables": ["telegraf_disk", "telegraf_diskio"], "label": "Disk"},
+    NETWORK_PLUGIN_ID: {"kind": "network", "input": "net", "table": "telegraf_net", "tables": ["telegraf_net"], "label": "Network"},
+    MQTT_PLUGIN_ID: {"kind": "mqtt", "input": "mqtt_consumer", "table": "telegraf_mqtt", "tables": ["telegraf_mqtt"], "label": "MQTT"},
+    MODBUS_PLUGIN_ID: {"kind": "modbus", "input": "modbus", "table": "telegraf_modbus", "tables": ["telegraf_modbus"], "label": "Modbus"},
+    OPCUA_PLUGIN_ID: {"kind": "opcua", "input": "opcua", "table": "telegraf_opcua", "tables": ["telegraf_opcua"], "label": "OPC UA"},
 }
 PLUGIN_ALLOWED_EXTENSIONS = {
     "windows": (".exe", ".msi", ".zip"),
@@ -201,8 +211,39 @@ def _seed_default_plugins() -> None:
         "use_cases": ["Memory Monitoring", "Memory Trends & Analytics"],
         "server_config_template": {"[[inputs.mem]]": {}, "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"}},
     })
+    connector_definitions = [
+        (DISK_PLUGIN_ID, "Telegraf Disk Monitoring", "disk", "Collects filesystem capacity, free space, inode usage, and disk I/O metrics.", ["Disk Capacity Monitoring", "Disk I/O Monitoring"]),
+        (NETWORK_PLUGIN_ID, "Telegraf Network Monitoring", "network", "Collects interface traffic, packet, error, and drop metrics.", ["Network Interface Monitoring", "Network Error Monitoring"]),
+        (MQTT_PLUGIN_ID, "Telegraf MQTT Consumer", "mqtt", "Consumes IoT and gateway telemetry from configured MQTT topics.", ["MQTT Device Telemetry", "Gateway Data Ingestion"]),
+        (MODBUS_PLUGIN_ID, "Telegraf Modbus", "modbus", "Polls configured Modbus TCP or serial registers from industrial equipment.", ["Modbus Equipment Monitoring", "Register Telemetry"]),
+        (OPCUA_PLUGIN_ID, "Telegraf OPC UA", "opcua", "Reads configured OPC UA nodes from PLCs, SCADA servers, and historians.", ["OPC UA Process Monitoring", "Industrial Tag Telemetry"]),
+    ]
     PLUGIN_CATALOG.setdefault(TELEGRAF_PLUGIN_ID, cpu)
     PLUGIN_CATALOG.setdefault(MEMORY_PLUGIN_ID, memory)
+    for plugin_id, name, kind, description, use_cases in connector_definitions:
+        connector = copy.deepcopy(cpu)
+        spec = HOST_PLUGIN_SPECS[plugin_id]
+        connector.update({
+            "id": plugin_id,
+            "slug": plugin_id,
+            "name": name,
+            "icon": kind,
+            "short_description": description,
+            "detailed_description": description,
+            "tags": ["telegraf", kind, "monitoring"],
+            "capabilities": [{
+                "id": f"{kind}.live_metrics",
+                "name": f"Live {spec['label']} Metrics",
+                "required_permissions": ["metrics.read"],
+                "supported_features": ["live_metrics", "historical_trends"],
+            }],
+            "use_cases": use_cases,
+            "server_config_template": {
+                f"[[inputs.{spec['input']}]]": {},
+                "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"},
+            },
+        })
+        PLUGIN_CATALOG.setdefault(plugin_id, connector)
 
 
 def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
@@ -1976,6 +2017,26 @@ async def get_telegraf_memory_utilization(
         raise HTTPException(status_code=503, detail="Memory telemetry is unavailable. Check PostgreSQL connectivity and Telegraf ingestion.") from exc
 
 
+@router.get("/api/plugins/{plugin_id}/telemetry")
+async def get_connector_telemetry(
+    plugin_id: str,
+    minutes: int = 30,
+    limit: int = 1200,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Return normalized rows for Disk, Network, MQTT, Modbus, and OPC UA."""
+    if plugin_id not in {DISK_PLUGIN_ID, NETWORK_PLUGIN_ID, MQTT_PLUGIN_ID, MODBUS_PLUGIN_ID, OPCUA_PLUGIN_ID}:
+        raise HTTPException(status_code=404, detail="Connector telemetry endpoint not found")
+    from .host_telemetry import connector_payload
+    spec = HOST_PLUGIN_SPECS[plugin_id]
+    try:
+        return await connector_payload(db, plugin_id, spec["tables"], minutes, limit)
+    except Exception as exc:
+        await db.rollback()
+        logging.getLogger(__name__).warning("%s telemetry query failed: %s", spec["label"], type(exc).__name__)
+        raise HTTPException(status_code=503, detail=f"{spec['label']} telemetry is unavailable. Check PostgreSQL and Telegraf ingestion.") from exc
+
+
 @router.get("/api/plugins/{plugin_id}/download")
 async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
@@ -1990,7 +2051,7 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
     bundle_is_postgresql = (row.metadata_json or {}).get("telemetry_destination") == "postgresql"
     expected_bundle_suffix = ".exe" if row.target_os == "windows" else ".tar.gz"
     bundle_has_current_format = bool(existing_path and str(existing_path).lower().endswith(expected_bundle_suffix))
-    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 2:
+    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 3:
         bundle = _generate_plugin_bundle(row)
         row.bundle_filename = str(bundle["filename"])
         row.bundle_path = str(bundle["path"])
@@ -1999,7 +2060,7 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         row.metadata_json = {
             **(row.metadata_json or {}),
             "telemetry_destination": "postgresql",
-            "bundle_revision": 2,
+            "bundle_revision": 3,
             "bundle_format": "single-executable" if row.target_os == "windows" else "archive",
         }
         await db.commit()

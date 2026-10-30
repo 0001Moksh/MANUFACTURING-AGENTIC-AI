@@ -73,6 +73,16 @@ const defaultPluginForm = {
   architecture: 'x86_64',
 };
 
+const PLUGIN_OPTIONS = [
+  { id: 'telegraf-cpu-monitoring', label: 'CPU Monitoring', name: 'Telegraf CPU Monitoring', description: defaultPluginForm.short_description, detail: defaultPluginForm.detailed_description },
+  { id: 'telegraf-memory-monitoring', label: 'Memory Monitoring', name: 'Telegraf Memory Monitoring', description: 'Collects live RAM usage and available memory via Telegraf.', detail: 'Tracks total, used and available RAM and utilization trends per host.' },
+  { id: 'telegraf-disk-monitoring', label: 'Disk Monitoring', name: 'Telegraf Disk Monitoring', description: 'Collects filesystem capacity, free space, inode usage, and disk I/O metrics.', detail: 'Tracks filesystem utilization and storage performance for servers and edge hosts.' },
+  { id: 'telegraf-network-monitoring', label: 'Network Monitoring', name: 'Telegraf Network Monitoring', description: 'Collects interface traffic, packet, error, and drop metrics.', detail: 'Tracks host network throughput, errors, and dropped packets by interface.' },
+  { id: 'telegraf-mqtt-consumer', label: 'MQTT Consumer', name: 'Telegraf MQTT Consumer', description: 'Consumes IoT and gateway telemetry from configured MQTT topics.', detail: 'Subscribes to a broker and stores parsed MQTT device messages in PostgreSQL.' },
+  { id: 'telegraf-modbus', label: 'Modbus', name: 'Telegraf Modbus', description: 'Polls configured Modbus TCP or serial registers from industrial equipment.', detail: 'Reads configured registers from PLCs, meters, drives, and industrial devices.' },
+  { id: 'telegraf-opcua', label: 'OPC UA', name: 'Telegraf OPC UA', description: 'Reads configured OPC UA nodes from PLCs, SCADA servers, and historians.', detail: 'Collects selected OPC UA process tags and stores them in PostgreSQL.' },
+];
+
 export const PluginsPage: React.FC = () => {
   const navigate = useNavigate();
   const [plugins, setPlugins] = useState<SimplePlugin[]>([]);
@@ -194,11 +204,9 @@ const RegisterPluginDialog: React.FC<{ form: typeof defaultPluginForm; setForm: 
     <div className="mb-5 flex items-center justify-between"><div><div className="text-[11px] font-bold uppercase tracking-[0.5px] text-muted">Connected Plugins</div><h3 className="mt-1 font-head text-[24px] font-extrabold text-ink">Add Telegraf Plugin</h3></div><button onClick={onClose} className="rounded-lg border border-border-color p-2 text-muted cursor-pointer"><X className="h-4 w-4" /></button></div>
     <div className="grid gap-4 md:grid-cols-2">
       <Field label="Monitoring plugin"><select value={form.plugin_id} onChange={e => {
-        const memory = e.target.value === 'telegraf-memory-monitoring';
-        setForm({ ...form, plugin_id: e.target.value, name: `Telegraf ${memory ? 'Memory' : 'CPU'} Monitoring`,
-          short_description: memory ? 'Collects live RAM usage and available memory via Telegraf.' : defaultPluginForm.short_description,
-          detailed_description: memory ? 'Tracks total, used and available RAM and utilization trends per host.' : defaultPluginForm.detailed_description });
-      }} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5"><option value="telegraf-cpu-monitoring">CPU Monitoring</option><option value="telegraf-memory-monitoring">Memory Monitoring</option></select></Field>
+        const selected = PLUGIN_OPTIONS.find(option => option.id === e.target.value) || PLUGIN_OPTIONS[0];
+        setForm({ ...form, plugin_id: selected.id, name: selected.name, short_description: selected.description, detailed_description: selected.detail });
+      }} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5">{PLUGIN_OPTIONS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></Field>
       <Field label="Plugin name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5 text-ink outline-none transition-colors focus:border-teal focus:ring-2 focus:ring-teal/15" /></Field>
       <Field label="Version"><input value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field>
       <Field label="Category"><input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field>
@@ -206,7 +214,7 @@ const RegisterPluginDialog: React.FC<{ form: typeof defaultPluginForm; setForm: 
       <Field label="Architecture"><select value={form.architecture} onChange={(e) => setForm({ ...form, architecture: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5"><option value="x86_64">x86_64</option><option value="arm64">arm64</option></select></Field>
       <div className="md:col-span-2"><Field label="Short description"><textarea rows={2} value={form.short_description} onChange={(e) => setForm({ ...form, short_description: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field></div>
       <div className="md:col-span-2"><Field label="Detailed description"><textarea rows={3} value={form.detailed_description} onChange={(e) => setForm({ ...form, detailed_description: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field></div>
-      <div className="md:col-span-2"><Field label="Telegraf installation file"><input type="file" accept={accept} required onChange={(e) => setInstallerFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /><span className="mt-1 block text-[10px] text-muted">Use the same target-specific Telegraf installation file as CPU monitoring. Both plugins share one host collector. MAI stores it separately and generates the overall plugin bundle.</span></Field></div>
+      <div className="md:col-span-2"><Field label="Telegraf installation file"><input type="file" accept={accept} required onChange={(e) => setInstallerFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /><span className="mt-1 block text-[10px] text-muted">Use the same target-specific Telegraf vendor package for every connector. MAI generates a connector-specific bundle while preserving connectors already installed.</span></Field></div>
     </div>
     {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-[12px] text-red-600">{error}</div>}
     <div className="mt-6 flex justify-end gap-3"><button onClick={onClose} className="rounded-xl border border-border-color bg-white px-4 py-2.5 text-[12px] font-bold text-ink cursor-pointer">Cancel</button><button onClick={onRegister} disabled={!installerFile || busy} className="rounded-xl bg-navy-900 px-4 py-2.5 text-[12px] font-bold text-white cursor-pointer disabled:opacity-50">{busy ? 'Registering…' : 'Register Plugin'}</button></div>
@@ -231,7 +239,8 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
   const architectureMatches = !!system && plugin.supported_architectures?.[0] === system.architecture;
   const compatible = osMatches && packageMatches && architectureMatches;
   const bundleExtension = plugin.target_os === 'windows' ? 'exe' : 'tar.gz';
-  const expectedBundleName = `mai-telegraf-${plugin.id === 'telegraf-memory-monitoring' ? 'memory' : 'cpu'}-${plugin.target_os}-${plugin.supported_architectures?.[0]}.${bundleExtension}`;
+  const pluginKind = plugin.id.replace('telegraf-', '').replace('-monitoring', '').replace('-consumer', '');
+  const expectedBundleName = `mai-telegraf-${pluginKind}-${plugin.target_os}-${plugin.supported_architectures?.[0]}.${bundleExtension}`;
 
   const download = async () => {
     setBusy(true); setError(null);
