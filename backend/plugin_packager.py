@@ -1,4 +1,4 @@
-"""Build a target-specific MAI Telegraf CPU plugin bundle from the CLI."""
+"""Build a target-specific MAI Telegraf host monitoring plugin bundle from the CLI."""
 
 from __future__ import annotations
 
@@ -36,6 +36,9 @@ def _telegraf_config() -> str:
   totalcpu = true
   collect_cpu_time = false
   report_active = true
+
+[[inputs.mem]]
+  name_override = "telegraf_mem"
 
 [[outputs.postgresql]]
   connection = "${POSTGRES_DSN}"
@@ -85,7 +88,7 @@ if command -v systemctl >/dev/null 2>&1; then
   sudo systemctl enable --now telegraf
   sudo systemctl restart telegraf
 fi
-echo "MAI Telegraf CPU plugin installed."
+echo "MAI Telegraf host monitoring plugin installed."
 '''
 
 
@@ -141,7 +144,7 @@ escaped_dsn="$(printf '%s' "${{POSTGRES_DSN}}" | sed 's/[\\/&]/\\\\&/g')"
 sed "s/\\${{POSTGRES_DSN}}/${{escaped_dsn}}/g" "${{script_dir}}/mai-cpu.conf" > "${{rendered_config}}"
 sudo install -m 0640 "${{rendered_config}}" /usr/local/etc/telegraf.d/mai-cpu.conf
 rm -f "${{rendered_config}}"
-echo "MAI Telegraf CPU plugin files installed. Start or restart Telegraf, then verify in MAI."
+echo "MAI Telegraf host monitoring plugin files installed. Start or restart Telegraf, then verify in MAI."
 '''
 
 
@@ -156,8 +159,8 @@ $Package = Join-Path $BundleDir "{package_name}"
 if (-not $env:POSTGRES_DSN) {{
   Add-Type -AssemblyName Microsoft.VisualBasic
   $env:POSTGRES_DSN = [Microsoft.VisualBasic.Interaction]::InputBox(
-    "Enter the PostgreSQL connection URL used by the MAI CPU plugin.",
-    "MAI Telegraf CPU Monitoring",
+    "Enter the PostgreSQL connection URL used by the MAI host monitoring plugins.",
+    "MAI Telegraf Host Monitoring",
     "postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable"
   )
 }}
@@ -169,6 +172,13 @@ if (-not [Uri]::TryCreate($env:POSTGRES_DSN, [UriKind]::Absolute, [ref]$Database
     $DatabaseUri.AbsolutePath -in @("", "/", "/DATABASE") -or
     $DatabaseUri.UserInfo -match '(^USER:|:PASSWORD$)') {{
   throw "Enter a real PostgreSQL URL for the MAI database. Replace USER, PASSWORD, HOST and DATABASE; do not use a +asyncpg URL."
+}}
+
+# Release the running binary before updating the shared Telegraf installation.
+$ExistingService = Get-Service -Name "telegraf" -ErrorAction SilentlyContinue
+if ($ExistingService -and $ExistingService.Status -ne 'Stopped') {{
+  Stop-Service -Name "telegraf" -Force
+  (Get-Service -Name "telegraf").WaitForStatus('Stopped', [TimeSpan]::FromSeconds(30))
 }}
 
 if ($Package.EndsWith(".msi")) {{
@@ -201,7 +211,7 @@ if ($TelegrafExe) {{
   Start-Service -Name "telegraf"
   (Get-Service -Name "telegraf").WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
 }}
-Write-Host "MAI Telegraf CPU plugin installed. Start or restart the Telegraf service, then verify in MAI."
+Write-Host "MAI Telegraf host monitoring plugin installed. Start or restart the Telegraf service, then verify in MAI."
 '''
 
 
@@ -225,9 +235,9 @@ def _installation_readme(target_os: str) -> str:
         command = '''export POSTGRES_DSN='postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable'
 ./install.sh
 unset POSTGRES_DSN'''
-    return f'''# MAI Telegraf CPU Monitoring
+    return f'''# MAI Telegraf Host Monitoring
 
-This bundle installs Telegraf CPU monitoring and writes metrics to PostgreSQL.
+This bundle installs Telegraf CPU and memory monitoring and writes metrics to PostgreSQL.
 Use a PostgreSQL URL that the target machine can reach. Do not include a
 SQLAlchemy driver suffix such as `+asyncpg` in the URL.
 
@@ -235,13 +245,19 @@ SQLAlchemy driver suffix such as `+asyncpg` in the URL.
 {command}
 ```
 
-Telegraf creates and updates `public.telegraf_cpu`. The database user needs
+Telegraf creates and updates `public.telegraf_cpu` and `public.telegraf_mem`.
+Both collectors share the existing mai-cpu.conf file and one PostgreSQL output.
+Installing either bundle preserves CPU and memory collection without duplicate outputs.
+On macOS, start Telegraf with --config /usr/local/etc/telegraf.d/mai-cpu.conf.
+On Linux archive installations, a working Telegraf service must already exist. The database user needs
 CONNECT, USAGE/CREATE on the public schema, and table insert/update privileges.
 After installation, return to MAI, confirm installation, and verify the plugin.
 '''
 
 
-def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, output_dir: Path) -> dict[str, object]:
+def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, output_dir: Path, plugin: str = "cpu") -> dict[str, object]:
+    if plugin not in {"cpu", "memory"}:
+        raise ValueError(f"Unsupported plugin: {plugin}")
     if target_os not in TARGETS:
         raise ValueError(f"Unsupported target OS/package type: {target_os}")
     if architecture not in ARCHITECTURES:
@@ -251,7 +267,7 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         raise FileNotFoundError(f"Telegraf installer not found: {installer}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    bundle_base = f"mai-telegraf-cpu-{target_os}-{architecture}"
+    bundle_base = f"mai-telegraf-{plugin}-{target_os}-{architecture}"
     with tempfile.TemporaryDirectory(prefix="mai-plugin-") as temporary:
         staging = Path(temporary) / bundle_base
         staging.mkdir()
@@ -260,14 +276,16 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         (staging / "mai-cpu.conf").write_text(_telegraf_config(), encoding="utf-8")
         (staging / "INSTALL.md").write_text(_installation_readme(target_os), encoding="utf-8")
         manifest = {
-            "plugin": "Telegraf CPU Monitoring",
+            "plugin": f"Telegraf {'CPU' if plugin == 'cpu' else 'Memory'} Monitoring",
             "version": "1.0.0",
             "target_os": target_os,
             "architecture": architecture,
             "telegraf_installer": installer.name,
             "telegraf_installer_sha256": _sha256(installer),
             "telemetry_destination": "postgresql",
-            "measurement": "telegraf_cpu",
+            "measurement": "telegraf_cpu" if plugin == "cpu" else "telegraf_mem",
+            "measurements": ["telegraf_cpu", "telegraf_mem"],
+            "bundle_revision": 2,
         }
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
@@ -293,13 +311,14 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build the MAI Telegraf CPU plugin installation bundle.")
+    parser = argparse.ArgumentParser(description="Build the MAI Telegraf host monitoring plugin installation bundle.")
     parser.add_argument("--target-os", required=True, choices=sorted(TARGETS))
     parser.add_argument("--architecture", required=True, choices=sorted(ARCHITECTURES))
     parser.add_argument("--telegraf-installer", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--plugin", choices=["cpu", "memory"], default="cpu")
     args = parser.parse_args()
-    print(json.dumps(build_bundle(args.target_os, args.architecture, args.telegraf_installer, args.output_dir)))
+    print(json.dumps(build_bundle(args.target_os, args.architecture, args.telegraf_installer, args.output_dir, args.plugin)))
     return 0
 
 

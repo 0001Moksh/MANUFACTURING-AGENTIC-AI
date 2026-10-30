@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
 import { pluginService } from '../services/api';
 
-const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27]);
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27, 28]);
 
 const CPU_USE_CASE = {
   id: 27,
@@ -18,11 +18,18 @@ const CPU_USE_CASE = {
   impact: 'One live view of overall and per-core CPU load, user time, system time and idle capacity.',
 };
 
+const MEMORY_USE_CASE = {
+  id: 28, pillar: 'sustain', title: 'Memory Utilization Monitoring', tags: ['IOT'], status: 'live' as const,
+  desc: 'Live RAM usage and available memory collected by Telegraf for each host.',
+  impact: 'Track memory capacity, usage trends and hosts with high memory utilization.',
+};
+
 export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [cpuPluginConnected, setCpuPluginConnected] = useState(false);
+  const [memoryPluginConnected, setMemoryPluginConnected] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,13 +38,14 @@ export const UseCasesPage: React.FC = () => {
       if (!active) return;
       const telegraf = plugins.find(plugin => plugin.id === 'telegraf-cpu-monitoring' || plugin.slug === 'telegraf-cpu-monitoring');
       setCpuPluginConnected(telegraf?.connection_status === 'connected');
+      setMemoryPluginConnected(plugins.some(plugin => plugin.id === 'telegraf-memory-monitoring' && plugin.connection_status === 'connected'));
     });
     return () => { active = false; };
   }, []);
 
   const availableUseCases = useMemo(
-    () => cpuPluginConnected ? [...useCases, CPU_USE_CASE] : useCases,
-    [cpuPluginConnected],
+    () => [...useCases, ...(cpuPluginConnected ? [CPU_USE_CASE] : []), ...(memoryPluginConnected ? [MEMORY_USE_CASE] : [])],
+    [cpuPluginConnected, memoryPluginConnected],
   );
 
   const filtered = availableUseCases.filter(u => {
@@ -106,6 +114,7 @@ export const UseCasesPage: React.FC = () => {
                 navigate('/use-cases/voice-agent');
                 return;
               }
+              if (u.id === 28) { navigate('/use-cases/memory-utilization'); return; }
               if (u.id === 27) {
                 navigate('/use-cases/cpu-utilization');
                 return;

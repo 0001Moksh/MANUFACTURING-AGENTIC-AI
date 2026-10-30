@@ -134,7 +134,7 @@ chmod +x scripts/start.sh
    - **Username**: `mfg_head`
    - **Password**: `mfg123`
 
-### Telegraf CPU plugin registration
+### Telegraf CPU and memory plugin registration
 
 Prepare the target-specific vendor installer by executing the notebook from the
 repository root. The notebook downloads the official Telegraf package. For
@@ -153,13 +153,14 @@ or a specific package URL. Relative local paths are resolved from the repository
 root. `TELEGRAF_VERSION` can override the default packaged version.
 
 The prepared Telegraf file is written to `generated_plugins/` by default. In
-the UI, use **Add Plugin** to upload that file. This is distinct from the
+the UI, use **Add Plugin**, choose **CPU Monitoring** or **Memory Monitoring**,
+and upload that file. The same vendor installer works for both plugins. This is distinct from the
 overall MAI plugin bundle, which is generated and stored under
 `backend/plugin/telegraf-cpu-monitoring/bundles/` when **Download Bundle** is
 clicked in the Setup Wizard.
 
 The bundle uses Telegraf's PostgreSQL output and writes CPU samples to
-`public.telegraf_cpu` in the MAI platform database. Before running the bundle
+`public.telegraf_cpu` and memory samples to `public.telegraf_mem` in the MAI platform database. Before running the bundle
 installer, provide a PostgreSQL URL that is reachable from the target machine:
 
 ```bash
@@ -171,8 +172,22 @@ unset POSTGRES_DSN
 Use the real database credentials and host. The DSN must start with
 `postgresql://`; remove SQLAlchemy-only driver suffixes such as `+asyncpg`.
 The database user must be allowed to connect, create/update the
-`public.telegraf_cpu` table, and insert rows. After the service starts, use
+`public.telegraf_cpu` and `public.telegraf_mem` tables, and insert rows. After the service starts, use
 **Confirm Installation** and then **Verify Plugin** in the Setup Wizard.
+
+Both bundles now use one shared `mai-cpu.conf` (the legacy filename is retained
+for existing installations), containing `inputs.cpu`, `inputs.mem`, and one
+PostgreSQL output. Installing either new bundle enables both collectors; each
+plugin is registered and verified independently in MAI. CPU installation details
+are not overwritten by registering Memory. Existing cached bundles regenerate
+on download to include the new configuration. Do not run an old CPU-only bundle
+after upgrading, as that older installer can overwrite the shared configuration.
+
+Once Memory verification succeeds, **Memory Utilization Monitoring** appears in
+the Use-Case Library at `/use-cases/memory-utilization`. See
+[Memory monitoring implementation and activation](docs/memory-monitoring.md)
+for metrics, API behavior, shared components, testing, and deployment limits.
+
 
 ---
 

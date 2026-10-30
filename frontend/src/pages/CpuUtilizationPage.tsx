@@ -1,5 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Clock3, Cpu, Download, Gauge, Leaf, RefreshCw, Server } from 'lucide-react';
+import { MonitoringControls } from '../components/monitoring/MonitoringControls';
+import { MetricTable } from '../components/monitoring/MetricTable';
+import { useMonitoringData } from '../hooks/useMonitoringData';
+import React, { useMemo, useState } from 'react';
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Cpu, Download, Gauge, Leaf, Server } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { pluginService } from '../services/api';
 
@@ -14,10 +17,6 @@ type ServiceMetric = { name: string; instances: number; cpu_percent: number; mem
 type CpuPayload = { sample_count: number; hosts: string[]; samples: CpuSample[]; process_count: number; processes: ProcessMetric[]; services: ServiceMetric[]; generated_at: string };
 type HostSummary = { host: string; latest: number; previous: number; cores: CpuSample[]; time: string };
 
-const RANGES = [
-  { label: 'Last 30 minutes', value: 30 }, { label: 'Last 1 hour', value: 60 },
-  { label: 'Last 6 hours', value: 360 }, { label: 'Last 24 hours', value: 1440 },
-];
 const BREAKDOWN_COLORS = ['#21B573', '#F59E35', '#8555E8', '#E5525D', '#9AAAC0'];
 const PANEL = 'rounded-xl border border-[#DEE6F0] bg-white shadow-[0_2px_12px_rgba(25,52,82,0.04)]';
 const pct = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`;
@@ -31,49 +30,11 @@ function statusFor(value: number) {
   return { label: 'Normal', style: 'bg-emerald-50 text-emerald-700' };
 }
 
-const MetricTable: React.FC<{ headers: string[]; rows: string[][]; empty: string }> = ({ headers, rows, empty }) => <div className="max-h-[420px] overflow-auto"><table className="w-full min-w-[720px] text-left text-[10px]"><thead className="sticky top-0 bg-[#F8FAFD] text-slate-500"><tr>{headers.map(header => <th key={header} className="px-4 py-2.5 font-bold">{header}</th>)}</tr></thead><tbody>{rows.map((row, rowIndex) => <tr key={`${row[0]}-${rowIndex}`} className="border-t border-[#EDF1F6]">{row.map((cell, cellIndex) => <td key={`${cellIndex}-${cell}`} className={`px-4 py-2.5 ${cellIndex === 0 ? 'font-bold text-slate-700' : 'text-slate-600'}`}>{cell}</td>)}</tr>)}</tbody></table>{rows.length === 0 && <div className="p-8 text-center text-xs text-slate-400">{empty}</div>}</div>;
+
 
 export const CpuUtilizationPage: React.FC = () => {
-  const [data, setData] = useState<CpuPayload | null>(null);
-  const [rangeMinutes, setRangeMinutes] = useState(30);
-  const [refreshSeconds, setRefreshSeconds] = useState(10);
-  const [refreshInput, setRefreshInput] = useState('10');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data, rangeMinutes, setRangeMinutes, refreshSeconds, refreshInput, setRefreshInput, loading, error, load, applyRefresh } = useMonitoringData<CpuPayload>(pluginService.getCpuUtilization, 'CPU');
   const [metricTab, setMetricTab] = useState<'core' | 'process' | 'service'>('core');
-  const activeRequest = useRef<AbortController | null>(null);
-
-  const load = useCallback(async (silent = false) => {
-    if (activeRequest.current) return;
-    const controller = new AbortController();
-    activeRequest.current = controller;
-    if (!silent) setLoading(true);
-    try {
-      const payload = await pluginService.getCpuUtilization(rangeMinutes, 5000, controller.signal) as CpuPayload;
-      if (controller.signal.aborted) return;
-      setData(payload);
-      setError('');
-    } catch (requestError: any) {
-      if (!controller.signal.aborted) {
-        setError(requestError?.response?.data?.detail || 'CPU monitoring could not reach the backend. Retrying on the next refresh; displayed readings may be out of date.');
-      }
-    } finally {
-      if (activeRequest.current === controller) {
-        activeRequest.current = null;
-        setLoading(false);
-      }
-    }
-  }, [rangeMinutes]);
-
-  useEffect(() => {
-    void load();
-    return () => { activeRequest.current?.abort(); activeRequest.current = null; };
-  }, [load]);
-  useEffect(() => {
-    if (refreshSeconds <= 0) return;
-    const timer = window.setInterval(() => void load(true), refreshSeconds * 1000);
-    return () => window.clearInterval(timer);
-  }, [load, refreshSeconds]);
 
   const samples = useMemo(() => data?.samples || [], [data]);
   const hostSummaries = useMemo<HostSummary[]>(() => (data?.hosts || []).map(host => {
@@ -121,12 +82,6 @@ export const CpuUtilizationPage: React.FC = () => {
     : breakdown.map(item => ({ ...item, value: item.name === 'Idle' ? 100 : 0 }));
   const coreNames = [...new Set(allCores.map(core => core.cpu))].sort((a, b) => Number(a.replace('cpu', '')) - Number(b.replace('cpu', '')));
 
-  const applyRefresh = () => {
-    const value = Number(refreshInput);
-    if (!Number.isFinite(value)) return;
-    const normalized = Math.max(0, Math.min(3600, Math.round(value)));
-    setRefreshInput(String(normalized)); setRefreshSeconds(normalized);
-  };
   const exportCsv = () => {
     const header = 'time,host,cpu,active,user,system,idle,io_wait\n';
     const rows = samples.map(item => [item.time, item.host, item.cpu, item.usage_active, item.usage_user, item.usage_system, item.usage_idle, item.usage_iowait].join(',')).join('\n');
@@ -149,9 +104,7 @@ export const CpuUtilizationPage: React.FC = () => {
         <div><h1 className="text-[22px] font-extrabold text-[#17233C]">CPU Monitoring</h1><p className="max-w-3xl text-xs text-slate-500">Real-time and historical CPU utilization across connected hosts. Analyze load, detect bottlenecks and review per-core performance.</p></div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-2 rounded-lg border border-[#DEE6F0] bg-white px-3 py-2 text-xs font-semibold text-slate-600"><Clock3 className="h-4 w-4" /><select value={rangeMinutes} onChange={event => setRangeMinutes(Number(event.target.value))} className="bg-transparent outline-none">{RANGES.map(range => <option key={range.value} value={range.value}>{range.label}</option>)}</select></label>
-        <div className="flex items-center overflow-hidden rounded-lg border border-[#DEE6F0] bg-white text-xs"><span className="flex items-center gap-1.5 px-2.5 text-slate-500"><RefreshCw className="h-3.5 w-3.5" />Auto</span><input aria-label="Auto refresh seconds" type="number" min="0" max="3600" value={refreshInput} onChange={event => setRefreshInput(event.target.value)} onBlur={applyRefresh} onKeyDown={event => event.key === 'Enter' && applyRefresh()} className="w-14 border-x border-[#DEE6F0] px-2 py-2 text-center font-bold outline-none" /><span className="px-2 text-slate-400">sec</span></div>
-        <button onClick={() => void load()} className="rounded-lg border border-[#DEE6F0] bg-white p-2.5 text-slate-600" title="Refresh now"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
+        <MonitoringControls {...{ rangeMinutes, setRangeMinutes, refreshInput, setRefreshInput, applyRefresh, load, loading }} />
         <span className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ${error ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-600'}`}><span className={`h-2 w-2 rounded-full ${error ? 'bg-amber-500' : 'bg-emerald-500'}`} />{error ? 'Reconnecting' : refreshSeconds > 0 ? 'Live' : 'Paused'}</span>
       </div>
     </header>

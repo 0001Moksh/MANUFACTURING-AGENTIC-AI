@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, CheckCircle2, Cpu, Database, Download, Monitor, Plus, Settings, Sparkles, Trash2, X } from 'lucide-react';
+import { Activity, CheckCircle2, Cpu, Database, Download, Monitor, MemoryStick, Plus, Settings, Sparkles, Trash2, X } from 'lucide-react';
 import { pluginService } from '../services/api';
 
 interface SimplePlugin {
@@ -54,6 +54,7 @@ const isConnected = (plugin: SimplePlugin) => plugin.connection_status === 'conn
 
 const iconFor = (name: string) => {
   const icon = name?.toLowerCase() || '';
+  if (icon.includes('memory')) return MemoryStick;
   if (icon.includes('cpu')) return Cpu;
   if (icon.includes('db') || icon.includes('influx')) return Database;
   if (icon.includes('monitor')) return Monitor;
@@ -62,6 +63,7 @@ const iconFor = (name: string) => {
 };
 
 const defaultPluginForm = {
+  plugin_id: 'telegraf-cpu-monitoring',
   name: 'Telegraf CPU Monitoring',
   version: '1.0.0',
   category: 'Monitoring',
@@ -191,6 +193,12 @@ const RegisterPluginDialog: React.FC<{ form: typeof defaultPluginForm; setForm: 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B0F19]/50 p-4"><div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[20px] border border-border-color bg-white p-5 shadow-xl">
     <div className="mb-5 flex items-center justify-between"><div><div className="text-[11px] font-bold uppercase tracking-[0.5px] text-muted">Connected Plugins</div><h3 className="mt-1 font-head text-[24px] font-extrabold text-ink">Add Telegraf Plugin</h3></div><button onClick={onClose} className="rounded-lg border border-border-color p-2 text-muted cursor-pointer"><X className="h-4 w-4" /></button></div>
     <div className="grid gap-4 md:grid-cols-2">
+      <Field label="Monitoring plugin"><select value={form.plugin_id} onChange={e => {
+        const memory = e.target.value === 'telegraf-memory-monitoring';
+        setForm({ ...form, plugin_id: e.target.value, name: `Telegraf ${memory ? 'Memory' : 'CPU'} Monitoring`,
+          short_description: memory ? 'Collects live RAM usage and available memory via Telegraf.' : defaultPluginForm.short_description,
+          detailed_description: memory ? 'Tracks total, used and available RAM and utilization trends per host.' : defaultPluginForm.detailed_description });
+      }} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5"><option value="telegraf-cpu-monitoring">CPU Monitoring</option><option value="telegraf-memory-monitoring">Memory Monitoring</option></select></Field>
       <Field label="Plugin name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5 text-ink outline-none transition-colors focus:border-teal focus:ring-2 focus:ring-teal/15" /></Field>
       <Field label="Version"><input value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field>
       <Field label="Category"><input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field>
@@ -198,7 +206,7 @@ const RegisterPluginDialog: React.FC<{ form: typeof defaultPluginForm; setForm: 
       <Field label="Architecture"><select value={form.architecture} onChange={(e) => setForm({ ...form, architecture: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5"><option value="x86_64">x86_64</option><option value="arm64">arm64</option></select></Field>
       <div className="md:col-span-2"><Field label="Short description"><textarea rows={2} value={form.short_description} onChange={(e) => setForm({ ...form, short_description: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field></div>
       <div className="md:col-span-2"><Field label="Detailed description"><textarea rows={3} value={form.detailed_description} onChange={(e) => setForm({ ...form, detailed_description: e.target.value })} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /></Field></div>
-      <div className="md:col-span-2"><Field label="Telegraf installation file"><input type="file" accept={accept} required onChange={(e) => setInstallerFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /><span className="mt-1 block text-[10px] text-muted">Generate this target-specific Telegraf file from cpu-plugin.ipynb through the CLI. MAI stores it separately and generates the overall plugin bundle.</span></Field></div>
+      <div className="md:col-span-2"><Field label="Telegraf installation file"><input type="file" accept={accept} required onChange={(e) => setInstallerFile(e.target.files?.[0] || null)} className="w-full rounded-xl border border-border-color bg-canvas px-3 py-2.5" /><span className="mt-1 block text-[10px] text-muted">Use the same target-specific Telegraf installation file as CPU monitoring. Both plugins share one host collector. MAI stores it separately and generates the overall plugin bundle.</span></Field></div>
     </div>
     {error && <div className="mt-4 rounded-xl bg-red-50 p-3 text-[12px] text-red-600">{error}</div>}
     <div className="mt-6 flex justify-end gap-3"><button onClick={onClose} className="rounded-xl border border-border-color bg-white px-4 py-2.5 text-[12px] font-bold text-ink cursor-pointer">Cancel</button><button onClick={onRegister} disabled={!installerFile || busy} className="rounded-xl bg-navy-900 px-4 py-2.5 text-[12px] font-bold text-white cursor-pointer disabled:opacity-50">{busy ? 'Registering…' : 'Register Plugin'}</button></div>
@@ -223,7 +231,7 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
   const architectureMatches = !!system && plugin.supported_architectures?.[0] === system.architecture;
   const compatible = osMatches && packageMatches && architectureMatches;
   const bundleExtension = plugin.target_os === 'windows' ? 'exe' : 'tar.gz';
-  const expectedBundleName = `mai-telegraf-cpu-${plugin.target_os}-${plugin.supported_architectures?.[0]}.${bundleExtension}`;
+  const expectedBundleName = `mai-telegraf-${plugin.id === 'telegraf-memory-monitoring' ? 'memory' : 'cpu'}-${plugin.target_os}-${plugin.supported_architectures?.[0]}.${bundleExtension}`;
 
   const download = async () => {
     setBusy(true); setError(null);
@@ -266,7 +274,7 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
       setMessage(result.message); onUpdated(await pluginService.getById(plugin.id));
       if (!result.success) setError(result.verification_error
         ? `PostgreSQL verification failed: ${result.verification_error}`
-        : 'No recent Telegraf CPU data was found in PostgreSQL. Start Telegraf and check its PostgreSQL output configuration, then retry.');
+        : 'No recent plugin data was found in PostgreSQL. Start Telegraf and check its PostgreSQL output configuration, then retry.');
     } catch (reason: any) { setError(reason?.response?.data?.detail || 'Verification failed.'); }
     finally { setBusy(false); }
   };
@@ -281,7 +289,7 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
       <div className="mt-6 flex justify-end"><button onClick={() => { setError(null); setStep(1); }} disabled={!compatible} className="rounded-xl bg-teal px-5 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40">Next: Review & install</button></div>
     </> : <>
       <div className="rounded-2xl border border-border-color bg-panel p-4"><div className="space-y-4 text-[12px] text-muted"><SystemDetail label="Plugin" value={plugin.name} /><SystemDetail label="Setup mode" value="Manual" /><SystemDetail label="Target" value={system?.hostname || 'Unknown'} /><SystemDetail label="Target OS" value={targetOsLabel(plugin.target_os)} /><SystemDetail label="Architecture" value={plugin.supported_architectures?.[0] || 'Unknown'} /><SystemDetail label="Telegraf installer" value={plugin.installer?.filename || 'Not uploaded'} /><SystemDetail label="Overall plugin bundle" value={plugin.overall_installer?.filename || expectedBundleName} /><SystemDetail label="Destination" value="PostgreSQL" /></div><div className={`mt-5 rounded-xl border p-3 ${compatible ? 'border-green/20 bg-green-tint' : 'border-red-200 bg-red-50'}`}><div className="flex items-center gap-2 text-[12px] font-bold text-ink"><Activity className="h-4 w-4 text-teal" /> Preflight and approval status</div><div className={`mt-2 flex items-center gap-2 text-[11.5px] ${compatible ? 'text-green' : 'text-red-600'}`}><CheckCircle2 className="h-4 w-4" /> {compatible ? 'Administrator approval and host prerequisites are available.' : 'The current machine is not compatible with this plugin bundle.'}</div></div></div>
-      <div className="mt-5 grid gap-3 md:grid-cols-3"><ActionCard number="1" title="Download overall file" description="Generate and download the complete MAI plugin bundle. The Telegraf installer remains stored separately."><button onClick={() => void download()} disabled={!compatible || busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2.5 text-[11.5px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><Download className="h-4 w-4" /> {downloaded ? 'Downloaded' : 'Download Bundle'}</button></ActionCard><ActionCard number="2" title="Confirm installation" description="Run the bundle installer, then confirm that installation finished."><button onClick={() => void confirmInstallation()} disabled={(!downloaded && !confirmed) || busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2.5 text-[11.5px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {confirmed ? 'Confirmed' : 'Confirm Installation'}</button></ActionCard><ActionCard number="3" title="Verify plugin" description="Verify that Telegraf CPU data is arriving in PostgreSQL."><button onClick={() => void verify()} disabled={!confirmed || busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2.5 text-[11.5px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><Activity className="h-4 w-4" /> Verify Plugin</button></ActionCard></div>
+      <div className="mt-5 grid gap-3 md:grid-cols-3"><ActionCard number="1" title="Download overall file" description="Generate and download the complete MAI plugin bundle. The Telegraf installer remains stored separately."><button onClick={() => void download()} disabled={!compatible || busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2.5 text-[11.5px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><Download className="h-4 w-4" /> {downloaded ? 'Downloaded' : 'Download Bundle'}</button></ActionCard><ActionCard number="2" title="Confirm installation" description="Run the bundle installer, then confirm that installation finished."><button onClick={() => void confirmInstallation()} disabled={(!downloaded && !confirmed) || busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2.5 text-[11.5px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="h-4 w-4" /> {confirmed ? 'Confirmed' : 'Confirm Installation'}</button></ActionCard><ActionCard number="3" title="Verify plugin" description="Verify that this plugin’s data is arriving in PostgreSQL."><button onClick={() => void verify()} disabled={!confirmed || busy} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy-900 px-3 py-2.5 text-[11.5px] font-bold text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"><Activity className="h-4 w-4" /> Verify Plugin</button></ActionCard></div>
       {message && <div className="mt-4 rounded-xl bg-blue-tint p-3 text-[12px] text-[#2258b0]">{message}</div>}{error && <div className="mt-3 rounded-xl bg-red-50 p-3 text-[12px] text-red-600">{error}</div>}
       <div className="mt-6 flex justify-start"><button onClick={() => { setError(null); setStep(0); }} className="rounded-xl border border-border-color bg-white px-5 py-2.5 text-[12px] font-bold text-ink cursor-pointer">Back</button></div>
     </>}
