@@ -110,7 +110,7 @@ export const CpuUtilizationPage: React.FC = () => {
     </header>
 
     {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-    {!error && !loading && samples.length === 0 && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">No CPU samples were found for the selected time range. The analytics panels will populate as soon as Telegraf sends data.</div>}
+    {!error && !loading && samples.length === 0 && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">No CPU samples were found for the selected time range. The analytics panels will populate as soon as IIIOT-Veda sends data.</div>}
     <div className="space-y-4">
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">{cards.map(card => <div key={card.label} className={`${PANEL} flex gap-3 p-4`}><div className={`h-fit rounded-lg p-2 ${card.color}`}><card.icon className="h-5 w-5" /></div><div className="min-w-0"><div className="text-[11px] font-bold text-slate-500">{card.label}</div><div className="mt-1 flex items-center gap-2 text-[22px] font-extrabold text-[#17233C]">{card.value}{card.label === 'Total CPU Usage' && <span className={`flex items-center text-[10px] ${change > 0 ? 'text-red-500' : 'text-emerald-600'}`}>{change > 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{Math.abs(change).toFixed(1)}%</span>}</div><div className="mt-1 truncate text-[10px] text-slate-400">{card.note}</div></div></div>)}</section>
 

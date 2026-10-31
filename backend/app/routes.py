@@ -113,6 +113,10 @@ NETWORK_PLUGIN_ID = "telegraf-network-monitoring"
 MQTT_PLUGIN_ID = "telegraf-mqtt-consumer"
 MODBUS_PLUGIN_ID = "telegraf-modbus"
 OPCUA_PLUGIN_ID = "telegraf-opcua"
+NETWORK_DIAGNOSTICS_PLUGIN_ID = "iiiot-veda-network-diagnostics"
+EMAIL_MONITORING_PLUGIN_ID = "iiiot-veda-email-monitoring"
+SERVER_MONITORING_PLUGIN_ID = "iiiot-veda-server-monitoring"
+DESKTOP_MONITORING_PLUGIN_ID = "iiiot-veda-desktop-monitoring"
 HOST_PLUGIN_SPECS = {
     TELEGRAF_PLUGIN_ID: {"kind": "cpu", "input": "cpu", "table": "telegraf_cpu", "tables": ["telegraf_cpu"], "label": "CPU"},
     MEMORY_PLUGIN_ID: {"kind": "memory", "input": "mem", "table": "telegraf_mem", "tables": ["telegraf_mem"], "label": "Memory"},
@@ -121,6 +125,10 @@ HOST_PLUGIN_SPECS = {
     MQTT_PLUGIN_ID: {"kind": "mqtt", "input": "mqtt_consumer", "table": "telegraf_mqtt", "tables": ["telegraf_mqtt"], "label": "MQTT"},
     MODBUS_PLUGIN_ID: {"kind": "modbus", "input": "modbus", "table": "telegraf_modbus", "tables": ["telegraf_modbus"], "label": "Modbus"},
     OPCUA_PLUGIN_ID: {"kind": "opcua", "input": "opcua", "table": "telegraf_opcua", "tables": ["telegraf_opcua"], "label": "OPC UA"},
+    NETWORK_DIAGNOSTICS_PLUGIN_ID: {"kind": "network-diagnostics", "input": "ping", "table": "iiiot_veda_ping", "tables": ["iiiot_veda_ping", "iiiot_veda_http_response", "iiiot_veda_dns_query", "iiiot_veda_net_response", "iiiot_veda_x509_cert", "iiiot_veda_netstat"], "label": "Network diagnostics"},
+    EMAIL_MONITORING_PLUGIN_ID: {"kind": "email-monitoring", "input": "net_response", "table": "iiiot_veda_email_response", "tables": ["iiiot_veda_email_response", "iiiot_veda_email_cert"], "label": "Email monitoring"},
+    SERVER_MONITORING_PLUGIN_ID: {"kind": "server-monitoring", "input": "system", "table": "iiiot_veda_system", "tables": ["iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat"], "label": "Server monitoring"},
+    DESKTOP_MONITORING_PLUGIN_ID: {"kind": "desktop-monitoring", "input": "system", "table": "iiiot_veda_desktop_system", "tables": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"], "label": "Desktop monitoring"},
 }
 PLUGIN_ALLOWED_EXTENSIONS = {
     "windows": (".exe", ".msi", ".zip"),
@@ -141,17 +149,17 @@ def _agent_input_block(message: str, agent_name: str, thread_id: Optional[str] =
 def _seed_default_plugins() -> None:
     cpu = {
         "id": "telegraf-cpu-monitoring",
-        "name": "Telegraf CPU Monitoring",
+        "name": "IIIOT-Veda CPU Monitoring",
         "slug": "telegraf-cpu-monitoring",
         "version": "1.0.0",
         "category": "Monitoring",
-        "short_description": "Collects live CPU utilization and health metrics via Telegraf.",
+        "short_description": "Collects live CPU utilization and health metrics via IIIOT-Veda.",
         "detailed_description": "Collects CPU utilization, per-core metrics, and process telemetry from Windows, Linux, or macOS hosts and forwards them to MAI.",
         "icon": "cpu",
         "target_os": "windows",
         "supported_os": ["windows"],
         "supported_architectures": ["x86_64", "arm64"],
-        "tags": ["telegraf", "cpu", "infrastructure"],
+        "tags": ["iiiot-veda", "cpu", "infrastructure"],
         "capabilities": [
             {"id": "cpu.live_metrics", "name": "Live CPU Metrics", "required_permissions": ["metrics.read"], "supported_features": ["total_utilization", "per_core_utilization"]},
             {"id": "cpu.historical_trends", "name": "Historical Trends", "required_permissions": ["metrics.read"], "supported_features": ["trend_analysis"]},
@@ -174,7 +182,7 @@ def _seed_default_plugins() -> None:
             {"os": "macOS", "architecture": "arm64", "package_types": [".pkg", ".dmg"]},
         ],
         "installer": {
-            "filename": "telegraf-1.0.0-windows-amd64.exe",
+            "filename": "iiiot-veda-runtime-windows-amd64.exe",
             "size_bytes": 0,
             "checksum_sha256": None,
             "status": "not_uploaded",
@@ -188,7 +196,7 @@ def _seed_default_plugins() -> None:
             "storage_key": None,
         },
         "versions": [
-            {"version": "1.0.0", "filename": "telegraf-1.0.0-windows-amd64.exe", "uploaded_at": "2026-10-13T00:00:00Z", "status": "published"}
+            {"version": "1.0.0", "filename": "iiiot-veda-runtime-windows-amd64.exe", "uploaded_at": "2026-10-13T00:00:00Z", "status": "published"}
         ],
         "server_config_template": {
             "[[inputs.cpu]]": {},
@@ -200,10 +208,10 @@ def _seed_default_plugins() -> None:
     memory = copy.deepcopy(cpu)
     memory.update({
         "id": MEMORY_PLUGIN_ID, "slug": MEMORY_PLUGIN_ID,
-        "name": "Telegraf Memory Monitoring", "icon": "memory",
-        "short_description": "Collects live RAM usage and available memory via Telegraf.",
+        "name": "IIIOT-Veda Memory Monitoring", "icon": "memory",
+        "short_description": "Collects live RAM usage and available memory via IIIOT-Veda.",
         "detailed_description": "Tracks total, used and available RAM, utilization and historical trends per host.",
-        "tags": ["telegraf", "memory", "infrastructure"],
+        "tags": ["iiiot-veda", "memory", "infrastructure"],
         "capabilities": [
             {"id": "memory.live_metrics", "name": "Live Memory Metrics", "required_permissions": ["metrics.read"], "supported_features": ["total", "used", "available", "used_percent"]},
             {"id": "memory.historical_trends", "name": "Historical Trends", "required_permissions": ["metrics.read"], "supported_features": ["trend_analysis"]},
@@ -212,11 +220,15 @@ def _seed_default_plugins() -> None:
         "server_config_template": {"[[inputs.mem]]": {}, "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"}},
     })
     connector_definitions = [
-        (DISK_PLUGIN_ID, "Telegraf Disk Monitoring", "disk", "Collects filesystem capacity, free space, inode usage, and disk I/O metrics.", ["Disk Capacity Monitoring", "Disk I/O Monitoring"]),
-        (NETWORK_PLUGIN_ID, "Telegraf Network Monitoring", "network", "Collects interface traffic, packet, error, and drop metrics.", ["Network Interface Monitoring", "Network Error Monitoring"]),
-        (MQTT_PLUGIN_ID, "Telegraf MQTT Consumer", "mqtt", "Consumes IoT and gateway telemetry from configured MQTT topics.", ["MQTT Device Telemetry", "Gateway Data Ingestion"]),
-        (MODBUS_PLUGIN_ID, "Telegraf Modbus", "modbus", "Polls configured Modbus TCP or serial registers from industrial equipment.", ["Modbus Equipment Monitoring", "Register Telemetry"]),
-        (OPCUA_PLUGIN_ID, "Telegraf OPC UA", "opcua", "Reads configured OPC UA nodes from PLCs, SCADA servers, and historians.", ["OPC UA Process Monitoring", "Industrial Tag Telemetry"]),
+        (DISK_PLUGIN_ID, "IIIOT-Veda Disk Monitoring", "disk", "Collects filesystem capacity, free space, inode usage, and disk I/O metrics.", ["Disk Capacity Monitoring", "Disk I/O Monitoring"]),
+        (NETWORK_PLUGIN_ID, "IIIOT-Veda Network Monitoring", "network", "Collects interface traffic, packet, error, and drop metrics.", ["Network Interface Monitoring", "Network Error Monitoring"]),
+        (MQTT_PLUGIN_ID, "IIIOT-Veda MQTT Consumer", "mqtt", "Consumes IoT and gateway telemetry from configured MQTT topics.", ["MQTT Device Telemetry", "Gateway Data Ingestion"]),
+        (MODBUS_PLUGIN_ID, "IIIOT-Veda Modbus", "modbus", "Polls configured Modbus TCP or serial registers from industrial equipment.", ["Modbus Equipment Monitoring", "Register Telemetry"]),
+        (OPCUA_PLUGIN_ID, "IIIOT-Veda OPC UA", "opcua", "Reads configured OPC UA nodes from PLCs, SCADA servers, and historians.", ["OPC UA Process Monitoring", "Industrial Tag Telemetry"]),
+        (NETWORK_DIAGNOSTICS_PLUGIN_ID, "IIIOT-Veda Network Diagnostics", "network-diagnostics", "Checks reachability, ports, HTTP endpoints, DNS, certificates, and connection states.", ["Network Availability", "Endpoint and Certificate Monitoring"]),
+        (EMAIL_MONITORING_PLUGIN_ID, "IIIOT-Veda Email Monitoring", "email-monitoring", "Checks SMTP or IMAP reachability, response banners, latency, and TLS certificate expiry.", ["Mail Service Availability", "Mail Certificate Monitoring"]),
+        (SERVER_MONITORING_PLUGIN_ID, "IIIOT-Veda Server Monitoring", "server-monitoring", "Collects uptime, load, swap, process counts, and selected service health.", ["Server Health", "Process and Service Monitoring"]),
+        (DESKTOP_MONITORING_PLUGIN_ID, "IIIOT-Veda Desktop Monitoring", "desktop-monitoring", "Collects workstation health, process, operating system, and service metrics.", ["Desktop Health", "Workstation Service Monitoring"]),
     ]
     PLUGIN_CATALOG.setdefault(TELEGRAF_PLUGIN_ID, cpu)
     PLUGIN_CATALOG.setdefault(MEMORY_PLUGIN_ID, memory)
@@ -230,7 +242,7 @@ def _seed_default_plugins() -> None:
             "icon": kind,
             "short_description": description,
             "detailed_description": description,
-            "tags": ["telegraf", kind, "monitoring"],
+            "tags": ["iiiot-veda", kind, "monitoring"],
             "capabilities": [{
                 "id": f"{kind}.live_metrics",
                 "name": f"Live {spec['label']} Metrics",
@@ -249,10 +261,13 @@ def _seed_default_plugins() -> None:
 def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
     metadata = row.metadata_json or {}
     target_os = row.target_os
+    branded_name = (row.name or "").replace("Telegraf", "IIIOT-Veda")
+    branded_installer = (row.installer_filename or "").replace("telegraf", "iiiot-veda").replace("Telegraf", "IIIOT-Veda")
+    branded_bundle = (row.bundle_filename or "").replace("telegraf", "iiiot-veda").replace("Telegraf", "IIIOT-Veda")
     return {
         "id": row.id,
         "slug": row.id,
-        "name": row.name,
+        "name": branded_name,
         "version": row.version,
         "category": row.category,
         "short_description": row.short_description,
@@ -261,7 +276,7 @@ def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
         "target_os": target_os,
         "supported_os": [target_os],
         "supported_architectures": [row.architecture],
-        "tags": ["telegraf", HOST_PLUGIN_SPECS[row.id]["kind"], "monitoring"],
+        "tags": ["iiiot-veda", HOST_PLUGIN_SPECS[row.id]["kind"], "monitoring"],
         "capabilities": metadata.get("capabilities", PLUGIN_CATALOG[row.id]["capabilities"]),
         "use_cases": metadata.get("use_cases", PLUGIN_CATALOG[row.id]["use_cases"]),
         "setup_modes": ["Download and confirm"],
@@ -272,20 +287,20 @@ def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
         "connection_status": row.connection_status,
         "last_metric_received": row.last_metric_received.isoformat() + "Z" if row.last_metric_received else None,
         "installer": {
-            "filename": row.installer_filename,
+            "filename": branded_installer,
             "size_bytes": row.installer_size_bytes,
             "checksum_sha256": row.installer_checksum_sha256,
             "status": "verified",
             "storage_key": row.installer_path,
         },
         "overall_installer": {
-            "filename": row.bundle_filename,
+            "filename": branded_bundle,
             "size_bytes": row.bundle_size_bytes or 0,
             "checksum_sha256": row.bundle_checksum_sha256,
             "status": "verified" if row.bundle_path else "not_generated",
             "storage_key": row.bundle_path,
         },
-        "versions": [{"version": row.version, "filename": row.installer_filename, "status": "published"}],
+        "versions": [{"version": row.version, "filename": branded_installer, "status": "published"}],
     }
 
 
@@ -1820,7 +1835,7 @@ async def plugin_preflight(plugin_id: str, request: Request, db: AsyncSession = 
         "plugin_id": plugin_id,
         "status": "pass" if os_matches and architecture_matches and installer_exists else "fail",
         "checks": [
-            {"name": "installers_available", "passed": installer_exists, "message": "The Telegraf installer and overall MAI plugin bundle exist in backend storage."},
+            {"name": "installers_available", "passed": installer_exists, "message": "The IIIOT-Veda installer and overall MAI plugin bundle exist in backend storage."},
             {"name": "target_os", "passed": os_matches, "message": f"Package target is {plugin_os}; current system is {requested_os}."},
             {"name": "architecture", "passed": architecture_matches, "message": f"Package architecture is {(plugin.get('supported_architectures') or ['unknown'])[0]}; current system is {current['architecture']}."},
         ],
@@ -1874,7 +1889,7 @@ async def create_plugin_installation(plugin_id: str, request: Request, db: Async
             "Installation confirmed by administrator",
             "Waiting for host metrics",
         ],
-        "message": "Installation confirmed. Waiting for Telegraf metrics.",
+        "message": "Installation confirmed. Waiting for IIIOT-Veda metrics.",
     }
     PLUGIN_JOBS[job_id] = job
     plugin["installation_status"] = "waiting_for_data"
@@ -1882,7 +1897,7 @@ async def create_plugin_installation(plugin_id: str, request: Request, db: Async
     if row:
         row.installation_status = "waiting_for_data"
         await db.commit()
-    return {"job_id": job_id, "status": "waiting_for_data", "plugin_id": plugin_id, "message": "Installation confirmed. Verify the plugin after Telegraf starts sending metrics."}
+    return {"job_id": job_id, "status": "waiting_for_data", "plugin_id": plugin_id, "message": "Installation confirmed. Verify the plugin after IIIOT-Veda starts sending metrics."}
 
 
 @router.get("/api/plugins/jobs/{job_id}")
@@ -1910,7 +1925,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     except Exception as exc:
         await db.rollback()
         metric = None
-        verification_error = "Unable to read telemetry. Check PostgreSQL connectivity and Telegraf ingestion."
+        verification_error = "Unable to read telemetry. Check PostgreSQL connectivity and IIIOT-Veda ingestion."
         logging.getLogger(__name__).warning("Plugin verification failed: %s", type(exc).__name__)
     success = metric is not None
     metric_time_value = (metric or {}).get("time")
@@ -1940,7 +1955,7 @@ async def get_telegraf_cpu_utilization(
     limit: int = 1200,
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Return recent PostgreSQL CPU telemetry for the connected Telegraf use case."""
+    """Return recent PostgreSQL CPU telemetry for the connected IIIOT-Veda use case."""
     minutes = max(1, min(minutes, 24 * 60))
     limit = max(1, min(limit, 5000))
     try:
@@ -1964,7 +1979,7 @@ async def get_telegraf_cpu_utilization(
         detail = (
             "PostgreSQL CPU telemetry did not respond within 8 seconds. Retrying on the next refresh."
             if isinstance(exc, TimeoutError)
-            else "CPU telemetry could not be read from PostgreSQL. Check database connectivity and Telegraf ingestion."
+            else "CPU telemetry could not be read from PostgreSQL. Check database connectivity and IIIOT-Veda ingestion."
         )
         logging.getLogger(__name__).warning("CPU telemetry query failed: %s", type(exc).__name__)
         raise HTTPException(status_code=503, detail=detail) from exc
@@ -2014,7 +2029,7 @@ async def get_telegraf_memory_utilization(
     except Exception as exc:
         await db.rollback()
         logging.getLogger(__name__).warning("Memory telemetry query failed: %s", type(exc).__name__)
-        raise HTTPException(status_code=503, detail="Memory telemetry is unavailable. Check PostgreSQL connectivity and Telegraf ingestion.") from exc
+        raise HTTPException(status_code=503, detail="Memory telemetry is unavailable. Check PostgreSQL connectivity and IIIOT-Veda ingestion.") from exc
 
 
 @router.get("/api/plugins/{plugin_id}/telemetry")
@@ -2024,8 +2039,8 @@ async def get_connector_telemetry(
     limit: int = 1200,
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Return normalized rows for Disk, Network, MQTT, Modbus, and OPC UA."""
-    if plugin_id not in {DISK_PLUGIN_ID, NETWORK_PLUGIN_ID, MQTT_PLUGIN_ID, MODBUS_PLUGIN_ID, OPCUA_PLUGIN_ID}:
+    """Return normalized rows for host, network, messaging, and industrial connectors."""
+    if plugin_id not in {DISK_PLUGIN_ID, NETWORK_PLUGIN_ID, MQTT_PLUGIN_ID, MODBUS_PLUGIN_ID, OPCUA_PLUGIN_ID, NETWORK_DIAGNOSTICS_PLUGIN_ID, EMAIL_MONITORING_PLUGIN_ID, SERVER_MONITORING_PLUGIN_ID, DESKTOP_MONITORING_PLUGIN_ID}:
         raise HTTPException(status_code=404, detail="Connector telemetry endpoint not found")
     from .host_telemetry import connector_payload
     spec = HOST_PLUGIN_SPECS[plugin_id]
@@ -2034,7 +2049,7 @@ async def get_connector_telemetry(
     except Exception as exc:
         await db.rollback()
         logging.getLogger(__name__).warning("%s telemetry query failed: %s", spec["label"], type(exc).__name__)
-        raise HTTPException(status_code=503, detail=f"{spec['label']} telemetry is unavailable. Check PostgreSQL and Telegraf ingestion.") from exc
+        raise HTTPException(status_code=503, detail=f"{spec['label']} telemetry is unavailable. Check PostgreSQL and IIIOT-Veda ingestion.") from exc
 
 
 @router.get("/api/plugins/{plugin_id}/download")
@@ -2046,7 +2061,7 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Plugin not found")
     row = await db.get(PluginRegistration, plugin_id)
     if not row:
-        raise HTTPException(status_code=404, detail="Registered Telegraf installer is not available")
+        raise HTTPException(status_code=404, detail="Registered IIIOT-Veda installer is not available")
     existing_path = Path(row.bundle_path).resolve() if row.bundle_path else None
     bundle_is_postgresql = (row.metadata_json or {}).get("telemetry_destination") == "postgresql"
     expected_bundle_suffix = ".exe" if row.target_os == "windows" else ".tar.gz"

@@ -129,7 +129,7 @@ schema.measurements(bucket: "{bucket}")'''
 
 
 def get_latest_telegraf_cpu_metric(minutes: int = 10) -> Dict[str, Any] | None:
-    """Return the newest Telegraf CPU point, or None when no recent data exists."""
+    """Return the newest host CPU point, or None when no recent data exists."""
     bucket = get_active_influx_bucket().replace('"', '\\"')
     flux = f'''from(bucket: "{bucket}")
   |> range(start: -{max(1, min(minutes, 1440))}m)

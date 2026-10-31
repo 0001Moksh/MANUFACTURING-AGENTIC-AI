@@ -25,6 +25,7 @@ const OS_LABELS: Record<string, string> = {
   'linux-archive': 'Linux (.tar.gz / .tgz)',
   macos: 'macOS (.pkg / .dmg / archive)',
 };
+const brandedFilename = (filename?: string, fallback = 'Not generated') => filename ? filename.replace(/telegraf/gi, 'iiiot-veda') : fallback;
 
 export const PluginSettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export const PluginSettingsPage: React.FC = () => {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-[1200px] p-6 md:p-10">
       <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div><div className="text-[11px] font-bold uppercase tracking-[0.5px] text-muted">Plugin administration</div><h1 className="mt-2 font-head text-[30px] font-extrabold text-ink">Plugin Settings</h1><p className="mt-2 text-[12.5px] text-muted">Manage Telegraf host, messaging, and industrial connectors.</p></div>
+        <div><div className="text-[11px] font-bold uppercase tracking-[0.5px] text-muted">Plugin administration</div><h1 className="mt-2 font-head text-[30px] font-extrabold text-ink">Plugin Settings</h1><p className="mt-2 text-[12.5px] text-muted">Manage IIIOT-Veda host, messaging, and industrial connectors.</p></div>
         <button onClick={() => navigate('/plugins')} className="inline-flex items-center gap-2 rounded-xl bg-navy-900 px-4 py-2.5 text-[12.5px] font-bold text-white cursor-pointer"><ArrowLeft className="h-4 w-4" /> Back to Plugins</button>
       </div>
 
@@ -49,8 +50,8 @@ export const PluginSettingsPage: React.FC = () => {
             <div className="mt-4 space-y-2 rounded-xl bg-canvas p-3 text-[11px] text-muted">
               <div className="flex justify-between gap-3"><span>Target OS</span><span className="text-right font-semibold text-ink">{OS_LABELS[plugin.target_os || ''] || plugin.target_os || 'Select during registration'}</span></div>
               <div className="flex justify-between gap-3"><span>Architecture</span><span className="font-semibold text-ink">{plugin.supported_architectures?.[0] || 'Select during registration'}</span></div>
-              <div className="flex justify-between gap-3"><span>Telegraf installer</span><span className="truncate font-semibold text-ink">{plugin.installer?.filename || 'Not uploaded'}</span></div>
-              <div className="flex justify-between gap-3"><span>Overall bundle</span><span className="truncate font-semibold text-ink">{plugin.overall_installer?.filename || 'Not generated'}</span></div>
+              <div className="flex justify-between gap-3"><span>IIIOT-Veda installer</span><span className="truncate font-semibold text-ink">{brandedFilename(plugin.installer?.filename, 'Not uploaded')}</span></div>
+              <div className="flex justify-between gap-3"><span>Overall bundle</span><span className="truncate font-semibold text-ink">{brandedFilename(plugin.overall_installer?.filename)}</span></div>
               <div className="flex justify-between gap-3"><span>Status</span><span className="font-semibold text-ink">{plugin.connection_status === 'connected' ? 'Connected' : plugin.installation_status?.replaceAll('_', ' ') || 'Not registered'}</span></div>
             </div>
             <button onClick={() => navigate('/plugins')} className="mt-5 w-full rounded-xl border border-border-color bg-white px-3 py-2.5 text-[12px] font-bold text-ink cursor-pointer">Manage registration and setup</button>

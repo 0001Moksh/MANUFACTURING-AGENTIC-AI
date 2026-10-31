@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
 import { pluginService } from '../services/api';
 
-const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]);
+const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37]);
 
 const CPU_USE_CASE = {
   id: 27,
@@ -14,22 +14,26 @@ const CPU_USE_CASE = {
   title: 'CPU Utilization Monitoring',
   tags: ['IOT', 'ML'],
   status: 'live' as const,
-  desc: 'Live host and per-core CPU utilization collected by the connected Telegraf plugin and stored in PostgreSQL.',
+  desc: 'Live host and per-core CPU utilization collected by the connected IIIOT-Veda plugin and stored in PostgreSQL.',
   impact: 'One live view of overall and per-core CPU load, user time, system time and idle capacity.',
 };
 
 const MEMORY_USE_CASE = {
   id: 28, pillar: 'sustain', title: 'Memory Utilization Monitoring', tags: ['IOT'], status: 'live' as const,
-  desc: 'Live RAM usage and available memory collected by Telegraf for each host.',
+  desc: 'Live RAM usage and available memory collected by IIIOT-Veda for each host.',
   impact: 'Track memory capacity, usage trends and hosts with high memory utilization.',
 };
 
 const CONNECTOR_USE_CASES = [
-  { id: 29, pluginId: 'telegraf-disk-monitoring', pillar: 'sustain', title: 'Disk Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Filesystem capacity, inode utilization, and disk I/O collected by Telegraf.', impact: 'Detect low storage capacity and storage performance bottlenecks.' },
-  { id: 30, pluginId: 'telegraf-network-monitoring', pillar: 'sustain', title: 'Network Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Interface traffic, errors, and dropped packets collected by Telegraf.', impact: 'Track network throughput and identify unhealthy interfaces.' },
+  { id: 29, pluginId: 'telegraf-disk-monitoring', pillar: 'sustain', title: 'Disk Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Filesystem capacity, inode utilization, and disk I/O collected by IIIOT-Veda.', impact: 'Detect low storage capacity and storage performance bottlenecks.' },
+  { id: 30, pluginId: 'telegraf-network-monitoring', pillar: 'sustain', title: 'Network Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Interface traffic, errors, and dropped packets collected by IIIOT-Veda.', impact: 'Track network throughput and identify unhealthy interfaces.' },
   { id: 31, pluginId: 'telegraf-mqtt-consumer', pillar: 'connect', title: 'MQTT Device Telemetry', tags: ['IOT'], status: 'live' as const, desc: 'IoT and gateway messages consumed from configured MQTT topics.', impact: 'Bring device and gateway telemetry into the MAI data pipeline.' },
   { id: 32, pluginId: 'telegraf-modbus', pillar: 'connect', title: 'Modbus Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Industrial registers polled from configured Modbus equipment.', impact: 'Monitor PLCs, meters, drives, and sensors over Modbus.' },
   { id: 33, pluginId: 'telegraf-opcua', pillar: 'connect', title: 'OPC UA Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Process tags read from configured OPC UA servers.', impact: 'Connect PLC, SCADA, historian, and Kepware data to MAI.' },
+  { id: 34, pluginId: 'iiiot-veda-network-diagnostics', pillar: 'connect', title: 'Network Diagnostics', tags: ['IOT'], status: 'live' as const, desc: 'Reachability, latency, ports, HTTP, DNS, and certificate checks.', impact: 'Detect endpoint, network, and certificate problems before services fail.' },
+  { id: 35, pluginId: 'iiiot-veda-email-monitoring', pillar: 'connect', title: 'Email Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'SMTP and IMAP availability, response, and certificate checks.', impact: 'Identify mail service outages and expiring certificates.' },
+  { id: 36, pluginId: 'iiiot-veda-server-monitoring', pillar: 'sustain', title: 'Server Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Uptime, load, swap, process, and service health telemetry.', impact: 'Track server health and critical workloads from one live view.' },
+  { id: 37, pluginId: 'iiiot-veda-desktop-monitoring', pillar: 'sustain', title: 'Desktop Monitoring', tags: ['IOT'], status: 'live' as const, desc: 'Desktop operating-system, process, and service health telemetry.', impact: 'Monitor Linux, macOS, and Windows workstation health.' },
 ];
 
 export const UseCasesPage: React.FC = () => {

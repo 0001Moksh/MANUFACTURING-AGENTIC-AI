@@ -1,4 +1,4 @@
-"""Normalize platform-dependent Telegraf memory fields without inventing values."""
+"""Normalize platform-dependent IIIOT-Veda memory fields without inventing values."""
 import math
 
 MEMORY_FIELDS = ("total", "used", "available", "free", "cached", "buffered", "used_percent", "available_percent")

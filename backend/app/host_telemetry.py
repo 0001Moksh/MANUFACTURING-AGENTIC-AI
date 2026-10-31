@@ -7,6 +7,9 @@ from .memory_telemetry import memory_sample
 HOST_TABLES = {
     "telegraf_cpu", "telegraf_mem", "telegraf_disk", "telegraf_diskio",
     "telegraf_net", "telegraf_mqtt", "telegraf_modbus", "telegraf_opcua",
+    "iiiot_veda_ping", "iiiot_veda_http_response", "iiiot_veda_dns_query", "iiiot_veda_net_response", "iiiot_veda_x509_cert", "iiiot_veda_netstat",
+    "iiiot_veda_email_response", "iiiot_veda_email_cert", "iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat",
+    "iiiot_veda_desktop_system", "iiiot_veda_desktop_processes",
 }
 
 
@@ -16,7 +19,7 @@ async def latest_plugin_metric(db, table):
     async with asyncio.timeout(8):
         exists = (await db.execute(text("SELECT to_regclass(:table)"), {"table": f"public.{table}"})).scalar()
         if not exists:
-            return None, "No telemetry table yet. Check the Telegraf service and PostgreSQL output."
+            return None, "No telemetry table yet. Check the IIIOT-Veda service and PostgreSQL output."
         result = await db.execute(text(f'''SELECT "time", host FROM public.{table}
             WHERE "time" >= NOW() - INTERVAL '10 minutes'
             ORDER BY "time" DESC LIMIT 1'''))

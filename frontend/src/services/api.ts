@@ -218,17 +218,17 @@ export const pluginService = {
       return [
         {
           id: 'telegraf-cpu-monitoring',
-          name: 'Telegraf CPU Monitoring',
+          name: 'IIIOT-Veda CPU Monitoring',
           slug: 'telegraf-cpu-monitoring',
           version: '1.0.0',
           category: 'Monitoring',
-          short_description: 'Collects live CPU utilization and health metrics via Telegraf.',
+          short_description: 'Collects live CPU utilization and health metrics via IIIOT-Veda.',
           detailed_description: 'Collects CPU utilization, per-core metrics, and host health from the target system.',
           icon: 'cpu',
           target_os: 'linux-rpm',
           supported_os: ['linux-rpm'],
           supported_architectures: ['x86_64', 'arm64'],
-          tags: ['telegraf', 'cpu', 'infrastructure'],
+          tags: ['iiiot-veda', 'cpu', 'infrastructure'],
           capabilities: [
             { id: 'cpu.live_metrics', name: 'Live CPU Metrics' },
             { id: 'cpu.historical_trends', name: 'Historical Trends' },

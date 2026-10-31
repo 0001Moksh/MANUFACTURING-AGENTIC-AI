@@ -1,4 +1,4 @@
-"""Build a target-specific MAI Telegraf host monitoring plugin bundle from the CLI."""
+"""Build a target-specific IIIOT-Veda monitoring plugin bundle from the CLI."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua"}
+PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
 
 
 def _host_base_config() -> str:
@@ -72,7 +72,7 @@ def _connector_config(plugin: str) -> str:
         "network": '''[[inputs.net]]
   name_override = "telegraf_net"
 ''',
-        "mqtt": '''# Edit this file before installation. Edit the installed copy later and restart Telegraf.
+        "mqtt": '''# Edit this file before installation. Edit the installed copy later and restart the IIIOT-Veda service.
 [[inputs.mqtt_consumer]]
   name_override = "telegraf_mqtt"
   servers = ["tcp://127.0.0.1:1883"]
@@ -119,6 +119,84 @@ def _connector_config(plugin: str) -> str:
   nodes = [
     { name = "value", id = "ns=2;s=Device.Value" },
   ]
+''',
+        "network-diagnostics": '''# IIIOT-Veda network checks. Replace the example targets before installation.
+[[inputs.ping]]
+  name_override = "iiiot_veda_ping"
+  urls = ["8.8.8.8", "192.168.1.1"]
+  count = 3
+  method = "native"
+
+[[inputs.http_response]]
+  name_override = "iiiot_veda_http_response"
+  urls = ["https://example.com"]
+  response_timeout = "5s"
+
+[[inputs.dns_query]]
+  name_override = "iiiot_veda_dns_query"
+  servers = ["8.8.8.8"]
+  domains = ["example.com"]
+
+[[inputs.net_response]]
+  name_override = "iiiot_veda_net_response"
+  protocol = "tcp"
+  address = "example.com:443"
+  timeout = "5s"
+
+[[inputs.x509_cert]]
+  name_override = "iiiot_veda_x509_cert"
+  sources = ["https://example.com:443"]
+
+[[inputs.netstat]]
+  name_override = "iiiot_veda_netstat"
+''',
+        "email-monitoring": '''# IIIOT-Veda email endpoint checks. Replace the example mail host.
+[[inputs.net_response]]
+  name_override = "iiiot_veda_email_response"
+  protocol = "tcp"
+  address = "mail.example.com:587"
+  timeout = "5s"
+  read_timeout = "5s"
+  expect = "220"
+
+[[inputs.x509_cert]]
+  name_override = "iiiot_veda_email_cert"
+  sources = ["smtp://mail.example.com:587"]
+
+# Optional on a Postfix server:
+# [[inputs.postfix]]
+#   name_override = "iiiot_veda_postfix"
+''',
+        "server-monitoring": '''# IIIOT-Veda server health checks.
+[[inputs.system]]
+  name_override = "iiiot_veda_system"
+[[inputs.swap]]
+  name_override = "iiiot_veda_swap"
+[[inputs.processes]]
+  name_override = "iiiot_veda_processes"
+
+# Add one block per important process or service.
+[[inputs.procstat]]
+  name_override = "iiiot_veda_procstat"
+  pattern = "nginx|postgres|mysql"
+
+# Optional; enable only when the host provides the required sensors/tools.
+# [[inputs.sensors]]
+#   name_override = "iiiot_veda_sensors"
+# [[inputs.smart]]
+#   name_override = "iiiot_veda_smart"
+''',
+        "desktop-monitoring": '''# IIIOT-Veda desktop health checks. CPU and memory are supplied by the shared host baseline.
+[[inputs.system]]
+  name_override = "iiiot_veda_desktop_system"
+[[inputs.processes]]
+  name_override = "iiiot_veda_desktop_processes"
+
+# Windows-specific inputs can be added here when required:
+# [[inputs.win_services]]
+#   name_override = "iiiot_veda_win_services"
+# [[inputs.win_eventlog]]
+#   name_override = "iiiot_veda_win_eventlog"
 ''',
     }
     if plugin not in configs:
@@ -170,7 +248,7 @@ case "${{package_path}}" in
     binary="$(find "${{temp_dir}}" -type f -name telegraf -perm /111 | head -n 1)"
     sudo install -m 0755 "${{binary}}" /usr/local/bin/telegraf
     ;;
-  *) echo "Unsupported Telegraf package: ${{package_path}}" >&2; exit 1 ;;
+  *) echo "Unsupported IIIOT-Veda runtime package: ${{package_path}}" >&2; exit 1 ;;
 esac
 
 sudo install -d -m 0755 /etc/telegraf/telegraf.d
@@ -193,7 +271,7 @@ if command -v systemctl >/dev/null 2>&1; then
   sudo systemctl enable --now telegraf
   sudo systemctl restart telegraf
 fi
-echo "MAI Telegraf {plugin} plugin installed."
+echo "MAI IIIOT-Veda {plugin} plugin installed."
 '''
 
 
@@ -239,14 +317,14 @@ case "${{package_path}}" in
       sudo installer -pkg "${{pkg}}" -target /
     else
       binary="$(find "${{mount_dir}}" -type f -name telegraf -perm +111 | head -n 1)"
-      [[ -n "${{binary}}" ]] || {{ echo "No Telegraf installer was found in the DMG." >&2; exit 1; }}
+      [[ -n "${{binary}}" ]] || {{ echo "No IIIOT-Veda runtime installer was found in the DMG." >&2; exit 1; }}
       sudo install -m 0755 "${{binary}}" /usr/local/bin/telegraf
     fi
     hdiutil detach "${{mount_dir}}"
     rm -rf "${{mount_dir}}"
     trap - EXIT
     ;;
-  *) echo "Unsupported Telegraf package: ${{package_path}}" >&2; exit 1 ;;
+  *) echo "Unsupported IIIOT-Veda runtime package: ${{package_path}}" >&2; exit 1 ;;
 esac
 
 sudo install -d -m 0755 /usr/local/etc/telegraf.d
@@ -269,7 +347,7 @@ if [[ -s "${{script_dir}}/mai-connector.conf" ]]; then
   sudo install -m 0640 "${{rendered_connector}}" "/usr/local/etc/telegraf.d/mai-{plugin}.conf"
   rm -f "${{rendered_connector}}" "${{rendered_connector}}.bak"
 fi
-echo "MAI Telegraf {plugin} plugin files installed. Start or restart Telegraf, then verify in MAI."
+echo "MAI IIIOT-Veda {plugin} plugin files installed. Start or restart the IIIOT-Veda service, then verify in MAI."
 '''
 
 
@@ -284,13 +362,13 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 }}
 $BundleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Package = Join-Path $BundleDir "{package_name}"
-$ConfigDir = Join-Path $env:ProgramFiles "Telegraf\\telegraf.d"
+$ConfigDir = Join-Path $env:ProgramFiles "IIIOT-Veda\\config"
 $ExistingOutput = Join-Path $ConfigDir "mai-output.conf"
 if (-not $env:POSTGRES_DSN -and -not (Test-Path $ExistingOutput)) {{
   Add-Type -AssemblyName Microsoft.VisualBasic
   $env:POSTGRES_DSN = [Microsoft.VisualBasic.Interaction]::InputBox(
     "Enter the PostgreSQL connection URL used by the MAI host monitoring plugins.",
-    "MAI Telegraf Host Monitoring",
+    "IIIOT-Veda Monitoring",
     "postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable"
   )
 }}
@@ -307,7 +385,7 @@ if ($env:POSTGRES_DSN -and (-not [Uri]::TryCreate($env:POSTGRES_DSN, [UriKind]::
   throw "Enter a real PostgreSQL URL for the MAI database. Replace USER, PASSWORD, HOST and DATABASE; do not use a +asyncpg URL."
 }}
 
-# Release the running binary before updating the shared Telegraf installation.
+# Release the running agent before updating the shared IIIOT-Veda installation.
 $ExistingService = Get-Service -Name "telegraf" -ErrorAction SilentlyContinue
 if ($ExistingService -and $ExistingService.Status -ne 'Stopped') {{
   Stop-Service -Name "telegraf" -Force
@@ -319,11 +397,11 @@ if ($Package.EndsWith(".msi")) {{
 }} elseif ($Package.EndsWith(".exe")) {{
   Start-Process $Package -Wait -Verb RunAs
 }} elseif ($Package.EndsWith(".zip")) {{
-  $Target = Join-Path $env:ProgramFiles "Telegraf"
+  $Target = Join-Path $env:ProgramFiles "IIIOT-Veda"
   New-Item -ItemType Directory -Force -Path $Target | Out-Null
   Expand-Archive -Path $Package -DestinationPath $Target -Force
 }} else {{
-  throw "Unsupported Telegraf package: $Package"
+  throw "Unsupported IIIOT-Veda runtime package: $Package"
 }}
 
 New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
@@ -346,21 +424,21 @@ if ((Test-Path $ConnectorPath) -and (Get-Item $ConnectorPath).Length -gt 0) {{
   }}
   $ConnectorTemplate | Set-Content (Join-Path $ConfigDir "mai-{plugin}.conf") -Encoding UTF8
 }}
-$TelegrafExe = Get-ChildItem (Join-Path $env:ProgramFiles "Telegraf") -Filter "telegraf.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $TelegrafExe) {{ throw "telegraf.exe was not found after installation." }}
-if ($TelegrafExe) {{
+$AgentExe = Get-ChildItem (Join-Path $env:ProgramFiles "IIIOT-Veda") -Filter "telegraf.exe" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $AgentExe) {{ throw "The IIIOT-Veda runtime was not found after installation." }}
+if ($AgentExe) {{
   $Service = Get-Service -Name "telegraf" -ErrorAction SilentlyContinue
   if ($Service) {{
     Stop-Service -Name "telegraf" -Force
-    & $TelegrafExe.FullName --service uninstall
-    if ($LASTEXITCODE -ne 0) {{ throw "Could not update the existing Telegraf service." }}
+    & $AgentExe.FullName --service uninstall
+    if ($LASTEXITCODE -ne 0) {{ throw "Could not update the existing IIIOT-Veda service." }}
   }}
-  & $TelegrafExe.FullName --service install --config-directory $ConfigDir
-  if ($LASTEXITCODE -ne 0) {{ throw "Could not install the Telegraf service." }}
+  & $AgentExe.FullName --service install --config-directory $ConfigDir
+  if ($LASTEXITCODE -ne 0) {{ throw "Could not install the IIIOT-Veda service." }}
   Start-Service -Name "telegraf"
   (Get-Service -Name "telegraf").WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
 }}
-Write-Host "MAI Telegraf host monitoring plugin installed. Start or restart the Telegraf service, then verify in MAI."
+Write-Host "IIIOT-Veda monitoring plugin installed. Start or restart the IIIOT-Veda service, then verify in MAI."
 '''
 
 
@@ -393,9 +471,9 @@ def _installation_readme(target_os: str, plugin: str) -> str:
    Later plugin installations reuse /etc/telegraf/telegraf.d/mai-output.conf.
 2. Edit mai-connector.conf with the source settings and all required measurements.
 3. Run: ./install.sh'''
-    return f'''# MAI Telegraf Host Monitoring
+    return f'''# IIIOT-Veda Monitoring
 
-This bundle installs the Telegraf {plugin} connector and writes metrics to PostgreSQL.
+This bundle installs the IIIOT-Veda {plugin} connector and writes metrics to PostgreSQL.
 Use a PostgreSQL URL that the target machine can reach. Do not include a
 SQLAlchemy driver suffix such as `+asyncpg` in the URL.
 
@@ -406,10 +484,10 @@ SQLAlchemy driver suffix such as `+asyncpg` in the URL.
 The installer keeps connector inputs in separate files and one shared PostgreSQL output.
 Installing another connector preserves connectors already installed.
 Connector settings can be changed later in `/etc/telegraf/telegraf.d/mai-{plugin}.conf`;
-validate the configuration and restart Telegraf after editing it.
+validate the configuration and restart the IIIOT-Veda service after editing it.
 CPU and memory remain enabled as the host baseline.
-On macOS, start Telegraf with --config-directory /usr/local/etc/telegraf.d.
-On Linux archive installations, a working Telegraf service must already exist. The database user needs
+On macOS, start the IIIOT-Veda service with --config-directory /usr/local/etc/telegraf.d.
+On Linux archive installations, a working IIIOT-Veda service must already exist. The database user needs
 CONNECT, USAGE/CREATE on the public schema, and table insert/update privileges.
 After installation, return to MAI, confirm installation, and verify the plugin.
 '''
@@ -424,20 +502,21 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         raise ValueError(f"Unsupported architecture: {architecture}")
     installer = telegraf_installer.resolve()
     if not installer.is_file():
-        raise FileNotFoundError(f"Telegraf installer not found: {installer}")
+        raise FileNotFoundError(f"IIIOT-Veda runtime installer not found: {installer}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    bundle_base = f"mai-telegraf-{plugin}-{target_os}-{architecture}"
+    bundle_base = f"iiiot-veda-{plugin}-{target_os}-{architecture}"
     with tempfile.TemporaryDirectory(prefix="mai-plugin-") as temporary:
         staging = Path(temporary) / bundle_base
         staging.mkdir()
-        copied_installer = staging / installer.name
+        installer_suffix = "".join(installer.suffixes)
+        copied_installer = staging / f"iiiot-veda-runtime{installer_suffix}"
         shutil.copy2(installer, copied_installer)
         (staging / "mai-host-base.conf").write_text(_host_base_config(), encoding="utf-8")
         (staging / "mai-output.conf").write_text(_output_config(), encoding="utf-8")
         (staging / "mai-connector.conf").write_text(_connector_config(plugin), encoding="utf-8")
         (staging / "mai-settings.env").write_text(
-            "# Required only for the first MAI Telegraf plugin on this host.\n"
+            "# Required only for the first IIIOT-Veda plugin on this host.\n"
             "# Keep this file private because it contains database credentials.\n"
             "POSTGRES_DSN=''\n"
             "# Example: postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable\n",
@@ -448,14 +527,18 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "cpu": ["telegraf_cpu"], "memory": ["telegraf_mem"],
             "disk": ["telegraf_disk", "telegraf_diskio"], "network": ["telegraf_net"],
             "mqtt": ["telegraf_mqtt"], "modbus": ["telegraf_modbus"], "opcua": ["telegraf_opcua"],
+            "network-diagnostics": ["iiiot_veda_ping", "iiiot_veda_http_response", "iiiot_veda_dns_query", "iiiot_veda_net_response", "iiiot_veda_x509_cert", "iiiot_veda_netstat"],
+            "email-monitoring": ["iiiot_veda_email_response", "iiiot_veda_email_cert"],
+            "server-monitoring": ["iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat"],
+            "desktop-monitoring": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"],
         }[plugin]
         manifest = {
-            "plugin": f"Telegraf {plugin.title()} Connector",
+            "plugin": f"IIIOT-Veda {plugin.replace('-', ' ').title()}",
             "version": "1.0.0",
             "target_os": target_os,
             "architecture": architecture,
-            "telegraf_installer": installer.name,
-            "telegraf_installer_sha256": _sha256(installer),
+            "runtime_installer": copied_installer.name,
+            "runtime_installer_sha256": _sha256(installer),
             "telemetry_destination": "postgresql",
             "measurement": tables[0],
             "measurements": tables,
@@ -465,12 +548,12 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
 
         if target_os == "windows":
             script = staging / "install.ps1"
-            script.write_text(_windows_installer(installer.name, plugin), encoding="utf-8")
+            script.write_text(_windows_installer(copied_installer.name, plugin), encoding="utf-8")
             bundle_path = output_dir / f"{bundle_base}.exe"
             _build_windows_executable(staging, bundle_path, architecture)
         else:
             script = staging / "install.sh"
-            script.write_text(_macos_installer(installer.name, plugin) if target_os == "macos" else _linux_installer(installer.name, plugin), encoding="utf-8")
+            script.write_text(_macos_installer(copied_installer.name, plugin) if target_os == "macos" else _linux_installer(copied_installer.name, plugin), encoding="utf-8")
             script.chmod(0o755)
             bundle_path = output_dir / f"{bundle_base}.tar.gz"
             with tarfile.open(bundle_path, "w:gz") as archive:
@@ -485,7 +568,7 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build the MAI Telegraf host monitoring plugin installation bundle.")
+    parser = argparse.ArgumentParser(description="Build the IIIOT-Veda monitoring plugin installation bundle.")
     parser.add_argument("--target-os", required=True, choices=sorted(TARGETS))
     parser.add_argument("--architecture", required=True, choices=sorted(ARCHITECTURES))
     parser.add_argument("--telegraf-installer", required=True, type=Path)

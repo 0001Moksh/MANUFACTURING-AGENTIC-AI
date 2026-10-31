@@ -15,6 +15,10 @@ const CONNECTORS: Record<string, { name: string; description: string }> = {
   'telegraf-mqtt-consumer': { name: 'MQTT Device Telemetry', description: 'Parsed measurements received from configured MQTT broker topics.' },
   'telegraf-modbus': { name: 'Modbus Monitoring', description: 'Register values polled from configured Modbus equipment.' },
   'telegraf-opcua': { name: 'OPC UA Monitoring', description: 'Process values read from configured OPC UA nodes.' },
+  'iiiot-veda-network-diagnostics': { name: 'Network Diagnostics', description: 'Reachability, latency, ports, HTTP, DNS, certificate, and connection-state metrics.' },
+  'iiiot-veda-email-monitoring': { name: 'Email Monitoring', description: 'SMTP or IMAP availability, response time, banner, and TLS certificate metrics.' },
+  'iiiot-veda-server-monitoring': { name: 'Server Monitoring', description: 'Uptime, load, swap, processes, and selected service health.' },
+  'iiiot-veda-desktop-monitoring': { name: 'Desktop Monitoring', description: 'Workstation operating-system and process health metrics.' },
 };
 
 const display = (value: unknown) => value == null ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);

@@ -167,7 +167,7 @@ class BundleTests(unittest.TestCase):
                                     self.assertIn('--config-directory $ConfigDir', script)
                             else:
                                 with tarfile.open(result['path']) as archive:
-                                    prefix = f'mai-telegraf-{plugin}-{target}-{arch}'
+                                    prefix = f'iiiot-veda-{plugin}-{target}-{arch}'
                                     base = archive.extractfile(prefix + '/mai-host-base.conf').read().decode()
                                     output = archive.extractfile(prefix + '/mai-output.conf').read().decode()
                                     connector = archive.extractfile(prefix + '/mai-connector.conf').read().decode()
@@ -178,7 +178,7 @@ class BundleTests(unittest.TestCase):
                             self.assertEqual(output, _output_config())
                             self.assertEqual(connector, _connector_config(plugin))
                             self.assertEqual(manifest['bundle_revision'], 4)
-                            self.assertIn(f'mai-telegraf-{plugin}-', result['filename'])
+                            self.assertIn(f'iiiot-veda-{plugin}-', result['filename'])
 
     def test_invalid_plugin_rejected(self):
         with self.assertRaises(ValueError): build_bundle('linux-rpm', 'x86_64', Path('unused'), Path('unused'), 'unknown')
