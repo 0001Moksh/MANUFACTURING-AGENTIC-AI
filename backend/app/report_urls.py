@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-REPORTS_DIR = os.path.abspath(os.getenv("REPORTS_DIR", "reports"))
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+REPORTS_DIR = str(
+    Path(os.getenv("REPORTS_DIR", str(BACKEND_DIR / "reports"))).expanduser().resolve()
+)
 
 
 def get_public_api_url() -> str:

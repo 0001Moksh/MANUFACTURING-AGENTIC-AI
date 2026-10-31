@@ -5,8 +5,10 @@ import hashlib
 import os
 import secrets
 import mimetypes
-import re
 import uuid
+import platform
+import subprocess
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Literal
@@ -17,15 +19,18 @@ import jwt
 import bcrypt
 import json
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select, update, func, delete
+from sqlalchemy import select, update, func, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.cpu_processes import process_snapshots
 
 from app.db import (
     get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot,
     mes_db_status, video_analytics_db_status, test_mes_connection, test_video_analytics_connection,
     AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
-    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig, MachineDocument
+    Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig, MachineDocument,
+    PluginRegistration,
 )
 from app.db import MachineRecommendation, MachineIssue, MachineDocumentChunk
 from app.machine_rag import index_machine_document, query_machine_documents
@@ -99,6 +104,31 @@ REPORT_APPROVAL_EMAIL_SECRET = os.getenv("REPORT_APPROVAL_EMAIL_SECRET", SECRET_
 
 PLUGIN_CATALOG: Dict[str, Dict[str, Any]] = {}
 PLUGIN_JOBS: Dict[str, Dict[str, Any]] = {}
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent / "plugin"
+PLUGIN_PACKAGER = Path(__file__).resolve().parent.parent / "plugin_packager.py"
+TELEGRAF_PLUGIN_ID = "telegraf-cpu-monitoring"
+MEMORY_PLUGIN_ID = "telegraf-memory-monitoring"
+DISK_PLUGIN_ID = "telegraf-disk-monitoring"
+NETWORK_PLUGIN_ID = "telegraf-network-monitoring"
+MQTT_PLUGIN_ID = "telegraf-mqtt-consumer"
+MODBUS_PLUGIN_ID = "telegraf-modbus"
+OPCUA_PLUGIN_ID = "telegraf-opcua"
+HOST_PLUGIN_SPECS = {
+    TELEGRAF_PLUGIN_ID: {"kind": "cpu", "input": "cpu", "table": "telegraf_cpu", "tables": ["telegraf_cpu"], "label": "CPU"},
+    MEMORY_PLUGIN_ID: {"kind": "memory", "input": "mem", "table": "telegraf_mem", "tables": ["telegraf_mem"], "label": "Memory"},
+    DISK_PLUGIN_ID: {"kind": "disk", "input": "disk", "table": "telegraf_disk", "tables": ["telegraf_disk", "telegraf_diskio"], "label": "Disk"},
+    NETWORK_PLUGIN_ID: {"kind": "network", "input": "net", "table": "telegraf_net", "tables": ["telegraf_net"], "label": "Network"},
+    MQTT_PLUGIN_ID: {"kind": "mqtt", "input": "mqtt_consumer", "table": "telegraf_mqtt", "tables": ["telegraf_mqtt"], "label": "MQTT"},
+    MODBUS_PLUGIN_ID: {"kind": "modbus", "input": "modbus", "table": "telegraf_modbus", "tables": ["telegraf_modbus"], "label": "Modbus"},
+    OPCUA_PLUGIN_ID: {"kind": "opcua", "input": "opcua", "table": "telegraf_opcua", "tables": ["telegraf_opcua"], "label": "OPC UA"},
+}
+PLUGIN_ALLOWED_EXTENSIONS = {
+    "windows": (".exe", ".msi", ".zip"),
+    "linux-deb": (".deb",),
+    "linux-rpm": (".rpm",),
+    "linux-archive": (".tar.gz", ".tgz"),
+    "macos": (".pkg", ".dmg", ".tar.gz", ".tgz", ".zip"),
+}
 
 
 def _agent_input_block(message: str, agent_name: str, thread_id: Optional[str] = None):
@@ -109,19 +139,17 @@ def _agent_input_block(message: str, agent_name: str, thread_id: Optional[str] =
 
 
 def _seed_default_plugins() -> None:
-    if PLUGIN_CATALOG:
-        return
-    PLUGIN_CATALOG["telegraf-cpu-monitoring"] = {
+    cpu = {
         "id": "telegraf-cpu-monitoring",
         "name": "Telegraf CPU Monitoring",
         "slug": "telegraf-cpu-monitoring",
         "version": "1.0.0",
         "category": "Monitoring",
         "short_description": "Collects live CPU utilization and health metrics via Telegraf.",
-        "detailed_description": "Collects CPU utilization, per-core metrics, and process telemetry from Windows hosts and forwards them to MAI-supported destinations.",
-        "publisher": "IIOT Infotech",
+        "detailed_description": "Collects CPU utilization, per-core metrics, and process telemetry from Windows, Linux, or macOS hosts and forwards them to MAI.",
         "icon": "cpu",
-        "supported_os": ["Windows Server 2019+", "Windows 11", "Linux"],
+        "target_os": "windows",
+        "supported_os": ["windows"],
         "supported_architectures": ["x86_64", "arm64"],
         "tags": ["telegraf", "cpu", "infrastructure"],
         "capabilities": [
@@ -131,16 +159,19 @@ def _seed_default_plugins() -> None:
             {"id": "cpu.agent_analysis", "name": "AI-Based CPU Analysis", "required_permissions": ["ai.insight.read"], "supported_features": ["ai_assessment"]},
         ],
         "use_cases": ["CPU Monitoring", "CPU Trends & Analytics", "High CPU Alerts", "AI-Based CPU Analysis"],
-        "setup_modes": ["Automatic", "Manual", "Both"],
+        "setup_modes": ["Download and confirm"],
         "published": True,
         "enabled": True,
-        "added_to_view": True,
-        "installation_status": "waiting_for_data",
+        "added_to_view": False,
+        "installation_status": "not_registered",
         "connection_status": "not_configured",
         "last_metric_received": None,
         "supported_platforms": [
-            {"os": "Windows", "architecture": "x86_64", "installer": "telegraf-1.0.0-windows-amd64.exe"},
-            {"os": "Linux", "architecture": "x86_64", "installer": "telegraf-1.0.0-linux-amd64.tar.gz"},
+            {"os": "Windows", "architecture": "x86_64", "package_types": [".exe", ".msi"]},
+            {"os": "Linux", "architecture": "x86_64", "package_types": [".deb", ".rpm", ".tar.gz"]},
+            {"os": "Linux", "architecture": "arm64", "package_types": [".deb", ".rpm", ".tar.gz"]},
+            {"os": "macOS", "architecture": "x86_64", "package_types": [".pkg", ".dmg"]},
+            {"os": "macOS", "architecture": "arm64", "package_types": [".pkg", ".dmg"]},
         ],
         "installer": {
             "filename": "telegraf-1.0.0-windows-amd64.exe",
@@ -149,14 +180,161 @@ def _seed_default_plugins() -> None:
             "status": "not_uploaded",
             "storage_key": None,
         },
+        "overall_installer": {
+            "filename": None,
+            "size_bytes": 0,
+            "checksum_sha256": None,
+            "status": "not_generated",
+            "storage_key": None,
+        },
         "versions": [
             {"version": "1.0.0", "filename": "telegraf-1.0.0-windows-amd64.exe", "uploaded_at": "2026-10-13T00:00:00Z", "status": "published"}
         ],
         "server_config_template": {
             "[[inputs.cpu]]": {},
-            "[[outputs.influxdb]]": {"urls": ["https://influx.example.local:8086"], "token": "${MAI_TOKEN}", "organization": "mai-org", "bucket": "platform-cpu"},
+            "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"},
         },
     }
+
+    import copy
+    memory = copy.deepcopy(cpu)
+    memory.update({
+        "id": MEMORY_PLUGIN_ID, "slug": MEMORY_PLUGIN_ID,
+        "name": "Telegraf Memory Monitoring", "icon": "memory",
+        "short_description": "Collects live RAM usage and available memory via Telegraf.",
+        "detailed_description": "Tracks total, used and available RAM, utilization and historical trends per host.",
+        "tags": ["telegraf", "memory", "infrastructure"],
+        "capabilities": [
+            {"id": "memory.live_metrics", "name": "Live Memory Metrics", "required_permissions": ["metrics.read"], "supported_features": ["total", "used", "available", "used_percent"]},
+            {"id": "memory.historical_trends", "name": "Historical Trends", "required_permissions": ["metrics.read"], "supported_features": ["trend_analysis"]},
+        ],
+        "use_cases": ["Memory Monitoring", "Memory Trends & Analytics"],
+        "server_config_template": {"[[inputs.mem]]": {}, "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"}},
+    })
+    connector_definitions = [
+        (DISK_PLUGIN_ID, "Telegraf Disk Monitoring", "disk", "Collects filesystem capacity, free space, inode usage, and disk I/O metrics.", ["Disk Capacity Monitoring", "Disk I/O Monitoring"]),
+        (NETWORK_PLUGIN_ID, "Telegraf Network Monitoring", "network", "Collects interface traffic, packet, error, and drop metrics.", ["Network Interface Monitoring", "Network Error Monitoring"]),
+        (MQTT_PLUGIN_ID, "Telegraf MQTT Consumer", "mqtt", "Consumes IoT and gateway telemetry from configured MQTT topics.", ["MQTT Device Telemetry", "Gateway Data Ingestion"]),
+        (MODBUS_PLUGIN_ID, "Telegraf Modbus", "modbus", "Polls configured Modbus TCP or serial registers from industrial equipment.", ["Modbus Equipment Monitoring", "Register Telemetry"]),
+        (OPCUA_PLUGIN_ID, "Telegraf OPC UA", "opcua", "Reads configured OPC UA nodes from PLCs, SCADA servers, and historians.", ["OPC UA Process Monitoring", "Industrial Tag Telemetry"]),
+    ]
+    PLUGIN_CATALOG.setdefault(TELEGRAF_PLUGIN_ID, cpu)
+    PLUGIN_CATALOG.setdefault(MEMORY_PLUGIN_ID, memory)
+    for plugin_id, name, kind, description, use_cases in connector_definitions:
+        connector = copy.deepcopy(cpu)
+        spec = HOST_PLUGIN_SPECS[plugin_id]
+        connector.update({
+            "id": plugin_id,
+            "slug": plugin_id,
+            "name": name,
+            "icon": kind,
+            "short_description": description,
+            "detailed_description": description,
+            "tags": ["telegraf", kind, "monitoring"],
+            "capabilities": [{
+                "id": f"{kind}.live_metrics",
+                "name": f"Live {spec['label']} Metrics",
+                "required_permissions": ["metrics.read"],
+                "supported_features": ["live_metrics", "historical_trends"],
+            }],
+            "use_cases": use_cases,
+            "server_config_template": {
+                f"[[inputs.{spec['input']}]]": {},
+                "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"},
+            },
+        })
+        PLUGIN_CATALOG.setdefault(plugin_id, connector)
+
+
+def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
+    metadata = row.metadata_json or {}
+    target_os = row.target_os
+    return {
+        "id": row.id,
+        "slug": row.id,
+        "name": row.name,
+        "version": row.version,
+        "category": row.category,
+        "short_description": row.short_description,
+        "detailed_description": row.detailed_description,
+        "icon": HOST_PLUGIN_SPECS[row.id]["kind"],
+        "target_os": target_os,
+        "supported_os": [target_os],
+        "supported_architectures": [row.architecture],
+        "tags": ["telegraf", HOST_PLUGIN_SPECS[row.id]["kind"], "monitoring"],
+        "capabilities": metadata.get("capabilities", PLUGIN_CATALOG[row.id]["capabilities"]),
+        "use_cases": metadata.get("use_cases", PLUGIN_CATALOG[row.id]["use_cases"]),
+        "setup_modes": ["Download and confirm"],
+        "published": True,
+        "enabled": True,
+        "added_to_view": row.connection_status == "connected",
+        "installation_status": row.installation_status,
+        "connection_status": row.connection_status,
+        "last_metric_received": row.last_metric_received.isoformat() + "Z" if row.last_metric_received else None,
+        "installer": {
+            "filename": row.installer_filename,
+            "size_bytes": row.installer_size_bytes,
+            "checksum_sha256": row.installer_checksum_sha256,
+            "status": "verified",
+            "storage_key": row.installer_path,
+        },
+        "overall_installer": {
+            "filename": row.bundle_filename,
+            "size_bytes": row.bundle_size_bytes or 0,
+            "checksum_sha256": row.bundle_checksum_sha256,
+            "status": "verified" if row.bundle_path else "not_generated",
+            "storage_key": row.bundle_path,
+        },
+        "versions": [{"version": row.version, "filename": row.installer_filename, "status": "published"}],
+    }
+
+
+async def _sync_plugin_catalog(db: AsyncSession) -> None:
+    for plugin_id in HOST_PLUGIN_SPECS:
+        row = await db.get(PluginRegistration, plugin_id)
+        if row:
+            PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
+
+
+def _safe_installer_name(filename: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(filename or "").name).strip(".-")
+    if not cleaned:
+        raise HTTPException(status_code=422, detail="Installation file name is invalid")
+    return cleaned
+
+
+def _validate_installer_extension(target_os: str, filename: str) -> None:
+    allowed = PLUGIN_ALLOWED_EXTENSIONS.get(target_os)
+    if not allowed:
+        raise HTTPException(status_code=422, detail="Unsupported target OS/package type")
+    lower_name = filename.lower()
+    if not any(lower_name.endswith(extension) for extension in allowed):
+        raise HTTPException(status_code=422, detail=f"Expected one of these package types for {target_os}: {', '.join(allowed)}")
+
+
+def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
+    installer_path = Path(row.installer_path)
+    bundle_dir = PLUGIN_ROOT / row.id / "bundles"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        packager = subprocess.run(
+            [
+                sys.executable,
+                str(PLUGIN_PACKAGER),
+                "--plugin", HOST_PLUGIN_SPECS[row.id]["kind"],
+                "--target-os", row.target_os,
+                "--architecture", row.architecture,
+                "--telegraf-installer", str(installer_path),
+                "--output-dir", str(bundle_dir),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return json.loads(packager.stdout.strip().splitlines()[-1])
+    except (subprocess.SubprocessError, json.JSONDecodeError, IndexError) as exc:
+        raise HTTPException(status_code=500, detail=f"Unable to generate the overall plugin installation bundle: {exc}") from exc
 
 
 _seed_default_plugins()
@@ -1363,14 +1541,14 @@ def _plugin_record_payload(plugin: Dict[str, Any]) -> Dict[str, Any]:
         "category": plugin.get("category"),
         "short_description": plugin.get("short_description"),
         "detailed_description": plugin.get("detailed_description"),
-        "publisher": plugin.get("publisher"),
         "icon": plugin.get("icon"),
+        "target_os": plugin.get("target_os"),
         "supported_os": plugin.get("supported_os", []),
         "supported_architectures": plugin.get("supported_architectures", []),
         "tags": plugin.get("tags", []),
         "capabilities": plugin.get("capabilities", []),
         "use_cases": plugin.get("use_cases", []),
-        "setup_modes": plugin.get("setup_modes", ["Automatic", "Manual"]),
+        "setup_modes": plugin.get("setup_modes", ["Download and confirm"]),
         "published": bool(plugin.get("published", False)),
         "enabled": bool(plugin.get("enabled", False)),
         "added_to_view": bool(plugin.get("added_to_view", False)),
@@ -1378,19 +1556,22 @@ def _plugin_record_payload(plugin: Dict[str, Any]) -> Dict[str, Any]:
         "connection_status": plugin.get("connection_status", "not_configured"),
         "last_metric_received": plugin.get("last_metric_received"),
         "installer": plugin.get("installer", {}),
+        "overall_installer": plugin.get("overall_installer", {}),
         "versions": plugin.get("versions", []),
     }
 
 
 @router.get("/api/plugins")
-async def list_plugins() -> List[Dict[str, Any]]:
+async def list_plugins(db: AsyncSession = Depends(get_db)) -> List[Dict[str, Any]]:
     _seed_default_plugins()
-    return [_plugin_record_payload(plugin) for plugin in PLUGIN_CATALOG.values()]
+    await _sync_plugin_catalog(db)
+    return [_plugin_record_payload(PLUGIN_CATALOG[plugin_id]) for plugin_id in HOST_PLUGIN_SPECS]
 
 
 @router.get("/api/plugins/{plugin_id}")
-async def get_plugin(plugin_id: str) -> Dict[str, Any]:
+async def get_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     _seed_default_plugins()
+    await _sync_plugin_catalog(db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
@@ -1411,52 +1592,139 @@ async def get_plugin_capabilities(plugin_id: str) -> Dict[str, Any]:
     }
 
 
+@router.get("/api/plugins/system/current")
+async def get_plugin_target_system() -> Dict[str, Any]:
+    system_name = platform.system().lower()
+    machine = platform.machine().lower()
+    architecture = "arm64" if machine in {"aarch64", "arm64"} else "x86_64"
+    if system_name == "darwin":
+        operating_system = "macos"
+    elif system_name == "windows":
+        operating_system = "windows"
+    else:
+        operating_system = "linux"
+    linux_package_types: List[str] = []
+    if operating_system == "linux":
+        if Path("/etc/debian_version").exists():
+            linux_package_types.append("linux-deb")
+        if Path("/etc/redhat-release").exists() or Path("/etc/fedora-release").exists():
+            linux_package_types.append("linux-rpm")
+        linux_package_types.append("linux-archive")
+    return {
+        "hostname": platform.node() or "localhost",
+        "operating_system": operating_system,
+        "os_name": platform.platform(),
+        "os_release": platform.release(),
+        "architecture": architecture,
+        "supported_package_types": linux_package_types or [operating_system],
+    }
+
+
 @router.post("/api/admin/plugins")
-async def register_plugin(request: Request):
+async def register_plugin(
+    name: str = Form(...),
+    plugin_id: str = Form(TELEGRAF_PLUGIN_ID),
+    version: str = Form("1.0.0"),
+    category: str = Form("Monitoring"),
+    short_description: str = Form(""),
+    detailed_description: str = Form(""),
+    target_os: str = Form(...),
+    architecture: str = Form(...),
+    installer: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
     _seed_default_plugins()
+    if plugin_id not in HOST_PLUGIN_SPECS:
+        raise HTTPException(status_code=422, detail="Unsupported monitoring plugin")
+    display_name = name.strip()
+    if not display_name:
+        raise HTTPException(status_code=422, detail="Plugin name is required")
+    target_os = target_os.strip().lower()
+    architecture = architecture.strip().lower()
+    if target_os not in PLUGIN_ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=422, detail="Target OS/package type is not supported")
+    if architecture not in {"x86_64", "arm64"}:
+        raise HTTPException(status_code=422, detail="Architecture must be x86_64 or arm64")
+    filename = _safe_installer_name(installer.filename or "")
+    _validate_installer_extension(target_os, filename)
+    plugin_dir = PLUGIN_ROOT / plugin_id
+    telegraf_dir = plugin_dir / "telegraf"
+    telegraf_dir.mkdir(parents=True, exist_ok=True)
+    installer_path = telegraf_dir / filename
+    temporary_path = telegraf_dir / f".{filename}.upload"
+    checksum_builder = hashlib.sha256()
+    size_bytes = 0
     try:
-        payload = await request.json()
+        with temporary_path.open("wb") as destination:
+            while chunk := await installer.read(1024 * 1024):
+                size_bytes += len(chunk)
+                if size_bytes > 512 * 1024 * 1024:
+                    raise HTTPException(status_code=413, detail="Installation file exceeds 512 MB")
+                checksum_builder.update(chunk)
+                destination.write(chunk)
+        if size_bytes == 0:
+            raise HTTPException(status_code=422, detail="Installation file is empty")
+        temporary_path.replace(installer_path)
     except Exception:
-        payload = {}
-    plugin_id = (payload.get("slug") or payload.get("id") or "plugin").strip()
-    if not plugin_id:
-        raise HTTPException(status_code=422, detail="Plugin slug is required")
-    plugin_id = re.sub(r"[^a-z0-9-]+", "-", plugin_id.lower()).strip("-") or "plugin"
-    plugin = PLUGIN_CATALOG.setdefault(plugin_id, {
-        "id": plugin_id,
-        "slug": plugin_id,
-        "name": payload.get("name") or "New Plugin",
-        "version": payload.get("version") or "1.0.0",
-        "category": payload.get("category") or "Monitoring",
-        "short_description": payload.get("short_description") or "Description not provided",
-        "detailed_description": payload.get("detailed_description") or "",
-        "publisher": payload.get("publisher") or "MAI Admin",
-        "icon": payload.get("icon") or "plug",
-        "supported_os": payload.get("supported_os") or ["Windows"],
-        "supported_architectures": payload.get("supported_architectures") or ["x86_64"],
-        "tags": payload.get("tags") or [],
-        "capabilities": payload.get("capabilities") or [],
-        "use_cases": payload.get("use_cases") or [],
-        "setup_modes": payload.get("setup_modes") or ["Automatic", "Manual"],
-        "published": bool(payload.get("published", False)),
-        "enabled": bool(payload.get("enabled", True)),
-        "added_to_view": bool(payload.get("added_to_view", True)),
-        "installation_status": "not_configured",
-        "connection_status": "not_configured",
-        "last_metric_received": None,
-        "installer": payload.get("installer") or {"filename": "", "size_bytes": 0, "checksum_sha256": None, "status": "not_uploaded", "storage_key": None},
-        "versions": payload.get("versions") or [],
-    })
-    for key, value in payload.items():
-        if key in {"id", "slug"}:
-            continue
-        if key == "installer":
-            plugin["installer"] = value or plugin.get("installer", {})
-        else:
-            plugin[key] = value
-    plugin["id"] = plugin_id
-    plugin["slug"] = plugin_id
+        temporary_path.unlink(missing_ok=True)
+        raise
+    finally:
+        await installer.close()
+    checksum = checksum_builder.hexdigest()
+
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row:
+        row = PluginRegistration(
+            id=plugin_id,
+            name=display_name,
+            target_os=target_os,
+            architecture=architecture,
+            installer_filename=filename,
+            installer_path=str(installer_path),
+            installer_checksum_sha256=checksum,
+        )
+        db.add(row)
+    row.version = version.strip() or "1.0.0"
+    row.name = display_name
+    row.category = category.strip() or "Monitoring"
+    row.short_description = short_description.strip() or PLUGIN_CATALOG[plugin_id]["short_description"]
+    row.detailed_description = detailed_description.strip()
+    row.target_os = target_os
+    row.architecture = architecture
+    row.installer_filename = filename
+    row.installer_path = str(installer_path)
+    row.installer_size_bytes = size_bytes
+    row.installer_checksum_sha256 = checksum
+    row.bundle_filename = None
+    row.bundle_path = None
+    row.bundle_size_bytes = None
+    row.bundle_checksum_sha256 = None
+    row.installation_status = "registered"
+    row.connection_status = "not_configured"
+    row.last_metric_received = None
+    row.metadata_json = {"package_type": target_os, "telemetry_destination": "postgresql"}
+    await db.commit()
+    await db.refresh(row)
+    plugin = _plugin_from_db(row)
+    PLUGIN_CATALOG[plugin_id] = plugin
     return {"status": "registered", "plugin": _plugin_record_payload(plugin)}
+
+
+@router.delete("/api/admin/plugins/{plugin_id}")
+async def remove_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    if plugin_id not in HOST_PLUGIN_SPECS:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Plugin is not registered")
+    await db.delete(row)
+    await db.commit()
+
+    # Restore only the unregistered catalog template. Uploaded packages remain on
+    # disk so an administrator can recover or re-register them if needed.
+    PLUGIN_CATALOG.pop(plugin_id, None)
+    _seed_default_plugins()
+    return {"status": "removed", "plugin_id": plugin_id}
 
 
 @router.put("/api/admin/plugins/{plugin_id}")
@@ -1533,23 +1801,31 @@ async def plugin_status(plugin_id: str, request: Request):
 
 
 @router.post("/api/plugins/{plugin_id}/preflight")
-async def plugin_preflight(plugin_id: str, request: Request):
+async def plugin_preflight(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
+    await _sync_plugin_catalog(db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
     payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    if not payload:
-        payload = {"host": "windows-server-01", "operating_system": "Windows", "architecture": "x86_64"}
+    current = await get_plugin_target_system()
+    requested_os = str(payload.get("operating_system") or current["operating_system"]).lower()
+    plugin_os = str(plugin.get("target_os") or "").lower()
+    os_matches = plugin_os == requested_os or (requested_os == "linux" and plugin_os.startswith("linux-"))
+    architecture_matches = (plugin.get("supported_architectures") or [None])[0] == current["architecture"]
+    telegraf_path = Path((plugin.get("installer") or {}).get("storage_key") or "")
+    bundle_path = Path((plugin.get("overall_installer") or {}).get("storage_key") or "")
+    installer_exists = telegraf_path.is_file() and bundle_path.is_file()
     return {
         "plugin_id": plugin_id,
-        "status": "pass",
+        "status": "pass" if os_matches and architecture_matches and installer_exists else "fail",
         "checks": [
-            {"name": "installer_signed", "passed": True, "message": "Installer metadata is registered and checksum is available."},
-            {"name": "host_permissions", "passed": True, "message": "Administrator permissions are available on the target host."},
-            {"name": "destination_reachable", "passed": bool(payload.get("host")), "message": "Destination validation checks passed."},
+            {"name": "installers_available", "passed": installer_exists, "message": "The Telegraf installer and overall MAI plugin bundle exist in backend storage."},
+            {"name": "target_os", "passed": os_matches, "message": f"Package target is {plugin_os}; current system is {requested_os}."},
+            {"name": "architecture", "passed": architecture_matches, "message": f"Package architecture is {(plugin.get('supported_architectures') or ['unknown'])[0]}; current system is {current['architecture']}."},
         ],
         "warnings": [],
+        "target_system": current,
     }
 
 
@@ -1560,45 +1836,53 @@ async def validate_plugin_config(plugin_id: str, request: Request):
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
     payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    interval = int(payload.get("collection_interval", 5))
+    try:
+        interval = int(payload.get("collection_interval", 5))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Collection interval must be an integer")
+    spec = HOST_PLUGIN_SPECS[plugin_id]
     valid = 1 <= interval <= 60
     return {
         "valid": valid,
         "status": "valid" if valid else "invalid",
-        "message": "CPU collection settings are valid." if valid else "Collection interval must be between 1 and 60 seconds.",
+        "message": f"{spec['label']} collection settings are valid." if valid else "Collection interval must be between 1 and 60 seconds.",
         "generated_config": {
-            "[[inputs.cpu]]": {"percpu": True, "totalcpu": True, "collect_cpu_time": True},
-            "[[outputs.influxdb]]": {"bucket": payload.get("bucket") or "platform-cpu"},
+            f"[[inputs.{spec['input']}]]": {"name_override": spec["table"]},
+            "[[outputs.postgresql]]": {"schema": "public", "table": spec["table"]},
         },
     }
 
 
 @router.post("/api/plugins/{plugin_id}/installations")
-async def create_plugin_installation(plugin_id: str, request: Request):
+async def create_plugin_installation(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
+    await _sync_plugin_catalog(db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
     payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+    if payload.get("confirmed") is not True:
+        raise HTTPException(status_code=422, detail="Installation must be explicitly confirmed")
     job_id = f"job-{uuid.uuid4().hex[:8]}"
     job = {
         "job_id": job_id,
         "plugin_id": plugin_id,
-        "status": "checking",
-        "progress": 12,
+        "status": "waiting_for_data",
+        "progress": 67,
         "steps": [
             "Verifying installer",
-            "Downloading approved package",
-            "Enrolling target host",
-            "Installing Telegraf",
-            "Validating output connectivity",
-            "Waiting for CPU metrics",
+            "Installation confirmed by administrator",
+            "Waiting for host metrics",
         ],
-        "message": payload.get("mode", "Automatic") + " setup has started.",
+        "message": "Installation confirmed. Waiting for Telegraf metrics.",
     }
     PLUGIN_JOBS[job_id] = job
-    plugin["installation_status"] = "checking"
-    return {"job_id": job_id, "status": "checking", "plugin_id": plugin_id, "message": job["message"]}
+    plugin["installation_status"] = "waiting_for_data"
+    row = await db.get(PluginRegistration, plugin_id)
+    if row:
+        row.installation_status = "waiting_for_data"
+        await db.commit()
+    return {"job_id": job_id, "status": "waiting_for_data", "plugin_id": plugin_id, "message": "Installation confirmed. Verify the plugin after Telegraf starts sending metrics."}
 
 
 @router.get("/api/plugins/jobs/{job_id}")
@@ -1610,39 +1894,189 @@ async def get_plugin_job(job_id: str):
 
 
 @router.post("/api/plugins/{plugin_id}/test")
-async def test_plugin(plugin_id: str, request: Request):
+async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
+    await _sync_plugin_catalog(db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    payload = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
-    success = bool(payload.get("destination") or payload.get("host"))
+    from .host_telemetry import latest_plugin_metric
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row:
+        raise HTTPException(status_code=409, detail="Register this plugin before verifying installation")
+    spec = HOST_PLUGIN_SPECS[plugin_id]
+    try:
+        metric, verification_error = await latest_plugin_metric(db, spec["table"])
+    except Exception as exc:
+        await db.rollback()
+        metric = None
+        verification_error = "Unable to read telemetry. Check PostgreSQL connectivity and Telegraf ingestion."
+        logging.getLogger(__name__).warning("Plugin verification failed: %s", type(exc).__name__)
+    success = metric is not None
+    metric_time_value = (metric or {}).get("time")
+    metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
     plugin["connection_status"] = "connected" if success else "waiting_for_data"
     plugin["installation_status"] = "connected" if success else "waiting_for_data"
-    plugin["last_metric_received"] = datetime.utcnow().isoformat() + "Z" if success else None
+    plugin["last_metric_received"] = metric_time if success else None
+    row = await db.get(PluginRegistration, plugin_id)
+    if row:
+        row.connection_status = plugin["connection_status"]
+        row.installation_status = plugin["installation_status"]
+        row.last_metric_received = metric_time_value.astimezone(timezone.utc).replace(tzinfo=None) if success and isinstance(metric_time_value, datetime) else None
+        await db.commit()
     return {
         "success": success,
         "status": "connected" if success else "waiting_for_data",
-        "message": "CPU metrics are successfully being received." if success else "Waiting for the target host to send telemetry.",
-        "metrics_seen": 42 if success else 0,
+        "message": f"{spec['label']} metrics are successfully being received." if success else "Waiting for the target host to send telemetry.",
+        "metrics_seen": 1 if success else 0,
+        "last_metric_received": metric_time,
+        "verification_error": verification_error,
     }
+
+
+@router.get("/api/plugins/telegraf-cpu-monitoring/cpu-utilization")
+async def get_telegraf_cpu_utilization(
+    minutes: int = 30,
+    limit: int = 1200,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Return recent PostgreSQL CPU telemetry for the connected Telegraf use case."""
+    minutes = max(1, min(minutes, 24 * 60))
+    limit = max(1, min(limit, 5000))
+    try:
+        async with asyncio.timeout(8):
+            result = await db.execute(
+                text('''
+                    SELECT "time", host, cpu,
+                           usage_active, usage_user, usage_system, usage_idle,
+                           usage_iowait, usage_steal, usage_nice,
+                           usage_irq, usage_softirq, usage_guest, usage_guest_nice
+                    FROM public.telegraf_cpu
+                    WHERE "time" >= NOW() - make_interval(mins => :minutes)
+                    ORDER BY "time" DESC
+                    LIMIT :limit
+                '''),
+                {"minutes": minutes, "limit": limit},
+            )
+            rows = list(result.mappings().all())
+    except Exception as exc:
+        await db.rollback()
+        detail = (
+            "PostgreSQL CPU telemetry did not respond within 8 seconds. Retrying on the next refresh."
+            if isinstance(exc, TimeoutError)
+            else "CPU telemetry could not be read from PostgreSQL. Check database connectivity and Telegraf ingestion."
+        )
+        logging.getLogger(__name__).warning("CPU telemetry query failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail=detail) from exc
+
+    number_fields = (
+        "usage_active", "usage_user", "usage_system", "usage_idle", "usage_iowait",
+        "usage_steal", "usage_nice", "usage_irq", "usage_softirq", "usage_guest",
+        "usage_guest_nice",
+    )
+    samples: List[Dict[str, Any]] = []
+    for row in reversed(rows):
+        sample = {
+            "time": row["time"].isoformat() if hasattr(row["time"], "isoformat") else str(row["time"]),
+            "host": row.get("host") or "Unknown host",
+            "cpu": row.get("cpu") or "cpu-total",
+        }
+        for field in number_fields:
+            value = row.get(field)
+            sample[field] = float(value) if value is not None else None
+        samples.append(sample)
+
+    hosts = sorted({sample["host"] for sample in samples})
+
+    process_snapshot = await process_snapshots.get()
+
+    return {
+        "plugin_id": TELEGRAF_PLUGIN_ID,
+        "window_minutes": minutes,
+        "sample_count": len(samples),
+        "hosts": hosts,
+        "samples": samples,
+        **process_snapshot,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/api/plugins/telegraf-memory-monitoring/memory-utilization")
+async def get_telegraf_memory_utilization(
+    minutes: int = 30,
+    limit: int = 1200,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Memory bytes and percentages; unavailable platform fields are null."""
+    from .host_telemetry import memory_payload
+    try:
+        return await memory_payload(db, minutes, limit)
+    except Exception as exc:
+        await db.rollback()
+        logging.getLogger(__name__).warning("Memory telemetry query failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Memory telemetry is unavailable. Check PostgreSQL connectivity and Telegraf ingestion.") from exc
+
+
+@router.get("/api/plugins/{plugin_id}/telemetry")
+async def get_connector_telemetry(
+    plugin_id: str,
+    minutes: int = 30,
+    limit: int = 1200,
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    """Return normalized rows for Disk, Network, MQTT, Modbus, and OPC UA."""
+    if plugin_id not in {DISK_PLUGIN_ID, NETWORK_PLUGIN_ID, MQTT_PLUGIN_ID, MODBUS_PLUGIN_ID, OPCUA_PLUGIN_ID}:
+        raise HTTPException(status_code=404, detail="Connector telemetry endpoint not found")
+    from .host_telemetry import connector_payload
+    spec = HOST_PLUGIN_SPECS[plugin_id]
+    try:
+        return await connector_payload(db, plugin_id, spec["tables"], minutes, limit)
+    except Exception as exc:
+        await db.rollback()
+        logging.getLogger(__name__).warning("%s telemetry query failed: %s", spec["label"], type(exc).__name__)
+        raise HTTPException(status_code=503, detail=f"{spec['label']} telemetry is unavailable. Check PostgreSQL and Telegraf ingestion.") from exc
 
 
 @router.get("/api/plugins/{plugin_id}/download")
-async def download_plugin(plugin_id: str):
+async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
+    await _sync_plugin_catalog(db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    installer = plugin.get("installer") or {}
-    return {
-        "plugin_id": plugin_id,
-        "filename": installer.get("filename") or "installer.exe",
-        "size_bytes": installer.get("size_bytes") or 0,
-        "checksum_sha256": installer.get("checksum_sha256"),
-        "download_url": f"/api/plugins/{plugin_id}/download",
-        "authorization_required": True,
-    }
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Registered Telegraf installer is not available")
+    existing_path = Path(row.bundle_path).resolve() if row.bundle_path else None
+    bundle_is_postgresql = (row.metadata_json or {}).get("telemetry_destination") == "postgresql"
+    expected_bundle_suffix = ".exe" if row.target_os == "windows" else ".tar.gz"
+    bundle_has_current_format = bool(existing_path and str(existing_path).lower().endswith(expected_bundle_suffix))
+    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 3:
+        bundle = _generate_plugin_bundle(row)
+        row.bundle_filename = str(bundle["filename"])
+        row.bundle_path = str(bundle["path"])
+        row.bundle_size_bytes = int(bundle["size_bytes"])
+        row.bundle_checksum_sha256 = str(bundle["checksum_sha256"])
+        row.metadata_json = {
+            **(row.metadata_json or {}),
+            "telemetry_destination": "postgresql",
+            "bundle_revision": 3,
+            "bundle_format": "single-executable" if row.target_os == "windows" else "archive",
+        }
+        await db.commit()
+        await db.refresh(row)
+        plugin = _plugin_from_db(row)
+        PLUGIN_CATALOG[plugin_id] = plugin
+    installer = plugin.get("overall_installer") or {}
+    installer_path = Path(installer.get("storage_key") or "").resolve()
+    plugin_root = PLUGIN_ROOT.resolve()
+    if not installer_path.is_relative_to(plugin_root) or not installer_path.is_file():
+        raise HTTPException(status_code=404, detail="Installation file is not available")
+    return FileResponse(
+        path=installer_path,
+        filename=installer.get("filename") or installer_path.name,
+        media_type="application/octet-stream",
+    )
 
 
 @router.get("/api/profile")

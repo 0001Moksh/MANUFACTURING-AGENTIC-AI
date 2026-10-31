@@ -181,7 +181,7 @@ def _default_registry() -> Dict[str, DatabaseConfig]:
                 "driver": os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server"),
                 "server": os.getenv("DB_SERVER", "localhost,1433"),
                 "database": os.getenv("DB_NAME", "mes_new"),
-                "trusted": os.getenv("DB_TRUSTED_CONNECTION", "yes"),
+                "trusted": os.getenv("DB_TRUSTED_CONNECTION", "no"),
                 "encrypt": os.getenv("DB_ENCRYPT", "no"),
                 "trust_cert": os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes"),
             },

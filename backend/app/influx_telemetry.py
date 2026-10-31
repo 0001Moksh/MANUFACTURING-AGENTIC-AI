@@ -128,6 +128,18 @@ schema.measurements(bucket: "{bucket}")'''
     return ordered
 
 
+def get_latest_telegraf_cpu_metric(minutes: int = 10) -> Dict[str, Any] | None:
+    """Return the newest Telegraf CPU point, or None when no recent data exists."""
+    bucket = get_active_influx_bucket().replace('"', '\\"')
+    flux = f'''from(bucket: "{bucket}")
+  |> range(start: -{max(1, min(minutes, 1440))}m)
+  |> filter(fn: (r) => r._measurement == "cpu")
+  |> sort(columns: ["_time"], desc: true)
+  |> limit(n: 1)'''
+    rows = _query_flux(flux)
+    return rows[0] if rows else None
+
+
 def _discover_fields_for_measurement(measurement: str) -> List[str]:
     bucket = get_active_influx_bucket().replace('"', '\\"')
     measurement_name = measurement.replace('"', '\\"')

@@ -54,7 +54,7 @@ except Exception as e:
 DB_DRIVER = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
 DB_SERVER = os.getenv("DB_SERVER", "localhost,1433")
 DB_NAME = os.getenv("DB_NAME", "mes_new")
-DB_TRUSTED = os.getenv("DB_TRUSTED_CONNECTION", "yes")
+DB_TRUSTED = os.getenv("DB_TRUSTED_CONNECTION", "no")
 DB_ENCRYPT = os.getenv("DB_ENCRYPT", "no")
 DB_TRUST_CERT = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes")
 SQLSERVER_USER = os.getenv("SQLSERVER_USER", "sa")

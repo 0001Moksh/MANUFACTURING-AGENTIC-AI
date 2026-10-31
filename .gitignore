@@ -89,3 +89,17 @@ cover/
 *.tmp
 *.temp
 docs/iot_info/influxdb_backup.json
+
+
+
+
+# Runtime-uploaded plugin installers (paths are stored in the MAI database)
+backend/plugin/
+
+# Target-specific Telegraf packages prepared by cpu-plugin.ipynb
+generated_plugins/
+
+password.txt
+
+
+/backend/reports
