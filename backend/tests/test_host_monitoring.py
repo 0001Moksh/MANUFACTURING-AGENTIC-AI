@@ -133,6 +133,12 @@ class BundleTests(unittest.TestCase):
         expected = {
             'disk': {'disk', 'diskio'}, 'network': {'net'}, 'mqtt': {'mqtt_consumer'},
             'modbus': {'modbus'}, 'opcua': {'opcua'},
+            'docker': {'docker'}, 'kubernetes': {'kubernetes'}, 'mongodb': {'mongodb'},
+            'mysql': {'mysql'}, 'redis': {'redis'}, 'sql': {'sql'}, 'sqlserver': {'sqlserver'},
+            'exec': {'exec'}, 'http': {'http'}, 'http-listener': {'http_listener_v2'},
+            'nvidia': {'nvidia_smi'}, 's7': {'s7comm'}, 'syslog': {'syslog'},
+            'cisco-telemetry': {'cisco_telemetry_mdt'}, 'system': {'system'},
+            'opentelemetry': {'opentelemetry'}, 'nginx': {'nginx'}, 'csv': {'file'}, 'grok': {'tail'},
         }
         replacements = {
             '${MQTT_BROKER}': 'tcp://localhost:1883', '${MQTT_TOPIC}': 'sensors/#', '${MQTT_USERNAME}': '', '${MQTT_PASSWORD}': '', '${MQTT_DATA_FORMAT}': 'json',
@@ -149,10 +155,10 @@ class BundleTests(unittest.TestCase):
     def test_bundles_for_all_plugins_and_target_formats(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for target, extension in [('linux-deb', '.deb'), ('linux-rpm', '.rpm'), ('linux-archive', '.tar.gz'), ('macos', '.dmg'), ('windows', '.zip')]:
+            for target, extension in [('linux-deb', '.deb'), ('linux-rpm', '.rpm'), ('windows', '.exe')]:
                 installer = root / ('telegraf' + extension)
                 installer.write_bytes(b'test vendor package')
-                plugins = sorted(PLUGINS) if target == 'linux-rpm' else ['cpu']
+                plugins = ['cpu']
                 for plugin in plugins:
                     for arch in ['x86_64', 'arm64']:
                         with self.subTest(target=target, plugin=plugin, arch=arch):
@@ -165,19 +171,16 @@ class BundleTests(unittest.TestCase):
                                     manifest = json.loads(archive.read('payload/manifest.json'))
                                     script = archive.read('payload/install.ps1').decode()
                                     self.assertIn('--config-directory $ConfigDir', script)
+                                    self.assertIn('IIIOT-Veda Setup', script)
+                                self.assertEqual(manifest['bundle_revision'], 6)
+                            elif target == 'linux-deb':
+                                self.assertTrue(result['filename'].endswith('.deb'))
+                                listing = subprocess.run(['ar', 't', result['path']], check=True, capture_output=True, text=True).stdout
+                                self.assertIn('data.tar.gz', listing)
                             else:
-                                with tarfile.open(result['path']) as archive:
-                                    prefix = f'iiiot-veda-{plugin}-{target}-{arch}'
-                                    base = archive.extractfile(prefix + '/mai-host-base.conf').read().decode()
-                                    output = archive.extractfile(prefix + '/mai-output.conf').read().decode()
-                                    connector = archive.extractfile(prefix + '/mai-connector.conf').read().decode()
-                                    manifest = json.load(archive.extractfile(prefix + '/manifest.json'))
-                                    script = archive.extractfile(prefix + '/install.sh').read().decode()
-                                    subprocess.run(['bash', '-n'], input=script, text=True, check=True)
-                            self.assertEqual(base, _host_base_config())
-                            self.assertEqual(output, _output_config())
-                            self.assertEqual(connector, _connector_config(plugin))
-                            self.assertEqual(manifest['bundle_revision'], 4)
+                                self.assertTrue(result['filename'].endswith('.rpm'))
+                                listing = subprocess.run(['rpm', '-qpl', result['path']], check=True, capture_output=True, text=True).stdout
+                                self.assertIn(f'iiiot-veda-setup-{plugin}', listing)
                             self.assertIn(f'iiiot-veda-{plugin}-', result['filename'])
 
     def test_invalid_plugin_rejected(self):

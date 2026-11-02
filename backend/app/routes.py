@@ -7,6 +7,7 @@ import secrets
 import mimetypes
 import uuid
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 import bcrypt
 import json
+import tomllib
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select, update, func, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +32,7 @@ from app.db import (
     AgentReportingSettings, GlobalGovernanceSettings, UserProfile,
     UseCaseGovernanceSettings, PlatformNotification, ReportApproval, OneTimeToken,
     Role, Permission, Scope, UserRole, RolePermission, RbacAuditLog, Site, MachineThresholdConfig, MachineDocument,
-    PluginRegistration,
+    PluginRegistration, PluginInstallerAsset,
 )
 from app.db import MachineRecommendation, MachineIssue, MachineDocumentChunk
 from app.machine_rag import index_machine_document, query_machine_documents
@@ -95,6 +97,7 @@ from app.license_control import (
     read_active_license,
     write_active_license,
 )
+from plugin_packager import _connector_config as _packaged_connector_config
 
 router = APIRouter()
 
@@ -106,6 +109,7 @@ PLUGIN_CATALOG: Dict[str, Dict[str, Any]] = {}
 PLUGIN_JOBS: Dict[str, Dict[str, Any]] = {}
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent / "plugin"
 PLUGIN_PACKAGER = Path(__file__).resolve().parent.parent / "plugin_packager.py"
+MONITORING_PLUGIN_ID = "iiiot-veda-monitoring"
 TELEGRAF_PLUGIN_ID = "telegraf-cpu-monitoring"
 MEMORY_PLUGIN_ID = "telegraf-memory-monitoring"
 DISK_PLUGIN_ID = "telegraf-disk-monitoring"
@@ -117,7 +121,29 @@ NETWORK_DIAGNOSTICS_PLUGIN_ID = "iiiot-veda-network-diagnostics"
 EMAIL_MONITORING_PLUGIN_ID = "iiiot-veda-email-monitoring"
 SERVER_MONITORING_PLUGIN_ID = "iiiot-veda-server-monitoring"
 DESKTOP_MONITORING_PLUGIN_ID = "iiiot-veda-desktop-monitoring"
+ADDITIONAL_MONITORING_SPECS = {
+    "iiiot-veda-docker-monitoring": {"kind": "docker", "input": "docker", "table": "iiiot_veda_docker", "tables": ["iiiot_veda_docker"], "label": "Docker monitoring"},
+    "iiiot-veda-kubernetes-monitoring": {"kind": "kubernetes", "input": "kubernetes", "table": "iiiot_veda_kubernetes", "tables": ["iiiot_veda_kubernetes"], "label": "Kubernetes monitoring"},
+    "iiiot-veda-mongodb-monitoring": {"kind": "mongodb", "input": "mongodb", "table": "iiiot_veda_mongodb", "tables": ["iiiot_veda_mongodb"], "label": "MongoDB monitoring"},
+    "iiiot-veda-mysql-monitoring": {"kind": "mysql", "input": "mysql", "table": "iiiot_veda_mysql", "tables": ["iiiot_veda_mysql"], "label": "MySQL monitoring"},
+    "iiiot-veda-redis-monitoring": {"kind": "redis", "input": "redis", "table": "iiiot_veda_redis", "tables": ["iiiot_veda_redis"], "label": "Redis monitoring"},
+    "iiiot-veda-sql-monitoring": {"kind": "sql", "input": "sql", "table": "iiiot_veda_sql", "tables": ["iiiot_veda_sql"], "label": "SQL query monitoring"},
+    "iiiot-veda-sqlserver-monitoring": {"kind": "sqlserver", "input": "sqlserver", "table": "iiiot_veda_sqlserver", "tables": ["iiiot_veda_sqlserver"], "label": "SQL Server monitoring"},
+    "iiiot-veda-exec-monitoring": {"kind": "exec", "input": "exec", "table": "iiiot_veda_exec", "tables": ["iiiot_veda_exec"], "label": "Command monitoring"},
+    "iiiot-veda-http-monitoring": {"kind": "http", "input": "http", "table": "iiiot_veda_http", "tables": ["iiiot_veda_http"], "label": "HTTP metric collection"},
+    "iiiot-veda-http-listener": {"kind": "http-listener", "input": "http_listener_v2", "table": "iiiot_veda_http_listener", "tables": ["iiiot_veda_http_listener"], "label": "HTTP metric listener"},
+    "iiiot-veda-nvidia-monitoring": {"kind": "nvidia", "input": "nvidia_smi", "table": "iiiot_veda_nvidia", "tables": ["iiiot_veda_nvidia"], "label": "NVIDIA GPU monitoring"},
+    "iiiot-veda-s7-monitoring": {"kind": "s7", "input": "s7comm", "table": "iiiot_veda_s7", "tables": ["iiiot_veda_s7"], "label": "Siemens S7 monitoring"},
+    "iiiot-veda-syslog-ingestion": {"kind": "syslog", "input": "syslog", "table": "iiiot_veda_syslog", "tables": ["iiiot_veda_syslog"], "label": "Syslog ingestion"},
+    "iiiot-veda-cisco-telemetry": {"kind": "cisco-telemetry", "input": "cisco_telemetry_mdt", "table": "iiiot_veda_cisco_telemetry", "tables": ["iiiot_veda_cisco_telemetry"], "label": "Cisco model-driven telemetry"},
+    "iiiot-veda-system-monitoring": {"kind": "system", "input": "system", "table": "iiiot_veda_system_extended", "tables": ["iiiot_veda_system_extended"], "label": "System monitoring"},
+    "iiiot-veda-opentelemetry": {"kind": "opentelemetry", "input": "opentelemetry", "table": "iiiot_veda_opentelemetry", "tables": ["iiiot_veda_opentelemetry"], "label": "OpenTelemetry ingestion"},
+    "iiiot-veda-nginx-monitoring": {"kind": "nginx", "input": "nginx", "table": "iiiot_veda_nginx", "tables": ["iiiot_veda_nginx"], "label": "NGINX monitoring"},
+    "iiiot-veda-csv-ingestion": {"kind": "csv", "input": "file", "table": "iiiot_veda_csv", "tables": ["iiiot_veda_csv"], "label": "CSV ingestion"},
+    "iiiot-veda-grok-ingestion": {"kind": "grok", "input": "tail", "table": "iiiot_veda_grok", "tables": ["iiiot_veda_grok"], "label": "Grok log parsing"},
+}
 HOST_PLUGIN_SPECS = {
+    MONITORING_PLUGIN_ID: {"kind": "monitoring", "input": "cpu", "table": "telegraf_cpu", "tables": ["telegraf_cpu", "telegraf_mem"], "label": "IIIOT-Veda Monitoring"},
     TELEGRAF_PLUGIN_ID: {"kind": "cpu", "input": "cpu", "table": "telegraf_cpu", "tables": ["telegraf_cpu"], "label": "CPU"},
     MEMORY_PLUGIN_ID: {"kind": "memory", "input": "mem", "table": "telegraf_mem", "tables": ["telegraf_mem"], "label": "Memory"},
     DISK_PLUGIN_ID: {"kind": "disk", "input": "disk", "table": "telegraf_disk", "tables": ["telegraf_disk", "telegraf_diskio"], "label": "Disk"},
@@ -129,13 +155,121 @@ HOST_PLUGIN_SPECS = {
     EMAIL_MONITORING_PLUGIN_ID: {"kind": "email-monitoring", "input": "net_response", "table": "iiiot_veda_email_response", "tables": ["iiiot_veda_email_response", "iiiot_veda_email_cert"], "label": "Email monitoring"},
     SERVER_MONITORING_PLUGIN_ID: {"kind": "server-monitoring", "input": "system", "table": "iiiot_veda_system", "tables": ["iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat"], "label": "Server monitoring"},
     DESKTOP_MONITORING_PLUGIN_ID: {"kind": "desktop-monitoring", "input": "system", "table": "iiiot_veda_desktop_system", "tables": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"], "label": "Desktop monitoring"},
+    **ADDITIONAL_MONITORING_SPECS,
 }
+PLUGIN_CATALOG_IDS = tuple(plugin_id for plugin_id in HOST_PLUGIN_SPECS if plugin_id != MONITORING_PLUGIN_ID)
+CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+OPTIONAL_MONITORING_KINDS = set(CONFIGURABLE_MONITORING_KINDS) - {"mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
+
+
+def _default_monitoring_configs() -> Dict[str, Dict[str, Any]]:
+    return {kind: {"enabled": kind not in OPTIONAL_MONITORING_KINDS, "config": _packaged_connector_config(kind)} for kind in CONFIGURABLE_MONITORING_KINDS}
+
+
+def _merged_monitoring_configs(stored: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    merged = _default_monitoring_configs()
+    for kind, item in (stored or {}).items():
+        if kind in merged and isinstance(item, dict):
+            merged[kind] = {"enabled": bool(item.get("enabled", merged[kind]["enabled"])), "config": str(item.get("config") or merged[kind]["config"])}
+    return merged
+
+
+def _default_monitoring_connector_config() -> str:
+    return "\n".join([_packaged_connector_config("disk"), _packaged_connector_config("network"), *(item["config"] for item in _default_monitoring_configs().values())])
+
+
+def _database_url_for_monitoring_bundle() -> str:
+    value = os.getenv("DATABASE_URL", "").strip()
+    if not value:
+        env_path = PLUGIN_PACKAGER.parent / ".env"
+        if env_path.is_file():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("DATABASE_URL="):
+                    value = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+    return value.replace("+asyncpg", "")
+
+
+def _monitoring_installation_checks(target_os: Optional[str] = None, plugin_kind: str = "monitoring") -> List[Dict[str, Any]]:
+    """Inspect the backend host where the monitoring bundle is installed."""
+    system_name = (target_os or platform.system()).lower()
+    if system_name.startswith("linux"):
+        executable_candidates = [shutil.which("telegraf"), "/usr/bin/telegraf", "/usr/local/bin/telegraf"]
+        config_dir = Path("/etc/telegraf/telegraf.d")
+    elif system_name in {"darwin", "macos"}:
+        executable_candidates = [shutil.which("telegraf"), "/usr/local/bin/telegraf", "/opt/homebrew/bin/telegraf"]
+        config_dir = Path("/usr/local/etc/telegraf.d")
+    else:
+        program_files = Path(os.getenv("ProgramFiles", r"C:\Program Files"))
+        executable_candidates = [shutil.which("telegraf.exe"), str(program_files / "IIIOT-Veda" / "telegraf.exe")]
+        config_dir = program_files / "IIIOT-Veda" / "config"
+
+    executable = next((Path(candidate) for candidate in executable_candidates if candidate and Path(candidate).is_file()), None)
+    required_files = [config_dir / "mai-host-base.conf", config_dir / "mai-output.conf"]
+    if _packaged_connector_config(plugin_kind).strip():
+        required_files.append(config_dir / f"mai-{plugin_kind}.conf")
+    present_files = [path for path in required_files if path.is_file() and path.stat().st_size > 0]
+    missing_files = [path for path in required_files if path not in present_files]
+    missing_files_message = "Missing required IIIOT-Veda configuration file(s): " + ", ".join(path.name for path in missing_files)
+    if system_name.startswith("linux"):
+        setup_launcher = Path(f"/usr/bin/iiiot-veda-setup-{plugin_kind}")
+        if setup_launcher.is_file():
+            missing_files_message += f". Complete the pending setup by running: {setup_launcher}"
+
+    service_running = False
+    service_detail = "IIIOT-Veda service is not running."
+    try:
+        if system_name.startswith("linux") and shutil.which("systemctl"):
+            result = subprocess.run(
+                ["systemctl", "is-active", "telegraf"], capture_output=True, text=True, timeout=5, check=False
+            )
+            service_running = result.returncode == 0 and result.stdout.strip() == "active"
+        elif system_name in {"darwin", "macos"}:
+            result = subprocess.run(["pgrep", "-x", "telegraf"], capture_output=True, timeout=5, check=False)
+            service_running = result.returncode == 0
+        else:
+            result = subprocess.run(["sc", "query", "telegraf"], capture_output=True, text=True, timeout=5, check=False)
+            service_running = result.returncode == 0 and "RUNNING" in result.stdout.upper()
+    except (OSError, subprocess.SubprocessError):
+        service_running = False
+    if service_running:
+        service_detail = "IIIOT-Veda service is running."
+
+    return [
+        {
+            "name": "runtime_installed",
+            "passed": executable is not None,
+            "message": f"IIIOT-Veda runtime found at {executable}." if executable else "IIIOT-Veda runtime is not installed on this system.",
+        },
+        {
+            "name": "required_files",
+            "passed": len(present_files) == len(required_files),
+            "message": "All required IIIOT-Veda configuration files are present."
+            if len(present_files) == len(required_files)
+            else missing_files_message,
+        },
+        {"name": "service_running", "passed": service_running, "message": service_detail},
+    ]
+
+
+async def _mark_plugin_available(row: PluginRegistration, db: AsyncSession) -> None:
+    row.installation_status = "registered"
+    row.connection_status = "not_configured"
+    row.last_metric_received = None
+    await db.commit()
+    PLUGIN_CATALOG[row.id] = _plugin_from_db(row)
+
+
+async def _reconcile_connected_plugin(row: PluginRegistration, db: AsyncSession) -> List[Dict[str, Any]]:
+    checks = _monitoring_installation_checks(row.target_os, HOST_PLUGIN_SPECS[row.id]["kind"])
+    if row.connection_status == "connected" and not all(check["passed"] for check in checks):
+        await _mark_plugin_available(row, db)
+    return checks
 PLUGIN_ALLOWED_EXTENSIONS = {
-    "windows": (".exe", ".msi", ".zip"),
+    "windows": (".exe",),
     "linux-deb": (".deb",),
     "linux-rpm": (".rpm",),
-    "linux-archive": (".tar.gz", ".tgz"),
-    "macos": (".pkg", ".dmg", ".tar.gz", ".tgz", ".zip"),
+    "macos": (".pkg", ".dmg"),
 }
 
 
@@ -176,8 +310,8 @@ def _seed_default_plugins() -> None:
         "last_metric_received": None,
         "supported_platforms": [
             {"os": "Windows", "architecture": "x86_64", "package_types": [".exe", ".msi"]},
-            {"os": "Linux", "architecture": "x86_64", "package_types": [".deb", ".rpm", ".tar.gz"]},
-            {"os": "Linux", "architecture": "arm64", "package_types": [".deb", ".rpm", ".tar.gz"]},
+            {"os": "Linux", "architecture": "x86_64", "package_types": [".deb", ".rpm"]},
+            {"os": "Linux", "architecture": "arm64", "package_types": [".deb", ".rpm"]},
             {"os": "macOS", "architecture": "x86_64", "package_types": [".pkg", ".dmg"]},
             {"os": "macOS", "architecture": "arm64", "package_types": [".pkg", ".dmg"]},
         ],
@@ -256,6 +390,35 @@ def _seed_default_plugins() -> None:
             },
         })
         PLUGIN_CATALOG.setdefault(plugin_id, connector)
+    for plugin_id, spec in ADDITIONAL_MONITORING_SPECS.items():
+        connector = copy.deepcopy(cpu)
+        label = spec["label"]
+        connector.update({
+            "id": plugin_id,
+            "slug": plugin_id,
+            "name": f"IIIOT-Veda {label.title()}",
+            "icon": spec["kind"],
+            "short_description": f"Configures and collects {label.lower()} metrics.",
+            "detailed_description": f"Provides a separately registered {label.lower()} use case with its own configuration, installer and verification lifecycle.",
+            "tags": ["iiiot-veda", spec["kind"], "monitoring"],
+            "capabilities": [{"id": f"{spec['kind']}.live_metrics", "name": label, "required_permissions": ["metrics.read"], "supported_features": ["configuration", "telemetry"]}],
+            "use_cases": [label],
+            "server_config_template": {f"[[inputs.{spec['input']}]]": {}, "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"}},
+        })
+        PLUGIN_CATALOG.setdefault(plugin_id, connector)
+    monitoring = copy.deepcopy(cpu)
+    monitoring.update({
+        "id": MONITORING_PLUGIN_ID,
+        "slug": MONITORING_PLUGIN_ID,
+        "name": "IIIOT-Veda Monitoring Plugin",
+        "icon": "monitoring",
+        "short_description": "One installation for host, service, messaging, and machine monitoring.",
+        "detailed_description": "Installs the IIIOT-Veda collector once and enables all supported monitoring use cases from persistent MAI configuration.",
+        "tags": ["iiiot-veda", "monitoring", "infrastructure", "machines"],
+        "use_cases": ["Infrastructure & Service Monitoring", "Machine & Industrial Monitoring"],
+        "capabilities": [{"id": "monitoring.all", "name": "All IIIOT-Veda Monitoring Use Cases", "required_permissions": ["metrics.read"], "supported_features": ["host", "network", "email", "mqtt", "modbus", "opcua"]}],
+    })
+    PLUGIN_CATALOG.setdefault(MONITORING_PLUGIN_ID, monitoring)
 
 
 def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
@@ -301,11 +464,24 @@ def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
             "storage_key": row.bundle_path,
         },
         "versions": [{"version": row.version, "filename": branded_installer, "status": "published"}],
+        "use_case_configs": _plugin_use_case_configs(row.id, metadata.get("use_case_configs")),
     }
 
 
+def _plugin_use_case_configs(plugin_id: str, stored: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
+    spec = HOST_PLUGIN_SPECS[plugin_id]
+    kind = spec["kind"]
+    if kind not in CONFIGURABLE_MONITORING_KINDS:
+        return {}
+    current = (stored or {}).get(kind) if isinstance(stored, dict) else None
+    return {kind: {
+        "enabled": True,
+        "config": str((current or {}).get("config") or _packaged_connector_config(kind)),
+    }}
+
+
 async def _sync_plugin_catalog(db: AsyncSession) -> None:
-    for plugin_id in HOST_PLUGIN_SPECS:
+    for plugin_id in PLUGIN_CATALOG_IDS:
         row = await db.get(PluginRegistration, plugin_id)
         if row:
             PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
@@ -331,6 +507,15 @@ def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
     installer_path = Path(row.installer_path)
     bundle_dir = PLUGIN_ROOT / row.id / "bundles"
     bundle_dir.mkdir(parents=True, exist_ok=True)
+    metadata = row.metadata_json or {}
+    configured = _plugin_use_case_configs(row.id, metadata.get("use_case_configs"))
+    kind = HOST_PLUGIN_SPECS[row.id]["kind"]
+    connector_text = "\n".join(str(item.get("config") or "") for item in configured.values()) if configured else _packaged_connector_config(kind)
+    config_path = bundle_dir / "monitoring-config.toml"
+    config_path.write_text(connector_text, encoding="utf-8")
+    postgres_dsn = _database_url_for_monitoring_bundle()
+    if not postgres_dsn:
+        raise HTTPException(status_code=500, detail="DATABASE_URL is not configured in the MAI backend environment")
     try:
         packager = subprocess.run(
             [
@@ -341,6 +526,8 @@ def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
                 "--architecture", row.architecture,
                 "--telegraf-installer", str(installer_path),
                 "--output-dir", str(bundle_dir),
+                "--connector-config-file", str(config_path),
+                "--postgres-dsn", postgres_dsn,
             ],
             check=True,
             capture_output=True,
@@ -1573,6 +1760,7 @@ def _plugin_record_payload(plugin: Dict[str, Any]) -> Dict[str, Any]:
         "installer": plugin.get("installer", {}),
         "overall_installer": plugin.get("overall_installer", {}),
         "versions": plugin.get("versions", []),
+        "use_case_configs": plugin.get("use_case_configs", {}),
     }
 
 
@@ -1580,13 +1768,20 @@ def _plugin_record_payload(plugin: Dict[str, Any]) -> Dict[str, Any]:
 async def list_plugins(db: AsyncSession = Depends(get_db)) -> List[Dict[str, Any]]:
     _seed_default_plugins()
     await _sync_plugin_catalog(db)
-    return [_plugin_record_payload(PLUGIN_CATALOG[plugin_id]) for plugin_id in HOST_PLUGIN_SPECS]
+    for plugin_id in PLUGIN_CATALOG_IDS:
+        row = await db.get(PluginRegistration, plugin_id)
+        if row and row.connection_status == "connected":
+            await _reconcile_connected_plugin(row, db)
+    return [_plugin_record_payload(PLUGIN_CATALOG[plugin_id]) for plugin_id in PLUGIN_CATALOG_IDS]
 
 
 @router.get("/api/plugins/{plugin_id}")
 async def get_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     _seed_default_plugins()
     await _sync_plugin_catalog(db)
+    row = await db.get(PluginRegistration, plugin_id)
+    if row and row.connection_status == "connected":
+        await _reconcile_connected_plugin(row, db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
@@ -1607,6 +1802,116 @@ async def get_plugin_capabilities(plugin_id: str) -> Dict[str, Any]:
     }
 
 
+@router.get("/api/plugins/{plugin_id}/use-case-config")
+async def get_monitoring_use_case_config(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    if plugin_id not in PLUGIN_CATALOG_IDS:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    row = await db.get(PluginRegistration, plugin_id)
+    metadata = row.metadata_json or {} if row else {}
+    return {"plugin_id": plugin_id, "configs": _plugin_use_case_configs(plugin_id, metadata.get("use_case_configs"))}
+
+
+@router.put("/api/plugins/{plugin_id}/use-case-config")
+async def save_monitoring_use_case_config(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    if plugin_id not in PLUGIN_CATALOG_IDS:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row:
+        raise HTTPException(status_code=409, detail="Register IIIOT-Veda Monitoring before saving configuration")
+    payload = await request.json()
+    incoming = payload.get("configs") if isinstance(payload, dict) else None
+    if not isinstance(incoming, dict):
+        raise HTTPException(status_code=422, detail="configs must be an object")
+    cleaned = _plugin_use_case_configs(plugin_id, incoming)
+    for kind, item in cleaned.items():
+        try:
+            tomllib.loads(item["config"])
+        except tomllib.TOMLDecodeError as exc:
+            raise HTTPException(status_code=422, detail=f"{kind} configuration is invalid: {exc}") from exc
+    metadata = dict(row.metadata_json or {})
+    metadata["use_case_configs"] = cleaned
+    row.metadata_json = metadata
+    row.bundle_filename = None
+    row.bundle_path = None
+    row.bundle_size_bytes = None
+    row.bundle_checksum_sha256 = None
+    await db.commit()
+    PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
+    return {"status": "saved", "configs": cleaned}
+
+
+def _installer_asset_payload(asset: PluginInstallerAsset) -> Dict[str, Any]:
+    return {
+        "id": asset.id, "display_name": asset.display_name, "target_os": asset.target_os,
+        "architecture": asset.architecture, "filename": asset.filename,
+        "size_bytes": asset.size_bytes, "checksum_sha256": asset.checksum_sha256,
+        "created_at": asset.created_at.isoformat() + "Z" if asset.created_at else None,
+    }
+
+
+@router.get("/api/admin/plugin-installers")
+async def list_plugin_installers(db: AsyncSession = Depends(get_db)) -> List[Dict[str, Any]]:
+    result = await db.execute(select(PluginInstallerAsset).order_by(PluginInstallerAsset.created_at.desc()))
+    return [_installer_asset_payload(asset) for asset in result.scalars().all() if Path(asset.storage_path).is_file()]
+
+
+@router.post("/api/admin/plugin-installers")
+async def upload_plugin_installer(
+    display_name: str = Form(...), target_os: str = Form(...), architecture: str = Form(...),
+    installer: UploadFile = File(...), db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
+    target_os = target_os.strip().lower()
+    architecture = architecture.strip().lower()
+    filename = _safe_installer_name(installer.filename or "")
+    _validate_installer_extension(target_os, filename)
+    if architecture not in {"x86_64", "arm64"}:
+        raise HTTPException(status_code=422, detail="Architecture must be x86_64 or arm64")
+    asset_id = f"installer-{uuid.uuid4().hex}"
+    asset_dir = PLUGIN_ROOT / "installer-library"
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    destination = asset_dir / f"{asset_id}-{filename}"
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        with destination.open("wb") as output:
+            while chunk := await installer.read(1024 * 1024):
+                size += len(chunk)
+                if size > 512 * 1024 * 1024:
+                    raise HTTPException(status_code=413, detail="Installation file exceeds 512 MB")
+                digest.update(chunk)
+                output.write(chunk)
+        if not size:
+            raise HTTPException(status_code=422, detail="Installation file is empty")
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        await installer.close()
+    asset = PluginInstallerAsset(
+        id=asset_id, display_name=display_name.strip() or filename, target_os=target_os,
+        architecture=architecture, filename=filename, storage_path=str(destination),
+        size_bytes=size, checksum_sha256=digest.hexdigest(),
+    )
+    db.add(asset)
+    await db.commit()
+    await db.refresh(asset)
+    return _installer_asset_payload(asset)
+
+
+@router.delete("/api/admin/plugin-installers/{asset_id}")
+async def delete_plugin_installer(asset_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    asset = await db.get(PluginInstallerAsset, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Installation file not found")
+    in_use = (await db.execute(select(func.count(PluginRegistration.id)).where(PluginRegistration.installer_path == asset.storage_path))).scalar() or 0
+    if in_use:
+        raise HTTPException(status_code=409, detail="This installation file is used by a registered plugin")
+    Path(asset.storage_path).unlink(missing_ok=True)
+    await db.delete(asset)
+    await db.commit()
+    return {"status": "deleted"}
+
+
 @router.get("/api/plugins/system/current")
 async def get_plugin_target_system() -> Dict[str, Any]:
     system_name = platform.system().lower()
@@ -1624,7 +1929,6 @@ async def get_plugin_target_system() -> Dict[str, Any]:
             linux_package_types.append("linux-deb")
         if Path("/etc/redhat-release").exists() or Path("/etc/fedora-release").exists():
             linux_package_types.append("linux-rpm")
-        linux_package_types.append("linux-archive")
     return {
         "hostname": platform.node() or "localhost",
         "operating_system": operating_system,
@@ -1643,49 +1947,20 @@ async def register_plugin(
     category: str = Form("Monitoring"),
     short_description: str = Form(""),
     detailed_description: str = Form(""),
-    target_os: str = Form(...),
-    architecture: str = Form(...),
-    installer: UploadFile = File(...),
+    installer_asset_id: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     _seed_default_plugins()
-    if plugin_id not in HOST_PLUGIN_SPECS:
+    if plugin_id not in PLUGIN_CATALOG_IDS:
         raise HTTPException(status_code=422, detail="Unsupported monitoring plugin")
     display_name = name.strip()
     if not display_name:
         raise HTTPException(status_code=422, detail="Plugin name is required")
-    target_os = target_os.strip().lower()
-    architecture = architecture.strip().lower()
-    if target_os not in PLUGIN_ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=422, detail="Target OS/package type is not supported")
-    if architecture not in {"x86_64", "arm64"}:
-        raise HTTPException(status_code=422, detail="Architecture must be x86_64 or arm64")
-    filename = _safe_installer_name(installer.filename or "")
-    _validate_installer_extension(target_os, filename)
-    plugin_dir = PLUGIN_ROOT / plugin_id
-    telegraf_dir = plugin_dir / "telegraf"
-    telegraf_dir.mkdir(parents=True, exist_ok=True)
-    installer_path = telegraf_dir / filename
-    temporary_path = telegraf_dir / f".{filename}.upload"
-    checksum_builder = hashlib.sha256()
-    size_bytes = 0
-    try:
-        with temporary_path.open("wb") as destination:
-            while chunk := await installer.read(1024 * 1024):
-                size_bytes += len(chunk)
-                if size_bytes > 512 * 1024 * 1024:
-                    raise HTTPException(status_code=413, detail="Installation file exceeds 512 MB")
-                checksum_builder.update(chunk)
-                destination.write(chunk)
-        if size_bytes == 0:
-            raise HTTPException(status_code=422, detail="Installation file is empty")
-        temporary_path.replace(installer_path)
-    except Exception:
-        temporary_path.unlink(missing_ok=True)
-        raise
-    finally:
-        await installer.close()
-    checksum = checksum_builder.hexdigest()
+    asset = await db.get(PluginInstallerAsset, installer_asset_id)
+    if not asset or not Path(asset.storage_path).is_file():
+        raise HTTPException(status_code=422, detail="Select a valid installation file from Plugin Settings")
+    target_os, architecture, filename = asset.target_os, asset.architecture, asset.filename
+    installer_path, size_bytes, checksum = Path(asset.storage_path), asset.size_bytes, asset.checksum_sha256
 
     row = await db.get(PluginRegistration, plugin_id)
     if not row:
@@ -1717,7 +1992,7 @@ async def register_plugin(
     row.installation_status = "registered"
     row.connection_status = "not_configured"
     row.last_metric_received = None
-    row.metadata_json = {"package_type": target_os, "telemetry_destination": "postgresql"}
+    row.metadata_json = {"package_type": target_os, "telemetry_destination": "postgresql", "installer_asset_id": asset.id, "use_case_configs": _plugin_use_case_configs(plugin_id)}
     await db.commit()
     await db.refresh(row)
     plugin = _plugin_from_db(row)
@@ -1727,18 +2002,16 @@ async def register_plugin(
 
 @router.delete("/api/admin/plugins/{plugin_id}")
 async def remove_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
-    if plugin_id not in HOST_PLUGIN_SPECS:
+    if plugin_id not in PLUGIN_CATALOG_IDS:
         raise HTTPException(status_code=404, detail="Plugin not found")
     row = await db.get(PluginRegistration, plugin_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plugin is not registered")
-    await db.delete(row)
+    row.installation_status = "registered"
+    row.connection_status = "not_configured"
+    row.last_metric_received = None
     await db.commit()
-
-    # Restore only the unregistered catalog template. Uploaded packages remain on
-    # disk so an administrator can recover or re-register them if needed.
-    PLUGIN_CATALOG.pop(plugin_id, None)
-    _seed_default_plugins()
+    PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
     return {"status": "removed", "plugin_id": plugin_id}
 
 
@@ -1919,6 +2192,20 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     row = await db.get(PluginRegistration, plugin_id)
     if not row:
         raise HTTPException(status_code=409, detail="Register this plugin before verifying installation")
+    installation_checks = _monitoring_installation_checks(row.target_os, HOST_PLUGIN_SPECS[row.id]["kind"])
+    installation_ok = all(check["passed"] for check in installation_checks)
+    if not installation_ok:
+        await _mark_plugin_available(row, db)
+        failed_messages = [check["message"] for check in installation_checks if not check["passed"]]
+        return {
+            "success": False,
+            "status": "available",
+            "message": "Connectivity test failed. The plugin was moved to Available Plugins.",
+            "metrics_seen": 0,
+            "last_metric_received": None,
+            "verification_error": " ".join(failed_messages),
+            "checks": installation_checks,
+        }
     spec = HOST_PLUGIN_SPECS[plugin_id]
     try:
         metric, verification_error = await latest_plugin_metric(db, spec["table"])
@@ -1930,8 +2217,8 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     success = metric is not None
     metric_time_value = (metric or {}).get("time")
     metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
-    plugin["connection_status"] = "connected" if success else "waiting_for_data"
-    plugin["installation_status"] = "connected" if success else "waiting_for_data"
+    plugin["connection_status"] = "connected" if success else "not_configured"
+    plugin["installation_status"] = "connected" if success else "registered"
     plugin["last_metric_received"] = metric_time if success else None
     row = await db.get(PluginRegistration, plugin_id)
     if row:
@@ -1939,13 +2226,21 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         row.installation_status = plugin["installation_status"]
         row.last_metric_received = metric_time_value.astimezone(timezone.utc).replace(tzinfo=None) if success and isinstance(metric_time_value, datetime) else None
         await db.commit()
+        PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
+    telemetry_check = {
+        "name": "postgresql_telemetry",
+        "passed": success,
+        "message": f"Recent {spec['label']} telemetry was found in PostgreSQL."
+        if success else (verification_error or "No recent IIIOT-Veda telemetry was found in PostgreSQL."),
+    }
     return {
         "success": success,
-        "status": "connected" if success else "waiting_for_data",
-        "message": f"{spec['label']} metrics are successfully being received." if success else "Waiting for the target host to send telemetry.",
+        "status": "connected" if success else "available",
+        "message": f"{spec['label']} connectivity test passed." if success else "Connectivity test failed. The plugin was moved to Available Plugins.",
         "metrics_seen": 1 if success else 0,
         "last_metric_received": metric_time,
         "verification_error": verification_error,
+        "checks": [*installation_checks, telemetry_check],
     }
 
 
@@ -2040,7 +2335,7 @@ async def get_connector_telemetry(
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """Return normalized rows for host, network, messaging, and industrial connectors."""
-    if plugin_id not in {DISK_PLUGIN_ID, NETWORK_PLUGIN_ID, MQTT_PLUGIN_ID, MODBUS_PLUGIN_ID, OPCUA_PLUGIN_ID, NETWORK_DIAGNOSTICS_PLUGIN_ID, EMAIL_MONITORING_PLUGIN_ID, SERVER_MONITORING_PLUGIN_ID, DESKTOP_MONITORING_PLUGIN_ID}:
+    if plugin_id not in {DISK_PLUGIN_ID, NETWORK_PLUGIN_ID, MQTT_PLUGIN_ID, MODBUS_PLUGIN_ID, OPCUA_PLUGIN_ID, NETWORK_DIAGNOSTICS_PLUGIN_ID, EMAIL_MONITORING_PLUGIN_ID, SERVER_MONITORING_PLUGIN_ID, DESKTOP_MONITORING_PLUGIN_ID, *ADDITIONAL_MONITORING_SPECS.keys()}:
         raise HTTPException(status_code=404, detail="Connector telemetry endpoint not found")
     from .host_telemetry import connector_payload
     spec = HOST_PLUGIN_SPECS[plugin_id]
@@ -2064,9 +2359,12 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Registered IIIOT-Veda installer is not available")
     existing_path = Path(row.bundle_path).resolve() if row.bundle_path else None
     bundle_is_postgresql = (row.metadata_json or {}).get("telemetry_destination") == "postgresql"
-    expected_bundle_suffix = ".exe" if row.target_os == "windows" else ".tar.gz"
+    expected_bundle_suffix = {
+        "windows": ".exe", "linux-deb": ".deb", "linux-rpm": ".rpm",
+        "macos": ".dmg" if row.installer_filename.lower().endswith(".dmg") else ".pkg",
+    }.get(row.target_os, "")
     bundle_has_current_format = bool(existing_path and str(existing_path).lower().endswith(expected_bundle_suffix))
-    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 3:
+    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 6:
         bundle = _generate_plugin_bundle(row)
         row.bundle_filename = str(bundle["filename"])
         row.bundle_path = str(bundle["path"])
@@ -2075,7 +2373,7 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         row.metadata_json = {
             **(row.metadata_json or {}),
             "telemetry_destination": "postgresql",
-            "bundle_revision": 3,
+            "bundle_revision": 6,
             "bundle_format": "single-executable" if row.target_os == "windows" else "archive",
         }
         await db.commit()

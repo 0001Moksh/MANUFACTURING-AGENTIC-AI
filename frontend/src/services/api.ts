@@ -217,14 +217,14 @@ export const pluginService = {
     } catch {
       return [
         {
-          id: 'telegraf-cpu-monitoring',
-          name: 'IIIOT-Veda CPU Monitoring',
-          slug: 'telegraf-cpu-monitoring',
+          id: 'iiiot-veda-monitoring',
+          name: 'IIIOT-Veda Monitoring Plugin',
+          slug: 'iiiot-veda-monitoring',
           version: '1.0.0',
           category: 'Monitoring',
-          short_description: 'Collects live CPU utilization and health metrics via IIIOT-Veda.',
-          detailed_description: 'Collects CPU utilization, per-core metrics, and host health from the target system.',
-          icon: 'cpu',
+          short_description: 'One installation for all IIIOT-Veda monitoring use cases.',
+          detailed_description: 'Provides infrastructure, service, messaging, and machine monitoring from one collector.',
+          icon: 'monitoring',
           target_os: 'linux-rpm',
           supported_os: ['linux-rpm'],
           supported_architectures: ['x86_64', 'arm64'],
@@ -258,8 +258,28 @@ export const pluginService = {
     const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/capabilities`);
     return res.data;
   },
+  getUseCaseConfig: async (pluginId: string) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/use-case-config`);
+    return res.data;
+  },
+  saveUseCaseConfig: async (pluginId: string, configs: Record<string, unknown>) => {
+    const res = await api.put(`/plugins/${encodeURIComponent(pluginId)}/use-case-config`, { configs });
+    return res.data;
+  },
   register: async (payload: FormData) => {
     const res = await api.post('/admin/plugins', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return res.data;
+  },
+  listInstallerAssets: async () => {
+    const res = await api.get('/admin/plugin-installers');
+    return res.data;
+  },
+  uploadInstallerAsset: async (payload: FormData) => {
+    const res = await api.post('/admin/plugin-installers', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return res.data;
+  },
+  deleteInstallerAsset: async (assetId: string) => {
+    const res = await api.delete(`/admin/plugin-installers/${encodeURIComponent(assetId)}`);
     return res.data;
   },
   remove: async (pluginId: string) => {

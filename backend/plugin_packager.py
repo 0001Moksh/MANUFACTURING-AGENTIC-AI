@@ -6,13 +6,15 @@ import argparse
 import hashlib
 import json
 import shutil
+import shlex
+import subprocess
 import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
 
 
-TARGETS = {"windows", "linux-deb", "linux-rpm", "linux-archive", "macos"}
+TARGETS = {"windows", "linux-deb", "linux-rpm", "macos"}
 ARCHITECTURES = {"x86_64", "arm64"}
 
 
@@ -24,7 +26,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
+PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
 
 
 def _host_base_config() -> str:
@@ -59,6 +61,9 @@ def _output_config() -> str:
 
 
 def _connector_config(plugin: str) -> str:
+    if plugin == "monitoring":
+        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+        return "\n".join(_connector_config(child).rstrip() for child in children) + "\n"
     configs = {
         "cpu": "",
         "memory": "",
@@ -198,6 +203,142 @@ def _connector_config(plugin: str) -> str:
 # [[inputs.win_eventlog]]
 #   name_override = "iiiot_veda_win_eventlog"
 ''',
+        "docker": '''# Requires access to the Docker daemon socket.
+[[inputs.docker]]
+  name_override = "iiiot_veda_docker"
+  endpoint = "unix:///var/run/docker.sock"
+  gather_services = false
+  container_name_include = []
+  container_name_exclude = []
+''',
+        "kubernetes": '''# Configure a reachable Kubernetes API and service-account token.
+[[inputs.kubernetes]]
+  name_override = "iiiot_veda_kubernetes"
+  url = "https://127.0.0.1:10250"
+  bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  insecure_skip_verify = true
+''',
+        "mongodb": '''[[inputs.mongodb]]
+  name_override = "iiiot_veda_mongodb"
+  servers = ["mongodb://monitor:password@127.0.0.1:27017"]
+  gather_perdb_stats = true
+''',
+        "mysql": '''[[inputs.mysql]]
+  name_override = "iiiot_veda_mysql"
+  servers = ["monitor:password@tcp(127.0.0.1:3306)/?tls=false"]
+  gather_process_list = true
+  gather_innodb_metrics = true
+''',
+        "redis": '''[[inputs.redis]]
+  name_override = "iiiot_veda_redis"
+  servers = ["tcp://:password@127.0.0.1:6379"]
+''',
+        "sql": '''# Generic SQL query input. Supported drivers depend on the bundled runtime.
+[[inputs.sql]]
+  name_override = "iiiot_veda_sql"
+  driver = "pgx"
+  dsn = "host=127.0.0.1 port=5432 user=monitor password=password dbname=database sslmode=disable"
+
+  [[inputs.sql.query]]
+    query = "SELECT 1 AS value"
+    measurement = "iiiot_veda_sql"
+''',
+        "sqlserver": '''[[inputs.sqlserver]]
+  name_override = "iiiot_veda_sqlserver"
+  servers = ["Server=127.0.0.1;Port=1433;User Id=monitor;Password=password;app name=IIIOT-Veda;log=1;"]
+  database_type = "SQLServer"
+  include_query = ["PerformanceCounters", "WaitStatsCategorized", "DatabaseIO", "ServerProperties"]
+''',
+        "exec": '''# The command must print a supported metric format to stdout.
+[[inputs.exec]]
+  name_override = "iiiot_veda_exec"
+  commands = ["/usr/local/bin/iiiot-veda-metrics"]
+  timeout = "5s"
+  data_format = "json"
+''',
+        "http": '''# Poll an HTTP endpoint that returns metric JSON.
+[[inputs.http]]
+  name_override = "iiiot_veda_http"
+  urls = ["https://example.com/metrics"]
+  method = "GET"
+  timeout = "5s"
+  data_format = "json"
+''',
+        "http-listener": '''# Receive metric JSON over HTTP POST.
+[[inputs.http_listener_v2]]
+  name_override = "iiiot_veda_http_listener"
+  service_address = "tcp://:8080"
+  paths = ["/iiiot-veda"]
+  data_format = "json"
+''',
+        "nvidia": '''# Requires nvidia-smi from the NVIDIA driver installation.
+[[inputs.nvidia_smi]]
+  name_override = "iiiot_veda_nvidia"
+  bin_path = "/usr/bin/nvidia-smi"
+  timeout = "5s"
+''',
+        "s7": '''# Siemens S7 PLC example. Replace the address and field definitions.
+[[inputs.s7comm]]
+  name_override = "iiiot_veda_s7"
+  server = "127.0.0.1:102"
+  rack = 0
+  slot = 1
+
+  [[inputs.s7comm.metric]]
+    name = "plc_values"
+    fields = [
+      { name = "temperature", address = "DB1.R0" },
+      { name = "running", address = "DB1.X4.0" },
+    ]
+''',
+        "syslog": '''# Receive RFC3164/RFC5424 messages.
+[[inputs.syslog]]
+  name_override = "iiiot_veda_syslog"
+  server = "tcp://:6514"
+  framing = "octet-counting"
+  best_effort = true
+''',
+        "cisco-telemetry": '''# Cisco model-driven telemetry listener.
+[[inputs.cisco_telemetry_mdt]]
+  name_override = "iiiot_veda_cisco_telemetry"
+  transport = "grpc"
+  service_address = "0.0.0.0:57000"
+
+  [inputs.cisco_telemetry_mdt.aliases]
+    ifstats = "ietf-interfaces:interfaces-state/interface/statistics"
+''',
+        "system": '''[[inputs.system]]
+  name_override = "iiiot_veda_system_extended"
+''',
+        "opentelemetry": '''# Receive OpenTelemetry metrics, logs, traces, and profiles over gRPC.
+[[inputs.opentelemetry]]
+  name_override = "iiiot_veda_opentelemetry"
+  service_address = "0.0.0.0:4317"
+  timeout = "5s"
+  max_msg_size = "4MB"
+''',
+        "nginx": '''# NGINX stub_status endpoint.
+[[inputs.nginx]]
+  name_override = "iiiot_veda_nginx"
+  urls = ["http://127.0.0.1/nginx_status"]
+  response_timeout = "5s"
+''',
+        "csv": '''# CSV is an input data format; this example reads configured CSV files.
+[[inputs.file]]
+  name_override = "iiiot_veda_csv"
+  files = ["/var/lib/iiiot-veda/input/*.csv"]
+  data_format = "csv"
+  csv_header_row_count = 1
+  csv_measurement_column = "measurement"
+''',
+        "grok": '''# Grok is an input data format; edit patterns to match the source log.
+[[inputs.tail]]
+  name_override = "iiiot_veda_grok"
+  files = ["/var/log/iiiot-veda/*.log"]
+  initial_read_offset = "saved-or-end"
+  data_format = "grok"
+  grok_patterns = ['%{TIMESTAMP_ISO8601:timestamp:ts-"2006-01-02 15:04:05"} %{LOGLEVEL:level:tag} %{GREEDYDATA:message}']
+''',
     }
     if plugin not in configs:
         raise ValueError(f"Unsupported plugin: {plugin}")
@@ -218,6 +359,20 @@ def _linux_installer(package_name: str, plugin: str) -> str:
     required, optional = _connector_variables(plugin)
     required_vars = " ".join(required)
     render_vars = " ".join(required + optional)
+    docker_permissions = '''
+docker_socket="/var/run/docker.sock"
+if [[ -S "${docker_socket}" ]] && id telegraf >/dev/null 2>&1; then
+  docker_group="$(stat -c '%G' "${docker_socket}")"
+  if getent group "${docker_group}" >/dev/null 2>&1; then
+    sudo usermod -aG "${docker_group}" telegraf
+  elif command -v setfacl >/dev/null 2>&1; then
+    sudo setfacl -m u:telegraf:rw "${docker_socket}"
+  else
+    echo "IIIOT-Veda cannot grant the service account access to ${docker_socket}." >&2
+    exit 1
+  fi
+fi
+''' if plugin == "docker" else ""
     return f'''#!/usr/bin/env bash
 set -euo pipefail
 
@@ -267,6 +422,7 @@ if [[ -s "${{script_dir}}/mai-connector.conf" ]]; then
   sudo install -m 0640 "${{script_dir}}/mai-connector.conf" "/etc/telegraf/telegraf.d/mai-{plugin}.conf"
 fi
 sudo chown root:telegraf /etc/telegraf/telegraf.d/mai-*.conf
+{docker_permissions}
 if command -v systemctl >/dev/null 2>&1; then
   sudo systemctl enable --now telegraf
   sudo systemctl restart telegraf
@@ -363,6 +519,16 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $BundleDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Package = Join-Path $BundleDir "{package_name}"
 $ConfigDir = Join-Path $env:ProgramFiles "IIIOT-Veda\\config"
+$ConnectorTemplatePath = Join-Path $BundleDir "mai-connector.conf"
+Add-Type -AssemblyName PresentationFramework
+$Start = [System.Windows.MessageBox]::Show("Configure and install the IIIOT-Veda {plugin} plugin?", "IIIOT-Veda Setup", "OKCancel", "Information")
+if ($Start -ne "OK") {{ exit }}
+if ((Test-Path $ConnectorTemplatePath) -and (Get-Item $ConnectorTemplatePath).Length -gt 0) {{
+  $Edit = [System.Windows.MessageBox]::Show("Open configuration to review source addresses and paths?", "IIIOT-Veda Configuration", "YesNo", "Question")
+  if ($Edit -eq "Yes") {{ Start-Process notepad.exe -ArgumentList $ConnectorTemplatePath -Wait }}
+}}
+$Permission = [System.Windows.MessageBox]::Show("Allow administrator changes for files and the monitoring service?", "IIIOT-Veda Permissions", "YesNo", "Warning")
+if ($Permission -ne "Yes") {{ exit }}
 $ExistingOutput = Join-Path $ConfigDir "mai-output.conf"
 if (-not $env:POSTGRES_DSN -and -not (Test-Path $ExistingOutput)) {{
   Add-Type -AssemblyName Microsoft.VisualBasic
@@ -439,6 +605,7 @@ if ($AgentExe) {{
   (Get-Service -Name "telegraf").WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
 }}
 Write-Host "IIIOT-Veda monitoring plugin installed. Start or restart the IIIOT-Veda service, then verify in MAI."
+[System.Windows.MessageBox]::Show("IIIOT-Veda {plugin} installation completed.", "IIIOT-Veda Setup", "OK", "Information") | Out-Null
 '''
 
 
@@ -452,6 +619,130 @@ def _build_windows_executable(staging: Path, bundle_path: Path, architecture: st
         for path in staging.rglob("*"):
             if path.is_file():
                 archive.write(path, Path("payload") / path.relative_to(staging))
+
+
+def _linux_gui_launcher(plugin: str) -> str:
+    permissions_message = (
+        "Allow administrator changes for the runtime, configuration files and service? "
+        "Docker monitoring also grants the IIIOT-Veda service account access to the Docker socket, "
+        "which permits control of the local Docker daemon."
+        if plugin == "docker"
+        else "Allow administrator changes for the runtime, configuration files and service?"
+    )
+    return f'''#!/usr/bin/env bash
+set -euo pipefail
+command -v zenity >/dev/null 2>&1 || {{ echo "IIIOT-Veda Setup requires zenity." >&2; exit 1; }}
+source_dir="/opt/iiiot-veda/{plugin}"
+work_dir="$(mktemp -d)"
+trap 'rm -rf "${{work_dir}}"' EXIT
+cp -a "${{source_dir}}/." "${{work_dir}}/"
+zenity --info --title="IIIOT-Veda Setup" --text="Configure and install the {plugin} plugin."
+if [[ -s "${{work_dir}}/mai-connector.conf" ]]; then
+  zenity --text-info --editable --title="Plugin configuration" --filename="${{work_dir}}/mai-connector.conf" --width=900 --height=650 > "${{work_dir}}/mai-connector.edited"
+  mv "${{work_dir}}/mai-connector.edited" "${{work_dir}}/mai-connector.conf"
+fi
+zenity --question --title="Permissions" --text="{permissions_message}"
+pkexec env DISPLAY="${{DISPLAY:-}}" XAUTHORITY="${{XAUTHORITY:-}}" bash "${{work_dir}}/install.sh"
+zenity --info --title="IIIOT-Veda Setup" --text="Installation completed. Return to MAI and verify the plugin."
+'''
+
+
+def _stage_linux_package(staging: Path, root: Path, plugin: str) -> None:
+    payload = root / "opt" / "iiiot-veda" / plugin
+    payload.mkdir(parents=True)
+    for item in staging.iterdir():
+        if item.is_file():
+            shutil.copy2(item, payload / item.name)
+    launcher = root / "usr" / "bin" / f"iiiot-veda-setup-{plugin}"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(_linux_gui_launcher(plugin), encoding="utf-8")
+    launcher.chmod(0o755)
+    desktop = root / "usr" / "share" / "applications" / f"iiiot-veda-{plugin}.desktop"
+    desktop.parent.mkdir(parents=True)
+    desktop.write_text(f'''[Desktop Entry]\nType=Application\nName=IIIOT-Veda {plugin.replace('-', ' ').title()} Setup\nExec={launcher}\nTerminal=false\nCategories=System;Settings;\n''', encoding="utf-8")
+
+
+def _build_deb(staging: Path, bundle_path: Path, plugin: str, architecture: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="iiiot-veda-deb-") as temporary:
+        root = Path(temporary) / "root"
+        _stage_linux_package(staging, root, plugin)
+        control_dir = Path(temporary) / "control"
+        control_dir.mkdir()
+        deb_arch = "arm64" if architecture == "arm64" else "amd64"
+        (control_dir / "control").write_text(f'''Package: iiiot-veda-{plugin}\nVersion: 1.0.0\nArchitecture: {deb_arch}\nMaintainer: IIIOT-Veda\nDepends: zenity, policykit-1, bash\nDescription: IIIOT-Veda graphical setup for {plugin}\n''', encoding="utf-8")
+        postinst = control_dir / "postinst"
+        postinst.write_text(f'''#!/bin/sh
+user="${{SUDO_USER:-$(logname 2>/dev/null || true)}}"
+if [ -n "$user" ] && command -v runuser >/dev/null 2>&1; then
+  runuser -u "$user" -- env DISPLAY="${{DISPLAY:-:0}}" /usr/bin/iiiot-veda-setup-{plugin} >/tmp/iiiot-veda-{plugin}-setup.log 2>&1 &
+fi
+exit 0
+''', encoding="utf-8")
+        postinst.chmod(0o755)
+        for name, source in (("control.tar.gz", control_dir), ("data.tar.gz", root)):
+            with tarfile.open(Path(temporary) / name, "w:gz") as archive:
+                for path in source.rglob("*"):
+                    archive.add(path, arcname=Path(".") / path.relative_to(source))
+        (Path(temporary) / "debian-binary").write_text("2.0\n", encoding="ascii")
+        subprocess.run(["ar", "r", str(bundle_path), "debian-binary", "control.tar.gz", "data.tar.gz"], cwd=temporary, check=True, capture_output=True)
+
+
+def _build_rpm(staging: Path, bundle_path: Path, plugin: str, architecture: str) -> None:
+    if not shutil.which("rpmbuild"):
+        raise RuntimeError("rpmbuild is required to generate the RPM installer")
+    with tempfile.TemporaryDirectory(prefix="iiiot-veda-rpm-") as temporary:
+        top = Path(temporary)
+        for directory in ("BUILD", "BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS", "TMP"):
+            (top / directory).mkdir()
+        root = top / "SOURCES" / "payload"
+        _stage_linux_package(staging, root, plugin)
+        package_name = f"iiiot-veda-{plugin}"
+        rpm_arch = "noarch"
+        spec = top / "SPECS" / f"{package_name}.spec"
+        spec.write_text(f'''Name: {package_name}\nVersion: 1.0.0\nRelease: 1\nSummary: IIIOT-Veda graphical setup for {plugin}\nLicense: Proprietary\nBuildArch: {rpm_arch}\nRequires: zenity, polkit, bash\n%description\nIIIOT-Veda graphical setup for {plugin}.\n%install\nmkdir -p %{{buildroot}}\ncp -a %{{_sourcedir}}/payload/. %{{buildroot}}/\n%post\nuser="${{SUDO_USER:-$(logname 2>/dev/null || true)}}"\nif [ -n "$user" ] && command -v runuser >/dev/null 2>&1; then\n  runuser -u "$user" -- env DISPLAY="${{DISPLAY:-:0}}" /usr/bin/iiiot-veda-setup-{plugin} >/tmp/iiiot-veda-{plugin}-setup.log 2>&1 &\nfi\n%files\n/opt/iiiot-veda/{plugin}\n/usr/bin/iiiot-veda-setup-{plugin}\n/usr/share/applications/iiiot-veda-{plugin}.desktop\n''', encoding="utf-8")
+        subprocess.run(["rpmbuild", "--define", f"_topdir {top}", "--define", f"_tmppath {top / 'TMP'}", "-bb", str(spec)], check=True, capture_output=True, text=True)
+        built = next((top / "RPMS").rglob("*.rpm"))
+        shutil.copy2(built, bundle_path)
+
+
+def _macos_gui_launcher(plugin: str) -> str:
+    return f'''#!/usr/bin/env bash
+set -euo pipefail
+bundle_dir="$(cd "$(dirname "$0")" && pwd)"
+osascript -e 'display dialog "Configure and install the IIIOT-Veda {plugin} plugin?" buttons {{"Cancel", "Continue"}} default button "Continue"'
+if [[ -s "${{bundle_dir}}/mai-connector.conf" ]]; then open -W -a TextEdit "${{bundle_dir}}/mai-connector.conf"; fi
+osascript -e 'display dialog "Administrator permission is required to install files and the service." buttons {{"Cancel", "Install"}} default button "Install" with icon caution'
+osascript -e "do shell script \"bash \" & quoted form of \"${{bundle_dir}}/install.sh\" with administrator privileges"
+osascript -e 'display dialog "Installation completed. Return to MAI and verify the plugin." buttons {{"Finish"}} default button "Finish"'
+'''
+
+
+def _build_macos_package(staging: Path, bundle_path: Path, plugin: str, use_dmg: bool) -> None:
+    launcher = staging / "IIIOT-Veda Setup.command"
+    launcher.write_text(_macos_gui_launcher(plugin), encoding="utf-8")
+    launcher.chmod(0o755)
+    if use_dmg:
+        if not shutil.which("hdiutil"):
+            raise RuntimeError("hdiutil on macOS is required to generate a DMG installer")
+        subprocess.run(["hdiutil", "create", "-volname", f"IIIOT-Veda {plugin}", "-srcfolder", str(staging), "-ov", "-format", "UDZO", str(bundle_path)], check=True, capture_output=True)
+    else:
+        if not shutil.which("pkgbuild"):
+            raise RuntimeError("pkgbuild on macOS is required to generate a PKG installer")
+        root = staging.parent / "pkgroot" / "Applications" / f"IIIOT-Veda {plugin} Setup"
+        root.mkdir(parents=True)
+        for item in staging.iterdir():
+            if item.is_file(): shutil.copy2(item, root / item.name)
+        scripts = staging.parent / "pkgscripts"
+        scripts.mkdir()
+        postinstall = scripts / "postinstall"
+        postinstall.write_text(f'''#!/usr/bin/env bash
+console_user="$(stat -f '%Su' /dev/console)"
+uid="$(id -u "$console_user")"
+launchctl asuser "$uid" sudo -u "$console_user" open "/Applications/IIIOT-Veda {plugin} Setup/IIIOT-Veda Setup.command" || true
+exit 0
+''', encoding="utf-8")
+        postinstall.chmod(0o755)
+        subprocess.run(["pkgbuild", "--root", str(staging.parent / "pkgroot"), "--scripts", str(scripts), "--identifier", f"com.iiiotveda.{plugin}", "--version", "1.0.0", str(bundle_path)], check=True, capture_output=True)
 
 
 def _installation_readme(target_os: str, plugin: str) -> str:
@@ -493,7 +784,7 @@ After installation, return to MAI, confirm installation, and verify the plugin.
 '''
 
 
-def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, output_dir: Path, plugin: str = "cpu") -> dict[str, object]:
+def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, output_dir: Path, plugin: str = "cpu", connector_config_file: Path | None = None, postgres_dsn: str = "") -> dict[str, object]:
     if plugin not in PLUGINS:
         raise ValueError(f"Unsupported plugin: {plugin}")
     if target_os not in TARGETS:
@@ -514,11 +805,12 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         shutil.copy2(installer, copied_installer)
         (staging / "mai-host-base.conf").write_text(_host_base_config(), encoding="utf-8")
         (staging / "mai-output.conf").write_text(_output_config(), encoding="utf-8")
-        (staging / "mai-connector.conf").write_text(_connector_config(plugin), encoding="utf-8")
+        connector_text = connector_config_file.read_text(encoding="utf-8") if connector_config_file else _connector_config(plugin)
+        (staging / "mai-connector.conf").write_text(connector_text, encoding="utf-8")
         (staging / "mai-settings.env").write_text(
             "# Required only for the first IIIOT-Veda plugin on this host.\n"
             "# Keep this file private because it contains database credentials.\n"
-            "POSTGRES_DSN=''\n"
+            f"POSTGRES_DSN={shlex.quote(postgres_dsn)}\n"
             "# Example: postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable\n",
             encoding="utf-8",
         )
@@ -531,6 +823,14 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "email-monitoring": ["iiiot_veda_email_response", "iiiot_veda_email_cert"],
             "server-monitoring": ["iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat"],
             "desktop-monitoring": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"],
+            "docker": ["iiiot_veda_docker"], "kubernetes": ["iiiot_veda_kubernetes"],
+            "mongodb": ["iiiot_veda_mongodb"], "mysql": ["iiiot_veda_mysql"], "redis": ["iiiot_veda_redis"],
+            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "exec": ["iiiot_veda_exec"],
+            "http": ["iiiot_veda_http"], "http-listener": ["iiiot_veda_http_listener"], "nvidia": ["iiiot_veda_nvidia"],
+            "s7": ["iiiot_veda_s7"], "syslog": ["iiiot_veda_syslog"], "cisco-telemetry": ["iiiot_veda_cisco_telemetry"],
+            "system": ["iiiot_veda_system_extended"], "opentelemetry": ["iiiot_veda_opentelemetry"],
+            "nginx": ["iiiot_veda_nginx"], "csv": ["iiiot_veda_csv"], "grok": ["iiiot_veda_grok"],
+            "monitoring": ["telegraf_cpu", "telegraf_mem", "telegraf_disk", "telegraf_net", "telegraf_mqtt", "telegraf_modbus", "telegraf_opcua", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis", "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7", "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok"],
         }[plugin]
         manifest = {
             "plugin": f"IIIOT-Veda {plugin.replace('-', ' ').title()}",
@@ -542,7 +842,7 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "telemetry_destination": "postgresql",
             "measurement": tables[0],
             "measurements": tables,
-            "bundle_revision": 4,
+            "bundle_revision": 6,
         }
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
@@ -555,9 +855,16 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             script = staging / "install.sh"
             script.write_text(_macos_installer(copied_installer.name, plugin) if target_os == "macos" else _linux_installer(copied_installer.name, plugin), encoding="utf-8")
             script.chmod(0o755)
-            bundle_path = output_dir / f"{bundle_base}.tar.gz"
-            with tarfile.open(bundle_path, "w:gz") as archive:
-                archive.add(staging, arcname=staging.name)
+            if target_os == "linux-deb":
+                bundle_path = output_dir / f"{bundle_base}.deb"
+                _build_deb(staging, bundle_path, plugin, architecture)
+            elif target_os == "linux-rpm":
+                bundle_path = output_dir / f"{bundle_base}.rpm"
+                _build_rpm(staging, bundle_path, plugin, architecture)
+            else:
+                use_dmg = installer.suffix.lower() == ".dmg"
+                bundle_path = output_dir / f"{bundle_base}{'.dmg' if use_dmg else '.pkg'}"
+                _build_macos_package(staging, bundle_path, plugin, use_dmg)
 
     return {
         "filename": bundle_path.name,
@@ -574,8 +881,10 @@ def main() -> int:
     parser.add_argument("--telegraf-installer", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--plugin", choices=sorted(PLUGINS), default="cpu")
+    parser.add_argument("--connector-config-file", type=Path)
+    parser.add_argument("--postgres-dsn", default="")
     args = parser.parse_args()
-    print(json.dumps(build_bundle(args.target_os, args.architecture, args.telegraf_installer, args.output_dir, args.plugin)))
+    print(json.dumps(build_bundle(args.target_os, args.architecture, args.telegraf_installer, args.output_dir, args.plugin, args.connector_config_file, args.postgres_dsn)))
     return 0
 
 

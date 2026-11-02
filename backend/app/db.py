@@ -653,6 +653,21 @@ class PluginRegistration(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class PluginInstallerAsset(Base):
+    """Reusable IIIOT-Veda runtime package selected while registering plugins."""
+    __tablename__ = "plugin_installer_assets"
+
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    target_os: Mapped[str] = mapped_column(String(30), nullable=False)
+    architecture: Mapped[str] = mapped_column(String(20), nullable=False)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(1000), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    checksum_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class ChartSummary(Base):
     __tablename__ = "chart_summaries"
 
