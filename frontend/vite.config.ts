@@ -19,8 +19,8 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
-        timeout: 20000,
-        proxyTimeout: 20000,
+        timeout: 120000,
+        proxyTimeout: 120000,
         configure: (proxy) => {
           proxy.on('error', (_error, _request, response) => {
             if ('writeHead' in response && !response.headersSent && !response.writableEnded) {

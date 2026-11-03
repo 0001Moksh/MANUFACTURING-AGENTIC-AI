@@ -201,7 +201,9 @@ def _monitoring_installation_checks(target_os: Optional[str] = None, plugin_kind
         config_dir = Path("/usr/local/etc/telegraf.d")
     else:
         program_files = Path(os.getenv("ProgramFiles", r"C:\Program Files"))
-        executable_candidates = [shutil.which("telegraf.exe"), str(program_files / "IIIOT-Veda" / "telegraf.exe")]
+        runtime_root = program_files / "IIIOT-Veda"
+        versioned_executables = sorted(runtime_root.glob("**/telegraf.exe"), reverse=True) if runtime_root.is_dir() else []
+        executable_candidates = [shutil.which("telegraf.exe"), runtime_root / "telegraf.exe", *versioned_executables]
         config_dir = program_files / "IIIOT-Veda" / "config"
 
     executable = next((Path(candidate) for candidate in executable_candidates if candidate and Path(candidate).is_file()), None)
@@ -266,7 +268,7 @@ async def _reconcile_connected_plugin(row: PluginRegistration, db: AsyncSession)
         await _mark_plugin_available(row, db)
     return checks
 PLUGIN_ALLOWED_EXTENSIONS = {
-    "windows": (".exe",),
+    "windows": (".exe", ".msi", ".zip"),
     "linux-deb": (".deb",),
     "linux-rpm": (".rpm",),
     "macos": (".pkg", ".dmg"),
@@ -2364,7 +2366,7 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         "macos": ".dmg" if row.installer_filename.lower().endswith(".dmg") else ".pkg",
     }.get(row.target_os, "")
     bundle_has_current_format = bool(existing_path and str(existing_path).lower().endswith(expected_bundle_suffix))
-    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 6:
+    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 8:
         bundle = _generate_plugin_bundle(row)
         row.bundle_filename = str(bundle["filename"])
         row.bundle_path = str(bundle["path"])
@@ -2373,7 +2375,7 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         row.metadata_json = {
             **(row.metadata_json or {}),
             "telemetry_destination": "postgresql",
-            "bundle_revision": 6,
+            "bundle_revision": 8,
             "bundle_format": "single-executable" if row.target_os == "windows" else "archive",
         }
         await db.commit()

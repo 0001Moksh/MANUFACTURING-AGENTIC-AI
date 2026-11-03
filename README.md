@@ -159,6 +159,18 @@ overall MAI plugin bundle, which is generated and stored under
 `backend/plugin/telegraf-cpu-monitoring/bundles/` when **Download Bundle** is
 clicked in the Setup Wizard.
 
+On Windows, the notebook downloads the official Telegraf `.zip` runtime. Upload
+that `.zip` on **Plugin Settings**; the Setup Wizard then builds the overall
+IIIOT-Veda `.exe` installer. Run the notebook from PowerShell with Windows syntax:
+
+```powershell
+$env:TARGET_OS = 'windows'
+$env:ARCHITECTURE = 'x86_64'
+& .\backend\venv\Scripts\jupyter.exe nbconvert --execute --to notebook `
+  --output "$env:TEMP\cpu-plugin-executed.ipynb" `
+  'jupyter notebooks/cpu-plugin.ipynb'
+```
+
 The bundle uses Telegraf's PostgreSQL output and writes CPU samples to
 `public.telegraf_cpu` and memory samples to `public.telegraf_mem` in the MAI platform database. Before running the bundle
 installer, provide a PostgreSQL URL that is reachable from the target machine:

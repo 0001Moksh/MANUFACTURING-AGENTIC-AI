@@ -14,6 +14,7 @@ PRIVATE_KEY_PATH = Path(os.getenv("LICENSE_SERVER_PRIVATE_KEY_PATH", str(BASE_DI
 PUBLIC_KEY_PATH = Path(os.getenv("LICENSE_SERVER_PUBLIC_KEY_PATH", str(BASE_DIR / "storage" / "public_key.pem")))
 LICENSE_STORAGE_PATH = Path(os.getenv("LICENSE_STORAGE_PATH", str(BASE_DIR / "storage" / "licenses.json")))
 LOG_PATH = Path(os.getenv("LOG_PATH", str(BASE_DIR / "storage" / "audit.log")))
+SERVER_PORT = int(os.getenv("LICENSE_SERVER_PORT", "5001"))
 
 BASE_DIR.mkdir(exist_ok=True, parents=True)
 PRIVATE_KEY_PATH.parent.mkdir(exist_ok=True, parents=True)

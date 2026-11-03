@@ -43,7 +43,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const TARGET_OS_OPTIONS = [
-  { value: 'windows', label: 'Windows (.exe)', accept: '.exe' },
+  { value: 'windows', label: 'Windows (.exe / .msi / .zip)', accept: '.exe,.msi,.zip' },
   { value: 'linux-deb', label: 'Linux (.deb)', accept: '.deb' },
   { value: 'linux-rpm', label: 'Linux (.rpm)', accept: '.rpm' },
   { value: 'macos', label: 'macOS (.pkg / .dmg)', accept: '.pkg,.dmg' },

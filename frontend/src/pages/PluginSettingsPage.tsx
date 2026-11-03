@@ -6,11 +6,30 @@ import { pluginService } from '../services/api';
 
 type InstallerAsset = { id: string; display_name: string; target_os: string; architecture: string; filename: string; size_bytes: number };
 const OS_OPTIONS = [
-  { value: 'windows', label: 'Windows (.exe)', accept: '.exe' },
+  { value: 'windows', label: 'Windows (.exe / .msi / .zip)', accept: '.exe,.msi,.zip' },
   { value: 'linux-deb', label: 'Linux Debian/Ubuntu (.deb)', accept: '.deb' },
   { value: 'linux-rpm', label: 'Linux Fedora/RHEL (.rpm)', accept: '.rpm' },
   { value: 'macos', label: 'macOS (.pkg / .dmg)', accept: '.pkg,.dmg' },
 ];
+
+const getRequestErrorMessage = (reason: any, fallback: string) => {
+  const response = reason?.response?.data;
+  const detail = response?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item.msg === 'string') return item.msg;
+      return JSON.stringify(item);
+    }).filter(Boolean);
+    if (messages.length) return messages.join('; ');
+  }
+  if (detail && typeof detail === 'object') {
+    if (typeof detail.msg === 'string') return detail.msg;
+    return JSON.stringify(detail);
+  }
+  return response?.message || response?.code || reason?.message || fallback;
+};
 
 export const PluginSettingsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -29,7 +48,7 @@ export const PluginSettingsPage: React.FC = () => {
     const payload = new FormData();
     payload.append('display_name', name || file.name); payload.append('target_os', targetOs); payload.append('architecture', architecture); payload.append('installer', file);
     try { await pluginService.uploadInstallerAsset(payload); setName(''); setFile(null); await load(); }
-    catch (reason: any) { setError(reason?.response?.data?.detail || 'Unable to save installation file.'); }
+    catch (reason: any) { setError(getRequestErrorMessage(reason, 'Unable to save installation file.')); }
     finally { setBusy(false); }
   };
   const remove = async (asset: InstallerAsset) => {

@@ -10,7 +10,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from config.settings import ADMIN_PASSWORD, ADMIN_USERNAME, LICENSE_STORAGE_PATH, LOG_PATH, SECRET_KEY
+from config.settings import ADMIN_PASSWORD, ADMIN_USERNAME, LICENSE_STORAGE_PATH, LOG_PATH, SECRET_KEY, SERVER_PORT
 from crypto.signing import public_key_pem
 from licensing.generator import build_license_payload, generate_license_file
 
@@ -151,4 +151,4 @@ def list_licenses():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    app.run(host="0.0.0.0", port=SERVER_PORT, debug=False)

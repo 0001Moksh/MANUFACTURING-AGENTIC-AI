@@ -180,10 +180,10 @@ def _connector_config(plugin: str) -> str:
 [[inputs.processes]]
   name_override = "iiiot_veda_processes"
 
-# Add one block per important process or service.
-[[inputs.procstat]]
-  name_override = "iiiot_veda_procstat"
-  pattern = "nginx|postgres|mysql"
+# Optional: enable on hosts that provide pgrep or configure a platform-specific finder.
+# [[inputs.procstat]]
+#   name_override = "iiiot_veda_procstat"
+#   pattern = "nginx|postgres|mysql"
 
 # Optional; enable only when the host provides the required sensors/tools.
 # [[inputs.sensors]]
@@ -222,6 +222,7 @@ def _connector_config(plugin: str) -> str:
   name_override = "iiiot_veda_mongodb"
   servers = ["mongodb://monitor:password@127.0.0.1:27017"]
   gather_perdb_stats = true
+  disconnected_servers_behavior = "skip"
 ''',
         "mysql": '''[[inputs.mysql]]
   name_override = "iiiot_veda_mysql"
@@ -247,7 +248,7 @@ def _connector_config(plugin: str) -> str:
   name_override = "iiiot_veda_sqlserver"
   servers = ["Server=127.0.0.1;Port=1433;User Id=monitor;Password=password;app name=IIIOT-Veda;log=1;"]
   database_type = "SQLServer"
-  include_query = ["PerformanceCounters", "WaitStatsCategorized", "DatabaseIO", "ServerProperties"]
+  include_query = ["SQLServerPerformanceCounters", "SQLServerWaitStatsCategorized", "SQLServerDatabaseIO", "SQLServerProperties"]
 ''',
         "exec": '''# The command must print a supported metric format to stdout.
 [[inputs.exec]]
@@ -842,7 +843,7 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "telemetry_destination": "postgresql",
             "measurement": tables[0],
             "measurements": tables,
-            "bundle_revision": 6,
+            "bundle_revision": 8,
         }
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 

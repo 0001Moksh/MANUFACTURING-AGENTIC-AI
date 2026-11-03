@@ -275,7 +275,10 @@ export const pluginService = {
     return res.data;
   },
   uploadInstallerAsset: async (payload: FormData) => {
-    const res = await api.post('/admin/plugin-installers', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const res = await api.post('/admin/plugin-installers', payload, {
+      timeout: 120000,
+      headers: { 'Content-Type': undefined },
+    });
     return res.data;
   },
   deleteInstallerAsset: async (assetId: string) => {
