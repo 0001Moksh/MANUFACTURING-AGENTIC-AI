@@ -48,15 +48,10 @@ def _host_base_config() -> str:
 
 
 def _output_config() -> str:
-    return '''[[outputs.postgresql]]
-  connection = "${POSTGRES_DSN}"
-  schema = "public"
-  timestamp_column_name = "time"
-  timestamp_column_type = "timestamp with time zone"
-  create_templates = [
-    'CREATE TABLE {{ .table }} ({{ .columns }})',
-    'CREATE INDEX ON {{ .table }} USING btree({{ .columns.Keys.Identifiers | join "," }})'
-  ]
+    return '''[[outputs.influxdb_v3]]
+  urls = ["${INFLUXDB3_URL}"]
+  token = "${INFLUXDB3_AUTH_TOKEN}"
+  database = "${INFLUXDB3_DATABASE}"
 '''
 
 
@@ -386,8 +381,8 @@ if [[ -f "${{script_dir}}/mai-settings.env" ]]; then
   set +a
 fi
 existing_output="/etc/telegraf/telegraf.d/mai-output.conf"
-if [[ -z "${{POSTGRES_DSN:-}}" && ! -s "${{existing_output}}" ]]; then
-  echo "Set POSTGRES_DSN in mai-settings.env for the first MAI plugin installation." >&2
+if [[ ( -z "${{INFLUXDB3_URL:-}}" || -z "${{INFLUXDB3_AUTH_TOKEN:-}}" || -z "${{INFLUXDB3_DATABASE:-}}" ) && ! -s "${{existing_output}}" ]]; then
+  echo "Set INFLUXDB3_URL, INFLUXDB3_AUTH_TOKEN and INFLUXDB3_DATABASE in mai-settings.env." >&2
   exit 1
 fi
 for variable_name in {required_vars}; do
@@ -409,14 +404,14 @@ esac
 
 sudo install -d -m 0755 /etc/telegraf/telegraf.d
 sudo rm -f /etc/telegraf/telegraf.d/mai-cpu.conf
-if [[ -n "${{POSTGRES_DSN:-}}" ]]; then
+if true; then
   rendered_output="$(mktemp)"
   escaped_dsn="$(printf '%s' "${{POSTGRES_DSN}}" | sed 's/[\\/&]/\\\\&/g')"
   sed "s/\\${{POSTGRES_DSN}}/${{escaped_dsn}}/g" "${{script_dir}}/mai-output.conf" > "${{rendered_output}}"
   sudo install -m 0640 "${{rendered_output}}" "${{existing_output}}"
   rm -f "${{rendered_output}}"
 else
-  echo "Reusing the existing MAI PostgreSQL output configuration."
+  echo "Reusing the existing MAI InfluxDB output configuration."
 fi
 sudo install -m 0640 "${{script_dir}}/mai-host-base.conf" /etc/telegraf/telegraf.d/mai-host-base.conf
 if [[ -s "${{script_dir}}/mai-connector.conf" ]]; then
@@ -441,8 +436,13 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${{BASH_SOURCE[0]}}")" && pwd)"
 package_path="${{script_dir}}/{package_name}"
-if [[ -z "${{POSTGRES_DSN:-}}" ]]; then
-  echo "Set POSTGRES_DSN before running this installer." >&2
+if [[ -f "${{script_dir}}/mai-settings.env" ]]; then
+  set -a
+  source "${{script_dir}}/mai-settings.env"
+  set +a
+fi
+if [[ -z "${{INFLUXDB3_AUTH_TOKEN:-}}" ]]; then
+  echo "Set INFLUXDB3_AUTH_TOKEN before running this installer." >&2
   exit 1
 fi
 for variable_name in {required_vars}; do
@@ -486,6 +486,7 @@ esac
 
 sudo install -d -m 0755 /usr/local/etc/telegraf.d
 sudo rm -f /usr/local/etc/telegraf.d/mai-cpu.conf
+POSTGRES_DSN="unused"
 rendered_output="$(mktemp)"
 escaped_dsn="$(printf '%s' "${{POSTGRES_DSN}}" | sed 's/[\\/&]/\\\\&/g')"
 sed "s/\\${{POSTGRES_DSN}}/${{escaped_dsn}}/g" "${{script_dir}}/mai-output.conf" > "${{rendered_output}}"
@@ -531,25 +532,8 @@ if ((Test-Path $ConnectorTemplatePath) -and (Get-Item $ConnectorTemplatePath).Le
 $Permission = [System.Windows.MessageBox]::Show("Allow administrator changes for files and the monitoring service?", "IIIOT-Veda Permissions", "YesNo", "Warning")
 if ($Permission -ne "Yes") {{ exit }}
 $ExistingOutput = Join-Path $ConfigDir "mai-output.conf"
-if (-not $env:POSTGRES_DSN -and -not (Test-Path $ExistingOutput)) {{
-  Add-Type -AssemblyName Microsoft.VisualBasic
-  $env:POSTGRES_DSN = [Microsoft.VisualBasic.Interaction]::InputBox(
-    "Enter the PostgreSQL connection URL used by the MAI host monitoring plugins.",
-    "IIIOT-Veda Monitoring",
-    "postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable"
-  )
-}}
-if ([string]::IsNullOrWhiteSpace($env:POSTGRES_DSN) -and -not (Test-Path $ExistingOutput)) {{ throw "A PostgreSQL connection URL is required for the first MAI plugin." }}
 foreach ($VariableName in @({required_ps})) {{
   if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($VariableName))) {{ throw "Set $VariableName before running this installer." }}
-}}
-$DatabaseUri = $null
-if ($env:POSTGRES_DSN -and (-not [Uri]::TryCreate($env:POSTGRES_DSN, [UriKind]::Absolute, [ref]$DatabaseUri) -or
-    $DatabaseUri.Scheme -notin @("postgres", "postgresql") -or
-    $DatabaseUri.Host -in @("", "HOST") -or
-    $DatabaseUri.AbsolutePath -in @("", "/", "/DATABASE") -or
-    $DatabaseUri.UserInfo -match '(^USER:|:PASSWORD$)')) {{
-  throw "Enter a real PostgreSQL URL for the MAI database. Replace USER, PASSWORD, HOST and DATABASE; do not use a +asyncpg URL."
 }}
 
 # Release the running agent before updating the shared IIIOT-Veda installation.
@@ -573,12 +557,7 @@ if ($Package.EndsWith(".msi")) {{
 
 New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
 Remove-Item (Join-Path $ConfigDir "mai-cpu.conf") -Force -ErrorAction SilentlyContinue
-if ($env:POSTGRES_DSN) {{
-  $OutputTemplate = Get-Content (Join-Path $BundleDir "mai-output.conf") -Raw
-  $OutputTemplate.Replace('${{POSTGRES_DSN}}', $env:POSTGRES_DSN) | Set-Content $ExistingOutput -Encoding UTF8
-}} else {{
-  Write-Host "Reusing the existing MAI PostgreSQL output configuration."
-}}
+Copy-Item (Join-Path $BundleDir "mai-output.conf") $ExistingOutput -Force
 Copy-Item (Join-Path $BundleDir "mai-host-base.conf") (Join-Path $ConfigDir "mai-host-base.conf") -Force
 $ConnectorPath = Join-Path $BundleDir "mai-connector.conf"
 if ((Test-Path $ConnectorPath) -and (Get-Item $ConnectorPath).Length -gt 0) {{
@@ -755,37 +734,38 @@ def _installation_readme(target_os: str, plugin: str) -> str:
         connector_lines = "\n".join(
             [*(f'$env:{name} = "REPLACE_ME"' for name in required), *(f'$env:{name} = ""' for name in optional)]
         )
-        command = f'''$env:POSTGRES_DSN = "postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable"
+        command = f'''$env:INFLUXDB3_URL = "http://localhost:8181"
+$env:INFLUXDB3_AUTH_TOKEN = "REPLACE_WITH_TOKEN"
+$env:INFLUXDB3_DATABASE = "iiiot_telemetry"
 {connector_lines}
 .\\install.ps1'''
     else:
-        command = '''1. Edit mai-settings.env and set POSTGRES_DSN for the first MAI plugin only.
+        command = '''1. Review the InfluxDB 3 URL, token, and database in mai-settings.env.
    Later plugin installations reuse /etc/telegraf/telegraf.d/mai-output.conf.
 2. Edit mai-connector.conf with the source settings and all required measurements.
 3. Run: ./install.sh'''
     return f'''# IIIOT-Veda Monitoring
 
-This bundle installs the IIIOT-Veda {plugin} connector and writes metrics to PostgreSQL.
-Use a PostgreSQL URL that the target machine can reach. Do not include a
-SQLAlchemy driver suffix such as `+asyncpg` in the URL.
+This bundle installs the IIIOT-Veda {plugin} connector and writes metrics to InfluxDB 3.
+The target machine must be able to reach the configured InfluxDB URL.
 
 ```text
 {command}
 ```
 
-The installer keeps connector inputs in separate files and one shared PostgreSQL output.
+The installer keeps connector inputs in separate files and one shared InfluxDB output.
 Installing another connector preserves connectors already installed.
 Connector settings can be changed later in `/etc/telegraf/telegraf.d/mai-{plugin}.conf`;
 validate the configuration and restart the IIIOT-Veda service after editing it.
 CPU and memory remain enabled as the host baseline.
 On macOS, start the IIIOT-Veda service with --config-directory /usr/local/etc/telegraf.d.
-On Linux archive installations, a working IIIOT-Veda service must already exist. The database user needs
-CONNECT, USAGE/CREATE on the public schema, and table insert/update privileges.
+On Linux installations, a working IIIOT-Veda service must be able to reach InfluxDB and use a token
+with write permission for the configured database.
 After installation, return to MAI, confirm installation, and verify the plugin.
 '''
 
 
-def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, output_dir: Path, plugin: str = "cpu", connector_config_file: Path | None = None, postgres_dsn: str = "") -> dict[str, object]:
+def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, output_dir: Path, plugin: str = "cpu", connector_config_file: Path | None = None, influx_url: str = "http://localhost:8181", influx_token: str = "", influx_database: str = "iiiot_telemetry") -> dict[str, object]:
     if plugin not in PLUGINS:
         raise ValueError(f"Unsupported plugin: {plugin}")
     if target_os not in TARGETS:
@@ -805,14 +785,19 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         copied_installer = staging / f"iiiot-veda-runtime{installer_suffix}"
         shutil.copy2(installer, copied_installer)
         (staging / "mai-host-base.conf").write_text(_host_base_config(), encoding="utf-8")
-        (staging / "mai-output.conf").write_text(_output_config(), encoding="utf-8")
+        output_text = (_output_config()
+            .replace("${INFLUXDB3_URL}", influx_url)
+            .replace("${INFLUXDB3_AUTH_TOKEN}", influx_token)
+            .replace("${INFLUXDB3_DATABASE}", influx_database))
+        (staging / "mai-output.conf").write_text(output_text, encoding="utf-8")
         connector_text = connector_config_file.read_text(encoding="utf-8") if connector_config_file else _connector_config(plugin)
         (staging / "mai-connector.conf").write_text(connector_text, encoding="utf-8")
         (staging / "mai-settings.env").write_text(
-            "# Required only for the first IIIOT-Veda plugin on this host.\n"
-            "# Keep this file private because it contains database credentials.\n"
-            f"POSTGRES_DSN={shlex.quote(postgres_dsn)}\n"
-            "# Example: postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=disable\n",
+            "# InfluxDB 3 destination used by this IIIOT-Veda bundle.\n"
+            "# Keep this file private because it contains an authorization token.\n"
+            f"INFLUXDB3_URL={shlex.quote(influx_url)}\n"
+            f"INFLUXDB3_AUTH_TOKEN={shlex.quote(influx_token)}\n"
+            f"INFLUXDB3_DATABASE={shlex.quote(influx_database)}\n",
             encoding="utf-8",
         )
         (staging / "INSTALL.md").write_text(_installation_readme(target_os, plugin), encoding="utf-8")
@@ -840,10 +825,10 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "architecture": architecture,
             "runtime_installer": copied_installer.name,
             "runtime_installer_sha256": _sha256(installer),
-            "telemetry_destination": "postgresql",
+            "telemetry_destination": "influxdb3",
             "measurement": tables[0],
             "measurements": tables,
-            "bundle_revision": 8,
+            "bundle_revision": 7,
         }
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
@@ -854,7 +839,9 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             _build_windows_executable(staging, bundle_path, architecture)
         else:
             script = staging / "install.sh"
-            script.write_text(_macos_installer(copied_installer.name, plugin) if target_os == "macos" else _linux_installer(copied_installer.name, plugin), encoding="utf-8")
+            installer_script = _macos_installer(copied_installer.name, plugin) if target_os == "macos" else _linux_installer(copied_installer.name, plugin)
+            installer_script = installer_script.replace("POSTGRES_DSN", "INFLUXDB3_AUTH_TOKEN").replace("PostgreSQL", "InfluxDB")
+            script.write_text(installer_script, encoding="utf-8")
             script.chmod(0o755)
             if target_os == "linux-deb":
                 bundle_path = output_dir / f"{bundle_base}.deb"
@@ -883,9 +870,11 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--plugin", choices=sorted(PLUGINS), default="cpu")
     parser.add_argument("--connector-config-file", type=Path)
-    parser.add_argument("--postgres-dsn", default="")
+    parser.add_argument("--influx-url", default="http://localhost:8181")
+    parser.add_argument("--influx-token", default="")
+    parser.add_argument("--influx-database", default="iiiot_telemetry")
     args = parser.parse_args()
-    print(json.dumps(build_bundle(args.target_os, args.architecture, args.telegraf_installer, args.output_dir, args.plugin, args.connector_config_file, args.postgres_dsn)))
+    print(json.dumps(build_bundle(args.target_os, args.architecture, args.telegraf_installer, args.output_dir, args.plugin, args.connector_config_file, args.influx_url, args.influx_token, args.influx_database)))
     return 0
 
 

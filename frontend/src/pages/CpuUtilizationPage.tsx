@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, Cpu, Download, Gauge, Leaf, Server } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { pluginService } from '../services/api';
+import { formatTelemetryDateTime, formatTelemetryTime } from '../utils/telemetryTime';
 
 type CpuSample = {
   time: string; host: string; cpu: string;
@@ -21,7 +22,7 @@ const BREAKDOWN_COLORS = ['#21B573', '#F59E35', '#8555E8', '#E5525D', '#9AAAC0']
 const PANEL = 'rounded-xl border border-[#DEE6F0] bg-white shadow-[0_2px_12px_rgba(25,52,82,0.04)]';
 const pct = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '—' : `${value.toFixed(1)}%`;
 const clamp = (value: number) => Math.max(0, Math.min(100, value));
-const timeLabel = (value: string) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const timeLabel = (value: string) => formatTelemetryTime(value);
 const memoryLabel = (bytes: number) => bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.round(bytes / 1024 ** 2)} MB`;
 
 function statusFor(value: number) {
@@ -84,7 +85,7 @@ export const CpuUtilizationPage: React.FC = () => {
 
   const exportCsv = () => {
     const header = 'time,host,cpu,active,user,system,idle,io_wait\n';
-    const rows = samples.map(item => [item.time, item.host, item.cpu, item.usage_active, item.usage_user, item.usage_system, item.usage_idle, item.usage_iowait].join(',')).join('\n');
+    const rows = samples.map(item => [formatTelemetryDateTime(item.time), item.host, item.cpu, item.usage_active, item.usage_user, item.usage_system, item.usage_idle, item.usage_iowait].map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([header + rows], { type: 'text/csv' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `cpu-utilization-${Date.now()}.csv`; anchor.click(); URL.revokeObjectURL(url);
   };
@@ -130,7 +131,7 @@ export const CpuUtilizationPage: React.FC = () => {
         {metricTab === 'process' && <MetricTable headers={['Process', 'PID', 'CPU Usage', 'Memory', 'Status', 'User']} rows={processes.map(process => [process.name, String(process.pid), pct(process.cpu_percent), memoryLabel(process.memory_bytes), process.status, process.username || '—'])} empty="No process metrics are available." />}
         {metricTab === 'service' && <MetricTable headers={['Service / Workload', 'Instances', 'CPU Usage', 'Memory', 'Status']} rows={services.map(service => [service.name, String(service.instances), pct(service.cpu_percent), memoryLabel(service.memory_bytes), statusFor(service.cpu_percent).label])} empty="No service metrics are available." />}
       </section>
-      <div className="flex items-center justify-between text-[10px] text-slate-400"><span>{data?.sample_count.toLocaleString()} samples loaded</span><span>Last updated {data?.generated_at ? new Date(data.generated_at).toLocaleTimeString() : '—'} · Auto-refresh {refreshSeconds === 0 ? 'off' : `every ${refreshSeconds}s`}</span></div>
+      <div className="flex items-center justify-between text-[10px] text-slate-400"><span>{data?.sample_count.toLocaleString()} samples loaded</span><span>Last updated {data?.generated_at ? formatTelemetryDateTime(data.generated_at) : '—'} · Auto-refresh {refreshSeconds === 0 ? 'off' : `every ${refreshSeconds}s`}</span></div>
     </div>
   </div>;
 };

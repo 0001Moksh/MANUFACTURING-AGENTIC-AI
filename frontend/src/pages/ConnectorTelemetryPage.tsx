@@ -5,6 +5,7 @@ import { MonitoringControls } from '../components/monitoring/MonitoringControls'
 import { MetricTable } from '../components/monitoring/MetricTable';
 import { useMonitoringData } from '../hooks/useMonitoringData';
 import { pluginService } from '../services/api';
+import { formatTelemetryDateTime } from '../utils/telemetryTime';
 
 type Sample = { time: string; host: string; measurement: string; fields: Record<string, unknown> };
 type Payload = { plugin_id: string; hosts: string[]; measurements: string[]; samples: Sample[]; sample_count: number; generated_at: string };
@@ -55,7 +56,7 @@ export const ConnectorTelemetryPage: React.FC = () => {
   const exportCsv = () => {
     const headers = ['time', 'host', 'measurement', ...fieldNames];
     const quote = (value: unknown) => `"${display(value).replace(/^[=+@-]/, "'$&").replaceAll('"', '""')}"`;
-    const csv = [headers.join(','), ...samples.map(row => [row.time, row.host, row.measurement, ...fieldNames.map(field => row.fields[field])].map(quote).join(','))].join('\n');
+    const csv = [headers.join(','), ...samples.map(row => [formatTelemetryDateTime(row.time), row.host, row.measurement, ...fieldNames.map(field => row.fields[field])].map(quote).join(','))].join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${pluginId}-telemetry.csv`; anchor.click(); URL.revokeObjectURL(url);
   };
@@ -66,7 +67,7 @@ export const ConnectorTelemetryPage: React.FC = () => {
     {monitor.error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{monitor.error}</p>}
     {!monitor.loading && !monitor.error && !samples.length && <p className="rounded-xl border border-border-color bg-panel p-8 text-center text-sm text-muted">No connector samples were found. Check the connector settings in the downloaded bundle and confirm that the source is reachable.</p>}
     <section className="grid gap-4 sm:grid-cols-3"><div className="rounded-xl border border-border-color bg-panel p-4"><p className="text-sm text-muted">Samples</p><strong className="mt-2 block text-2xl">{samples.length.toLocaleString()}</strong></div><div className="rounded-xl border border-border-color bg-panel p-4"><p className="text-sm text-muted">Hosts</p><strong className="mt-2 block text-2xl">{new Set(samples.map(row => row.host)).size}</strong></div><div className="rounded-xl border border-border-color bg-panel p-4"><p className="text-sm text-muted">Measurements</p><strong className="mt-2 block text-2xl">{new Set(samples.map(row => row.measurement)).size}</strong></div></section>
-    <section className="overflow-hidden rounded-xl border border-border-color bg-panel"><h2 className="p-4 font-bold text-ink">Recent connector metrics</h2><MetricTable headers={['Time', 'Host', 'Measurement', ...fieldNames]} rows={recent.map(row => [new Date(row.time).toLocaleString(), row.host, row.measurement, ...fieldNames.map(field => display(row.fields[field]))])} empty="No connector metrics available." /></section>
-    <p className="text-xs text-muted">Showing up to 250 recent rows and 12 discovered fields. The API retains up to 5,000 rows per request. Last refreshed: {monitor.data?.generated_at ? new Date(monitor.data.generated_at).toLocaleTimeString() : '—'}.</p>
+    <section className="overflow-hidden rounded-xl border border-border-color bg-panel"><h2 className="p-4 font-bold text-ink">Recent connector metrics</h2><MetricTable headers={['Time (Asia/Kolkata)', 'Host', 'Measurement', ...fieldNames]} rows={recent.map(row => [formatTelemetryDateTime(row.time), row.host, row.measurement, ...fieldNames.map(field => display(row.fields[field]))])} empty="No connector metrics available." /></section>
+    <p className="text-xs text-muted">Showing up to 250 recent rows and 12 discovered fields. The API retains up to 5,000 rows per request. Last refreshed: {monitor.data?.generated_at ? formatTelemetryDateTime(monitor.data.generated_at) : '—'}.</p>
   </div>;
 };

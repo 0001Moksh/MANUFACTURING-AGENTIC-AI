@@ -336,7 +336,7 @@ def _seed_default_plugins() -> None:
         ],
         "server_config_template": {
             "[[inputs.cpu]]": {},
-            "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"},
+            "[[outputs.influxdb_v3]]": {"database": "${INFLUXDB3_DATABASE}"},
         },
     }
 
@@ -353,7 +353,7 @@ def _seed_default_plugins() -> None:
             {"id": "memory.historical_trends", "name": "Historical Trends", "required_permissions": ["metrics.read"], "supported_features": ["trend_analysis"]},
         ],
         "use_cases": ["Memory Monitoring", "Memory Trends & Analytics"],
-        "server_config_template": {"[[inputs.mem]]": {}, "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"}},
+        "server_config_template": {"[[inputs.mem]]": {}, "[[outputs.influxdb_v3]]": {"database": "${INFLUXDB3_DATABASE}"}},
     })
     connector_definitions = [
         (DISK_PLUGIN_ID, "IIIOT-Veda Disk Monitoring", "disk", "Collects filesystem capacity, free space, inode usage, and disk I/O metrics.", ["Disk Capacity Monitoring", "Disk I/O Monitoring"]),
@@ -388,7 +388,7 @@ def _seed_default_plugins() -> None:
             "use_cases": use_cases,
             "server_config_template": {
                 f"[[inputs.{spec['input']}]]": {},
-                "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"},
+                "[[outputs.influxdb_v3]]": {"database": "${INFLUXDB3_DATABASE}"},
             },
         })
         PLUGIN_CATALOG.setdefault(plugin_id, connector)
@@ -405,7 +405,7 @@ def _seed_default_plugins() -> None:
             "tags": ["iiiot-veda", spec["kind"], "monitoring"],
             "capabilities": [{"id": f"{spec['kind']}.live_metrics", "name": label, "required_permissions": ["metrics.read"], "supported_features": ["configuration", "telemetry"]}],
             "use_cases": [label],
-            "server_config_template": {f"[[inputs.{spec['input']}]]": {}, "[[outputs.postgresql]]": {"connection": "${POSTGRES_DSN}", "schema": "public"}},
+            "server_config_template": {f"[[inputs.{spec['input']}]]": {}, "[[outputs.influxdb_v3]]": {"database": "${INFLUXDB3_DATABASE}"}},
         })
         PLUGIN_CATALOG.setdefault(plugin_id, connector)
     monitoring = copy.deepcopy(cpu)
@@ -515,9 +515,11 @@ def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
     connector_text = "\n".join(str(item.get("config") or "") for item in configured.values()) if configured else _packaged_connector_config(kind)
     config_path = bundle_dir / "monitoring-config.toml"
     config_path.write_text(connector_text, encoding="utf-8")
-    postgres_dsn = _database_url_for_monitoring_bundle()
-    if not postgres_dsn:
-        raise HTTPException(status_code=500, detail="DATABASE_URL is not configured in the MAI backend environment")
+    influx_url = os.getenv("INFLUXDB3_URL", "http://localhost:8181").strip()
+    influx_token = os.getenv("INFLUXDB3_AUTH_TOKEN", "").strip()
+    influx_database = os.getenv("INFLUXDB3_DATABASE", "iiiot_telemetry").strip()
+    if not influx_token:
+        raise HTTPException(status_code=500, detail="INFLUXDB3_AUTH_TOKEN is not configured in the MAI backend environment")
     try:
         packager = subprocess.run(
             [
@@ -529,7 +531,9 @@ def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
                 "--telegraf-installer", str(installer_path),
                 "--output-dir", str(bundle_dir),
                 "--connector-config-file", str(config_path),
-                "--postgres-dsn", postgres_dsn,
+                "--influx-url", influx_url,
+                "--influx-token", influx_token,
+                "--influx-database", influx_database,
             ],
             check=True,
             capture_output=True,
@@ -1994,7 +1998,7 @@ async def register_plugin(
     row.installation_status = "registered"
     row.connection_status = "not_configured"
     row.last_metric_received = None
-    row.metadata_json = {"package_type": target_os, "telemetry_destination": "postgresql", "installer_asset_id": asset.id, "use_case_configs": _plugin_use_case_configs(plugin_id)}
+    row.metadata_json = {"package_type": target_os, "telemetry_destination": "influxdb3", "installer_asset_id": asset.id, "use_case_configs": _plugin_use_case_configs(plugin_id)}
     await db.commit()
     await db.refresh(row)
     plugin = _plugin_from_db(row)
@@ -2138,7 +2142,7 @@ async def validate_plugin_config(plugin_id: str, request: Request):
         "message": f"{spec['label']} collection settings are valid." if valid else "Collection interval must be between 1 and 60 seconds.",
         "generated_config": {
             f"[[inputs.{spec['input']}]]": {"name_override": spec["table"]},
-            "[[outputs.postgresql]]": {"schema": "public", "table": spec["table"]},
+            "[[outputs.influxdb_v3]]": {"database": "${INFLUXDB3_DATABASE}"},
         },
     }
 
@@ -2214,7 +2218,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     except Exception as exc:
         await db.rollback()
         metric = None
-        verification_error = "Unable to read telemetry. Check PostgreSQL connectivity and IIIOT-Veda ingestion."
+        verification_error = "Unable to read telemetry. Check InfluxDB connectivity and IIIOT-Veda ingestion."
         logging.getLogger(__name__).warning("Plugin verification failed: %s", type(exc).__name__)
     success = metric is not None
     metric_time_value = (metric or {}).get("time")
@@ -2230,10 +2234,10 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         await db.commit()
         PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
     telemetry_check = {
-        "name": "postgresql_telemetry",
+        "name": "influxdb_telemetry",
         "passed": success,
-        "message": f"Recent {spec['label']} telemetry was found in PostgreSQL."
-        if success else (verification_error or "No recent IIIOT-Veda telemetry was found in PostgreSQL."),
+        "message": f"Recent {spec['label']} telemetry was found in InfluxDB."
+        if success else (verification_error or "No recent IIIOT-Veda telemetry was found in InfluxDB."),
     }
     return {
         "success": success,
@@ -2252,65 +2256,15 @@ async def get_telegraf_cpu_utilization(
     limit: int = 1200,
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Return recent PostgreSQL CPU telemetry for the connected IIIOT-Veda use case."""
-    minutes = max(1, min(minutes, 24 * 60))
-    limit = max(1, min(limit, 5000))
+    """Return recent InfluxDB CPU telemetry for the connected IIIOT-Veda use case."""
+    from .host_telemetry import cpu_payload
     try:
-        async with asyncio.timeout(8):
-            result = await db.execute(
-                text('''
-                    SELECT "time", host, cpu,
-                           usage_active, usage_user, usage_system, usage_idle,
-                           usage_iowait, usage_steal, usage_nice,
-                           usage_irq, usage_softirq, usage_guest, usage_guest_nice
-                    FROM public.telegraf_cpu
-                    WHERE "time" >= NOW() - make_interval(mins => :minutes)
-                    ORDER BY "time" DESC
-                    LIMIT :limit
-                '''),
-                {"minutes": minutes, "limit": limit},
-            )
-            rows = list(result.mappings().all())
+        payload = await cpu_payload(db, minutes, limit)
+        payload.update(await process_snapshots.get())
+        return payload
     except Exception as exc:
-        await db.rollback()
-        detail = (
-            "PostgreSQL CPU telemetry did not respond within 8 seconds. Retrying on the next refresh."
-            if isinstance(exc, TimeoutError)
-            else "CPU telemetry could not be read from PostgreSQL. Check database connectivity and IIIOT-Veda ingestion."
-        )
         logging.getLogger(__name__).warning("CPU telemetry query failed: %s", type(exc).__name__)
-        raise HTTPException(status_code=503, detail=detail) from exc
-
-    number_fields = (
-        "usage_active", "usage_user", "usage_system", "usage_idle", "usage_iowait",
-        "usage_steal", "usage_nice", "usage_irq", "usage_softirq", "usage_guest",
-        "usage_guest_nice",
-    )
-    samples: List[Dict[str, Any]] = []
-    for row in reversed(rows):
-        sample = {
-            "time": row["time"].isoformat() if hasattr(row["time"], "isoformat") else str(row["time"]),
-            "host": row.get("host") or "Unknown host",
-            "cpu": row.get("cpu") or "cpu-total",
-        }
-        for field in number_fields:
-            value = row.get(field)
-            sample[field] = float(value) if value is not None else None
-        samples.append(sample)
-
-    hosts = sorted({sample["host"] for sample in samples})
-
-    process_snapshot = await process_snapshots.get()
-
-    return {
-        "plugin_id": TELEGRAF_PLUGIN_ID,
-        "window_minutes": minutes,
-        "sample_count": len(samples),
-        "hosts": hosts,
-        "samples": samples,
-        **process_snapshot,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-    }
+        raise HTTPException(status_code=503, detail="CPU telemetry is unavailable. Check InfluxDB connectivity and IIIOT-Veda ingestion.") from exc
 
 
 @router.get("/api/plugins/telegraf-memory-monitoring/memory-utilization")
@@ -2326,7 +2280,7 @@ async def get_telegraf_memory_utilization(
     except Exception as exc:
         await db.rollback()
         logging.getLogger(__name__).warning("Memory telemetry query failed: %s", type(exc).__name__)
-        raise HTTPException(status_code=503, detail="Memory telemetry is unavailable. Check PostgreSQL connectivity and IIIOT-Veda ingestion.") from exc
+        raise HTTPException(status_code=503, detail="Memory telemetry is unavailable. Check InfluxDB connectivity and IIIOT-Veda ingestion.") from exc
 
 
 @router.get("/api/plugins/{plugin_id}/telemetry")
@@ -2346,7 +2300,7 @@ async def get_connector_telemetry(
     except Exception as exc:
         await db.rollback()
         logging.getLogger(__name__).warning("%s telemetry query failed: %s", spec["label"], type(exc).__name__)
-        raise HTTPException(status_code=503, detail=f"{spec['label']} telemetry is unavailable. Check PostgreSQL and IIIOT-Veda ingestion.") from exc
+        raise HTTPException(status_code=503, detail=f"{spec['label']} telemetry is unavailable. Check InfluxDB and IIIOT-Veda ingestion.") from exc
 
 
 @router.get("/api/plugins/{plugin_id}/download")
@@ -2360,13 +2314,13 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail="Registered IIIOT-Veda installer is not available")
     existing_path = Path(row.bundle_path).resolve() if row.bundle_path else None
-    bundle_is_postgresql = (row.metadata_json or {}).get("telemetry_destination") == "postgresql"
+    bundle_is_influxdb = (row.metadata_json or {}).get("telemetry_destination") == "influxdb3"
     expected_bundle_suffix = {
         "windows": ".exe", "linux-deb": ".deb", "linux-rpm": ".rpm",
         "macos": ".dmg" if row.installer_filename.lower().endswith(".dmg") else ".pkg",
     }.get(row.target_os, "")
     bundle_has_current_format = bool(existing_path and str(existing_path).lower().endswith(expected_bundle_suffix))
-    if not existing_path or not existing_path.is_file() or not bundle_is_postgresql or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 8:
+    if not existing_path or not existing_path.is_file() or not bundle_is_influxdb or not bundle_has_current_format or (row.metadata_json or {}).get("bundle_revision") != 7:
         bundle = _generate_plugin_bundle(row)
         row.bundle_filename = str(bundle["filename"])
         row.bundle_path = str(bundle["path"])
@@ -2374,8 +2328,8 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         row.bundle_checksum_sha256 = str(bundle["checksum_sha256"])
         row.metadata_json = {
             **(row.metadata_json or {}),
-            "telemetry_destination": "postgresql",
-            "bundle_revision": 8,
+            "telemetry_destination": "influxdb3",
+            "bundle_revision": 7,
             "bundle_format": "single-executable" if row.target_os == "windows" else "archive",
         }
         await db.commit()

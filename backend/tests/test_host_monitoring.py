@@ -6,6 +6,7 @@ import tempfile
 import tomllib
 import unittest
 import zipfile
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -58,59 +59,57 @@ class FakeDB:
 
 
 class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
-    async def test_missing_memory_table_returns_empty_payload(self):
-        db = FakeDB(None)
-        payload = await memory_payload(db)
+    @patch("app.host_telemetry.query_influxdb3_sql_async", return_value=[])
+    async def test_missing_memory_measurement_returns_empty_payload(self, _query):
+        payload = await memory_payload(None)
         self.assertEqual(payload['samples'], [])
         self.assertEqual(payload['hosts'], [])
-        self.assertEqual(len(db.calls), 1)
 
-    async def test_chronological_samples_hosts_and_bounds(self):
-        db = FakeDB('telegraf_mem', [
-            {'time': '2026-10-30T10:01:00Z', 'host': 'b', 'fields': {'total': 100, 'used': 70}},
-            {'time': '2026-10-30T10:00:00Z', 'host': 'a', 'fields': {'total': 100, 'used': 30}},
-        ])
-        payload = await memory_payload(db, 99999, 99999)
+    @patch("app.host_telemetry.query_influxdb3_sql_async")
+    async def test_chronological_samples_hosts_and_bounds(self, query):
+        query.return_value = [
+            {'time': '2026-10-30T10:01:00Z', 'host': 'b', 'total': 100, 'used': 70},
+            {'time': '2026-10-30T10:00:00Z', 'host': 'a', 'total': 100, 'used': 30},
+        ]
+        payload = await memory_payload(None, 99999, 99999)
         self.assertEqual(payload['hosts'], ['a', 'b'])
         self.assertEqual(payload['samples'][0]['used_percent'], 30)
-        self.assertEqual(db.calls[1][1], {'minutes': 1440, 'limit': 5000})
-        self.assertIn('to_jsonb(m)', db.calls[1][0])
+        self.assertIn("INTERVAL '1440 minutes'", query.call_args.args[0])
+        self.assertIn('LIMIT 5000', query.call_args.args[0])
         self.assertEqual(payload['sample_count'], 2)
 
-    async def test_memory_verification_never_checks_cpu(self):
-        db = FakeDB(None)
-        metric, error = await latest_plugin_metric(db, 'telegraf_mem')
+    @patch("app.host_telemetry.query_influxdb3_sql_async", return_value=[])
+    async def test_memory_verification_never_checks_cpu(self, query):
+        metric, error = await latest_plugin_metric(None, 'telegraf_mem')
         self.assertIsNone(metric)
         self.assertTrue(error)
-        self.assertEqual(db.calls[0][1], {'table': 'public.telegraf_mem'})
+        self.assertIn('FROM "telegraf_mem"', query.call_args.args[0])
 
-    async def test_both_plugins_verify_their_own_recent_metrics(self):
+    @patch("app.host_telemetry.query_influxdb3_sql_async")
+    async def test_both_plugins_verify_their_own_recent_metrics(self, query):
         for table in ['telegraf_cpu', 'telegraf_mem']:
-            db = FakeDB(table, [{'time': '2026-10-30T10:00:00Z', 'host': 'a'}])
-            metric, error = await latest_plugin_metric(db, table)
+            query.return_value = [{'time': '2026-10-30T10:00:00Z', 'host': 'a'}]
+            metric, error = await latest_plugin_metric(None, table)
             self.assertEqual(metric['host'], 'a')
             self.assertIsNone(error)
-            self.assertIn(f'FROM public.{table}', db.calls[1][0])
-            self.assertIn("INTERVAL '10 minutes'", db.calls[1][0])
+            self.assertIn(f'FROM "{table}"', query.call_args.args[0])
+            self.assertIn("INTERVAL '10 minutes'", query.call_args.args[0])
 
-    async def test_no_recent_samples_do_not_verify(self):
-        metric, error = await latest_plugin_metric(FakeDB('telegraf_mem', []), 'telegraf_mem')
+    @patch("app.host_telemetry.query_influxdb3_sql_async", return_value=[])
+    async def test_no_recent_samples_do_not_verify(self, _query):
+        metric, error = await latest_plugin_metric(None, 'telegraf_mem')
         self.assertIsNone(metric)
 
     async def test_identifier_allowlist(self):
-        db = FakeDB()
-        with self.assertRaises(ValueError): await latest_plugin_metric(db, 'other_table')
-        self.assertEqual(db.calls, [])
+        with self.assertRaises(ValueError): await latest_plugin_metric(None, 'other_table')
 
-    async def test_database_failures_propagate_for_route_503(self):
-        with self.assertRaises(TimeoutError): await memory_payload(FakeDB(TimeoutError()))
-
-    async def test_connector_payload_combines_disk_and_diskio(self):
-        db = FakeDB(
-            'telegraf_disk', [{'time': '2026-10-30T10:00:00Z', 'host': 'a', 'fields': {'time': 'x', 'host': 'a', 'used_percent': 65}}],
-            'telegraf_diskio', [{'time': '2026-10-30T10:00:01Z', 'host': 'a', 'fields': {'time': 'x', 'host': 'a', 'reads': 9}}],
-        )
-        payload = await connector_payload(db, 'telegraf-disk-monitoring', ['telegraf_disk', 'telegraf_diskio'])
+    @patch("app.host_telemetry.query_influxdb3_sql_async")
+    async def test_connector_payload_combines_disk_and_diskio(self, query):
+        query.side_effect = [
+            [{'time': '2026-10-30T10:00:00Z', 'host': 'a', 'used_percent': 65}],
+            [{'time': '2026-10-30T10:00:01Z', 'host': 'a', 'reads': 9}],
+        ]
+        payload = await connector_payload(None, 'telegraf-disk-monitoring', ['telegraf_disk', 'telegraf_diskio'])
         self.assertEqual(payload['measurements'], ['disk', 'diskio'])
         self.assertEqual(payload['sample_count'], 2)
         self.assertNotIn('time', payload['samples'][0]['fields'])
@@ -118,14 +117,14 @@ class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_connector_table_allowlist(self):
         with self.assertRaises(ValueError):
-            await connector_payload(FakeDB(), 'bad', ['injected_table'])
+            await connector_payload(None, 'bad', ['injected_table'])
 
 
 class BundleTests(unittest.TestCase):
     def test_shared_config_has_one_output_and_both_collectors(self):
         config = tomllib.loads(_telegraf_config())
         self.assertEqual(set(config['inputs']), {'cpu', 'mem'})
-        self.assertEqual(len(config['outputs']['postgresql']), 1)
+        self.assertEqual(len(config['outputs']['influxdb_v3']), 1)
         self.assertEqual(config['inputs']['cpu'][0]['name_override'], 'telegraf_cpu')
         self.assertEqual(config['inputs']['mem'][0]['name_override'], 'telegraf_mem')
 
@@ -144,7 +143,7 @@ class BundleTests(unittest.TestCase):
             '${MQTT_BROKER}': 'tcp://localhost:1883', '${MQTT_TOPIC}': 'sensors/#', '${MQTT_USERNAME}': '', '${MQTT_PASSWORD}': '', '${MQTT_DATA_FORMAT}': 'json',
             '${MODBUS_DEVICE}': 'meter', '${MODBUS_CONTROLLER}': 'tcp://localhost:502', '${MODBUS_SLAVE_ID}': '1', '${MODBUS_FIELD}': 'value', '${MODBUS_ADDRESS}': '0', '${MODBUS_BYTE_ORDER}': 'AB', '${MODBUS_DATA_TYPE}': 'UINT16', '${MODBUS_SCALE}': '1.0',
             '${OPCUA_ENDPOINT}': 'opc.tcp://localhost:4840', '${OPCUA_SECURITY_POLICY}': 'None', '${OPCUA_SECURITY_MODE}': 'None', '${OPCUA_AUTH_METHOD}': 'Anonymous', '${OPCUA_USERNAME}': '', '${OPCUA_PASSWORD}': '', '${OPCUA_NODE_NAME}': 'state', '${OPCUA_NODE_ID}': 'ns=0;i=2259',
-            '${POSTGRES_DSN}': 'postgresql://u:p@localhost/db',
+            '${INFLUXDB3_URL}': 'http://localhost:8181', '${INFLUXDB3_AUTH_TOKEN}': 'token', '${INFLUXDB3_DATABASE}': 'iiiot_telemetry',
         }
         for plugin, inputs in expected.items():
             config = _telegraf_config(plugin)
@@ -172,7 +171,7 @@ class BundleTests(unittest.TestCase):
                                     script = archive.read('payload/install.ps1').decode()
                                     self.assertIn('--config-directory $ConfigDir', script)
                                     self.assertIn('IIIOT-Veda Setup', script)
-                                self.assertEqual(manifest['bundle_revision'], 6)
+                                self.assertEqual(manifest['bundle_revision'], 7)
                             elif target == 'linux-deb':
                                 self.assertTrue(result['filename'].endswith('.deb'))
                                 listing = subprocess.run(['ar', 't', result['path']], check=True, capture_output=True, text=True).stdout
