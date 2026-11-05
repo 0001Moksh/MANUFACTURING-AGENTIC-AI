@@ -130,6 +130,8 @@ ADDITIONAL_MONITORING_SPECS = {
     "iiiot-veda-redis-monitoring": {"kind": "redis", "input": "redis", "table": "iiiot_veda_redis", "tables": ["iiiot_veda_redis"], "label": "Redis monitoring"},
     "iiiot-veda-sql-monitoring": {"kind": "sql", "input": "sql", "table": "iiiot_veda_sql", "tables": ["iiiot_veda_sql"], "label": "SQL query monitoring"},
     "iiiot-veda-sqlserver-monitoring": {"kind": "sqlserver", "input": "sqlserver", "table": "iiiot_veda_sqlserver", "tables": ["iiiot_veda_sqlserver"], "label": "SQL Server monitoring"},
+    "iiiot-veda-postgresql-monitoring": {"kind": "postgresql", "input": "postgresql", "table": "iiiot_veda_postgresql", "tables": ["iiiot_veda_postgresql"], "label": "PostgreSQL monitoring"},
+    "iiiot-veda-win-eventlog-monitoring": {"kind": "win-eventlog", "input": "win_eventlog", "table": "iiiot_veda_win_eventlog", "tables": ["iiiot_veda_win_eventlog"], "label": "Windows Event Log monitoring"},
     "iiiot-veda-influxdb-monitoring": {"kind": "influxdb", "input": "prometheus", "table": "iiiot_veda_influxdb", "tables": ["iiiot_veda_influxdb"], "label": "InfluxDB monitoring"},
     "iiiot-veda-internal-monitoring": {"kind": "internal", "input": "internal", "table": "iiiot_veda_internal", "tables": ["iiiot_veda_internal"], "label": "Telegraf internal monitoring"},
     "iiiot-veda-exec-monitoring": {"kind": "exec", "input": "exec", "table": "iiiot_veda_exec", "tables": ["iiiot_veda_exec"], "label": "Command monitoring"},
@@ -161,7 +163,7 @@ HOST_PLUGIN_SPECS = {
     **ADDITIONAL_MONITORING_SPECS,
 }
 PLUGIN_CATALOG_IDS = tuple(plugin_id for plugin_id in HOST_PLUGIN_SPECS if plugin_id != MONITORING_PLUGIN_ID)
-CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "win-eventlog", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
 OPTIONAL_MONITORING_KINDS = set(CONFIGURABLE_MONITORING_KINDS) - {"mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
 
 
@@ -421,6 +423,8 @@ def _seed_default_plugins() -> None:
             "use_cases": [label],
             "server_config_template": {f"[[inputs.{spec['input']}]]": {}, "[[outputs.influxdb_v3]]": {"database": "${INFLUXDB3_DATABASE}"}},
         })
+        if spec["kind"] == "win-eventlog":
+            connector["supported_os"] = ["windows"]
         PLUGIN_CATALOG.setdefault(plugin_id, connector)
     monitoring = copy.deepcopy(cpu)
     monitoring.update({
@@ -1980,6 +1984,8 @@ async def register_plugin(
     if not asset or not Path(asset.storage_path).is_file():
         raise HTTPException(status_code=422, detail="Select a valid installation file from Plugin Settings")
     target_os, architecture, filename = asset.target_os, asset.architecture, asset.filename
+    if plugin_id == "iiiot-veda-win-eventlog-monitoring" and target_os != "windows":
+        raise HTTPException(status_code=422, detail="Windows Event Log monitoring requires a Windows installer")
     installer_path, size_bytes, checksum = Path(asset.storage_path), asset.size_bytes, asset.checksum_sha256
 
     row = await db.get(PluginRegistration, plugin_id)

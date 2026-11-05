@@ -134,7 +134,22 @@ chmod +x scripts/start.sh
    - **Username**: `mfg_head`
    - **Password**: `mfg123`
 
+### PostgreSQL and Windows Event Log monitoring
+
+The **PostgreSQL Monitoring** plugin polls PostgreSQL statistics using
+`[[inputs.postgresql]]`. Set its connection string in the installed
+`mai-postgresql.conf` with a database login that has `pg_read_all_stats`, then
+test that file with Telegraf `--test`. It writes the `iiiot_veda_postgresql`
+measurement to InfluxDB 3.
+
+The **Windows Event Log Monitoring** plugin reads the Windows Application log
+using `[[inputs.win_eventlog]]`. It is Windows-only and writes
+`iiiot_veda_win_eventlog` when a new event is received. Its service account
+needs permission to read that event log. A sample input is available in
+`scripts/win-eventlog-monitoring.conf`.
+
 ### Telegraf internal monitoring
+
 
 The **IIIOT-Veda Telegraf Internal Monitoring** plugin records the collector's own
 input gather errors, startup errors, dropped metrics, output write errors, and

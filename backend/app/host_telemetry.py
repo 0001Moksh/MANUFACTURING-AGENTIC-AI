@@ -14,7 +14,7 @@ HOST_TABLES = {
     "iiiot_veda_ping", "iiiot_veda_http_response", "iiiot_veda_dns_query", "iiiot_veda_net_response", "iiiot_veda_x509_cert", "iiiot_veda_netstat",
     "iiiot_veda_email_response", "iiiot_veda_email_cert", "iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat",
     "iiiot_veda_desktop_system", "iiiot_veda_desktop_processes", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis",
-    "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_internal", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7",
+    "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_postgresql", "iiiot_veda_win_eventlog", "iiiot_veda_influxdb", "iiiot_veda_internal", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7",
     "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok",
 }
 

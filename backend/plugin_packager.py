@@ -26,7 +26,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
+PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "win-eventlog", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
 
 
 def _host_base_config() -> str:
@@ -57,7 +57,7 @@ def _output_config() -> str:
 
 def _connector_config(plugin: str) -> str:
     if plugin == "monitoring":
-        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
         return "\n".join(_connector_config(child).rstrip() for child in children) + "\n"
     configs = {
         "cpu": "",
@@ -244,6 +244,18 @@ def _connector_config(plugin: str) -> str:
   servers = ["Server=127.0.0.1;Port=1433;User Id=monitor;Password=password;app name=IIIOT-Veda;log=1;"]
   database_type = "SQLServer"
   include_query = ["SQLServerPerformanceCounters", "SQLServerWaitStatsCategorized", "SQLServerDatabaseIO", "SQLServerProperties"]
+''',
+        "postgresql": '''# Use a PostgreSQL login with pg_read_all_stats privileges.
+[[inputs.postgresql]]
+  name_override = "iiiot_veda_postgresql"
+  address = "host=127.0.0.1 port=5432 user=monitor password=replace-me dbname=postgres sslmode=disable"
+''',
+        "win-eventlog": '''# Windows Application event log; the service account must be able to read it.
+[[inputs.win_eventlog]]
+  name_override = "iiiot_veda_win_eventlog"
+  eventlog_name = "Application"
+  xpath_query = ""
+  startup_error_behavior = "retry"
 ''',
         "internal": '''# Telegraf's own gather, startup, buffer, and write health.
 [[inputs.internal]]
@@ -807,6 +819,8 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
         raise ValueError(f"Unsupported plugin: {plugin}")
     if target_os not in TARGETS:
         raise ValueError(f"Unsupported target OS/package type: {target_os}")
+    if plugin == "win-eventlog" and target_os != "windows":
+        raise ValueError("Windows Event Log monitoring requires a Windows target")
     if architecture not in ARCHITECTURES:
         raise ValueError(f"Unsupported architecture: {architecture}")
     installer = telegraf_installer.resolve()
@@ -848,7 +862,7 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "desktop-monitoring": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"],
             "docker": ["iiiot_veda_docker"], "kubernetes": ["iiiot_veda_kubernetes"],
             "mongodb": ["iiiot_veda_mongodb"], "mysql": ["iiiot_veda_mysql"], "redis": ["iiiot_veda_redis"],
-            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "influxdb": ["iiiot_veda_influxdb"], "internal": ["iiiot_veda_internal"], "exec": ["iiiot_veda_exec"],
+            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "postgresql": ["iiiot_veda_postgresql"], "win-eventlog": ["iiiot_veda_win_eventlog"], "influxdb": ["iiiot_veda_influxdb"], "internal": ["iiiot_veda_internal"], "exec": ["iiiot_veda_exec"],
             "http": ["iiiot_veda_http"], "http-listener": ["iiiot_veda_http_listener"], "nvidia": ["iiiot_veda_nvidia"],
             "s7": ["iiiot_veda_s7"], "syslog": ["iiiot_veda_syslog"], "cisco-telemetry": ["iiiot_veda_cisco_telemetry"],
             "system": ["iiiot_veda_system_extended"], "opentelemetry": ["iiiot_veda_opentelemetry"],
