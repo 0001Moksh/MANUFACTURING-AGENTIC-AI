@@ -134,6 +134,7 @@ class BundleTests(unittest.TestCase):
             'modbus': {'modbus'}, 'opcua': {'opcua'},
             'docker': {'docker'}, 'kubernetes': {'kubernetes'}, 'mongodb': {'mongodb'},
             'mysql': {'mysql'}, 'redis': {'redis'}, 'sql': {'sql'}, 'sqlserver': {'sqlserver'},
+            'influxdb': {'prometheus'},
             'exec': {'exec'}, 'http': {'http'}, 'http-listener': {'http_listener_v2'},
             'nvidia': {'nvidia_smi'}, 's7': {'s7comm'}, 'syslog': {'syslog'},
             'cisco-telemetry': {'cisco_telemetry_mdt'}, 'system': {'system'},

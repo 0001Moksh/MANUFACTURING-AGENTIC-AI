@@ -129,6 +129,7 @@ ADDITIONAL_MONITORING_SPECS = {
     "iiiot-veda-redis-monitoring": {"kind": "redis", "input": "redis", "table": "iiiot_veda_redis", "tables": ["iiiot_veda_redis"], "label": "Redis monitoring"},
     "iiiot-veda-sql-monitoring": {"kind": "sql", "input": "sql", "table": "iiiot_veda_sql", "tables": ["iiiot_veda_sql"], "label": "SQL query monitoring"},
     "iiiot-veda-sqlserver-monitoring": {"kind": "sqlserver", "input": "sqlserver", "table": "iiiot_veda_sqlserver", "tables": ["iiiot_veda_sqlserver"], "label": "SQL Server monitoring"},
+    "iiiot-veda-influxdb-monitoring": {"kind": "influxdb", "input": "prometheus", "table": "iiiot_veda_influxdb", "tables": ["iiiot_veda_influxdb"], "label": "InfluxDB monitoring"},
     "iiiot-veda-exec-monitoring": {"kind": "exec", "input": "exec", "table": "iiiot_veda_exec", "tables": ["iiiot_veda_exec"], "label": "Command monitoring"},
     "iiiot-veda-http-monitoring": {"kind": "http", "input": "http", "table": "iiiot_veda_http", "tables": ["iiiot_veda_http"], "label": "HTTP metric collection"},
     "iiiot-veda-http-listener": {"kind": "http-listener", "input": "http_listener_v2", "table": "iiiot_veda_http_listener", "tables": ["iiiot_veda_http_listener"], "label": "HTTP metric listener"},
@@ -158,7 +159,7 @@ HOST_PLUGIN_SPECS = {
     **ADDITIONAL_MONITORING_SPECS,
 }
 PLUGIN_CATALOG_IDS = tuple(plugin_id for plugin_id in HOST_PLUGIN_SPECS if plugin_id != MONITORING_PLUGIN_ID)
-CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
 OPTIONAL_MONITORING_KINDS = set(CONFIGURABLE_MONITORING_KINDS) - {"mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
 
 
