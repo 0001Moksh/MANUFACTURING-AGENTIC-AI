@@ -36,6 +36,7 @@ interface InstallerAsset { id: string; display_name: string; target_os: string; 
 
 const STATUS_COLOR: Record<string, string> = {
   connected: 'bg-green-tint text-green',
+  disconnected: 'bg-red-50 text-red-600',
   registered: 'bg-blue-tint text-[#2258b0]',
   waiting_for_data: 'bg-amber-tint text-[#9A6400]',
   not_registered: 'bg-[#EFF3F9] text-muted',
@@ -51,7 +52,7 @@ const TARGET_OS_OPTIONS = [
 ];
 
 const targetOsLabel = (value?: string) => TARGET_OS_OPTIONS.find((option) => option.value === value)?.label || value || 'Not selected';
-const isConnected = (plugin: SimplePlugin) => plugin.connection_status === 'connected' || plugin.installation_status === 'connected';
+const isConnected = (plugin: SimplePlugin) => plugin.installation_status === 'connected';
 
 const iconFor = (name: string) => {
   const icon = name?.toLowerCase() || '';
@@ -90,6 +91,7 @@ export const PluginsPage: React.FC = () => {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [removingPluginId, setRemovingPluginId] = useState<string | null>(null);
   const [runningPluginId, setRunningPluginId] = useState<string | null>(null);
+  const [runResults, setRunResults] = useState<Record<string, string>>({});
 
   const loadPlugins = async () => {
     setLoading(true);
@@ -176,10 +178,9 @@ export const PluginsPage: React.FC = () => {
       const updated = await pluginService.getById(plugin.id);
       upsertPlugin(updated);
       const details = (result.checks || []).map((check: any) => `${check.passed ? '✓' : '✕'} ${check.message}`).join('\n');
-      window.alert(`${result.message}${details ? `\n\n${details}` : ''}`);
-      if (!result.success) setTab('new');
+      setRunResults((current) => ({ ...current, [plugin.id]: `${result.message}${details ? `\n\n${details}` : ''}` }));
     } catch (error: any) {
-      window.alert(error?.response?.data?.detail || 'Unable to run the connectivity test.');
+      setRunResults((current) => ({ ...current, [plugin.id]: error?.response?.data?.detail || 'Unable to run the connectivity test.' }));
       await loadPlugins();
     } finally {
       setRunningPluginId(null);
@@ -200,7 +201,7 @@ export const PluginsPage: React.FC = () => {
         {(['connected', 'new'] as const).map((value) => <button key={value} onClick={() => setTab(value)} className={`rounded-lg px-4 py-2 text-[12.5px] font-bold cursor-pointer ${tab === value ? 'bg-navy-900 text-white' : 'text-muted'}`}>{value === 'connected' ? 'Connected Plugins' : 'Available Plugins'}</button>)}
       </div>
 
-      {loading ? <div className="rounded-2xl border border-border-color bg-panel p-10 text-center text-[13px] text-muted">Loading plugin catalog…</div> : tab === 'connected' ? <PluginGrid plugins={connectedPlugins} connected onRegister={openRegistration} onSetup={setWizardPlugin} onRun={handleRun} onRemove={handleRemove} runningPluginId={runningPluginId} removingPluginId={removingPluginId} /> : <AvailablePluginsPanel count={newPlugins.length} onAdd={() => openRegistration()} />}
+      {loading ? <div className="rounded-2xl border border-border-color bg-panel p-10 text-center text-[13px] text-muted">Loading plugin catalog…</div> : tab === 'connected' ? <PluginGrid plugins={connectedPlugins} connected onRegister={openRegistration} onSetup={setWizardPlugin} onRun={handleRun} onRemove={handleRemove} runningPluginId={runningPluginId} removingPluginId={removingPluginId} runResults={runResults} /> : <AvailablePluginsPanel count={newPlugins.length} onAdd={() => openRegistration()} />}
 
       {showRegister && <RegisterPluginDialog plugins={newPlugins} assets={installerAssets} assetId={installerAssetId} setAssetId={setInstallerAssetId} form={form} setForm={setForm} busy={registering} error={registerError} onClose={() => { setShowRegister(false); setRegisterError(null); }} onRegister={handleRegister} />}
       {wizardPlugin && <PluginSetupDialog plugin={wizardPlugin} onClose={() => setWizardPlugin(null)} onUpdated={upsertPlugin} />}
@@ -208,17 +209,18 @@ export const PluginsPage: React.FC = () => {
   );
 };
 
-const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onRegister: (plugin: SimplePlugin) => void; onSetup: (plugin: SimplePlugin) => void; onRun: (plugin: SimplePlugin) => void; onRemove: (plugin: SimplePlugin) => void; runningPluginId: string | null; removingPluginId: string | null }> = ({ plugins, connected, onRegister, onSetup, onRun, onRemove, runningPluginId, removingPluginId }) => (
+const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onRegister: (plugin: SimplePlugin) => void; onSetup: (plugin: SimplePlugin) => void; onRun: (plugin: SimplePlugin) => void; onRemove: (plugin: SimplePlugin) => void; runningPluginId: string | null; removingPluginId: string | null; runResults: Record<string, string> }> = ({ plugins, connected, onRegister, onSetup, onRun, onRemove, runningPluginId, removingPluginId, runResults }) => (
   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
     {plugins.length === 0 ? <div className="col-span-full rounded-2xl border border-dashed border-border-color bg-panel p-10 text-center text-[13px] text-muted">{connected ? 'No verified connected plugins yet. Use Add Plugin to upload the IIIOT-Veda installer.' : 'No registered plugins are waiting for setup.'}</div> : plugins.map((plugin) => {
       const Icon = iconFor(plugin.name);
-      const status = plugin.connection_status === 'connected' ? 'connected' : plugin.installation_status || 'registered';
+      const status = plugin.connection_status === 'disconnected' ? 'disconnected' : plugin.connection_status === 'connected' ? 'connected' : plugin.installation_status || 'registered';
       return <div key={plugin.id} className="rounded-[18px] border border-border-color bg-panel p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal/10 text-teal"><Icon className="h-5 w-5" /></div><div><div className="font-head text-[18px] font-bold text-ink">{plugin.name}</div><div className="text-[11px] text-muted">v{plugin.version || '1.0.0'}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${STATUS_COLOR[status] || STATUS_COLOR.not_configured}`}>{status.replaceAll('_', ' ')}</span></div>
         <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{plugin.short_description}</p>
         <div className="mt-4 flex flex-wrap gap-2 text-[10.5px]"><span className="rounded-full bg-[#EEF6FF] px-2.5 py-1 text-[#0B63E5]">{plugin.category || 'Monitoring'}</span><span className="rounded-full bg-[#F7F3FF] px-2.5 py-1 text-[#7C4DFF]">{targetOsLabel(plugin.target_os)}</span><span className="rounded-full bg-[#F3F7F5] px-2.5 py-1 text-green">{plugin.supported_architectures?.[0] || 'x86_64'}</span></div>
         <div className="mt-4 space-y-2 rounded-xl bg-canvas p-3 text-[11.5px] text-muted"><div className="flex justify-between gap-3"><span>Installer</span><span className="truncate font-semibold text-ink">{brandedFilename(plugin.installer?.filename, 'Upload required')}</span></div><div className="flex justify-between gap-3"><span>Last metric</span><span className="font-semibold text-ink">{plugin.last_metric_received ? formatTelemetryDateTime(plugin.last_metric_received) : 'Awaiting data'}</span></div></div>
         <div className="mt-5 flex gap-2"><button onClick={() => plugin.installation_status === 'not_registered' ? onRegister(plugin) : onSetup(plugin)} className="flex-1 rounded-xl bg-teal px-3 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer">{connected ? 'Manage Plugin' : plugin.installation_status === 'not_registered' ? 'Register' : 'Setup'}</button>{connected && <button onClick={() => onRun(plugin)} disabled={runningPluginId === plugin.id} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-teal/30 bg-teal/10 px-3 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer disabled:cursor-wait disabled:opacity-60" title="Test installation and connectivity"><Activity className={`h-4 w-4 ${runningPluginId === plugin.id ? 'animate-spin' : ''}`} />{runningPluginId === plugin.id ? 'Running…' : 'Run'}</button>}{connected && <button onClick={() => onRemove(plugin)} disabled={removingPluginId === plugin.id} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] font-bold text-red-600 cursor-pointer hover:bg-red-100 disabled:cursor-wait disabled:opacity-60" title="Remove plugin"><Trash2 className="h-4 w-4" />{removingPluginId === plugin.id ? 'Removing…' : 'Remove'}</button>}</div>
+        {runResults[plugin.id] && <div role="status" className="mt-3 whitespace-pre-wrap rounded-xl bg-canvas p-3 text-[11.5px] text-ink">{runResults[plugin.id]}</div>}
       </div>;
     })}
   </div>

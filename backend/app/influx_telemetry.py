@@ -132,7 +132,8 @@ async def query_influxdb3_sql_async(query: str, params: Dict[str, Any] | None = 
             response.raise_for_status()
             payload = response.json()
     except (httpx.HTTPError, ValueError) as exc:
-        raise InfluxTelemetryError(f"InfluxDB 3 query failed: {exc}") from exc
+          detail = exc.response.text[:500] if isinstance(exc, httpx.HTTPStatusError) else str(exc)
+          raise InfluxTelemetryError(f"InfluxDB 3 query failed: {detail}") from exc
     if isinstance(payload, list):
         return [row for row in payload if isinstance(row, dict)]
     if isinstance(payload, dict) and isinstance(payload.get("results"), list):

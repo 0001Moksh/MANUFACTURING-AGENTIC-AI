@@ -9,6 +9,7 @@ import uuid
 import platform
 import shutil
 import subprocess
+import socket
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -130,6 +131,7 @@ ADDITIONAL_MONITORING_SPECS = {
     "iiiot-veda-sql-monitoring": {"kind": "sql", "input": "sql", "table": "iiiot_veda_sql", "tables": ["iiiot_veda_sql"], "label": "SQL query monitoring"},
     "iiiot-veda-sqlserver-monitoring": {"kind": "sqlserver", "input": "sqlserver", "table": "iiiot_veda_sqlserver", "tables": ["iiiot_veda_sqlserver"], "label": "SQL Server monitoring"},
     "iiiot-veda-influxdb-monitoring": {"kind": "influxdb", "input": "prometheus", "table": "iiiot_veda_influxdb", "tables": ["iiiot_veda_influxdb"], "label": "InfluxDB monitoring"},
+    "iiiot-veda-internal-monitoring": {"kind": "internal", "input": "internal", "table": "iiiot_veda_internal", "tables": ["iiiot_veda_internal"], "label": "Telegraf internal monitoring"},
     "iiiot-veda-exec-monitoring": {"kind": "exec", "input": "exec", "table": "iiiot_veda_exec", "tables": ["iiiot_veda_exec"], "label": "Command monitoring"},
     "iiiot-veda-http-monitoring": {"kind": "http", "input": "http", "table": "iiiot_veda_http", "tables": ["iiiot_veda_http"], "label": "HTTP metric collection"},
     "iiiot-veda-http-listener": {"kind": "http-listener", "input": "http_listener_v2", "table": "iiiot_veda_http_listener", "tables": ["iiiot_veda_http_listener"], "label": "HTTP metric listener"},
@@ -159,7 +161,7 @@ HOST_PLUGIN_SPECS = {
     **ADDITIONAL_MONITORING_SPECS,
 }
 PLUGIN_CATALOG_IDS = tuple(plugin_id for plugin_id in HOST_PLUGIN_SPECS if plugin_id != MONITORING_PLUGIN_ID)
-CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
 OPTIONAL_MONITORING_KINDS = set(CONFIGURABLE_MONITORING_KINDS) - {"mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
 
 
@@ -237,6 +239,18 @@ def _monitoring_installation_checks(target_os: Optional[str] = None, plugin_kind
         service_running = False
     if service_running:
         service_detail = "IIIOT-Veda service is running."
+    elif system_name.startswith("win"):
+        # Windows records Telegraf's fatal startup error in the Application log.
+        try:
+            event = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='telegraf'; StartTime=(Get-Date).AddHours(-1)} -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'Error running agent' } | Select-Object -First 1 -ExpandProperty Message"],
+                capture_output=True, text=True, timeout=6, check=False,
+            )
+            if event.stdout.strip():
+                service_detail += " Startup error: " + event.stdout.strip()[:500]
+        except (OSError, subprocess.SubprocessError):
+            pass
 
     return [
         {
@@ -256,16 +270,15 @@ def _monitoring_installation_checks(target_os: Optional[str] = None, plugin_kind
 
 
 async def _mark_plugin_available(row: PluginRegistration, db: AsyncSession) -> None:
-    row.installation_status = "registered"
-    row.connection_status = "not_configured"
-    row.last_metric_received = None
+    # A failed health check does not uninstall or unregister the plugin.
+    row.connection_status = "disconnected"
     await db.commit()
     PLUGIN_CATALOG[row.id] = _plugin_from_db(row)
 
 
 async def _reconcile_connected_plugin(row: PluginRegistration, db: AsyncSession) -> List[Dict[str, Any]]:
     checks = _monitoring_installation_checks(row.target_os, HOST_PLUGIN_SPECS[row.id]["kind"])
-    if row.connection_status == "connected" and not all(check["passed"] for check in checks):
+    if row.connection_status in {"connected", "disconnected"} and not all(check["passed"] for check in checks):
         await _mark_plugin_available(row, db)
     return checks
 PLUGIN_ALLOWED_EXTENSIONS = {
@@ -1777,7 +1790,7 @@ async def list_plugins(db: AsyncSession = Depends(get_db)) -> List[Dict[str, Any
     await _sync_plugin_catalog(db)
     for plugin_id in PLUGIN_CATALOG_IDS:
         row = await db.get(PluginRegistration, plugin_id)
-        if row and row.connection_status == "connected":
+        if row and row.connection_status in {"connected", "disconnected"}:
             await _reconcile_connected_plugin(row, db)
     return [_plugin_record_payload(PLUGIN_CATALOG[plugin_id]) for plugin_id in PLUGIN_CATALOG_IDS]
 
@@ -1787,7 +1800,7 @@ async def get_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> Dict
     _seed_default_plugins()
     await _sync_plugin_catalog(db)
     row = await db.get(PluginRegistration, plugin_id)
-    if row and row.connection_status == "connected":
+    if row and row.connection_status in {"connected", "disconnected"}:
         await _reconcile_connected_plugin(row, db)
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
@@ -2188,6 +2201,38 @@ async def get_plugin_job(job_id: str):
     return job
 
 
+def _docker_daemon_check() -> Dict[str, Any]:
+    """Check the daemon configured for this host, rather than trusting old metrics."""
+    config_path = Path(os.getenv("ProgramFiles", r"C:\Program Files")) / "IIIOT-Veda" / "config" / "mai-docker.conf" if platform.system().lower() == "windows" else Path("/etc/telegraf/telegraf.d/mai-docker.conf")
+    try:
+        endpoint = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))["inputs"]["docker"][0].get("endpoint", "unix:///var/run/docker.sock")
+    except (OSError, KeyError, ValueError, tomllib.TOMLDecodeError):
+        return {"name": "docker_daemon", "passed": False, "message": "Cannot read the installed Docker input endpoint."}
+    try:
+        if endpoint.startswith("tcp://"):
+            from urllib.parse import urlsplit
+            address = urlsplit(endpoint)
+            with socket.create_connection((address.hostname, address.port or 2375), timeout=2) as connection:
+                connection.settimeout(2)
+                connection.sendall(b"GET /_ping HTTP/1.0\r\nHost: docker\r\n\r\n")
+                response = connection.recv(256)
+                healthy = b" 200 " in response.split(b"\r\n", 1)[0]
+        elif endpoint.startswith("unix://"):
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+                connection.settimeout(2)
+                connection.connect(endpoint.removeprefix("unix://"))
+                connection.sendall(b"GET /_ping HTTP/1.0\r\nHost: docker\r\n\r\n")
+                healthy = b" 200 " in connection.recv(256).split(b"\r\n", 1)[0]
+        elif endpoint.startswith("npipe://"):
+            result = subprocess.run(["docker", "--host", endpoint, "info", "--format", "{{.ServerVersion}}"], capture_output=True, timeout=5, check=False)
+            healthy = result.returncode == 0
+        else:
+            return {"name": "docker_daemon", "passed": False, "message": f"Unsupported Docker endpoint: {endpoint}"}
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"name": "docker_daemon", "passed": False, "message": f"Docker daemon at {endpoint} is unavailable: {exc}"}
+    return {"name": "docker_daemon", "passed": healthy, "message": f"Docker daemon at {endpoint} {'responded to a live check' if healthy else 'did not respond successfully'}."}
+
+
 @router.post("/api/plugins/{plugin_id}/test")
 async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
@@ -2200,14 +2245,16 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     if not row:
         raise HTTPException(status_code=409, detail="Register this plugin before verifying installation")
     installation_checks = _monitoring_installation_checks(row.target_os, HOST_PLUGIN_SPECS[row.id]["kind"])
+    if HOST_PLUGIN_SPECS[row.id]["kind"] == "docker" and all(check["passed"] for check in installation_checks):
+        installation_checks.append(await asyncio.to_thread(_docker_daemon_check))
     installation_ok = all(check["passed"] for check in installation_checks)
     if not installation_ok:
         await _mark_plugin_available(row, db)
         failed_messages = [check["message"] for check in installation_checks if not check["passed"]]
         return {
             "success": False,
-            "status": "available",
-            "message": "Connectivity test failed. The plugin was moved to Available Plugins.",
+            "status": "disconnected",
+            "message": "Plugin is disconnected. " + " ".join(failed_messages),
             "metrics_seen": 0,
             "last_metric_received": None,
             "verification_error": " ".join(failed_messages),
@@ -2219,19 +2266,21 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     except Exception as exc:
         await db.rollback()
         metric = None
-        verification_error = "Unable to read telemetry. Check InfluxDB connectivity and IIIOT-Veda ingestion."
-        logging.getLogger(__name__).warning("Plugin verification failed: %s", type(exc).__name__)
+        verification_error = f"InfluxDB telemetry query failed: {exc}"
+        logging.getLogger(__name__).warning("Plugin verification failed for %s: %s", plugin_id, exc)
     success = metric is not None
     metric_time_value = (metric or {}).get("time")
     metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
-    plugin["connection_status"] = "connected" if success else "not_configured"
-    plugin["installation_status"] = "connected" if success else "registered"
-    plugin["last_metric_received"] = metric_time if success else None
+    plugin["connection_status"] = "connected" if success else "disconnected"
+    plugin["installation_status"] = "connected"
+    if success:
+        plugin["last_metric_received"] = metric_time
     row = await db.get(PluginRegistration, plugin_id)
     if row:
         row.connection_status = plugin["connection_status"]
         row.installation_status = plugin["installation_status"]
-        row.last_metric_received = metric_time_value.astimezone(timezone.utc).replace(tzinfo=None) if success and isinstance(metric_time_value, datetime) else None
+        if success and isinstance(metric_time_value, datetime):
+            row.last_metric_received = metric_time_value.astimezone(timezone.utc).replace(tzinfo=None)
         await db.commit()
         PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
     telemetry_check = {
@@ -2242,8 +2291,8 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     }
     return {
         "success": success,
-        "status": "connected" if success else "available",
-        "message": f"{spec['label']} connectivity test passed." if success else "Connectivity test failed. The plugin was moved to Available Plugins.",
+        "status": "connected" if success else "disconnected",
+        "message": f"{spec['label']} connectivity test passed." if success else f"{spec['label']} is disconnected: {verification_error}",
         "metrics_seen": 1 if success else 0,
         "last_metric_received": metric_time,
         "verification_error": verification_error,

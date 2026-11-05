@@ -134,7 +134,29 @@ chmod +x scripts/start.sh
    - **Username**: `mfg_head`
    - **Password**: `mfg123`
 
+### Telegraf internal monitoring
+
+The **IIIOT-Veda Telegraf Internal Monitoring** plugin records the collector's own
+input gather errors, startup errors, dropped metrics, output write errors, and
+buffer usage. It needs no external endpoint. Register it from **Plugins → Add
+Plugin**, use the Windows installer in the setup wizard, and verify after the
+Telegraf service has written at least one collection interval to InfluxDB 3.
+The installed input is `C:\Program Files\IIIOT-Veda\config\mai-internal.conf`;
+its measurement is `iiiot_veda_internal`. To test the input without writing to
+InfluxDB, run in PowerShell:
+
+```powershell
+& "C:\Program Files\IIIOT-Veda\telegraf-1.40.2\telegraf.exe" `
+  --config "C:\Program Files\IIIOT-Veda\config\mai-internal.conf" `
+  --test
+```
+
+The full service must be running for output and historical telemetry checks.
+An internal metric cannot report an agent that is fully stopped; use the
+Windows service status and event log to diagnose that case.
+
 ### Telegraf CPU and memory plugin registration
+
 
 Prepare the target-specific vendor installer by executing the notebook from the
 repository root. The notebook downloads the official Telegraf package. For

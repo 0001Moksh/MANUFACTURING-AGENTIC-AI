@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
-from .influx_telemetry import query_influxdb3_sql_async
+from .influx_telemetry import InfluxTelemetryError, query_influxdb3_sql_async
 from .memory_telemetry import memory_sample
 
 
@@ -14,7 +14,7 @@ HOST_TABLES = {
     "iiiot_veda_ping", "iiiot_veda_http_response", "iiiot_veda_dns_query", "iiiot_veda_net_response", "iiiot_veda_x509_cert", "iiiot_veda_netstat",
     "iiiot_veda_email_response", "iiiot_veda_email_cert", "iiiot_veda_system", "iiiot_veda_swap", "iiiot_veda_processes", "iiiot_veda_procstat",
     "iiiot_veda_desktop_system", "iiiot_veda_desktop_processes", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis",
-    "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7",
+    "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_internal", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7",
     "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok",
 }
 
@@ -31,8 +31,13 @@ async def _query(table: str, minutes: int, limit: int) -> list[dict[str, Any]]:
 async def latest_plugin_metric(db, table):
     if table not in HOST_TABLES:
         raise ValueError("Unsupported host telemetry table")
-    async with asyncio.timeout(12):
-        rows = await _query(table, 10, 1)
+    try:
+        async with asyncio.timeout(12):
+            rows = await _query(table, 10, 1)
+    except InfluxTelemetryError as exc:
+        if "table 'public.iox." in str(exc) and "not found" in str(exc):
+            return None, f"No {table} measurement exists yet. The input must emit at least one metric before InfluxDB creates it."
+        raise
     if not rows:
         return None, "No recent telemetry was found in InfluxDB. Check the IIIOT-Veda service and InfluxDB output."
     metric = dict(rows[0])

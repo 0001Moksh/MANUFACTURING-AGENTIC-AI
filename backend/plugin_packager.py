@@ -26,7 +26,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
+PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
 
 
 def _host_base_config() -> str:
@@ -57,7 +57,7 @@ def _output_config() -> str:
 
 def _connector_config(plugin: str) -> str:
     if plugin == "monitoring":
-        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
         return "\n".join(_connector_config(child).rstrip() for child in children) + "\n"
     configs = {
         "cpu": "",
@@ -244,6 +244,12 @@ def _connector_config(plugin: str) -> str:
   servers = ["Server=127.0.0.1;Port=1433;User Id=monitor;Password=password;app name=IIIOT-Veda;log=1;"]
   database_type = "SQLServer"
   include_query = ["SQLServerPerformanceCounters", "SQLServerWaitStatsCategorized", "SQLServerDatabaseIO", "SQLServerProperties"]
+''',
+        "internal": '''# Telegraf's own gather, startup, buffer, and write health.
+[[inputs.internal]]
+  name_override = "iiiot_veda_internal"
+  interval = "10s"
+  per_instance = true
 ''',
         "influxdb": '''# InfluxDB 2.x OSS monitoring for the configured instance.
 # The /metrics endpoint exposes HTTP, query, write, storage, task, Go runtime,
@@ -842,12 +848,12 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "desktop-monitoring": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"],
             "docker": ["iiiot_veda_docker"], "kubernetes": ["iiiot_veda_kubernetes"],
             "mongodb": ["iiiot_veda_mongodb"], "mysql": ["iiiot_veda_mysql"], "redis": ["iiiot_veda_redis"],
-            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "influxdb": ["iiiot_veda_influxdb"], "exec": ["iiiot_veda_exec"],
+            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "influxdb": ["iiiot_veda_influxdb"], "internal": ["iiiot_veda_internal"], "exec": ["iiiot_veda_exec"],
             "http": ["iiiot_veda_http"], "http-listener": ["iiiot_veda_http_listener"], "nvidia": ["iiiot_veda_nvidia"],
             "s7": ["iiiot_veda_s7"], "syslog": ["iiiot_veda_syslog"], "cisco-telemetry": ["iiiot_veda_cisco_telemetry"],
             "system": ["iiiot_veda_system_extended"], "opentelemetry": ["iiiot_veda_opentelemetry"],
             "nginx": ["iiiot_veda_nginx"], "csv": ["iiiot_veda_csv"], "grok": ["iiiot_veda_grok"],
-            "monitoring": ["telegraf_cpu", "telegraf_mem", "telegraf_disk", "telegraf_net", "telegraf_mqtt", "telegraf_modbus", "telegraf_opcua", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis", "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7", "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok"],
+            "monitoring": ["telegraf_cpu", "telegraf_mem", "telegraf_disk", "telegraf_net", "telegraf_mqtt", "telegraf_modbus", "telegraf_opcua", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis", "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_internal", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7", "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok"],
         }[plugin]
         manifest = {
             "plugin": f"IIIOT-Veda {plugin.replace('-', ' ').title()}",

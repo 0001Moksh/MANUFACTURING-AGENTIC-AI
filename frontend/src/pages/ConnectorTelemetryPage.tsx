@@ -28,6 +28,7 @@ const CONNECTORS: Record<string, { name: string; description: string }> = {
   'iiiot-veda-sql-monitoring': { name: 'Generic SQL Monitoring', description: 'Metrics returned by configured read-only SQL queries.' },
   'iiiot-veda-sqlserver-monitoring': { name: 'SQL Server Monitoring', description: 'SQL Server performance counters, waits, I/O, and server metrics.' },
   'iiiot-veda-influxdb-monitoring': { name: 'InfluxDB Monitoring', description: 'InfluxDB service health, HTTP, query, write, storage, task, memory, and runtime metrics.' },
+  'iiiot-veda-internal-monitoring': { name: 'Telegraf Internal Monitoring', description: 'Collector health, input errors, output failures, dropped metrics, and buffer usage.' },
   'iiiot-veda-exec-monitoring': { name: 'Command Monitoring', description: 'Metrics emitted by a configured local executable or script.' },
   'iiiot-veda-http-monitoring': { name: 'HTTP Metric Collection', description: 'Metrics polled from configured HTTP endpoints.' },
   'iiiot-veda-http-listener': { name: 'HTTP Metric Listener', description: 'Metrics pushed into the configured HTTP listener.' },
