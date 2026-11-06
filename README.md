@@ -65,6 +65,28 @@ To launch the database, caching layer, backend API, and React client concurrentl
 
 ## Manual Local Development Setup
 
+### Windows reboot startup for a native installation
+
+The interactive `run_full_project.py` launcher is for development and should
+not be registered as a startup task: it clears ports 3000 and 8001 before
+launching. On a Windows host with the existing `C:\influxdb3-core\data\node0`
+and `backend/venv`, run the following once in **Administrator PowerShell** to
+register separate startup tasks for InfluxDB 3 and FastAPI, and ensure the
+Telegraf service starts automatically:
+
+```powershell
+& .\scripts\install-windows-startup.ps1
+```
+
+For this repository's **development** frontend on port 3000, add
+`-IncludeDevFrontend`. On a production server, build the frontend and host its
+static files with a managed HTTPS web server instead of scheduling Vite.
+The task runner is `scripts/run-windows-component.ps1`. After reboot, check
+`Get-ScheduledTask -TaskName IIIOT-Veda-*`, `Get-ScheduledTaskInfo` for each task,
+and the `/health` API endpoint. These tasks do not start optional dependencies
+such as a minikube cluster or the local Kubernetes API proxy.
+
+
 If you prefer to run services individually without Docker:
 
 ### Fedora prerequisite setup

@@ -28,9 +28,10 @@ async def _query(table: str, minutes: int, limit: int) -> list[dict[str, Any]]:
     )
 
 
-async def latest_plugin_metric(db, table):
+async def latest_plugin_metric(db, table, allow_idle=False):
     if table not in HOST_TABLES:
         raise ValueError("Unsupported host telemetry table")
+    idle_message = None
     try:
         async with asyncio.timeout(12):
             rows = await _query(table, 10, 1)
@@ -39,14 +40,22 @@ async def latest_plugin_metric(db, table):
             return None, f"No {table} measurement exists yet. The input must emit at least one metric before InfluxDB creates it."
         raise
     if not rows:
-        return None, "No recent telemetry was found in InfluxDB. Check the IIIOT-Veda service and InfluxDB output."
+        if allow_idle:
+            async with asyncio.timeout(12):
+                rows = await query_influxdb3_sql_async(f'SELECT * FROM "{table}" ORDER BY time DESC LIMIT 1')
+            if rows:
+                idle_message = "No new Windows Application events in the last 10 minutes. The collector is running; this input is idle."
+            else:
+                return None, "No Windows Application events have been collected yet."
+        else:
+            return None, "No recent telemetry was found in InfluxDB. Check the IIIOT-Veda service and InfluxDB output."
     metric = dict(rows[0])
     if isinstance(metric.get("time"), str):
         try:
             metric["time"] = datetime.fromisoformat(metric["time"].replace("Z", "+00:00"))
         except ValueError:
             pass
-    return metric, None
+    return metric, idle_message
 
 
 async def memory_payload(db, minutes=30, limit=1200):

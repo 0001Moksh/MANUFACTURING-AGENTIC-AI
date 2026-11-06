@@ -201,6 +201,7 @@ def _connector_config(plugin: str) -> str:
         "docker": '''# Requires access to the Docker daemon socket.
 [[inputs.docker]]
   name_override = "iiiot_veda_docker"
+  startup_error_behavior = "ignore"
   endpoint = "unix:///var/run/docker.sock"
   gather_services = false
   container_name_include = []

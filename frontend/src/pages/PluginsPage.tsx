@@ -37,6 +37,7 @@ interface InstallerAsset { id: string; display_name: string; target_os: string; 
 const STATUS_COLOR: Record<string, string> = {
   connected: 'bg-green-tint text-green',
   disconnected: 'bg-red-50 text-red-600',
+  idle: 'bg-amber-tint text-[#9A6400]',
   registered: 'bg-blue-tint text-[#2258b0]',
   waiting_for_data: 'bg-amber-tint text-[#9A6400]',
   not_registered: 'bg-[#EFF3F9] text-muted',
@@ -213,7 +214,7 @@ const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onRegi
   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
     {plugins.length === 0 ? <div className="col-span-full rounded-2xl border border-dashed border-border-color bg-panel p-10 text-center text-[13px] text-muted">{connected ? 'No verified connected plugins yet. Use Add Plugin to upload the IIIOT-Veda installer.' : 'No registered plugins are waiting for setup.'}</div> : plugins.map((plugin) => {
       const Icon = iconFor(plugin.name);
-      const status = plugin.connection_status === 'disconnected' ? 'disconnected' : plugin.connection_status === 'connected' ? 'connected' : plugin.installation_status || 'registered';
+      const status = plugin.connection_status === 'idle' ? 'idle' : plugin.connection_status === 'disconnected' ? 'disconnected' : plugin.connection_status === 'connected' ? 'connected' : plugin.installation_status || 'registered';
       return <div key={plugin.id} className="rounded-[18px] border border-border-color bg-panel p-5 shadow-sm">
         <div className="flex items-start justify-between gap-3"><div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal/10 text-teal"><Icon className="h-5 w-5" /></div><div><div className="font-head text-[18px] font-bold text-ink">{plugin.name}</div><div className="text-[11px] text-muted">v{plugin.version || '1.0.0'}</div></div></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${STATUS_COLOR[status] || STATUS_COLOR.not_configured}`}>{status.replaceAll('_', ' ')}</span></div>
         <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{plugin.short_description}</p>
@@ -325,7 +326,7 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
     try {
       const result = await pluginService.test(plugin.id, {});
       setMessage(result.message); onUpdated(await pluginService.getById(plugin.id));
-      if (!result.success) {
+      if (!result.success && result.status !== 'idle') {
         const installationFailed = (result.checks || []).some((check: any) => check.name !== 'influxdb_telemetry' && !check.passed);
         setError(result.verification_error
           ? `${installationFailed ? 'Installation verification failed' : 'InfluxDB verification failed'}: ${result.verification_error}`

@@ -2267,25 +2267,27 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
             "checks": installation_checks,
         }
     spec = HOST_PLUGIN_SPECS[plugin_id]
+    event_driven = spec["kind"] == "win-eventlog"
     try:
-        metric, verification_error = await latest_plugin_metric(db, spec["table"])
+        metric, verification_error = await latest_plugin_metric(db, spec["table"], allow_idle=event_driven)
     except Exception as exc:
         await db.rollback()
         metric = None
         verification_error = f"InfluxDB telemetry query failed: {exc}"
         logging.getLogger(__name__).warning("Plugin verification failed for %s: %s", plugin_id, exc)
-    success = metric is not None
+    idle = event_driven and metric is not None and verification_error is not None
+    success = metric is not None and not idle
     metric_time_value = (metric or {}).get("time")
     metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
-    plugin["connection_status"] = "connected" if success else "disconnected"
+    plugin["connection_status"] = "idle" if idle else "connected" if success else "disconnected"
     plugin["installation_status"] = "connected"
-    if success:
+    if metric is not None:
         plugin["last_metric_received"] = metric_time
     row = await db.get(PluginRegistration, plugin_id)
     if row:
         row.connection_status = plugin["connection_status"]
         row.installation_status = plugin["installation_status"]
-        if success and isinstance(metric_time_value, datetime):
+        if metric is not None and isinstance(metric_time_value, datetime):
             row.last_metric_received = metric_time_value.astimezone(timezone.utc).replace(tzinfo=None)
         await db.commit()
         PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
@@ -2297,8 +2299,8 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     }
     return {
         "success": success,
-        "status": "connected" if success else "disconnected",
-        "message": f"{spec['label']} connectivity test passed." if success else f"{spec['label']} is disconnected: {verification_error}",
+        "status": "idle" if idle else "connected" if success else "disconnected",
+        "message": f"{spec['label']} is idle; last event at {metric_time}." if idle else f"{spec['label']} connectivity test passed." if success else f"{spec['label']} is disconnected: {verification_error}",
         "metrics_seen": 1 if success else 0,
         "last_metric_received": metric_time,
         "verification_error": verification_error,

@@ -100,6 +100,14 @@ class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
         metric, error = await latest_plugin_metric(None, 'telegraf_mem')
         self.assertIsNone(metric)
 
+    @patch("app.host_telemetry.query_influxdb3_sql_async")
+    async def test_event_log_idle_preserves_last_event(self, query):
+        query.side_effect = [[], [{'time': '2026-11-06T04:41:07Z', 'host': 'a'}]]
+        metric, message = await latest_plugin_metric(None, 'iiiot_veda_win_eventlog', allow_idle=True)
+        self.assertEqual(metric['host'], 'a')
+        self.assertIn('idle', message)
+        self.assertNotIn('INTERVAL', query.call_args.args[0])
+
     async def test_identifier_allowlist(self):
         with self.assertRaises(ValueError): await latest_plugin_metric(None, 'other_table')
 
