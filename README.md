@@ -67,24 +67,36 @@ To launch the database, caching layer, backend API, and React client concurrentl
 
 ### Windows reboot startup for a native installation
 
-The interactive `run_full_project.py` launcher is for development and should
-not be registered as a startup task: it clears ports 3000 and 8001 before
-launching. On a Windows host with the existing `C:\influxdb3-core\data\node0`
-and `backend/venv`, run the following once in **Administrator PowerShell** to
-register separate startup tasks for InfluxDB 3 and FastAPI, and ensure the
-Telegraf service starts automatically:
+On a Windows host with `C:\influxdb3-core\data\node0`, `backend/venv`, and
+`frontend/node_modules`, run this once in **Administrator PowerShell**. It
+registers one startup task for InfluxDB 3, FastAPI, the development frontend,
+and Telegraf. The task watches them after boot and writes logs to
+`logs/windows-startup`:
 
-```powershell
-& .\scripts\install-windows-startup.ps1
+```bat
+scripts\start.bat install
 ```
 
-For this repository's **development** frontend on port 3000, add
-`-IncludeDevFrontend`. On a production server, build the frontend and host its
-static files with a managed HTTPS web server instead of scheduling Vite.
-The task runner is `scripts/run-windows-component.ps1`. After reboot, check
-`Get-ScheduledTask -TaskName IIIOT-Veda-*`, `Get-ScheduledTaskInfo` for each task,
-and the `/health` API endpoint. These tasks do not start optional dependencies
-such as a minikube cluster or the local Kubernetes API proxy.
+Use `scripts\start.bat run` to run it manually, or `scripts\start.bat stop`
+to disable the scheduled task. The Windows batch entrypoint uses the bundled
+PowerShell supervisor for process monitoring and plugin config cleanup.
+
+On Linux with Docker Engine and Compose v2, `./scripts/start.sh install`
+registers the Compose stack as a systemd service; `./scripts/start.sh run`
+starts it manually and `./scripts/start.sh stop` disables it.
+
+After reboot, check `Get-ScheduledTaskInfo -TaskName IIIOT-Veda-Startup`,
+`Get-Service telegraf`, and the application URL. MongoDB, Docker, and
+Kubernetes inputs are optional at Telegraf startup; each needs its source
+running to show connected telemetry. When Docker's local TCP endpoint or the
+Kubernetes proxy comes online after boot, the startup script restarts Telegraf
+so those inputs are loaded. The script does not start Docker Desktop,
+minikube, or a Kubernetes API proxy. For production, serve a built frontend
+with an HTTPS web server instead of the development frontend on port 3000.
+Removing a plugin deletes its exact `mai-<plugin>.conf` input file; if the
+backend cannot write to Program Files, it queues removal for this startup
+task, which also restarts Telegraf. The plugin switch controls whether its
+card appears in the Use-Case Library; it does not stop telemetry collection.
 
 
 If you prefer to run services individually without Docker:

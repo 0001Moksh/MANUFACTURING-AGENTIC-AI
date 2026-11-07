@@ -216,6 +216,7 @@ def _connector_config(plugin: str) -> str:
 ''',
         "mongodb": '''[[inputs.mongodb]]
   name_override = "iiiot_veda_mongodb"
+  startup_error_behavior = "ignore"
   servers = ["mongodb://monitor:password@127.0.0.1:27017"]
   gather_perdb_stats = true
   disconnected_servers_behavior = "skip"

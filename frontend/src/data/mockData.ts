@@ -3,7 +3,7 @@ export interface UseCase {
   pillar: string;
   title: string;
   tags: string[];
-  status: 'live' | 'pilot';
+  status: 'live' | 'pilot' | 'disconnected';
   desc: string;
   impact: string;
   poweredBy?: string[];

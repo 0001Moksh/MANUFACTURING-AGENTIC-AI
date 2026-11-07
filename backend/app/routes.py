@@ -26,6 +26,7 @@ from sqlalchemy import select, update, func, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cpu_processes import process_snapshots
+from app.plugin_config_cleanup import request_config_removal
 
 from app.db import (
     get_db, AsyncSessionLocal, User, AlertMaster, WorkOrder, MachineMaster, InventoryByLot,
@@ -464,8 +465,8 @@ def _plugin_from_db(row: PluginRegistration) -> Dict[str, Any]:
         "use_cases": metadata.get("use_cases", PLUGIN_CATALOG[row.id]["use_cases"]),
         "setup_modes": ["Download and confirm"],
         "published": True,
-        "enabled": True,
-        "added_to_view": row.connection_status == "connected",
+        "enabled": bool(metadata.get("enabled", True)),
+        "added_to_view": bool(metadata.get("enabled", True)) and row.connection_status == "connected",
         "installation_status": row.installation_status,
         "connection_status": row.connection_status,
         "last_metric_received": row.last_metric_received.isoformat() + "Z" if row.last_metric_received else None,
@@ -1796,6 +1797,13 @@ async def list_plugins(db: AsyncSession = Depends(get_db)) -> List[Dict[str, Any
         row = await db.get(PluginRegistration, plugin_id)
         if row and row.connection_status in {"connected", "disconnected"}:
             await _reconcile_connected_plugin(row, db)
+        kind = HOST_PLUGIN_SPECS[plugin_id]["kind"]
+        if (row is None and kind == "mongodb") or (row is not None and row.installation_status == "not_registered"):
+            if kind in CONFIGURABLE_MONITORING_KINDS:
+                try:
+                    request_config_removal(kind)
+                except OSError:
+                    logging.getLogger(__name__).warning("Could not queue orphan config cleanup for %s", kind, exc_info=True)
     return [_plugin_record_payload(PLUGIN_CATALOG[plugin_id]) for plugin_id in PLUGIN_CATALOG_IDS]
 
 
@@ -2018,7 +2026,7 @@ async def register_plugin(
     row.installation_status = "registered"
     row.connection_status = "not_configured"
     row.last_metric_received = None
-    row.metadata_json = {"package_type": target_os, "telemetry_destination": "influxdb3", "installer_asset_id": asset.id, "use_case_configs": _plugin_use_case_configs(plugin_id)}
+    row.metadata_json = {"package_type": target_os, "telemetry_destination": "influxdb3", "installer_asset_id": asset.id, "use_case_configs": _plugin_use_case_configs(plugin_id), "enabled": True}
     await db.commit()
     await db.refresh(row)
     plugin = _plugin_from_db(row)
@@ -2033,12 +2041,40 @@ async def remove_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)) -> D
     row = await db.get(PluginRegistration, plugin_id)
     if not row:
         raise HTTPException(status_code=404, detail="Plugin is not registered")
-    row.installation_status = "registered"
+    kind = HOST_PLUGIN_SPECS[plugin_id]["kind"]
+    cleanup = "not_applicable"
+    if kind in CONFIGURABLE_MONITORING_KINDS:
+        try:
+            cleanup = request_config_removal(kind)
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"Could not schedule {kind} configuration removal: {exc}") from exc
+    row.installation_status = "not_registered"
     row.connection_status = "not_configured"
     row.last_metric_received = None
+    metadata = dict(row.metadata_json or {})
+    metadata["enabled"] = False
+    row.metadata_json = metadata
     await db.commit()
     PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
-    return {"status": "removed", "plugin_id": plugin_id}
+    return {"status": "removed", "plugin_id": plugin_id, "config_cleanup": cleanup}
+
+
+@router.patch("/api/admin/plugins/{plugin_id}/enabled")
+async def set_plugin_enabled(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    if plugin_id not in PLUGIN_CATALOG_IDS:
+        raise HTTPException(status_code=404, detail="Plugin not found")
+    row = await db.get(PluginRegistration, plugin_id)
+    if not row or row.installation_status == "not_registered":
+        raise HTTPException(status_code=409, detail="Register the plugin before changing visibility")
+    payload = await request.json()
+    if not isinstance(payload, dict) or type(payload.get("enabled")) is not bool:
+        raise HTTPException(status_code=422, detail="enabled must be a boolean")
+    metadata = dict(row.metadata_json or {})
+    metadata["enabled"] = payload["enabled"]
+    row.metadata_json = metadata
+    await db.commit()
+    PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
+    return {"status": "updated", "plugin": _plugin_record_payload(PLUGIN_CATALOG[plugin_id])}
 
 
 @router.put("/api/admin/plugins/{plugin_id}")

@@ -289,6 +289,10 @@ export const pluginService = {
     const res = await api.delete(`/admin/plugins/${encodeURIComponent(pluginId)}`);
     return res.data;
   },
+  setEnabled: async (pluginId: string, enabled: boolean) => {
+    const res = await api.patch(`/admin/plugins/${encodeURIComponent(pluginId)}/enabled`, { enabled });
+    return res.data;
+  },
   getCurrentSystem: async () => {
     const res = await api.get('/plugins/system/current');
     return res.data;

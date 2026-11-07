@@ -7,6 +7,7 @@ import { formatTelemetryDateTime } from '../utils/telemetryTime';
 interface SimplePlugin {
   id: string;
   name: string;
+  enabled?: boolean;
   version?: string;
   category?: string;
   short_description?: string;
@@ -92,6 +93,7 @@ export const PluginsPage: React.FC = () => {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [removingPluginId, setRemovingPluginId] = useState<string | null>(null);
   const [runningPluginId, setRunningPluginId] = useState<string | null>(null);
+  const [togglingPluginId, setTogglingPluginId] = useState<string | null>(null);
   const [runResults, setRunResults] = useState<Record<string, string>>({});
 
   const loadPlugins = async () => {
@@ -157,18 +159,31 @@ export const PluginsPage: React.FC = () => {
   };
 
   const handleRemove = async (plugin: SimplePlugin) => {
-    if (!window.confirm(`Remove ${plugin.name}? It will also be removed from the Use-Case Library.`)) return;
+    if (!window.confirm(`Remove ${plugin.name}? Its installed input config will be deleted and it will be removed from the Use-Case Library.`)) return;
     setRemovingPluginId(plugin.id);
     try {
-      await pluginService.remove(plugin.id);
+      const result = await pluginService.remove(plugin.id);
       const updated = await pluginService.getById(plugin.id);
       upsertPlugin(updated);
       setTab('new');
       if (wizardPlugin?.id === plugin.id) setWizardPlugin(null);
+      if (result.config_cleanup === 'pending') window.alert('Plugin removed. Config cleanup is queued for the Windows startup task.');
     } catch (error: any) {
       window.alert(error?.response?.data?.detail || 'Unable to remove the plugin.');
     } finally {
       setRemovingPluginId(null);
+    }
+  };
+
+  const handleToggle = async (plugin: SimplePlugin) => {
+    setTogglingPluginId(plugin.id);
+    try {
+      const result = await pluginService.setEnabled(plugin.id, plugin.enabled === false);
+      upsertPlugin(result.plugin);
+    } catch (error: any) {
+      window.alert(error?.response?.data?.detail || 'Unable to change plugin visibility.');
+    } finally {
+      setTogglingPluginId(null);
     }
   };
 
@@ -202,7 +217,7 @@ export const PluginsPage: React.FC = () => {
         {(['connected', 'new'] as const).map((value) => <button key={value} onClick={() => setTab(value)} className={`rounded-lg px-4 py-2 text-[12.5px] font-bold cursor-pointer ${tab === value ? 'bg-navy-900 text-white' : 'text-muted'}`}>{value === 'connected' ? 'Connected Plugins' : 'Available Plugins'}</button>)}
       </div>
 
-      {loading ? <div className="rounded-2xl border border-border-color bg-panel p-10 text-center text-[13px] text-muted">Loading plugin catalog…</div> : tab === 'connected' ? <PluginGrid plugins={connectedPlugins} connected onRegister={openRegistration} onSetup={setWizardPlugin} onRun={handleRun} onRemove={handleRemove} runningPluginId={runningPluginId} removingPluginId={removingPluginId} runResults={runResults} /> : <AvailablePluginsPanel count={newPlugins.length} onAdd={() => openRegistration()} />}
+      {loading ? <div className="rounded-2xl border border-border-color bg-panel p-10 text-center text-[13px] text-muted">Loading plugin catalog…</div> : tab === 'connected' ? <PluginGrid plugins={connectedPlugins} connected onRegister={openRegistration} onSetup={setWizardPlugin} onRun={handleRun} onRemove={handleRemove} onToggle={handleToggle} runningPluginId={runningPluginId} removingPluginId={removingPluginId} togglingPluginId={togglingPluginId} runResults={runResults} /> : <AvailablePluginsPanel count={newPlugins.length} onAdd={() => openRegistration()} />}
 
       {showRegister && <RegisterPluginDialog plugins={newPlugins} assets={installerAssets} assetId={installerAssetId} setAssetId={setInstallerAssetId} form={form} setForm={setForm} busy={registering} error={registerError} onClose={() => { setShowRegister(false); setRegisterError(null); }} onRegister={handleRegister} />}
       {wizardPlugin && <PluginSetupDialog plugin={wizardPlugin} onClose={() => setWizardPlugin(null)} onUpdated={upsertPlugin} />}
@@ -210,7 +225,7 @@ export const PluginsPage: React.FC = () => {
   );
 };
 
-const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onRegister: (plugin: SimplePlugin) => void; onSetup: (plugin: SimplePlugin) => void; onRun: (plugin: SimplePlugin) => void; onRemove: (plugin: SimplePlugin) => void; runningPluginId: string | null; removingPluginId: string | null; runResults: Record<string, string> }> = ({ plugins, connected, onRegister, onSetup, onRun, onRemove, runningPluginId, removingPluginId, runResults }) => (
+const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onRegister: (plugin: SimplePlugin) => void; onSetup: (plugin: SimplePlugin) => void; onRun: (plugin: SimplePlugin) => void; onRemove: (plugin: SimplePlugin) => void; onToggle: (plugin: SimplePlugin) => void; runningPluginId: string | null; removingPluginId: string | null; togglingPluginId: string | null; runResults: Record<string, string> }> = ({ plugins, connected, onRegister, onSetup, onRun, onRemove, onToggle, runningPluginId, removingPluginId, togglingPluginId, runResults }) => (
   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
     {plugins.length === 0 ? <div className="col-span-full rounded-2xl border border-dashed border-border-color bg-panel p-10 text-center text-[13px] text-muted">{connected ? 'No verified connected plugins yet. Use Add Plugin to upload the IIIOT-Veda installer.' : 'No registered plugins are waiting for setup.'}</div> : plugins.map((plugin) => {
       const Icon = iconFor(plugin.name);
@@ -220,6 +235,7 @@ const PluginGrid: React.FC<{ plugins: SimplePlugin[]; connected: boolean; onRegi
         <p className="mt-4 text-[12.5px] leading-relaxed text-muted">{plugin.short_description}</p>
         <div className="mt-4 flex flex-wrap gap-2 text-[10.5px]"><span className="rounded-full bg-[#EEF6FF] px-2.5 py-1 text-[#0B63E5]">{plugin.category || 'Monitoring'}</span><span className="rounded-full bg-[#F7F3FF] px-2.5 py-1 text-[#7C4DFF]">{targetOsLabel(plugin.target_os)}</span><span className="rounded-full bg-[#F3F7F5] px-2.5 py-1 text-green">{plugin.supported_architectures?.[0] || 'x86_64'}</span></div>
         <div className="mt-4 space-y-2 rounded-xl bg-canvas p-3 text-[11.5px] text-muted"><div className="flex justify-between gap-3"><span>Installer</span><span className="truncate font-semibold text-ink">{brandedFilename(plugin.installer?.filename, 'Upload required')}</span></div><div className="flex justify-between gap-3"><span>Last metric</span><span className="font-semibold text-ink">{plugin.last_metric_received ? formatTelemetryDateTime(plugin.last_metric_received) : 'Awaiting data'}</span></div></div>
+        {connected && <div className="mt-4 flex items-center justify-between rounded-xl border border-border-color px-3 py-2"><span className="text-[12px] font-semibold text-ink">Show in Use-Case Library</span><button type="button" role="switch" aria-checked={plugin.enabled !== false} aria-label={`Show ${plugin.name} in Use-Case Library`} disabled={togglingPluginId === plugin.id} onClick={() => onToggle(plugin)} className={`relative h-6 w-11 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${plugin.enabled !== false ? 'bg-teal' : 'bg-slate-300'}`}><span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${plugin.enabled !== false ? 'translate-x-5' : 'translate-x-0'}`} /></button></div>}
         <div className="mt-5 flex gap-2"><button onClick={() => plugin.installation_status === 'not_registered' ? onRegister(plugin) : onSetup(plugin)} className="flex-1 rounded-xl bg-teal px-3 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer">{connected ? 'Manage Plugin' : plugin.installation_status === 'not_registered' ? 'Register' : 'Setup'}</button>{connected && <button onClick={() => onRun(plugin)} disabled={runningPluginId === plugin.id} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-teal/30 bg-teal/10 px-3 py-2.5 text-[12px] font-bold text-navy-900 cursor-pointer disabled:cursor-wait disabled:opacity-60" title="Test installation and connectivity"><Activity className={`h-4 w-4 ${runningPluginId === plugin.id ? 'animate-spin' : ''}`} />{runningPluginId === plugin.id ? 'Running…' : 'Run'}</button>}{connected && <button onClick={() => onRemove(plugin)} disabled={removingPluginId === plugin.id} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] font-bold text-red-600 cursor-pointer hover:bg-red-100 disabled:cursor-wait disabled:opacity-60" title="Remove plugin"><Trash2 className="h-4 w-4" />{removingPluginId === plugin.id ? 'Removing…' : 'Remove'}</button>}</div>
         {runResults[plugin.id] && <div role="status" className="mt-3 whitespace-pre-wrap rounded-xl bg-canvas p-3 text-[11.5px] text-ink">{runResults[plugin.id]}</div>}
       </div>;

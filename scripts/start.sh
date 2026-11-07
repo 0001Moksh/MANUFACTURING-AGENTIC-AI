@@ -2,41 +2,47 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${repo_dir}"
+service_name=iiiot-veda-app
+mode="${1:-}"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Docker is not installed or is not on PATH." >&2
-  exit 1
-fi
+case "$mode" in
+  install)
+    command -v docker >/dev/null || { echo 'Docker is required.' >&2; exit 1; }
+    docker compose version >/dev/null || { echo 'Docker Compose v2 is required.' >&2; exit 1; }
+    if [[ ! -f "$repo_dir/.env" ]] || grep -q CHANGE_ME "$repo_dir/.env"; then
+      echo "Configure $repo_dir/.env before installing the startup service." >&2
+      exit 1
+    fi
+    sudo tee "/etc/systemd/system/$service_name.service" >/dev/null <<EOF
+[Unit]
+Description=IIIOT-Veda application stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
 
-if ! docker info >/dev/null 2>&1; then
-  echo "Docker is not running, or the current user cannot access it." >&2
-  echo "On Fedora, start Docker and ensure your user can access its socket." >&2
-  exit 1
-fi
+[Service]
+Type=oneshot
+WorkingDirectory=$repo_dir
+ExecStart=$(command -v docker) compose up -d --build
+ExecStop=$(command -v docker) compose stop
+RemainAfterExit=yes
+TimeoutStartSec=0
 
-if [[ ! -f .env ]]; then
-  cp .env.example .env
-  echo "Created .env. Set the CHANGE_ME values, then run scripts/start.sh again."
-  exit 1
-fi
-
-if grep -q "CHANGE_ME" .env; then
-  echo ".env still contains CHANGE_ME values. Update them before starting." >&2
-  exit 1
-fi
-
-docker compose pull
-docker compose up -d --build
-
-echo "Waiting for the application health check..."
-for _ in {1..60}; do
-  if curl -fsS http://localhost:8080/ >/dev/null 2>&1; then
-    echo "Application ready: http://localhost:8080"
-    exit 0
-  fi
-  sleep 2
-done
-
-echo "Application did not become ready. Run: docker compose logs --tail=200" >&2
-exit 1
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now "$service_name"
+    ;;
+  run)
+    cd "$repo_dir"
+    docker compose up -d --build
+    ;;
+  stop)
+    sudo systemctl disable --now "$service_name"
+    ;;
+  *)
+    echo "Usage: scripts/start.sh install|run|stop" >&2
+    exit 2
+    ;;
+esac

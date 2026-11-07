@@ -12,24 +12,24 @@ export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [connectedPlugins, setConnectedPlugins] = useState<Array<{ id: string; name: string; short_description?: string }>>([]);
+  const [visiblePlugins, setVisiblePlugins] = useState<Array<{ id: string; name: string; short_description?: string; connection_status?: string }>>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;
-    void pluginService.list().then((plugins: Array<{ id?: string; slug?: string; connection_status?: string }>) => {
+    void pluginService.list().then((plugins: Array<{ id?: string; slug?: string; connection_status?: string; installation_status?: string; enabled?: boolean }>) => {
       if (!active) return;
-      setConnectedPlugins((plugins as Array<{ id: string; name: string; short_description?: string; connection_status?: string }>).filter(plugin => plugin.connection_status === 'connected'));
+      setVisiblePlugins((plugins as Array<{ id: string; name: string; short_description?: string; connection_status?: string; installation_status?: string; enabled?: boolean }>).filter(plugin => plugin.installation_status === 'connected' && plugin.enabled !== false));
     });
     return () => { active = false; };
   }, []);
 
-  const pluginCards = useMemo(() => connectedPlugins.map((plugin, index) => ({
+  const pluginCards = useMemo(() => visiblePlugins.map((plugin, index) => ({
     id: 1000 + index, pillar: plugin.id.includes('modbus') || plugin.id.includes('opcua') || plugin.id.includes('mqtt') || plugin.id.includes('-s7-') || plugin.id.includes('cisco') ? 'connect' : 'sustain',
-    title: plugin.name, tags: ['IOT'], status: 'live' as const, desc: plugin.short_description || 'IIIOT-Veda monitoring use case.',
+    title: plugin.name, tags: ['IOT'], status: plugin.connection_status === 'connected' ? 'live' as const : 'disconnected' as const, desc: plugin.short_description || 'IIIOT-Veda monitoring use case.',
     impact: 'Separately configured, installed and verified monitoring use case.',
     path: plugin.id === 'telegraf-cpu-monitoring' ? '/use-cases/cpu-utilization' : plugin.id === 'telegraf-memory-monitoring' ? '/use-cases/memory-utilization' : `/use-cases/connectors/${plugin.id}`,
-  })), [connectedPlugins]);
+  })), [visiblePlugins]);
   const availableUseCases = useMemo(() => [...useCases, ...pluginCards], [pluginCards]);
 
   const filtered = availableUseCases.filter(u => {
