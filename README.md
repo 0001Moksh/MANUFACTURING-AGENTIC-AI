@@ -35,7 +35,7 @@ The repository currently builds application images locally because no Docker Hub
 docker compose up -d --build
 ```
 
-The production frontend is available at [http://localhost:8080](http://localhost:8080). Database services remain internal to the Compose network by default.
+The production frontend is available at [http://localhost:3005](http://localhost:3005). Database services remain internal to the Compose network by default.
 
 ## Quick Start via Docker Compose (Development)
 
@@ -58,8 +58,8 @@ To launch the database, caching layer, backend API, and React client concurrentl
    ```
 
 3. **Access the Services**:
-   - React Frontend: [http://localhost:8080](http://localhost:8080)
-   - Live Telemetry WebSocket: `ws://localhost:8080/api/ws/telemetry`
+   - React Frontend: [http://localhost:3005](http://localhost:3005)
+   - Live Telemetry WebSocket: `ws://localhost:3005/api/ws/telemetry`
 
 ---
 
@@ -92,7 +92,7 @@ running to show connected telemetry. When Docker's local TCP endpoint or the
 Kubernetes proxy comes online after boot, the startup script restarts Telegraf
 so those inputs are loaded. The script does not start Docker Desktop,
 minikube, or a Kubernetes API proxy. For production, serve a built frontend
-with an HTTPS web server instead of the development frontend on port 3000.
+with an HTTPS web server instead of the development frontend on port 3005.
 Removing a plugin deletes its exact `mai-<plugin>.conf` input file; if the
 backend cannot write to Program Files, it queues removal for this startup
 task, which also restarts Telegraf. The plugin switch controls whether its
@@ -147,7 +147,7 @@ chmod +x scripts/start.sh
    ```
 5. Run the FastAPI development server:
    ```bash
-   uvicorn app.main:app --reload --port 8001
+   uvicorn app.main:app --reload --port 8005
    ```
    *Note: On startup, the backend automatically seeds a local SQLite database (`mai_platform.db`) with mock tables and data representing key MES structures.*
 

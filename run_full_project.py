@@ -1,5 +1,5 @@
 # """
-# Project launcher — starts backend (uvicorn :8001) and frontend (Vite :3000).
+# Project launcher — starts backend (uvicorn :8005) and frontend (Vite :3005).
 # Supports Windows and POSIX systems (including Fedora Linux).
 # """
 
@@ -21,8 +21,8 @@
 # BACKEND_DIR = ROOT / "backend"
 # FRONTEND_DIR = ROOT / "frontend"
 
-# BACKEND_PORT = 8001
-# FRONTEND_PORT = 3000
+# BACKEND_PORT = 8005
+# FRONTEND_PORT = 3005
 # PORTS_TO_CLEAR = [FRONTEND_PORT, BACKEND_PORT]
 
 # IS_WINDOWS = sys.platform == "win32"
@@ -67,7 +67,7 @@
 #         parts = line.split()
 #         if len(parts) < 5:
 #             continue
-#         local = parts[1]  # e.g. 0.0.0.0:3000 or 127.0.0.1:8001
+#         local = parts[1]  # e.g. 0.0.0.0:3005 or 127.0.0.1:8005
 #         if not local.endswith(f":{port}"):
 #             continue
 #         pid_str = parts[-1]
@@ -172,7 +172,7 @@
 #                 f"Port {port} is still occupied after automatic cleanup. "
 #                 "Close the process manually and try again."
 #             )
-#     print("Ports 3000 and 8001 are free.")
+#     print("Ports 3005 and 8005 are free.")
 
 
 # # ── Process helpers ──────────────────────────────────────────────────────────
@@ -319,7 +319,7 @@
 
 # # ── Main ─────────────────────────────────────────────────────────────────────
 # def main() -> int:
-#     print("Ensuring ports 3000 and 8001 are free...")
+#     print("Ensuring ports 3005 and 8005 are free...")
 #     try:
 #         ensure_ports_free()
 #     except RuntimeError as exc:
@@ -396,7 +396,7 @@
 
 
 """
-Project launcher — starts backend (uvicorn :8001) and frontend (Vite :3000).
+Project launcher — starts backend (uvicorn :8005) and frontend (Vite :3005).
 Supports Windows and POSIX systems (including Fedora Linux).
 """
 
@@ -418,8 +418,8 @@ ROOT = Path(__file__).resolve().parent
 BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
 
-BACKEND_PORT = 8001
-FRONTEND_PORT = 3000
+BACKEND_PORT = 8005
+FRONTEND_PORT = 3005
 PORTS_TO_CLEAR = [FRONTEND_PORT, BACKEND_PORT]
 
 IS_WINDOWS = sys.platform == "win32"
@@ -464,7 +464,7 @@ def _pids_on_port_netstat(port: int) -> list[int]:
         parts = line.split()
         if len(parts) < 5:
             continue
-        local = parts[1]  # e.g. 0.0.0.0:3000 or 127.0.0.1:8001
+        local = parts[1]  # e.g. 0.0.0.0:3005 or 127.0.0.1:8005
         if not local.endswith(f":{port}"):
             continue
         pid_str = parts[-1]
@@ -569,7 +569,7 @@ def ensure_ports_free(max_attempts: int = 12) -> None:
                 f"Port {port} is still occupied after automatic cleanup. "
                 "Close the process manually and try again."
             )
-    print("Ports 3000 and 8001 are free.")
+    print("Ports 3005 and 8005 are free.")
 
 
 # ── Process helpers ──────────────────────────────────────────────────────────
@@ -716,7 +716,7 @@ def start_frontend() -> subprocess.Popen:
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main() -> int:
-    print("Ensuring ports 3000 and 8001 are free...")
+    print("Ensuring ports 3005 and 8005 are free...")
     try:
         ensure_ports_free()
     except RuntimeError as exc:

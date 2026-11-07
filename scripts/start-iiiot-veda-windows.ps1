@@ -99,9 +99,9 @@ while ($true) {
     try {
         New-Item -ItemType Directory -Path $logDir -Force | Out-Null
         Start-Component 'influxdb3' $influxExe @('serve', '--node-id', 'node0', '--object-store', 'file', '--data-dir', 'C:\influxdb3-core\data', '--http-bind', '127.0.0.1:8181') (Split-Path $influxExe) 8181
-        Start-Component 'backend' $pythonExe @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8001') (Join-Path $root 'backend') 8001
+        Start-Component 'backend' $pythonExe @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8005') (Join-Path $root 'backend') 8005
         if (Test-Path -LiteralPath (Join-Path $frontendDir 'node_modules')) {
-            Start-Component 'frontend' $npmExe @('run', 'dev', '--', '--host', '0.0.0.0', '--port', '3000', '--strictPort') $frontendDir 3000
+            Start-Component 'frontend' $npmExe @('run', 'dev', '--', '--host', '0.0.0.0', '--port', '3005', '--strictPort') $frontendDir 3005
         } else { Write-StartupLog 'Frontend node_modules missing; run npm ci in frontend.' }
         Clear-RemovedPluginConfigs
         Set-OptionalInput 'mongodb'

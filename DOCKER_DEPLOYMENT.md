@@ -4,7 +4,7 @@ The client does not need Python, Node.js, npm, PostgreSQL, pgAdmin, or SQL Serve
 
 ## Architecture
 
-`http://localhost:8080` is the only exposed service. Nginx serves the React build and proxies `/api` and `/reports` over the private `mai_internal` Docker network to FastAPI. FastAPI uses the internal service names `postgres-manufacturing`, `postgres-video`, and `sqlserver`; neither PostgreSQL nor SQL Server publishes a host port.
+`http://localhost:3005` is the only exposed service. Nginx serves the React build and proxies `/api` and `/reports` over the private `mai_internal` Docker network to FastAPI. FastAPI uses the internal service names `postgres-manufacturing`, `postgres-video`, and `sqlserver`; neither PostgreSQL nor SQL Server publishes a host port.
 
 The deployment contains two PostgreSQL 17 services, SQL Server 2022 Express, three one-shot database initializer services, FastAPI, and Nginx. Compose starts FastAPI only after every initializer exits successfully, and starts Nginx only after FastAPI passes `/health`.
 
@@ -20,7 +20,7 @@ The deployment contains two PostgreSQL 17 services, SQL Server 2022 Express, thr
  
    On Windows, `scripts\start.bat` performs the Docker check, build, startup, and basic URL wait for you.
 
-4. Open `http://localhost:8080` (or `http://localhost:<APP_PORT>` if changed).
+4. Open `http://localhost:3005` (or `http://localhost:<APP_PORT>` if changed).
 
 First start can take several minutes because Docker downloads images, builds the application images, and restores the database backups. Monitor with `docker compose logs -f`.
 
@@ -95,4 +95,4 @@ For a fully offline client, additionally save and distribute the upstream images
 - If an initializer fails, inspect `docker compose logs init-postgres-manufacturing`, `docker compose logs init-postgres-video`, or `docker compose logs init-sqlserver`.
 - If the app is unavailable, run `docker compose ps` and `docker compose logs --tail=200 backend frontend`.
 - SQL Server needs sufficient Docker memory; allocate at least 4 GB to Docker Desktop.
-- If port 8080 is occupied, set `APP_PORT` in `.env` and use that port in `FRONTEND_URL`. Set `PUBLIC_API_URL` to the externally reachable backend origin (default example: `http://192.168.10.8:8001`); for a public deployment, use its reachable HTTPS URL.
+- If port 3005 is occupied, set `APP_PORT` in `.env` and use that port in `FRONTEND_URL`. Set `PUBLIC_API_URL` to the externally reachable backend origin (default example: `http://192.168.10.8:8005`); for a public deployment, use its reachable HTTPS URL.

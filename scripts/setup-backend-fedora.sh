@@ -49,4 +49,4 @@ fi
 
 echo
 echo "Fedora backend environment is ready."
-echo "Start it with: cd backend && venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8001"
+echo "Start it with: cd backend && venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8005"

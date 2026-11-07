@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-const backendTarget = (process.env.VITE_API_TARGET || process.env.API_BASE_URL || 'http://localhost:8001').replace(/\/$/, '')
+const backendTarget = (process.env.VITE_API_TARGET || process.env.API_BASE_URL || 'http://localhost:8005').replace(/\/$/, '')
 
 export default defineConfig({
   plugins: [
@@ -11,7 +11,7 @@ export default defineConfig({
   ],
   server: {
     host: '0.0.0.0',
-    port: Number(process.env.VITE_PORT || 3000),
+    port: Number(process.env.VITE_PORT || 3005),
     strictPort: false,
     proxy: {
       '/api': {

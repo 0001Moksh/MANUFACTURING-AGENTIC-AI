@@ -5,16 +5,16 @@ from app.agents.report_generator_v3 import customize_and_split_query
 
 
 def test_report_url_uses_configured_public_api():
-    assert build_report_url("report_9bb023b1.pdf", "http://192.168.10.8:8001") == (
-        "http://192.168.10.8:8001/reports/report_9bb023b1.pdf"
+    assert build_report_url("report_9bb023b1.pdf", "http://192.168.10.8:8005") == (
+        "http://192.168.10.8:8005/reports/report_9bb023b1.pdf"
     )
 
 
 def test_report_url_rejects_paths_and_non_pdf_files():
     with pytest.raises(ValueError, match="PDF filename"):
-        build_report_url("../secret.pdf", "http://192.168.10.8:8001")
+        build_report_url("../secret.pdf", "http://192.168.10.8:8005")
     with pytest.raises(ValueError, match="PDF filename"):
-        build_report_url("report.csv", "http://192.168.10.8:8001")
+        build_report_url("report.csv", "http://192.168.10.8:8005")
 
 
 def test_public_frontend_url_is_configurable(monkeypatch):
