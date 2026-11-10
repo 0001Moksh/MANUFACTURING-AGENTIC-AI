@@ -41,6 +41,9 @@ python app.py
 
 Open: http://localhost:5001/login
 
+If port 5001 is already in use, set `LICENSE_SERVER_PORT` in `.env` and open
+the corresponding port instead, for example `http://localhost:5051/login`.
+
 ## Key Generation
 
 The license server generates an Ed25519 keypair during first startup, storing the private key at `storage/private_key.pem` and the public key at `storage/public_key.pem`. The private key is never committed to Git and must be protected with normal internal secret management.

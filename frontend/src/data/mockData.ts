@@ -3,7 +3,7 @@ export interface UseCase {
   pillar: string;
   title: string;
   tags: string[];
-  status: 'live' | 'pilot';
+  status: 'live' | 'pilot' | 'disconnected';
   desc: string;
   impact: string;
   poweredBy?: string[];
@@ -119,6 +119,7 @@ export const useCases: UseCase[] = [
 export const pillarMeta: Record<string, { label: string }> = {
   opex:{label:"Operational Excellence"},
   sustain:{label:"Sustainable Operations"},
+  connect:{label:"Connected Operations"},
   growth:{label:"Smart Growth & Expansion"},
   finance:{label:"Financial Resilience"},
   horizontal:{label:"Horizontal Enterprise"},

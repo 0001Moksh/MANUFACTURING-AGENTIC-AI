@@ -85,10 +85,10 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
         ) : (
           <span
             className={`ml-auto text-[9.5px] font-bold tracking-[0.4px] py-[2px] px-[7px] rounded-[20px] ${
-              useCase.status === 'live' ? 'bg-green-tint text-green' : 'bg-amber-tint text-[#9A6400]'
+              useCase.status === 'live' ? 'bg-green-tint text-green' : useCase.status === 'disconnected' ? 'bg-red-50 text-red-600' : 'bg-amber-tint text-[#9A6400]'
             }`}
           >
-            {useCase.status === 'live' ? 'LIVE' : 'PILOT'}
+            {useCase.status === 'live' ? 'LIVE' : useCase.status === 'disconnected' ? 'DISCONNECTED' : 'PILOT'}
           </span>
         )}
       </div>
@@ -161,7 +161,7 @@ export const UseCaseCard: React.FC<UseCaseCardProps> = ({ useCase, onClick, isCo
       )}
 
       <div className="flex justify-between items-center mt-[2px] text-[11.5px] text-teal-deep font-bold border-t border-border-color/40 pt-2">
-        <span>{pillarMeta[useCase.pillar].label}</span>
+        <span>{pillarMeta[useCase.pillar]?.label ?? 'Manufacturing Operations'}</span>
         {!isBlocked && <span>Details →</span>}
       </div>
     </motion.div>

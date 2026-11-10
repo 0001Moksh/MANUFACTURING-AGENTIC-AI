@@ -67,7 +67,7 @@ configured_origins = [
         "FRONTEND_URLS",
         os.getenv(
             "FRONTEND_URL",
-            "http://localhost:3000, http://localhost:5173, http://localhost:8080, http://localhost:8001, http://127.0.0.1:3000, http://127.0.0.1:5173, http://127.0.0.1:8080, http://127.0.0.1:8001, http://192.168.10.4:3000, http://192.168.10.4:5173, http://192.168.10.8:3000, http://192.168.10.8:8001",
+            "http://localhost:3005, http://localhost:5173, http://localhost:8080, http://localhost:8005, http://127.0.0.1:3005, http://127.0.0.1:5173, http://127.0.0.1:8080, http://127.0.0.1:8005, http://192.168.10.4:3005, http://192.168.10.4:5173, http://192.168.10.8:3005, http://192.168.10.8:8005",
         ),
     ).split(",")
     if origin.strip()
@@ -78,13 +78,13 @@ configured_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=configured_origins or [
-        "http://localhost:3000",
+        "http://localhost:3005",
         "http://localhost:5173",
-        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3005",
         "http://127.0.0.1:5173",
-        "http://192.168.10.4:3000",
+        "http://192.168.10.4:3005",
         "http://192.168.10.4:5173",
-        "http://192.168.10.8:3000",
+        "http://192.168.10.8:3005",
     ],
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8005,
         reload=reload_enabled,
         reload_excludes=["reports/*", "logs/*", "*.pdf"] if reload_enabled else None,
     )

@@ -1,25 +1,24 @@
 @echo off
 setlocal
-where docker >nul 2>nul || (echo Docker Desktop is not installed or not on PATH. & exit /b 1)
-docker info >nul 2>nul || (echo Docker Desktop is not running. Start it and try again. & exit /b 1)
-if not exist .env (
-  copy .env.example .env >nul
-  echo Created .env. Set the CHANGE_ME values, then run start.bat again.
-  exit /b 1
-)
-findstr /C:"CHANGE_ME" .env >nul && (echo .env still contains CHANGE_ME values. Update them before starting. & exit /b 1)
-docker compose pull
+set "IIIOT_START_BAT=%~f0"
+set "IIIOT_SUPERVISOR=%~dp0start-iiiot-veda-windows.ps1"
+if /I "%~1"=="install" goto install
+if /I "%~1"=="run" goto run
+if /I "%~1"=="stop" goto stop
+echo Usage: start.bat install ^| run ^| stop
+exit /b 2
+
+:install
+if not exist "%IIIOT_SUPERVISOR%" (echo Missing Windows supervisor: %IIIOT_SUPERVISOR% & exit /b 1)
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; if(-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'Run from Administrator Command Prompt'}; $a=New-ScheduledTaskAction -Execute 'cmd.exe' -Argument ('/d /c ""' + $env:IIIOT_START_BAT + '" run"'); $t=New-ScheduledTaskTrigger -AtStartup; $p=New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest; $s=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 10 -RestartInterval (New-TimeSpan -Minutes 1) -StartWhenAvailable -MultipleInstances IgnoreNew; Register-ScheduledTask -TaskName 'IIIOT-Veda-Startup' -Action $a -Trigger $t -Principal $p -Settings $s -Force | Out-Null; Set-Service telegraf -StartupType Automatic; Start-ScheduledTask -TaskName 'IIIOT-Veda-Startup'"
 if errorlevel 1 exit /b 1
-docker compose up -d --build
-if errorlevel 1 exit /b 1
-echo.
-echo Waiting for the application health check...
-for /L %%i in (1,1,60) do (
-  curl -fsS http://localhost:8080/ >nul 2>nul && goto ready
-  timeout /t 2 /nobreak >nul
-)
-echo Application did not become ready. Run: docker compose logs --tail=200
-exit /b 1
-:ready
-echo Application ready: http://localhost:8080
-endlocal
+echo IIIOT-Veda startup task installed and started.
+exit /b 0
+
+:run
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%IIIOT_SUPERVISOR%"
+exit /b %errorlevel%
+
+:stop
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Stop-ScheduledTask -TaskName 'IIIOT-Veda-Startup'; Disable-ScheduledTask -TaskName 'IIIOT-Veda-Startup'"
+exit /b %errorlevel%

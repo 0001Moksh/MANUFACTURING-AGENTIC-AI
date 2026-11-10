@@ -217,18 +217,18 @@ export const pluginService = {
     } catch {
       return [
         {
-          id: 'telegraf-cpu-monitoring',
-          name: 'Telegraf CPU Monitoring',
-          slug: 'telegraf-cpu-monitoring',
+          id: 'iiiot-veda-monitoring',
+          name: 'IIIOT-Veda Monitoring Plugin',
+          slug: 'iiiot-veda-monitoring',
           version: '1.0.0',
           category: 'Monitoring',
-          short_description: 'Collects live CPU utilization and health metrics via Telegraf.',
-          detailed_description: 'Collects CPU utilization, per-core metrics, and host health from the target system.',
-          publisher: 'IIOT Infotech',
-          icon: 'cpu',
-          supported_os: ['Windows Server 2019+', 'Windows 11', 'Linux'],
+          short_description: 'One installation for all IIIOT-Veda monitoring use cases.',
+          detailed_description: 'Provides infrastructure, service, messaging, and machine monitoring from one collector.',
+          icon: 'monitoring',
+          target_os: 'linux-rpm',
+          supported_os: ['linux-rpm'],
           supported_architectures: ['x86_64', 'arm64'],
-          tags: ['telegraf', 'cpu', 'infrastructure'],
+          tags: ['iiiot-veda', 'cpu', 'infrastructure'],
           capabilities: [
             { id: 'cpu.live_metrics', name: 'Live CPU Metrics' },
             { id: 'cpu.historical_trends', name: 'Historical Trends' },
@@ -236,15 +236,16 @@ export const pluginService = {
             { id: 'cpu.agent_analysis', name: 'AI-Based CPU Analysis' }
           ],
           use_cases: ['CPU Monitoring', 'CPU Trends & Analytics', 'High CPU Alerts', 'AI-Based CPU Analysis'],
-          setup_modes: ['Automatic', 'Manual', 'Both'],
+          setup_modes: ['Download and confirm'],
           published: true,
           enabled: true,
-          added_to_view: true,
-          installation_status: 'waiting_for_data',
+          added_to_view: false,
+          installation_status: 'not_registered',
           connection_status: 'not_configured',
           last_metric_received: null,
-          installer: { filename: 'telegraf-1.0.0-windows-amd64.exe', size_bytes: 4825830, checksum_sha256: 'ABC123', status: 'verified' },
-          versions: [{ version: '1.0.0', filename: 'telegraf-1.0.0-windows-amd64.exe', status: 'published' }],
+          installer: { filename: '', size_bytes: 0, checksum_sha256: '', status: 'not_uploaded' },
+          overall_installer: { filename: '', size_bytes: 0, checksum_sha256: '', status: 'not_generated' },
+          versions: [],
         }
       ];
     }
@@ -257,9 +258,52 @@ export const pluginService = {
     const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/capabilities`);
     return res.data;
   },
-  register: async (payload: Record<string, unknown>) => {
-    const res = await api.post('/admin/plugins', payload);
+  getUseCaseConfig: async (pluginId: string) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/use-case-config`);
     return res.data;
+  },
+  saveUseCaseConfig: async (pluginId: string, configs: Record<string, unknown>) => {
+    const res = await api.put(`/plugins/${encodeURIComponent(pluginId)}/use-case-config`, { configs });
+    return res.data;
+  },
+  register: async (payload: FormData) => {
+    const res = await api.post('/admin/plugins', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return res.data;
+  },
+  listInstallerAssets: async () => {
+    const res = await api.get('/admin/plugin-installers');
+    return res.data;
+  },
+  uploadInstallerAsset: async (payload: FormData) => {
+    const res = await api.post('/admin/plugin-installers', payload, {
+      timeout: 120000,
+      headers: { 'Content-Type': undefined },
+    });
+    return res.data;
+  },
+  deleteInstallerAsset: async (assetId: string) => {
+    const res = await api.delete(`/admin/plugin-installers/${encodeURIComponent(assetId)}`);
+    return res.data;
+  },
+  remove: async (pluginId: string) => {
+    const res = await api.delete(`/admin/plugins/${encodeURIComponent(pluginId)}`);
+    return res.data;
+  },
+  setEnabled: async (pluginId: string, enabled: boolean) => {
+    const res = await api.patch(`/admin/plugins/${encodeURIComponent(pluginId)}/enabled`, { enabled });
+    return res.data;
+  },
+  getCurrentSystem: async () => {
+    const res = await api.get('/plugins/system/current');
+    return res.data;
+  },
+  downloadUrl: (pluginId: string) => `${API_BASE_URL}/plugins/${encodeURIComponent(pluginId)}/download`,
+  downloadBundle: async (pluginId: string) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/download`, { responseType: 'blob' });
+    const disposition = String(res.headers['content-disposition'] || '');
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    return { blob: res.data as Blob, filename: encodedName ? decodeURIComponent(encodedName) : plainName };
   },
   update: async (pluginId: string, payload: Record<string, unknown>) => {
     const res = await api.put(`/admin/plugins/${encodeURIComponent(pluginId)}`, payload);
@@ -279,6 +323,26 @@ export const pluginService = {
   },
   test: async (pluginId: string, payload: Record<string, unknown>) => {
     const res = await api.post(`/plugins/${encodeURIComponent(pluginId)}/test`, payload);
+    return res.data;
+  },
+  getMemoryUtilization: async (minutes = 30, limit = 5000, signal?: AbortSignal) => {
+    const res = await api.get('/plugins/telegraf-memory-monitoring/memory-utilization', {
+      params: { minutes, limit }, signal, timeout: 15000,
+    });
+    return res.data;
+  },
+  getConnectorTelemetry: async (pluginId: string, minutes = 30, limit = 5000, signal?: AbortSignal) => {
+    const res = await api.get(`/plugins/${encodeURIComponent(pluginId)}/telemetry`, {
+      params: { minutes, limit }, signal, timeout: 15000,
+    });
+    return res.data;
+  },
+  getCpuUtilization: async (minutes = 30, limit = 5000, signal?: AbortSignal) => {
+    const res = await api.get('/plugins/telegraf-cpu-monitoring/cpu-utilization', {
+      params: { minutes, limit },
+      signal,
+      timeout: 15000,
+    });
     return res.data;
   },
   install: async (pluginId: string, payload: Record<string, unknown>) => {

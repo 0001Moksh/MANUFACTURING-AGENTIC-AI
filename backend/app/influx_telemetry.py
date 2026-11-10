@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import os
 import urllib.error
 import urllib.parse
@@ -7,6 +8,7 @@ import urllib.request
 from datetime import datetime
 from typing import Any, Dict, List
 import logging
+import httpx
 from zoneinfo import ZoneInfo
 
 
@@ -81,6 +83,64 @@ def _influx_url() -> str:
     return f"http://{os.getenv('IIIOT_IP', '192.168.10.130')}:{os.getenv('IIIOT_PORT', '8086')}"
 
 
+def _influxdb3_url() -> str:
+    return os.getenv("INFLUXDB3_URL", "http://localhost:8181").strip().rstrip("/")
+
+
+def get_influxdb3_database() -> str:
+    return os.getenv("INFLUXDB3_DATABASE", "").strip() or os.getenv("INFLUXDB_BUCKET", "").strip() or "iiiot_telemetry"
+
+
+def query_influxdb3_sql(query: str, params: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+    """Execute a parameterized SQL query through the InfluxDB 3 HTTP API."""
+    token = os.getenv("INFLUXDB3_AUTH_TOKEN", "").strip() or os.getenv("INFLUXDB_TOKEN", "").strip()
+    if not token:
+        raise InfluxTelemetryError("INFLUXDB3_AUTH_TOKEN is not configured")
+    request = urllib.request.Request(
+        f"{_influxdb3_url()}/api/v3/query_sql",
+        data=json.dumps({"db": get_influxdb3_database(), "q": query, "params": params or {}, "format": "json"}).encode("utf-8"),
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/json", "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8") or "[]")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise InfluxTelemetryError(f"InfluxDB 3 query failed (HTTP {exc.code}): {detail}") from exc
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+        raise InfluxTelemetryError(f"InfluxDB 3 query failed: {exc}") from exc
+    if isinstance(payload, list):
+        return [row for row in payload if isinstance(row, dict)]
+    if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+        return [row for row in payload["results"] if isinstance(row, dict)]
+    return []
+
+
+async def query_influxdb3_sql_async(query: str, params: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+    """Async InfluxDB 3 SQL query used by API routes."""
+    token = os.getenv("INFLUXDB3_AUTH_TOKEN", "").strip() or os.getenv("INFLUXDB_TOKEN", "").strip()
+    if not token:
+        raise InfluxTelemetryError("INFLUXDB3_AUTH_TOKEN is not configured")
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{_influxdb3_url()}/api/v3/query_sql",
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                json={"db": get_influxdb3_database(), "q": query, "params": params or {}, "format": "json"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+          detail = exc.response.text[:500] if isinstance(exc, httpx.HTTPStatusError) else str(exc)
+          raise InfluxTelemetryError(f"InfluxDB 3 query failed: {detail}") from exc
+    if isinstance(payload, list):
+        return [row for row in payload if isinstance(row, dict)]
+    if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+        return [row for row in payload["results"] if isinstance(row, dict)]
+    return []
+
+
 def _query_flux(query: str) -> List[Dict[str, str]]:
     token = os.getenv("INFLUXDB_TOKEN", "").strip()
     org = os.getenv("INFLUXDB_ORG", "IIIOT-INFOTECH").strip()
@@ -126,6 +186,18 @@ schema.measurements(bucket: "{bucket}")'''
         if candidate not in ordered:
             ordered.append(candidate)
     return ordered
+
+
+def get_latest_telegraf_cpu_metric(minutes: int = 10) -> Dict[str, Any] | None:
+    """Return the newest host CPU point, or None when no recent data exists."""
+    bucket = get_active_influx_bucket().replace('"', '\\"')
+    flux = f'''from(bucket: "{bucket}")
+  |> range(start: -{max(1, min(minutes, 1440))}m)
+  |> filter(fn: (r) => r._measurement == "cpu")
+  |> sort(columns: ["_time"], desc: true)
+  |> limit(n: 1)'''
+    rows = _query_flux(flux)
+    return rows[0] if rows else None
 
 
 def _discover_fields_for_measurement(measurement: str) -> List[str]:

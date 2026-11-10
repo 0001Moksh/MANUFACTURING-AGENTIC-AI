@@ -20,11 +20,11 @@ This guide runs the Manufacturing Agentic AI platform with Docker Compose. The c
 
 ### Required settings
 
-- `APP_PORT`: host port for the frontend; default `8080`.
-- `FRONTEND_URL`: externally reachable frontend origin used after email approval decisions (for example, `http://192.168.10.8:8080`); use the public HTTPS frontend URL in public deployments.
+- `APP_PORT`: host port for the frontend; default `3005`.
+- `FRONTEND_URL`: externally reachable frontend origin used after email approval decisions (for example, `http://192.168.10.8:3005`); use the public HTTPS frontend URL in public deployments.
 - `FRONTEND_URLS`: comma-separated browser origin(s) allowed to call the backend directly; include the frontend and public origins when bypassing the same-origin frontend proxy.
-- `PUBLIC_API_URL`: externally reachable backend origin used for report and approval-email links (for example, `http://192.168.10.8:8001`). Set this to the public HTTPS API URL when deploying behind a public hostname or reverse proxy.
-- `BACKEND_PORT`: optional host port for the backend; defaults to `8001` and must match the port in `PUBLIC_API_URL`.
+- `PUBLIC_API_URL`: externally reachable backend origin used for report and approval-email links (for example, `http://192.168.10.8:8005`). Set this to the public HTTPS API URL when deploying behind a public hostname or reverse proxy.
+- `BACKEND_PORT`: optional host port for the backend; defaults to `8005` and must match the port in `PUBLIC_API_URL`.
 - `POSTGRES_MANUFACTURING_*`: MAI PostgreSQL database, user, and password.
 - `POSTGRES_VIDEO_*`: Video Analytics PostgreSQL database, user, and password.
 - `SQLSERVER_DATABASE`: MES database name, normally `mes_new`.
@@ -52,7 +52,7 @@ docker compose ps
 docker compose logs --tail=200
 ```
 
-The application is available at `http://localhost:8080`. The API is proxied through the frontend at `http://localhost:8080/api/`, and the health endpoint is `http://localhost:8080/health`. Database ports are internal and are not exposed to the host by default.
+The application is available at `http://localhost:3005`. The API is proxied through the frontend at `http://localhost:3005/api/`, and the health endpoint is `http://localhost:3005/health`. Database ports are internal and are not exposed to the host by default.
 
 ## Stop and restart
 

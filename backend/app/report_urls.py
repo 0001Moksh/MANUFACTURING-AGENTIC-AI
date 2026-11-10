@@ -6,15 +6,18 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-REPORTS_DIR = os.path.abspath(os.getenv("REPORTS_DIR", "reports"))
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+REPORTS_DIR = str(
+    Path(os.getenv("REPORTS_DIR", str(BACKEND_DIR / "reports"))).expanduser().resolve()
+)
 
 
 def get_public_api_url() -> str:
-    return os.getenv("PUBLIC_API_URL", "http://192.168.10.8:8001").rstrip("/")
+    return os.getenv("PUBLIC_API_URL", "http://192.168.10.8:8005").rstrip("/")
 
 
 def get_public_frontend_url() -> str:
-    return os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    return os.getenv("FRONTEND_URL", "http://localhost:3005").rstrip("/")
 
 
 def build_report_url(filename: str, public_api_url: Optional[str] = None) -> str:

@@ -35,7 +35,7 @@ The repository currently builds application images locally because no Docker Hub
 docker compose up -d --build
 ```
 
-The production frontend is available at [http://localhost:8080](http://localhost:8080). Database services remain internal to the Compose network by default.
+The production frontend is available at [http://localhost:3005](http://localhost:3005). Database services remain internal to the Compose network by default.
 
 ## Quick Start via Docker Compose (Development)
 
@@ -58,14 +58,70 @@ To launch the database, caching layer, backend API, and React client concurrentl
    ```
 
 3. **Access the Services**:
-   - React Frontend: [http://localhost:8080](http://localhost:8080)
-   - Live Telemetry WebSocket: `ws://localhost:8080/api/ws/telemetry`
+   - React Frontend: [http://localhost:3005](http://localhost:3005)
+   - Live Telemetry WebSocket: `ws://localhost:3005/api/ws/telemetry`
 
 ---
 
 ## Manual Local Development Setup
 
+### Windows reboot startup for a native installation
+
+On a Windows host with `C:\influxdb3-core\data\node0`, `backend/venv`, and
+`frontend/node_modules`, run this once in **Administrator PowerShell**. It
+registers one startup task for InfluxDB 3, FastAPI, the development frontend,
+and Telegraf. The task watches them after boot and writes logs to
+`logs/windows-startup`:
+
+```bat
+scripts\start.bat install
+```
+
+Use `scripts\start.bat run` to run it manually, or `scripts\start.bat stop`
+to disable the scheduled task. The Windows batch entrypoint uses the bundled
+PowerShell supervisor for process monitoring and plugin config cleanup.
+
+On Linux with Docker Engine and Compose v2, `./scripts/start.sh install`
+registers the Compose stack as a systemd service; `./scripts/start.sh run`
+starts it manually and `./scripts/start.sh stop` disables it.
+
+After reboot, check `Get-ScheduledTaskInfo -TaskName IIIOT-Veda-Startup`,
+`Get-Service telegraf`, and the application URL. MongoDB, Docker, and
+Kubernetes inputs are optional at Telegraf startup; each needs its source
+running to show connected telemetry. When Docker's local TCP endpoint or the
+Kubernetes proxy comes online after boot, the startup script restarts Telegraf
+so those inputs are loaded. The script does not start Docker Desktop,
+minikube, or a Kubernetes API proxy. For production, serve a built frontend
+with an HTTPS web server instead of the development frontend on port 3005.
+Removing a plugin deletes its exact `mai-<plugin>.conf` input file; if the
+backend cannot write to Program Files, it queues removal for this startup
+task, which also restarts Telegraf. The plugin switch controls whether its
+card appears in the Use-Case Library; it does not stop telemetry collection.
+
+
 If you prefer to run services individually without Docker:
+
+### Fedora prerequisite setup
+
+The backend is pinned to Python 3.11 because several AI/ML dependencies do not
+yet publish wheels for newer Python releases. On Fedora, run:
+
+```bash
+chmod +x scripts/setup-backend-fedora.sh
+./scripts/setup-backend-fedora.sh
+```
+
+This installs the native compiler/ODBC prerequisites, creates `backend/venv`,
+and installs the Python dependencies. If you use SQL Server directly from the
+host, also install Microsoft's `msodbcsql18` package. Docker Compose includes
+that driver inside the backend image already.
+
+For the complete containerized stack on Fedora, fill in `.env` and run:
+
+```bash
+chmod +x scripts/start.sh
+./scripts/start.sh
+```
 
 ### 1. Database & Backend Setup
 1. Navigate to the `backend` folder:
@@ -74,7 +130,7 @@ If you prefer to run services individually without Docker:
    ```
 2. Create and activate a Python virtual environment:
    ```bash
-   python -m venv venv
+   python3.11 -m venv venv
    # On Windows:
    venv\Scripts\activate
    # On Linux/macOS:
@@ -91,7 +147,7 @@ If you prefer to run services individually without Docker:
    ```
 5. Run the FastAPI development server:
    ```bash
-   uvicorn app.main:app --reload --port 8001
+   uvicorn app.main:app --reload --port 8005
    ```
    *Note: On startup, the backend automatically seeds a local SQLite database (`mai_platform.db`) with mock tables and data representing key MES structures.*
 
@@ -111,6 +167,110 @@ If you prefer to run services individually without Docker:
 4. Access the web dashboard at [http://localhost:5173](http://localhost:5173). Log in with:
    - **Username**: `mfg_head`
    - **Password**: `mfg123`
+
+### PostgreSQL and Windows Event Log monitoring
+
+The **PostgreSQL Monitoring** plugin polls PostgreSQL statistics using
+`[[inputs.postgresql]]`. Set its connection string in the installed
+`mai-postgresql.conf` with a database login that has `pg_read_all_stats`, then
+test that file with Telegraf `--test`. It writes the `iiiot_veda_postgresql`
+measurement to InfluxDB 3.
+
+The **Windows Event Log Monitoring** plugin reads the Windows Application log
+using `[[inputs.win_eventlog]]`. It is Windows-only and writes
+`iiiot_veda_win_eventlog` when a new event is received. Its service account
+needs permission to read that event log. A sample input is available in
+`scripts/win-eventlog-monitoring.conf`.
+
+### Telegraf internal monitoring
+
+
+The **IIIOT-Veda Telegraf Internal Monitoring** plugin records the collector's own
+input gather errors, startup errors, dropped metrics, output write errors, and
+buffer usage. It needs no external endpoint. Register it from **Plugins → Add
+Plugin**, use the Windows installer in the setup wizard, and verify after the
+Telegraf service has written at least one collection interval to InfluxDB 3.
+The installed input is `C:\Program Files\IIIOT-Veda\config\mai-internal.conf`;
+its measurement is `iiiot_veda_internal`. To test the input without writing to
+InfluxDB, run in PowerShell:
+
+```powershell
+& "C:\Program Files\IIIOT-Veda\telegraf-1.40.2\telegraf.exe" `
+  --config "C:\Program Files\IIIOT-Veda\config\mai-internal.conf" `
+  --test
+```
+
+The full service must be running for output and historical telemetry checks.
+An internal metric cannot report an agent that is fully stopped; use the
+Windows service status and event log to diagnose that case.
+
+### Telegraf CPU and memory plugin registration
+
+
+Prepare the target-specific vendor installer by executing the notebook from the
+repository root. The notebook downloads the official Telegraf package. For
+example, on Fedora/x86_64:
+
+```bash
+TARGET_OS=linux-rpm \
+ARCHITECTURE=x86_64 \
+backend/venv/bin/jupyter nbconvert --execute --to notebook \
+  --output /tmp/cpu-plugin-executed.ipynb \
+  'jupyter notebooks/cpu-plugin.ipynb'
+```
+
+Set `TELEGRAF_SOURCE` only when using a package that is already present locally
+or a specific package URL. Relative local paths are resolved from the repository
+root. `TELEGRAF_VERSION` can override the default packaged version.
+
+The prepared Telegraf file is written to `generated_plugins/` by default. In
+the UI, use **Add Plugin**, choose **CPU Monitoring** or **Memory Monitoring**,
+and upload that file. The same vendor installer works for both plugins. This is distinct from the
+overall MAI plugin bundle, which is generated and stored under
+`backend/plugin/telegraf-cpu-monitoring/bundles/` when **Download Bundle** is
+clicked in the Setup Wizard.
+
+On Windows, the notebook downloads the official Telegraf `.zip` runtime. Upload
+that `.zip` on **Plugin Settings**; the Setup Wizard then builds the overall
+IIIOT-Veda `.exe` installer. Run the notebook from PowerShell with Windows syntax:
+
+```powershell
+$env:TARGET_OS = 'windows'
+$env:ARCHITECTURE = 'x86_64'
+& .\backend\venv\Scripts\jupyter.exe nbconvert --execute --to notebook `
+  --output "$env:TEMP\cpu-plugin-executed.ipynb" `
+  'jupyter notebooks/cpu-plugin.ipynb'
+```
+
+The bundle uses Telegraf's PostgreSQL output and writes CPU samples to
+`public.telegraf_cpu` and memory samples to `public.telegraf_mem` in the MAI platform database. Before running the bundle
+installer, provide a PostgreSQL URL that is reachable from the target machine:
+
+```bash
+export POSTGRES_DSN='postgresql://postgres:password@localhost:5432/manufacturing_ai?sslmode=disable'
+./install.sh
+unset POSTGRES_DSN
+```
+
+Use the real database credentials and host. The DSN must start with
+`postgresql://`; remove SQLAlchemy-only driver suffixes such as `+asyncpg`.
+The database user must be allowed to connect, create/update the
+`public.telegraf_cpu` and `public.telegraf_mem` tables, and insert rows. After the service starts, use
+**Confirm Installation** and then **Verify Plugin** in the Setup Wizard.
+
+Revision 3 bundles use separate files for the CPU/Memory baseline, the shared
+PostgreSQL output, and each connector. Installing Disk, Network, MQTT, Modbus, or
+OPC UA preserves connectors already installed. Existing cached bundles regenerate
+on download. Do not run an older combined bundle after upgrading because it can
+replace the newer connector layout.
+
+Once Memory verification succeeds, **Memory Utilization Monitoring** appears in
+the Use-Case Library at `/use-cases/memory-utilization`. See
+[Memory monitoring implementation and activation](docs/memory-monitoring.md)
+for metrics, API behavior, shared components, testing, and deployment limits.
+See [Telegraf connector bundles](docs/telegraf-connectors.md) for Disk, Network,
+MQTT, Modbus, and OPC UA installation variables and API behavior.
+
 
 ---
 

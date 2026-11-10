@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FilterBar } from '../components/usecases/FilterBar';
 import { UseCaseCard } from '../components/usecases/UseCaseCard';
 import { useNavigate } from 'react-router-dom';
 import { useCases } from '../data/mockData';
+import { pluginService } from '../services/api';
 
 const ACTIVE_USE_CASE_IDS = new Set([1, 2, 6, 9, 24, 25, 26]);
 
@@ -11,9 +12,27 @@ export const UseCasesPage: React.FC = () => {
   const [activePillar, setActivePillar] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [visiblePlugins, setVisiblePlugins] = useState<Array<{ id: string; name: string; short_description?: string; connection_status?: string }>>([]);
   const navigate = useNavigate();
 
-  const filtered = useCases.filter(u => {
+  useEffect(() => {
+    let active = true;
+    void pluginService.list().then((plugins: Array<{ id?: string; slug?: string; connection_status?: string; installation_status?: string; enabled?: boolean }>) => {
+      if (!active) return;
+      setVisiblePlugins((plugins as Array<{ id: string; name: string; short_description?: string; connection_status?: string; installation_status?: string; enabled?: boolean }>).filter(plugin => plugin.installation_status === 'connected' && plugin.enabled !== false));
+    });
+    return () => { active = false; };
+  }, []);
+
+  const pluginCards = useMemo(() => visiblePlugins.map((plugin, index) => ({
+    id: 1000 + index, pillar: plugin.id.includes('modbus') || plugin.id.includes('opcua') || plugin.id.includes('mqtt') || plugin.id.includes('-s7-') || plugin.id.includes('cisco') ? 'connect' : 'sustain',
+    title: plugin.name, tags: ['IOT'], status: plugin.connection_status === 'connected' ? 'live' as const : 'disconnected' as const, desc: plugin.short_description || 'IIIOT-Veda monitoring use case.',
+    impact: 'Separately configured, installed and verified monitoring use case.',
+    path: plugin.id === 'telegraf-cpu-monitoring' ? '/use-cases/cpu-utilization' : plugin.id === 'telegraf-memory-monitoring' ? '/use-cases/memory-utilization' : `/use-cases/connectors/${plugin.id}`,
+  })), [visiblePlugins]);
+  const availableUseCases = useMemo(() => [...useCases, ...pluginCards], [pluginCards]);
+
+  const filtered = availableUseCases.filter(u => {
     if (u.id === 2) return false;
     if (activePillar !== 'all' && u.pillar !== activePillar) return false;
     if (activeType !== 'all' && !u.tags.includes(activeType)) return false;
@@ -23,8 +42,8 @@ export const UseCasesPage: React.FC = () => {
     }
     return true;
   });
-  const activeUseCases = filtered.filter(useCase => ACTIVE_USE_CASE_IDS.has(useCase.id));
-  const upcomingUseCases = filtered.filter(useCase => !ACTIVE_USE_CASE_IDS.has(useCase.id));
+  const activeUseCases = filtered.filter(useCase => ACTIVE_USE_CASE_IDS.has(useCase.id) || useCase.id >= 1000);
+  const upcomingUseCases = filtered.filter(useCase => !ACTIVE_USE_CASE_IDS.has(useCase.id) && useCase.id < 1000);
 
   return (
     <motion.div
@@ -79,6 +98,8 @@ export const UseCasesPage: React.FC = () => {
                 navigate('/use-cases/voice-agent');
                 return;
               }
+              const pluginCard = pluginCards.find(card => card.id === u.id);
+              if (pluginCard) { navigate(pluginCard.path); return; }
               navigate(`/use-cases/${u.id}`);
             }}
           />
