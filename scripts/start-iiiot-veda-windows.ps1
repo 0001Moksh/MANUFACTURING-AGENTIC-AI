@@ -89,7 +89,7 @@ if ($Install) {
 }
 
 Write-StartupLog 'IIIOT-Veda startup supervisor started.'
-$influxExe = 'C:\influxdb3-core\influxdb3.exe'
+$influxExe = 'C:\influxdb3\influxdb3.exe'
 $pythonExe = Join-Path $root 'backend\venv\Scripts\python.exe'
 $npmExe = 'C:\Program Files\nodejs\npm.cmd'
 $frontendDir = Join-Path $root 'frontend'
@@ -98,7 +98,7 @@ $kubernetesWasAvailable = $false
 while ($true) {
     try {
         New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-        Start-Component 'influxdb3' $influxExe @('serve', '--node-id', 'node0', '--object-store', 'file', '--data-dir', 'C:\influxdb3-core\data', '--http-bind', '127.0.0.1:8181') (Split-Path $influxExe) 8181
+       Start-Component 'influxdb3' $influxExe @('serve', '--node-id', 'node0', '--object-store', 'file', '--data-dir', 'C:\influxdb3\data', '--http-bind', '127.0.0.1:8181') (Split-Path $influxExe) 8181
         Start-Component 'backend' $pythonExe @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8005') (Join-Path $root 'backend') 8005
         if (Test-Path -LiteralPath (Join-Path $frontendDir 'node_modules')) {
             Start-Component 'frontend' $npmExe @('run', 'dev', '--', '--host', '0.0.0.0', '--port', '3005', '--strictPort') $frontendDir 3005
