@@ -255,7 +255,7 @@ def _monitoring_installation_checks(target_os: Optional[str] = None, plugin_kind
         except (OSError, subprocess.SubprocessError):
             pass
 
-    return [
+    checks = [
         {
             "name": "runtime_installed",
             "passed": executable is not None,
@@ -270,6 +270,45 @@ def _monitoring_installation_checks(target_os: Optional[str] = None, plugin_kind
         },
         {"name": "service_running", "passed": service_running, "message": service_detail},
     ]
+    if plugin_kind == "docker":
+        docker_executable = shutil.which("docker")
+        if not docker_executable and not system_name.startswith("linux") and system_name not in {"darwin", "macos"}:
+            docker_candidates = [
+                Path(os.getenv("ProgramFiles", r"C:\Program Files")) / "Docker" / "docker.exe",
+                Path(os.getenv("ProgramFiles", r"C:\Program Files")) / "Docker" / "Docker" / "resources" / "bin" / "docker.exe",
+            ]
+            docker_executable = next((str(path) for path in docker_candidates if path.is_file()), None)
+        docker_running = False
+        running_containers: Optional[int] = None
+        docker_detail = "Docker CLI is unavailable, so the Docker daemon could not be checked."
+        if docker_executable:
+            try:
+                result = subprocess.run(
+                    [docker_executable, "info", "--format", "{{.ServerVersion}}|{{.ContainersRunning}}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=8,
+                    check=False,
+                )
+                if result.returncode == 0 and "|" in result.stdout:
+                    server_version, container_count = result.stdout.strip().rsplit("|", 1)
+                    running_containers = int(container_count)
+                    docker_running = True
+                    docker_detail = (
+                        f"Docker daemon {server_version or 'unknown version'} responded to a live check; "
+                        f"{running_containers} container{'s are' if running_containers != 1 else ' is'} running."
+                    )
+                else:
+                    docker_detail = "Docker CLI was found, but the Docker daemon did not respond to a live check."
+            except (OSError, subprocess.SubprocessError, ValueError):
+                docker_detail = "Docker daemon live check failed."
+        checks.append({
+            "name": "docker_daemon",
+            "passed": docker_running,
+            "message": docker_detail,
+            "running_containers": running_containers,
+        })
+    return checks
 
 
 async def _mark_plugin_available(row: PluginRegistration, db: AsyncSession) -> None:
@@ -2282,7 +2321,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     plugin = PLUGIN_CATALOG.get(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    from .host_telemetry import latest_plugin_metric
+    from .host_telemetry import docker_daemon_is_idle, latest_plugin_metric, plugin_telemetry_is_connected
     row = await db.get(PluginRegistration, plugin_id)
     if not row:
         raise HTTPException(status_code=409, detail="Register this plugin before verifying installation")
@@ -2303,41 +2342,56 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
             "checks": installation_checks,
         }
     spec = HOST_PLUGIN_SPECS[plugin_id]
-    event_driven = spec["kind"] == "win-eventlog"
+    telemetry_query_succeeded = True
     try:
         metric, verification_error = await latest_plugin_metric(db, spec["table"], allow_idle=event_driven)
     except Exception as exc:
         await db.rollback()
+        telemetry_query_succeeded = False
         metric = None
-        verification_error = f"InfluxDB telemetry query failed: {exc}"
-        logging.getLogger(__name__).warning("Plugin verification failed for %s: %s", plugin_id, exc)
-    idle = event_driven and metric is not None and verification_error is not None
-    success = metric is not None and not idle
+        verification_error = "Unable to read telemetry. Check InfluxDB connectivity and IIIOT-Veda ingestion."
+        logging.getLogger(__name__).warning("Plugin verification failed: %s", type(exc).__name__)
+    docker_idle = spec["kind"] == "docker" and docker_daemon_is_idle(installation_checks)
+    success = plugin_telemetry_is_connected(spec["kind"], metric, telemetry_query_succeeded, installation_checks)
     metric_time_value = (metric or {}).get("time")
-    metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
-    plugin["connection_status"] = "idle" if idle else "connected" if success else "disconnected"
-    plugin["installation_status"] = "connected"
-    if metric is not None:
-        plugin["last_metric_received"] = metric_time
+    if metric_time_value is not None:
+        metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
+    elif success and row.last_metric_received is not None:
+        metric_time = row.last_metric_received.replace(tzinfo=timezone.utc).isoformat()
+    else:
+        metric_time = None
+    if docker_idle and metric is None:
+        verification_error = None
+    plugin["connection_status"] = "connected" if success else "not_configured"
+    plugin["installation_status"] = "connected" if success else "registered"
+    plugin["last_metric_received"] = metric_time if success else None
     row = await db.get(PluginRegistration, plugin_id)
     if row:
         row.connection_status = plugin["connection_status"]
         row.installation_status = plugin["installation_status"]
         if metric is not None and isinstance(metric_time_value, datetime):
             row.last_metric_received = metric_time_value.astimezone(timezone.utc).replace(tzinfo=None)
+        elif not success:
+            row.last_metric_received = None
         await db.commit()
         PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
     telemetry_check = {
         "name": "influxdb_telemetry",
         "passed": success,
-        "message": f"Recent {spec['label']} telemetry was found in InfluxDB."
-        if success else (verification_error or "No recent IIIOT-Veda telemetry was found in InfluxDB."),
+        "message": (
+            "Docker monitoring is connected. The Docker daemon is healthy with 0 running containers; "
+            "container telemetry will appear when a container starts."
+            if docker_idle and metric is None
+            else f"Recent {spec['label']} telemetry was found in InfluxDB."
+            if success
+            else (verification_error or "No recent IIIOT-Veda telemetry was found in InfluxDB.")
+        ),
     }
     return {
         "success": success,
-        "status": "idle" if idle else "connected" if success else "disconnected",
-        "message": f"{spec['label']} is idle; last event at {metric_time}." if idle else f"{spec['label']} connectivity test passed." if success else f"{spec['label']} is disconnected: {verification_error}",
-        "metrics_seen": 1 if success else 0,
+        "status": "connected" if success else "available",
+        "message": f"{spec['label']} connectivity test passed." if success else "Connectivity test failed. The plugin was moved to Available Plugins.",
+        "metrics_seen": 1 if metric is not None else 0,
         "last_metric_received": metric_time,
         "verification_error": verification_error,
         "checks": [*installation_checks, telemetry_check],
