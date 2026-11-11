@@ -2342,6 +2342,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
             "checks": installation_checks,
         }
     spec = HOST_PLUGIN_SPECS[plugin_id]
+    event_driven = spec["kind"] == "win-eventlog"
     telemetry_query_succeeded = True
     try:
         metric, verification_error = await latest_plugin_metric(db, spec["table"], allow_idle=event_driven)
@@ -2350,7 +2351,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         telemetry_query_succeeded = False
         metric = None
         verification_error = "Unable to read telemetry. Check InfluxDB connectivity and IIIOT-Veda ingestion."
-        logging.getLogger(__name__).warning("Plugin verification failed: %s", type(exc).__name__)
+        logging.getLogger(__name__).exception("Plugin verification failed for %s", plugin_id)
     docker_idle = spec["kind"] == "docker" and docker_daemon_is_idle(installation_checks)
     success = plugin_telemetry_is_connected(spec["kind"], metric, telemetry_query_succeeded, installation_checks)
     metric_time_value = (metric or {}).get("time")
@@ -2360,7 +2361,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         metric_time = row.last_metric_received.replace(tzinfo=timezone.utc).isoformat()
     else:
         metric_time = None
-    if docker_idle and metric is None:
+    if success and docker_idle and metric is None:
         verification_error = None
     plugin["connection_status"] = "connected" if success else "not_configured"
     plugin["installation_status"] = "connected" if success else "registered"
@@ -2381,7 +2382,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         "message": (
             "Docker monitoring is connected. The Docker daemon is healthy with 0 running containers; "
             "container telemetry will appear when a container starts."
-            if docker_idle and metric is None
+            if success and docker_idle and metric is None
             else f"Recent {spec['label']} telemetry was found in InfluxDB."
             if success
             else (verification_error or "No recent IIIOT-Veda telemetry was found in InfluxDB.")
