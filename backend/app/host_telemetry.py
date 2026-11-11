@@ -19,6 +19,32 @@ HOST_TABLES = {
 }
 
 
+def docker_daemon_is_idle(checks: list[dict[str, Any]]) -> bool:
+    """Return true when Docker is reachable and has no running containers.
+
+    An idle Docker host is a healthy monitoring target even though it may not
+    produce container-level measurements.
+    """
+    daemon_check = next((check for check in checks if check.get("name") == "docker_daemon"), None)
+    if not daemon_check or not daemon_check.get("passed"):
+        return False
+    try:
+        return int(daemon_check.get("running_containers")) == 0
+    except (TypeError, ValueError):
+        return False
+
+
+def plugin_telemetry_is_connected(
+    plugin_kind: str,
+    metric: dict[str, Any] | None,
+    query_succeeded: bool,
+    checks: list[dict[str, Any]],
+) -> bool:
+    if metric is not None:
+        return True
+    return query_succeeded and plugin_kind == "docker" and docker_daemon_is_idle(checks)
+
+
 async def _query(table: str, minutes: int, limit: int) -> list[dict[str, Any]]:
     if table not in HOST_TABLES:
         raise ValueError("Unsupported host telemetry table")

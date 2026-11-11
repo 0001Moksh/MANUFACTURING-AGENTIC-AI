@@ -11,7 +11,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.memory_telemetry import memory_sample
-from app.host_telemetry import connector_payload, latest_plugin_metric, memory_payload
+from app.host_telemetry import (
+    connector_payload,
+    docker_daemon_is_idle,
+    latest_plugin_metric,
+    memory_payload,
+    plugin_telemetry_is_connected,
+)
 from plugin_packager import PLUGINS, build_bundle, _connector_config, _host_base_config, _output_config, _telegraf_config
 
 
@@ -59,6 +65,24 @@ class FakeDB:
 
 
 class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_idle_docker_daemon_is_a_healthy_zero_container_state(self):
+        checks = [{"name": "docker_daemon", "passed": True, "running_containers": 0}]
+        self.assertTrue(docker_daemon_is_idle(checks))
+
+    async def test_active_or_unreachable_docker_daemon_requires_telemetry(self):
+        self.assertFalse(docker_daemon_is_idle([
+            {"name": "docker_daemon", "passed": True, "running_containers": 1},
+        ]))
+        self.assertFalse(docker_daemon_is_idle([
+            {"name": "docker_daemon", "passed": False, "running_containers": 0},
+        ]))
+
+    async def test_idle_docker_connects_only_after_a_successful_influx_query(self):
+        checks = [{"name": "docker_daemon", "passed": True, "running_containers": 0}]
+        self.assertTrue(plugin_telemetry_is_connected("docker", None, True, checks))
+        self.assertFalse(plugin_telemetry_is_connected("docker", None, False, checks))
+        self.assertFalse(plugin_telemetry_is_connected("cpu", None, True, checks))
+
     @patch("app.host_telemetry.query_influxdb3_sql_async", return_value=[])
     async def test_missing_memory_measurement_returns_empty_payload(self, _query):
         payload = await memory_payload(None)
