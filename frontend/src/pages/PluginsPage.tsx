@@ -316,7 +316,14 @@ const PluginSetupDialog: React.FC<{ plugin: SimplePlugin; onClose: () => void; o
       setDownloaded(true);
       setMessage('Graphical installer downloaded. Open it, complete the configuration and permission steps, then confirm installation.');
     } catch (reason: any) {
-      setError(reason?.response?.data?.detail || 'Unable to generate and download the overall plugin bundle.');
+      let detail = reason?.response?.data?.detail;
+      if (!detail && reason?.response?.data instanceof Blob) {
+        try {
+          const payload = JSON.parse(await reason.response.data.text());
+          detail = payload?.detail;
+        } catch { /* The response was not a JSON API error. */ }
+      }
+      setError(detail || 'Unable to generate and download the overall plugin bundle.');
     } finally {
       setBusy(false);
     }

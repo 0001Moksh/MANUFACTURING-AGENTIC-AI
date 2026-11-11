@@ -565,6 +565,11 @@ def _validate_installer_extension(target_os: str, filename: str) -> None:
 
 def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
     installer_path = Path(row.installer_path)
+    if not installer_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Registered IIIOT-Veda runtime file is missing: {row.installer_filename}",
+        )
     bundle_dir = PLUGIN_ROOT / row.id / "bundles"
     bundle_dir.mkdir(parents=True, exist_ok=True)
     metadata = row.metadata_json or {}
@@ -599,7 +604,20 @@ def _generate_plugin_bundle(row: PluginRegistration) -> Dict[str, Any]:
             timeout=120,
         )
         return json.loads(packager.stdout.strip().splitlines()[-1])
-    except (subprocess.SubprocessError, json.JSONDecodeError, IndexError) as exc:
+    except subprocess.CalledProcessError as exc:
+        packager_error = (exc.stderr or exc.stdout or str(exc)).strip().splitlines()
+        detail = packager_error[-1] if packager_error else str(exc)
+        # Do not log the CalledProcessError traceback: its command contains the
+        # InfluxDB token passed to the isolated packager process.
+        logging.getLogger(__name__).error("Plugin bundle packager failed for %s: %s", row.id, detail[:1000])
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to generate the overall plugin installation bundle: {detail[:1000]}",
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(status_code=504, detail="Plugin bundle generation timed out after 120 seconds") from exc
+    except (json.JSONDecodeError, IndexError, KeyError, OSError, ValueError) as exc:
+        logging.getLogger(__name__).exception("Plugin bundle result was invalid for %s", row.id)
         raise HTTPException(status_code=500, detail=f"Unable to generate the overall plugin installation bundle: {exc}") from exc
 
 
@@ -2485,14 +2503,22 @@ async def download_plugin(plugin_id: str, db: AsyncSession = Depends(get_db)):
         await db.refresh(row)
         plugin = _plugin_from_db(row)
         PLUGIN_CATALOG[plugin_id] = plugin
-    installer = plugin.get("overall_installer") or {}
-    installer_path = Path(installer.get("storage_key") or "").resolve()
+    # The database row is authoritative. Using the cached catalog object here
+    # could retain the old/empty bundle path immediately after regeneration.
+    installer_path = Path(row.bundle_path or "").resolve()
     plugin_root = PLUGIN_ROOT.resolve()
-    if not installer_path.is_relative_to(plugin_root) or not installer_path.is_file():
-        raise HTTPException(status_code=404, detail="Installation file is not available")
+    if not installer_path.is_relative_to(plugin_root):
+        logging.getLogger(__name__).error("Rejected bundle path outside plugin storage for %s", plugin_id)
+        raise HTTPException(status_code=500, detail="Generated bundle path is outside plugin storage")
+    if not installer_path.is_file():
+        logging.getLogger(__name__).error("Generated bundle file is missing for %s: %s", plugin_id, installer_path)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Bundle generation completed but the output file was not found: {row.bundle_filename or installer_path.name}",
+        )
     return FileResponse(
         path=installer_path,
-        filename=installer.get("filename") or installer_path.name,
+        filename=row.bundle_filename or installer_path.name,
         media_type="application/octet-stream",
     )
 
