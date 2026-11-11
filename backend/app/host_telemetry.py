@@ -45,6 +45,13 @@ def plugin_telemetry_is_connected(
     return query_succeeded and plugin_kind == "docker" and docker_daemon_is_idle(checks)
 
 
+def influx_table_is_missing(error: Exception) -> bool:
+    detail = str(error).lower()
+    identifies_table = "table" in detail or "measurement" in detail
+    reports_missing = any(marker in detail for marker in ("not found", "does not exist", "unknown table"))
+    return identifies_table and reports_missing
+
+
 async def _query(table: str, minutes: int, limit: int) -> list[dict[str, Any]]:
     if table not in HOST_TABLES:
         raise ValueError("Unsupported host telemetry table")
@@ -62,7 +69,7 @@ async def latest_plugin_metric(db, table, allow_idle=False):
         async with asyncio.timeout(12):
             rows = await _query(table, 10, 1)
     except InfluxTelemetryError as exc:
-        if "table 'public.iox." in str(exc) and "not found" in str(exc):
+        if influx_table_is_missing(exc):
             return None, f"No {table} measurement exists yet. The input must emit at least one metric before InfluxDB creates it."
         raise
     if not rows:

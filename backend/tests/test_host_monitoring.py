@@ -11,9 +11,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.memory_telemetry import memory_sample
+from app.influx_telemetry import InfluxTelemetryError
 from app.host_telemetry import (
     connector_payload,
     docker_daemon_is_idle,
+    influx_table_is_missing,
     latest_plugin_metric,
     memory_payload,
     plugin_telemetry_is_connected,
@@ -82,6 +84,26 @@ class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(plugin_telemetry_is_connected("docker", None, True, checks))
         self.assertFalse(plugin_telemetry_is_connected("docker", None, False, checks))
         self.assertFalse(plugin_telemetry_is_connected("cpu", None, True, checks))
+
+    async def test_missing_influx_table_is_an_empty_measurement_not_a_connection_failure(self):
+        self.assertTrue(influx_table_is_missing(
+            RuntimeError("error while planning query: table 'iiiot_veda_docker' not found")
+        ))
+        self.assertTrue(influx_table_is_missing(
+            RuntimeError("measurement iiiot_veda_docker does not exist")
+        ))
+        self.assertFalse(influx_table_is_missing(
+            RuntimeError('{"error":"the request was not authenticated"}')
+        ))
+
+    @patch("app.host_telemetry.query_influxdb3_sql_async")
+    async def test_missing_docker_table_returns_an_empty_metric(self, query):
+        query.side_effect = InfluxTelemetryError(
+            "InfluxDB 3 query failed: table 'iiiot_veda_docker' not found"
+        )
+        metric, error = await latest_plugin_metric(None, "iiiot_veda_docker")
+        self.assertIsNone(metric)
+        self.assertIn("No iiiot_veda_docker measurement exists yet", error)
 
     @patch("app.host_telemetry.query_influxdb3_sql_async", return_value=[])
     async def test_missing_memory_measurement_returns_empty_payload(self, _query):
