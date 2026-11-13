@@ -10,7 +10,9 @@ import platform
 import shutil
 import subprocess
 import socket
+import ssl
 import sys
+from urllib.parse import urlsplit, unquote
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Literal
@@ -135,7 +137,11 @@ ADDITIONAL_MONITORING_SPECS = {
     "iiiot-veda-win-eventlog-monitoring": {"kind": "win-eventlog", "input": "win_eventlog", "table": "iiiot_veda_win_eventlog", "tables": ["iiiot_veda_win_eventlog"], "label": "Windows Event Log monitoring"},
     "iiiot-veda-influxdb-monitoring": {"kind": "influxdb", "input": "prometheus", "table": "iiiot_veda_influxdb", "tables": ["iiiot_veda_influxdb"], "label": "InfluxDB monitoring"},
     "iiiot-veda-internal-monitoring": {"kind": "internal", "input": "internal", "table": "iiiot_veda_internal", "tables": ["iiiot_veda_internal"], "label": "Telegraf internal monitoring"},
+    "iiiot-veda-github-monitoring": {"kind": "github", "input": "github", "table": "iiiot_veda_github", "tables": ["iiiot_veda_github"], "label": "GitHub repository monitoring", "name": "IIIOT-Veda GitHub Monitoring"},
     "iiiot-veda-exec-monitoring": {"kind": "exec", "input": "exec", "table": "iiiot_veda_exec", "tables": ["iiiot_veda_exec"], "label": "Command monitoring"},
+    "iiiot-veda-execd-monitoring": {"kind": "execd", "input": "execd", "table": "iiiot_veda_execd", "tables": ["iiiot_veda_execd"], "label": "Streaming command monitoring", "name": "IIIOT-Veda Execd Monitoring"},
+    "iiiot-veda-file-ingestion": {"kind": "file", "input": "file", "table": "iiiot_veda_file", "tables": ["iiiot_veda_file"], "label": "File metric ingestion", "name": "IIIOT-Veda File Ingestion"},
+    "iiiot-veda-socket-listener": {"kind": "socket-listener", "input": "socket_listener", "table": "iiiot_veda_socket_listener", "tables": ["iiiot_veda_socket_listener"], "label": "Socket metric listener", "name": "IIIOT-Veda Socket Listener"},
     "iiiot-veda-http-monitoring": {"kind": "http", "input": "http", "table": "iiiot_veda_http", "tables": ["iiiot_veda_http"], "label": "HTTP metric collection"},
     "iiiot-veda-http-listener": {"kind": "http-listener", "input": "http_listener_v2", "table": "iiiot_veda_http_listener", "tables": ["iiiot_veda_http_listener"], "label": "HTTP metric listener"},
     "iiiot-veda-nvidia-monitoring": {"kind": "nvidia", "input": "nvidia_smi", "table": "iiiot_veda_nvidia", "tables": ["iiiot_veda_nvidia"], "label": "NVIDIA GPU monitoring"},
@@ -164,7 +170,7 @@ HOST_PLUGIN_SPECS = {
     **ADDITIONAL_MONITORING_SPECS,
 }
 PLUGIN_CATALOG_IDS = tuple(plugin_id for plugin_id in HOST_PLUGIN_SPECS if plugin_id != MONITORING_PLUGIN_ID)
-CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "win-eventlog", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+CONFIGURABLE_MONITORING_KINDS = ("mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "win-eventlog", "influxdb", "internal", "github", "exec", "execd", "file", "socket-listener", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
 OPTIONAL_MONITORING_KINDS = set(CONFIGURABLE_MONITORING_KINDS) - {"mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring"}
 
 
@@ -454,7 +460,7 @@ def _seed_default_plugins() -> None:
         connector.update({
             "id": plugin_id,
             "slug": plugin_id,
-            "name": f"IIIOT-Veda {label.title()}",
+            "name": spec.get("name") or f"IIIOT-Veda {label.title()}",
             "icon": spec["kind"],
             "short_description": f"Configures and collects {label.lower()} metrics.",
             "detailed_description": f"Provides a separately registered {label.lower()} use case with its own configuration, installer and verification lifecycle.",
@@ -2332,6 +2338,62 @@ def _docker_daemon_check() -> Dict[str, Any]:
     return {"name": "docker_daemon", "passed": healthy, "message": f"Docker daemon at {endpoint} {'responded to a live check' if healthy else 'did not respond successfully'}."}
 
 
+def _redis_resp_command(*parts: str) -> bytes:
+    encoded = [part.encode("utf-8") for part in parts]
+    return (
+        f"*{len(encoded)}\r\n".encode()
+        + b"".join(f"${len(part)}\r\n".encode() + part + b"\r\n" for part in encoded)
+    )
+
+
+def _redis_server_check() -> Dict[str, Any]:
+    """Authenticate and PING the Redis endpoint configured on this host."""
+    if platform.system().lower() == "windows":
+        config_path = Path(os.getenv("ProgramFiles", r"C:\Program Files")) / "IIIOT-Veda" / "config" / "mai-redis.conf"
+    else:
+        config_path = Path("/etc/telegraf/telegraf.d/mai-redis.conf")
+    try:
+        config = tomllib.loads(config_path.read_text(encoding="utf-8-sig"))["inputs"]["redis"][0]
+        server_value = str(config.get("servers", ["tcp://127.0.0.1:6379"])[0]).strip()
+        parsed = urlsplit(server_value if "://" in server_value else f"tcp://{server_value}")
+        host = parsed.hostname
+        port = parsed.port or 6379
+        if not host:
+            raise ValueError("Redis server hostname is empty")
+        username = str(config.get("username") or (unquote(parsed.username) if parsed.username else ""))
+        password = str(config.get("password") or (unquote(parsed.password) if parsed.password else ""))
+        use_tls = bool(config.get("tls_enable", False))
+    except (OSError, KeyError, IndexError, TypeError, ValueError, tomllib.TOMLDecodeError) as exc:
+        return {"name": "redis_server", "passed": False, "message": f"Cannot read the installed Redis input configuration: {exc}"}
+
+    endpoint = f"{host}:{port}"
+    try:
+        with socket.create_connection((host, port), timeout=4) as raw_connection:
+            connection = raw_connection
+            if use_tls:
+                context = ssl.create_default_context(cafile=config.get("tls_ca") or None)
+                if config.get("insecure_skip_verify"):
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                connection = context.wrap_socket(raw_connection, server_hostname=host)
+            connection.settimeout(4)
+            if password:
+                auth = _redis_resp_command("AUTH", username, password) if username else _redis_resp_command("AUTH", password)
+                connection.sendall(auth)
+                auth_response = connection.recv(1024)
+                if not auth_response.startswith(b"+OK"):
+                    return {"name": "redis_server", "passed": False, "message": f"Redis at {endpoint} rejected the configured username or password."}
+            connection.sendall(_redis_resp_command("PING"))
+            response = connection.recv(1024)
+            if response.startswith(b"+PONG"):
+                return {"name": "redis_server", "passed": True, "message": f"Redis at {endpoint} responded to an authenticated PING."}
+            if b"NOAUTH" in response.upper() or b"AUTH" in response.upper():
+                return {"name": "redis_server", "passed": False, "message": f"Redis at {endpoint} requires valid authentication. Update mai-redis.conf."}
+            return {"name": "redis_server", "passed": False, "message": f"Redis at {endpoint} returned an unexpected PING response."}
+    except (OSError, ssl.SSLError) as exc:
+        return {"name": "redis_server", "passed": False, "message": f"Redis at {endpoint} is unreachable: {exc}"}
+
+
 @router.post("/api/plugins/{plugin_id}/test")
 async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depends(get_db)):
     _seed_default_plugins()
@@ -2346,6 +2408,8 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
     installation_checks = _monitoring_installation_checks(row.target_os, HOST_PLUGIN_SPECS[row.id]["kind"])
     if HOST_PLUGIN_SPECS[row.id]["kind"] == "docker" and all(check["passed"] for check in installation_checks):
         installation_checks.append(await asyncio.to_thread(_docker_daemon_check))
+    if HOST_PLUGIN_SPECS[row.id]["kind"] == "redis" and all(check["passed"] for check in installation_checks):
+        installation_checks.append(await asyncio.to_thread(_redis_server_check))
     installation_ok = all(check["passed"] for check in installation_checks)
     if not installation_ok:
         await _mark_plugin_available(row, db)

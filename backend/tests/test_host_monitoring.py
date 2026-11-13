@@ -189,8 +189,9 @@ class BundleTests(unittest.TestCase):
             'docker': {'docker'}, 'kubernetes': {'kubernetes'}, 'mongodb': {'mongodb'},
             'mysql': {'mysql'}, 'redis': {'redis'}, 'sql': {'sql'}, 'sqlserver': {'sqlserver'},
             'postgresql': {'postgresql'}, 'win-eventlog': {'win_eventlog'},
-            'influxdb': {'prometheus'}, 'internal': {'internal'},
-            'exec': {'exec'}, 'http': {'http'}, 'http-listener': {'http_listener_v2'},
+            'influxdb': {'prometheus'}, 'internal': {'internal'}, 'github': {'github'},
+            'exec': {'exec'}, 'execd': {'execd'}, 'file': {'file'}, 'socket-listener': {'socket_listener'},
+            'http': {'http'}, 'http-listener': {'http_listener_v2'},
             'nvidia': {'nvidia_smi'}, 's7': {'s7comm'}, 'syslog': {'syslog'},
             'cisco-telemetry': {'cisco_telemetry_mdt'}, 'system': {'system'},
             'opentelemetry': {'opentelemetry'}, 'nginx': {'nginx'}, 'csv': {'file'}, 'grok': {'tail'},
@@ -206,6 +207,13 @@ class BundleTests(unittest.TestCase):
             for source, value in replacements.items(): config = config.replace(source, value)
             parsed = tomllib.loads(config)
             self.assertTrue(inputs.issubset(parsed['inputs']))
+
+    def test_redis_default_does_not_install_a_fake_password(self):
+        config = _connector_config('redis')
+        parsed = tomllib.loads(config)
+        redis_input = parsed['inputs']['redis'][0]
+        self.assertEqual(redis_input['servers'], ['tcp://127.0.0.1:6379'])
+        self.assertNotIn('password', redis_input)
 
     def test_bundles_for_all_plugins_and_target_formats(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -227,7 +235,7 @@ class BundleTests(unittest.TestCase):
                                     script = archive.read('payload/install.ps1').decode()
                                     self.assertIn('--config-directory $ConfigDir', script)
                                     self.assertIn('IIIOT-Veda Setup', script)
-                                self.assertEqual(manifest['bundle_revision'], 7)
+                                self.assertEqual(manifest['bundle_revision'], 8)
                             elif target == 'linux-deb':
                                 self.assertTrue(result['filename'].endswith('.deb'))
                                 listing = subprocess.run(['ar', 't', result['path']], check=True, capture_output=True, text=True).stdout
@@ -237,6 +245,28 @@ class BundleTests(unittest.TestCase):
                                 listing = subprocess.run(['rpm', '-qpl', result['path']], check=True, capture_output=True, text=True).stdout
                                 self.assertIn(f'iiiot-veda-setup-{plugin}', listing)
                             self.assertIn(f'iiiot-veda-{plugin}-', result['filename'])
+
+    def test_generic_integration_windows_bundles_have_distinct_inputs_and_measurements(self):
+        expected = {
+            'github': ('github', 'iiiot_veda_github'),
+            'exec': ('exec', 'iiiot_veda_exec'),
+            'execd': ('execd', 'iiiot_veda_execd'),
+            'file': ('file', 'iiiot_veda_file'),
+            'socket-listener': ('socket_listener', 'iiiot_veda_socket_listener'),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            installer = root / 'iiiot-veda-runtime.zip'
+            installer.write_bytes(b'test vendor package')
+            for plugin, (input_name, measurement) in expected.items():
+                with self.subTest(plugin=plugin):
+                    result = build_bundle('windows', 'x86_64', installer, root / 'bundles', plugin)
+                    with zipfile.ZipFile(result['path']) as archive:
+                        config = tomllib.loads(archive.read('payload/mai-connector.conf').decode())
+                        manifest = json.loads(archive.read('payload/manifest.json'))
+                    self.assertIn(input_name, config['inputs'])
+                    self.assertEqual(manifest['measurement'], measurement)
+                    self.assertEqual(manifest['bundle_revision'], 8)
 
     def test_invalid_plugin_rejected(self):
         with self.assertRaises(ValueError): build_bundle('linux-rpm', 'x86_64', Path('unused'), Path('unused'), 'unknown')
