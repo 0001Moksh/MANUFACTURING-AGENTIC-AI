@@ -40,9 +40,14 @@ def plugin_telemetry_is_connected(
     query_succeeded: bool,
     checks: list[dict[str, Any]],
 ) -> bool:
-    if metric is not None:
-        return True
-    return query_succeeded and plugin_kind == "docker" and docker_daemon_is_idle(checks)
+    """Verify the installed collector and destination independently of source traffic.
+
+    A missing or idle source must not force customers to manufacture a sample
+    event. Installation checks are performed before this function and a
+    successful query proves that the InfluxDB endpoint is reachable and
+    authenticated, even when the plugin's measurement has not been created yet.
+    """
+    return query_succeeded
 
 
 def influx_table_is_missing(error: Exception) -> bool:

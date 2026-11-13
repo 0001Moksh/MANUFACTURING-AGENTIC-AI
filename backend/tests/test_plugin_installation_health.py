@@ -47,9 +47,34 @@ class DockerVerificationTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["verification_error"])
         self.assertNotIn("is connected", result["checks"][-1]["message"])
 
-    async def test_running_container_requires_recent_telemetry(self):
+    async def test_running_container_can_verify_before_first_telemetry(self):
         result, _ = await self.verify(count=1)
-        self.assertFalse(result["success"])
+        self.assertTrue(result["success"])
+        self.assertEqual(result["telemetry_status"], "idle")
+
+    async def test_github_connects_without_manufactured_sample_metric(self):
+        plugin_id = "iiiot-veda-github-monitoring"
+        row = SimpleNamespace(id=plugin_id, target_os="windows", last_metric_received=None)
+        db = SimpleNamespace(get=AsyncMock(return_value=row), commit=AsyncMock(), rollback=AsyncMock())
+        checks = [
+            {"name": "runtime_installed", "passed": True},
+            {"name": "required_files", "passed": True},
+            {"name": "service_running", "passed": True},
+        ]
+        with patch.dict(routes.PLUGIN_CATALOG, {plugin_id: {"id": plugin_id}}, clear=True), \
+             patch.object(routes, "_seed_default_plugins"), \
+             patch.object(routes, "_sync_plugin_catalog", new_callable=AsyncMock), \
+             patch.object(routes, "_monitoring_installation_checks", return_value=checks), \
+             patch.object(routes, "_plugin_from_db", return_value={}), \
+             patch("app.host_telemetry.query_influxdb3_sql_async", new_callable=AsyncMock) as query:
+            query.side_effect = InfluxTelemetryError("table 'iiiot_veda_github' not found")
+            result = await routes.test_plugin(plugin_id, None, db)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["telemetry_status"], "awaiting_first_metric")
+        self.assertEqual(result["metrics_seen"], 0)
+        self.assertIsNone(result["verification_error"])
+        self.assertIn("no manual test value is required", result["checks"][-1]["message"])
 
 
 class MonitoringInstallationHealthTests(unittest.TestCase):
