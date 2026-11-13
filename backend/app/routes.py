@@ -2287,7 +2287,7 @@ async def create_plugin_installation(plugin_id: str, request: Request, db: Async
             "Installation confirmed by administrator",
             "Waiting for host metrics",
         ],
-        "message": "Installation confirmed. Waiting for IIIOT-Veda metrics.",
+        "message": "Installation confirmed. Verify installation and InfluxDB connectivity; source telemetry may arrive later.",
     }
     PLUGIN_JOBS[job_id] = job
     plugin["installation_status"] = "waiting_for_data"
@@ -2295,7 +2295,7 @@ async def create_plugin_installation(plugin_id: str, request: Request, db: Async
     if row:
         row.installation_status = "waiting_for_data"
         await db.commit()
-    return {"job_id": job_id, "status": "waiting_for_data", "plugin_id": plugin_id, "message": "Installation confirmed. Verify the plugin after IIIOT-Veda starts sending metrics."}
+    return {"job_id": job_id, "status": "waiting_for_data", "plugin_id": plugin_id, "message": "Installation confirmed. Verify the plugin now; a sample metric is not required."}
 
 
 @router.get("/api/plugins/jobs/{job_id}")
@@ -2436,6 +2436,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         logging.getLogger(__name__).exception("Plugin verification failed for %s", plugin_id)
     docker_idle = spec["kind"] == "docker" and docker_daemon_is_idle(installation_checks)
     success = plugin_telemetry_is_connected(spec["kind"], metric, telemetry_query_succeeded, installation_checks)
+    had_previous_metric = row.last_metric_received is not None
     metric_time_value = (metric or {}).get("time")
     if metric_time_value is not None:
         metric_time = metric_time_value.isoformat() if hasattr(metric_time_value, "isoformat") else metric_time_value
@@ -2443,7 +2444,7 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         metric_time = row.last_metric_received.replace(tzinfo=timezone.utc).isoformat()
     else:
         metric_time = None
-    if success and docker_idle and metric is None:
+    if success and metric is None:
         verification_error = None
     plugin["connection_status"] = "connected" if success else "not_configured"
     plugin["installation_status"] = "connected" if success else "registered"
@@ -2460,20 +2461,34 @@ async def test_plugin(plugin_id: str, request: Request, db: AsyncSession = Depen
         PLUGIN_CATALOG[plugin_id] = _plugin_from_db(row)
     telemetry_check = {
         "name": "influxdb_telemetry",
-        "passed": success,
+        "passed": telemetry_query_succeeded,
         "message": (
             "Docker monitoring is connected. The Docker daemon is healthy with 0 running containers; "
             "container telemetry will appear when a container starts."
             if success and docker_idle and metric is None
             else f"Recent {spec['label']} telemetry was found in InfluxDB."
+            if success and metric is not None
+            else "Installation and InfluxDB connectivity are verified. No recent telemetry is available; "
+                 "the source is currently idle and its last known timestamp is retained."
+            if success and had_previous_metric
+            else "Installation and InfluxDB connectivity are verified. Awaiting the first source metric; "
+                 "no manual test value is required."
             if success
             else (verification_error or "No recent IIIOT-Veda telemetry was found in InfluxDB.")
         ),
     }
+    telemetry_status = "receiving" if metric is not None else "idle" if had_previous_metric else "awaiting_first_metric"
     return {
         "success": success,
         "status": "connected" if success else "available",
-        "message": f"{spec['label']} connectivity test passed." if success else "Connectivity test failed. The plugin was moved to Available Plugins.",
+        "message": (
+            f"{spec['label']} connectivity test passed."
+            if success and metric is not None
+            else f"{spec['label']} installation is verified. Telemetry will appear automatically when the source produces data."
+            if success
+            else "Connectivity test failed. The plugin was moved to Available Plugins."
+        ),
+        "telemetry_status": telemetry_status if success else "unavailable",
         "metrics_seen": 1 if metric is not None else 0,
         "last_metric_received": metric_time,
         "verification_error": verification_error,

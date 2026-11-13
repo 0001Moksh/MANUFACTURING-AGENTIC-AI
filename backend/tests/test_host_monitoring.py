@@ -79,11 +79,12 @@ class HostTelemetryTests(unittest.IsolatedAsyncioTestCase):
             {"name": "docker_daemon", "passed": False, "running_containers": 0},
         ]))
 
-    async def test_idle_docker_connects_only_after_a_successful_influx_query(self):
+    async def test_idle_plugins_connect_after_a_successful_influx_query(self):
         checks = [{"name": "docker_daemon", "passed": True, "running_containers": 0}]
         self.assertTrue(plugin_telemetry_is_connected("docker", None, True, checks))
         self.assertFalse(plugin_telemetry_is_connected("docker", None, False, checks))
-        self.assertFalse(plugin_telemetry_is_connected("cpu", None, True, checks))
+        self.assertTrue(plugin_telemetry_is_connected("cpu", None, True, checks))
+        self.assertTrue(plugin_telemetry_is_connected("github", None, True, checks))
 
     async def test_missing_influx_table_is_an_empty_measurement_not_a_connection_failure(self):
         self.assertTrue(influx_table_is_missing(
