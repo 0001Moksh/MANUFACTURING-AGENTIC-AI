@@ -75,8 +75,12 @@ def _connector_config(plugin: str) -> str:
         "mqtt": '''# Edit this file before installation. Edit the installed copy later and restart the IIIOT-Veda service.
 [[inputs.mqtt_consumer]]
   name_override = "telegraf_mqtt"
+  # Keep the shared IIIOT-Veda service alive during temporary DNS/broker outages.
+  startup_error_behavior = "retry"
   servers = ["tcp://127.0.0.1:1883"]
   topics = ["factory/#"]
+  connection_timeout = "10s"
+  max_reconnect_interval = "30s"
   username = ""
   password = ""
   topic_tag = "topic"

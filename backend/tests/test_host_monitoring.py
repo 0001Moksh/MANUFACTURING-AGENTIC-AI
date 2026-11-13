@@ -215,6 +215,12 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(redis_input['servers'], ['tcp://127.0.0.1:6379'])
         self.assertNotIn('password', redis_input)
 
+    def test_mqtt_broker_outage_does_not_stop_shared_service(self):
+        parsed = tomllib.loads(_connector_config('mqtt'))
+        mqtt_input = parsed['inputs']['mqtt_consumer'][0]
+        self.assertEqual(mqtt_input['startup_error_behavior'], 'retry')
+        self.assertEqual(mqtt_input['max_reconnect_interval'], '30s')
+
     def test_bundles_for_all_plugins_and_target_formats(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
