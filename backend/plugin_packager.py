@@ -26,7 +26,7 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "win-eventlog", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
+PLUGINS = {"cpu", "memory", "disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "win-eventlog", "influxdb", "internal", "github", "exec", "execd", "file", "socket-listener", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok"}
 
 
 def _host_base_config() -> str:
@@ -57,7 +57,7 @@ def _output_config() -> str:
 
 def _connector_config(plugin: str) -> str:
     if plugin == "monitoring":
-        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "influxdb", "internal", "exec", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
+        children = ("disk", "network", "mqtt", "modbus", "opcua", "network-diagnostics", "email-monitoring", "server-monitoring", "desktop-monitoring", "docker", "kubernetes", "mongodb", "mysql", "redis", "sql", "sqlserver", "postgresql", "influxdb", "internal", "github", "exec", "execd", "file", "socket-listener", "http", "http-listener", "nvidia", "s7", "syslog", "cisco-telemetry", "system", "opentelemetry", "nginx", "csv", "grok")
         return "\n".join(_connector_config(child).rstrip() for child in children) + "\n"
     configs = {
         "cpu": "",
@@ -229,7 +229,13 @@ def _connector_config(plugin: str) -> str:
 ''',
         "redis": '''[[inputs.redis]]
   name_override = "iiiot_veda_redis"
-  servers = ["tcp://:password@127.0.0.1:6379"]
+  servers = ["tcp://127.0.0.1:6379"]
+  # Redis 6+ ACL credentials. Leave both commented when authentication is disabled.
+  # username = "default"
+  # password = "replace-with-redis-password"
+  # For a TLS endpoint, set tls_enable = true and configure the CA when required.
+  # tls_enable = true
+  # tls_ca = "C:/path/to/redis-ca.pem"
 ''',
         "sql": '''# Generic SQL query input. Supported drivers depend on the bundled runtime.
 [[inputs.sql]]
@@ -296,12 +302,50 @@ def _connector_config(plugin: str) -> str:
 #   password = "replace-with-password"
 #   timeout = "10s"
 ''',
+        "github": '''# Poll one or more GitHub repositories. A token is recommended to avoid the low anonymous API limit.
+[[inputs.github]]
+  name_override = "iiiot_veda_github"
+  repositories = ["influxdata/telegraf"]
+  additional_fields = ["pull-requests"]
+  interval = "5m"
+  http_timeout = "10s"
+  # access_token = "replace-with-read-only-github-token"
+  # GitHub Enterprise example: enterprise_base_url = "https://github.example.com/api/v3"
+''',
         "exec": '''# The command must print a supported metric format to stdout.
+# Each command and its arguments must be an array. Replace this path during setup.
 [[inputs.exec]]
   name_override = "iiiot_veda_exec"
-  commands = ["/usr/local/bin/iiiot-veda-metrics"]
+  commands = [["C:/ProgramData/IIIOT-Veda/collectors/poll-metrics.exe"]]
   timeout = "5s"
   data_format = "json"
+  # Linux example: commands = [["/usr/local/bin/iiiot-veda-metrics"]]
+''',
+        "execd": '''# Run one long-lived collector that continuously writes metrics to stdout.
+# Each executable and argument must be a separate array element. Use signal = "none" on Windows.
+[[inputs.execd]]
+  name_override = "iiiot_veda_execd"
+  command = ["C:/ProgramData/IIIOT-Veda/collectors/stream-metrics.exe"]
+  signal = "none"
+  restart_delay = "10s"
+  data_format = "influx"
+  # Linux example: command = ["/usr/local/bin/iiiot-veda-stream-metrics"]
+''',
+        "file": '''# Read the complete contents of matching metric files on every interval.
+# Use inputs.tail instead when only newly appended lines should be processed.
+[[inputs.file]]
+  name_override = "iiiot_veda_file"
+  files = ["C:/ProgramData/IIIOT-Veda/metrics/*.influx"]
+  character_encoding = "utf-8"
+  data_format = "influx"
+  file_tag = "source_file"
+''',
+        "socket-listener": '''# Receive Influx line protocol over TCP. Change tcp to udp when required.
+[[inputs.socket_listener]]
+  name_override = "iiiot_veda_socket_listener"
+  service_address = "tcp://:8094"
+  read_timeout = "30s"
+  data_format = "influx"
 ''',
         "http": '''# Poll an HTTP endpoint that returns metric JSON.
 [[inputs.http]]
@@ -864,12 +908,12 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "desktop-monitoring": ["iiiot_veda_desktop_system", "iiiot_veda_desktop_processes"],
             "docker": ["iiiot_veda_docker"], "kubernetes": ["iiiot_veda_kubernetes"],
             "mongodb": ["iiiot_veda_mongodb"], "mysql": ["iiiot_veda_mysql"], "redis": ["iiiot_veda_redis"],
-            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "postgresql": ["iiiot_veda_postgresql"], "win-eventlog": ["iiiot_veda_win_eventlog"], "influxdb": ["iiiot_veda_influxdb"], "internal": ["iiiot_veda_internal"], "exec": ["iiiot_veda_exec"],
+            "sql": ["iiiot_veda_sql"], "sqlserver": ["iiiot_veda_sqlserver"], "postgresql": ["iiiot_veda_postgresql"], "win-eventlog": ["iiiot_veda_win_eventlog"], "influxdb": ["iiiot_veda_influxdb"], "internal": ["iiiot_veda_internal"], "github": ["iiiot_veda_github"], "exec": ["iiiot_veda_exec"], "execd": ["iiiot_veda_execd"], "file": ["iiiot_veda_file"], "socket-listener": ["iiiot_veda_socket_listener"],
             "http": ["iiiot_veda_http"], "http-listener": ["iiiot_veda_http_listener"], "nvidia": ["iiiot_veda_nvidia"],
             "s7": ["iiiot_veda_s7"], "syslog": ["iiiot_veda_syslog"], "cisco-telemetry": ["iiiot_veda_cisco_telemetry"],
             "system": ["iiiot_veda_system_extended"], "opentelemetry": ["iiiot_veda_opentelemetry"],
             "nginx": ["iiiot_veda_nginx"], "csv": ["iiiot_veda_csv"], "grok": ["iiiot_veda_grok"],
-            "monitoring": ["telegraf_cpu", "telegraf_mem", "telegraf_disk", "telegraf_net", "telegraf_mqtt", "telegraf_modbus", "telegraf_opcua", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis", "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_internal", "iiiot_veda_exec", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7", "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok"],
+            "monitoring": ["telegraf_cpu", "telegraf_mem", "telegraf_disk", "telegraf_net", "telegraf_mqtt", "telegraf_modbus", "telegraf_opcua", "iiiot_veda_docker", "iiiot_veda_kubernetes", "iiiot_veda_mongodb", "iiiot_veda_mysql", "iiiot_veda_redis", "iiiot_veda_sql", "iiiot_veda_sqlserver", "iiiot_veda_influxdb", "iiiot_veda_internal", "iiiot_veda_github", "iiiot_veda_exec", "iiiot_veda_execd", "iiiot_veda_file", "iiiot_veda_socket_listener", "iiiot_veda_http", "iiiot_veda_http_listener", "iiiot_veda_nvidia", "iiiot_veda_s7", "iiiot_veda_syslog", "iiiot_veda_cisco_telemetry", "iiiot_veda_system_extended", "iiiot_veda_opentelemetry", "iiiot_veda_nginx", "iiiot_veda_csv", "iiiot_veda_grok"],
         }[plugin]
         manifest = {
             "plugin": f"IIIOT-Veda {plugin.replace('-', ' ').title()}",
@@ -881,7 +925,7 @@ def build_bundle(target_os: str, architecture: str, telegraf_installer: Path, ou
             "telemetry_destination": "influxdb3",
             "measurement": tables[0],
             "measurements": tables,
-            "bundle_revision": 7,
+            "bundle_revision": 8,
         }
         (staging / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
